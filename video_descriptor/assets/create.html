@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Создать конспект</title>
+<link rel="stylesheet" href="/studio-assets/create.css">
+<body>
+<header><a href="/output/">← Все лекции</a><span class="eyebrow">VIDEO DESCRIPTOR · МАСТЕРСКАЯ</span>
+<h1>Из видео — в понятный конспект</h1><p>Речь, слайды и главные мысли. Наблюдайте, как собирается ваша лекция.</p></header>
+<section id="setup" class="setup" aria-label="Новое видео">
+<form id="upload-form">
+<label class="file-drop" id="drop-zone"><span class="upload-icon">↑</span><strong id="file-label">Выберите или перетащите видео</strong><span>MP4, MKV, MOV, WebM · до 4 ГБ</span><input id="video-file" type="file" accept=".mp4,.mkv,.mov,.webm" required></label>
+<div class="upload-options"><label>Название лекции<input id="lecture-name" maxlength="200" placeholder="Например: Основы AWS"></label>
+<label class="check"><input id="thinking-option" type="checkbox"> Включить рассуждения модели <small>Обработка будет дольше</small></label>
+<button id="start" class="primary" type="submit">Создать конспект →</button></div>
+</form><progress id="upload-progress" max="100" value="0" hidden></progress>
+<p id="upload-status" role="status" hidden></p>
+<div class="existing"><label>Уже обрабатывается?<select id="existing-runs"><option value="">Выберите видео</option></select></label><span>Можно наблюдать за запуском из терминала.</span></div>
+<div id="job-list"></div>
+</section>
+<button id="toggle-upload" hidden>＋ Другое видео / новый конспект</button>
+<main id="workspace" hidden>
+<div class="run-heading"><div><span class="eyebrow">СЕЙЧАС В РАБОТЕ</span><h2 id="run-title"></h2></div><span id="run-state" class="badge">Подготовка</span></div>
+<ol class="steps" id="steps"><li>Проверка</li><li>Речь</li><li>Слайды</li><li>Конспект</li><li>Отчёт</li><li>Перевод</li></ol>
+<div class="progress-line"><span id="stage-label">Ожидание запуска</span><span id="position-label"></span></div>
+<progress id="stage-progress" max="100" value="0"></progress>
+<p id="run-message" role="status"></p>
+<div class="columns">
+<div class="left-column"><p class="hint">Исходники для просмотра. Точный состав отправленного запроса — справа, в «Что отправили модели».</p>
+<section class="player-card"><video id="process-video" controls preload="metadata"></video>
+<div class="follow"><label><input id="follow" type="checkbox" checked> Следовать обработке</label><span id="video-clock">00:00</span></div>
+<input id="timeline" type="range" min="0" max="1" step="0.1" value="0" aria-label="Позиция в видео">
+<p class="hint">Указатель следует за реально обработанным фрагментом. Снимите галочку, чтобы смотреть видео самостоятельно.</p></section>
+<section><div class="card-heading"><h3>Речь в текущем фрагменте</h3><span id="speech-count" class="counter">0 реплик</span></div><div id="speech-feed" class="feed"><p class="empty">Здесь будут появляться реплики с таймкодами.</p></div></section>
+<section><div class="card-heading"><h3>Кадры текущего фрагмента · OCR</h3><span id="frame-count" class="counter">0 кадров</span></div><div id="frame-feed" class="frame-feed"><p class="empty">Выбранные кадры появятся после анализа экрана.</p></div></section>
+</div>
+<div class="right-column">
+<section><div class="card-heading"><h3>Конспект собирается</h3><span id="notes-count" class="counter">0 заметок</span></div><p id="notes-caption" class="hint">Здесь появляются заметки после завершения и проверки блока.</p><div id="notes-feed"><p class="empty">Сначала распознаем речь и прочитаем слайды, затем выделим главные мысли.</p></div></section>
+<section class="model-card"><div class="card-heading"><h3>Работа модели</h3><span id="task-label" class="counter">Ожидание</span></div><div id="request-stats" class="stats"></div>
+<label class="check"><input id="live-thinking" type="checkbox"> Рассуждения в следующих запросах</label><p id="thinking-control-status" class="hint" role="status">Изменение применяется со следующего запроса. Текущий запрос завершится в прежнем режиме.</p>
+<details id="request-panel"><summary>Что отправили модели</summary><p class="hint">Точный запрос из журнала. Для каждой задачи промпт и материал могут отличаться. Слева — исходный фрагмент видео для просмотра.</p><div id="request-feed"><p class="empty">Запрос появится после обращения к модели.</p></div></details>
+<details open><summary>Рассуждения</summary><pre id="thinking-feed">Текст появится, если модель передаёт рассуждения.</pre></details>
+<details><summary>Текущий ответ модели · ещё не проверен</summary><pre id="response-feed">Ожидаем ответ.</pre></details></section>
+<section id="errors-card" hidden><h3>Фрагменты, требующие проверки</h3><div id="errors-feed"></div></section>
+</div></div>
+<div class="finish-actions"><a id="open-report" class="primary" hidden>Открыть конспект →</a><button id="retry-job" hidden>Продолжить из кэша</button></div>
+<details class="log-panel"><summary>Подробный журнал</summary><pre id="log-feed"></pre></details>
+</main>
+<dialog id="image-viewer" aria-label="Увеличенное изображение"><button id="close-image" type="button" aria-label="Закрыть изображение">✕</button><img id="large-image" alt=""><p id="image-caption"></p></dialog>
+<script src="/studio-assets/create.js"></script>
+</body></html>

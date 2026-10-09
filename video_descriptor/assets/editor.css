@@ -1,0 +1,33 @@
+body{max-width:1480px;padding:0 24px;color:#202b3b}
+h1{font-size:25px;margin-bottom:4px}h2,h3{line-height:1.35}
+#title-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+#title-input{font:inherit;padding:7px 10px;border:1px solid #b9c6d9;border-radius:6px;max-width:100%;width:300px}
+#title-status{font-size:14px;color:#596579;margin:6px 0}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;align-items:start}
+.watch-pane{position:sticky;top:16px;min-width:0}.read-pane{min-width:0}
+.player{position:static;padding:0}.player video{max-height:45vh;border-radius:12px}
+#caption{font-size:15px}#caption p{margin:5px 0}
+.watch-pane section{margin:12px 0;padding:16px}.transcript{max-height:28vh}
+.notes-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.notes-toolbar button[aria-pressed=true]{background:#1557aa;color:white}
+.notes-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+button:disabled{opacity:.45;cursor:default}button:hover:not(:disabled){filter:brightness(.96)}
+#personal-notes{margin:0;padding:20px;border:1px solid #e2e7ef;box-shadow:0 6px 24px #18294308}
+#editor-status{font-size:14px;color:#596579;min-height:1.6em;margin:6px 0}
+#personal-outline{max-height:180px;overflow:auto;margin:12px 0;border-bottom:1px solid #e2e7ef}
+.notes-fold{margin:12px 0;padding:10px 14px;border:1px solid #dfe5ed;border-radius:8px;background:#fafbfd}
+.notes-fold>summary{cursor:pointer;font-weight:600;color:#1557aa}
+.notes-fold[open]>summary{margin-bottom:12px}
+.outline-row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.outline-row>button:first-child{text-align:left;background:transparent;flex:1;padding:5px}
+.outline-delete{font-size:12px;color:#a13131}
+[data-editing=false] .outline-delete{display:none}
+#personal-preview{line-height:1.75;overflow-wrap:anywhere}
+#personal-preview h2{font-size:21px;margin-top:32px}#personal-preview h3{font-size:18px;margin-top:24px}
+#personal-preview pre{background:#f1f4f8;padding:12px;border-radius:8px}
+#personal-preview blockquote{border-left:3px solid #99b2d9;margin-left:0;padding-left:16px;color:#526174}
+#personal-preview table{border-collapse:collapse;width:100%}#personal-preview td,#personal-preview th{border:1px solid #dfe5ed;padding:6px}
+#personal-preview li{margin:5px 0}.CodeMirror{font-size:15px;line-height:1.65}
+.editor-toolbar button{color:#202b3b;font:600 16px system-ui}
+[hidden]{display:none!important}
+@media(max-width:900px){body{padding:0 12px;margin-top:12px}.workspace{display:block}.watch-pane{position:static}.read-pane{margin-top:16px}.player video{max-height:40vh}}

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-descriptor"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.6,<3", "requests>=2.32,<3", "faster-whisper>=1.1,<2", "av>=11,<19", "opencv-python-headless>=4.10,<5"]
+
+[project.scripts]
+video-descriptor = "video_descriptor.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["video_descriptor*"]
+
+[tool.setuptools.package-data]
+video_descriptor = ["prompts/*.txt", "assets/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

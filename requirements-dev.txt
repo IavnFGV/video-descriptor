@@ -1,0 +1,10 @@
+# Initial compatible ranges; freeze resolved versions after the first verified build.
+pydantic>=2.6,<3
+typer>=0.12,<1
+requests>=2.32,<3
+faster-whisper>=1.1,<2
+# faster-whisper 1.2.1 passes metadata_errors, removed in PyAV 19.
+av>=11,<19
+opencv-python-headless>=4.10,<5
+pytest>=8,<9
+ruff>=0.11,<1

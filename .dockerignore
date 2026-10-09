@@ -1,0 +1,4 @@
+*
+!requirements-dev.txt
+!.devcontainer/
+!.devcontainer/Dockerfile
