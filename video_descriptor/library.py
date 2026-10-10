@@ -68,23 +68,27 @@ def library_page(output):
     cards = []
     for score, folder in sorted(lectures.values(), key=lambda item: item[1].name):
         info = lecture_info(folder)
-        ready = (folder / "report.html").is_file()
-        url = "/output/" + quote(folder.name) + ("/report.html" if ready else "/")
-        status = "Отчёт готов" if ready else "Отчёт ещё не создан"
+        ready = ((folder / "report.html").is_file()
+                 and (not (folder / "speech.json").is_file() or (folder / "notes.json").is_file()))
+        url = "/create?folder=" + quote(folder.name)
+        status = "Конспект готов" if ready else "Конспект ещё не создан"
         if (ready and (folder / "analysis-errors.json").exists()
                 and json.loads((folder / "analysis-errors.json").read_text())):
-            status = "Отчёт с пропущенными фрагментами"
+            status = "Конспект с пропущенными фрагментами"
         if not score[0]:
-            status += " · фрагмент видео"
+            status += " · фрагмент записи"
+        report_link = (f' · <a href="{url}&amp;stage=notes">Читать конспект →</a>'
+                       if ready else "")
         cards.append(f'<article><a href="{url}">{html.escape(info["display"])}</a>'
-                     f'<p>{status}</p><a href="/create?folder={quote(folder.name)}">Ход обработки →</a></article>')
+                     f'<p>{status}</p><a href="{url}">Открыть запись →</a>'
+                     f'{report_link}</article>')
     return ('<!doctype html><html lang="ru"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>Лекции</title><style>body{font:16px/1.6 system-ui;max-width:1000px;'
+            '<title>Материалы</title><style>body{font:16px/1.6 system-ui;max-width:1000px;'
             'margin:32px auto;padding:0 20px;background:#f7f8fa;color:#202b3b}'
             'article{background:white;border:1px solid #e2e7ef;border-radius:12px;'
             'padding:20px;margin:16px 0}a{color:#1557aa;overflow-wrap:anywhere}'
             'article>a{font-size:20px;font-weight:600}p{color:#596579;margin-bottom:0}</style>'
-            '<h1>Лекции</h1><p><a href="/create">＋ Создать конспект</a></p>'
-            '<p>Откройте отчёт, чтобы читать конспект и изменить название лекции.</p>'
+            '<h1>Материалы</h1><p><a href="/create">＋ Новая запись</a></p>'
+            '<p>Откройте запись для просмотра речи и обработки и конспекта.</p>'
             + ("".join(cards) or '<p>Готовых материалов пока нет.</p>') + '</html>')

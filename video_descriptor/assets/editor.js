@@ -49,6 +49,7 @@
   try { sectionsOpen = localStorage.getItem(sectionsKey) === 'true'; } catch (_) {}
   const draftKey = 'video-descriptor-draft:' + location.pathname;
   let revision = null, savedText = '', dirty = false, loading = true, saving = false;
+  window.notesEditorDirty = () => dirty;
   let editing = false, timer;
   const editor = new EasyMDE({
     element: document.getElementById('notes-editor'),
@@ -100,6 +101,7 @@
       heading.id = 'personal-heading-' + index;
       const time = timeOf(heading.textContent);
       if (time !== null) {
+        heading.dataset.noteTime = time;
         const jump = document.createElement('button');
         jump.textContent = '▶'; jump.dataset.time = time;
         jump.title = 'Перейти к этому месту видео'; heading.prepend(jump, ' ');
@@ -195,7 +197,7 @@
   saveButton.addEventListener('click', save);
   document.getElementById('download-notes').addEventListener('click', () => download(editor.value()));
   document.getElementById('add-section').addEventListener('click', () => {
-    const time = Math.floor(document.getElementById('video').currentTime || 0);
+    const time = Math.floor((window.reportPlayer || document.getElementById('video')).currentTime || 0);
     const stamp = [Math.floor(time / 3600), Math.floor(time / 60) % 60, time % 60]
       .map(part => String(part).padStart(2, '0')).join(':');
     const cm = editor.codemirror, last = cm.lastLine();

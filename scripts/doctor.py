@@ -15,6 +15,7 @@ import urllib.request
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ollama", action="store_true", help="Query configured Ollama server")
+    parser.add_argument("--whisper", action="store_true", help="Check the Windows NPU worker")
     args = parser.parse_args()
     failures = []
     print(f"Python: {sys.version.split()[0]}")
@@ -49,6 +50,17 @@ def main() -> int:
         except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError) as exc:
             print(f"Ollama check failed: {exc}")
             failures.append("Ollama connection")
+    if args.whisper:
+        base = os.environ.get("WHISPER_HTTP_URL", "http://host.docker.internal:8765").rstrip("/")
+        try:
+            with urllib.request.urlopen(base + "/health", timeout=5) as response:
+                info = json.load(response)
+            if (info.get("protocol"), info.get("device"), info.get("model")) != (1, "NPU", "base.en"):
+                raise ValueError("Expected protocol=1, device=NPU, model=base.en")
+            print(f"Whisper worker: {base}, NPU, {info['model']}, {info.get('pipeline')}")
+        except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError) as exc:
+            print(f"Whisper check failed: {exc}; start start_whisper_npu.ps1 in Windows")
+            failures.append("Windows NPU worker")
     if failures:
         print("Checks failed: " + ", ".join(failures))
         return 1

@@ -60,6 +60,12 @@ def audio_tail(audio: Path, offset: float):
 
 
 def transcribe(audio: Path, start: float, duration: float, model: str, language: str, log):
+    backend = os.getenv("WHISPER_BACKEND", "faster-whisper")
+    if backend == "openvino-http":
+        from .whisper_http import transcribe_remote
+        return transcribe_remote(audio, start, duration, model, language, log)
+    if backend != "faster-whisper":
+        raise ValueError(f"Неизвестный WHISPER_BACKEND: {backend}")
     from faster_whisper import WhisperModel
 
     device = os.getenv("WHISPER_DEVICE", "cpu")

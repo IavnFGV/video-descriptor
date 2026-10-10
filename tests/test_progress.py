@@ -57,3 +57,16 @@ def test_connection_failure_clears_waiting_state(monkeypatch):
     log("ошибка")
     assert "ошибка соединения" in messages[-1]
     assert log.state["request_started"] is None
+
+
+def test_cpu_override_is_sent_without_affecting_default(monkeypatch):
+    response = Mock()
+    response.iter_lines.return_value = [b'{"done":true,"message":{"content":"{}"}}']
+    post = Mock(return_value=response)
+    monkeypatch.setattr("video_descriptor.notes.requests.post", post)
+    log = ProgressLog(lambda message: None, "lecture")
+    chat_json("prompt", [], {}, "model", "http://local", log)
+    assert "num_gpu" not in post.call_args.kwargs["json"]["options"]
+    log.num_gpu = 0
+    chat_json("prompt", [], {}, "model", "http://local", log)
+    assert post.call_args.kwargs["json"]["options"]["num_gpu"] == 0

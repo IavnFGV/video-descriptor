@@ -1,4 +1,6 @@
 .venv/
+.venv-diarization/
+.venv-diarization-xpu/
 venv/
 __pycache__/
 *.py[cod]
@@ -24,3 +26,15 @@ cache/
 *.egg-info/
 build/
 dist/
+/*-handoff-*.zip
+/openvino-*.json
+/HANDOFF_WHISPER_SMALL_FRIGG.md
+/wsl
+
+/.devcontainer/translation-settings.json
+/.devcontainer/translation-settings.tmp
+/.devcontainer/model-prompts.json
+/.devcontainer/model-prompts.tmp
+/.devcontainer/construction-settings.json
+/.devcontainer/construction-settings.tmp
+/.devcontainer/construction-presets/

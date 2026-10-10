@@ -31,3 +31,5 @@ button:disabled{opacity:.45;cursor:default}button:hover:not(:disabled){filter:br
 .editor-toolbar button{color:#202b3b;font:600 16px system-ui}
 [hidden]{display:none!important}
 @media(max-width:900px){body{padding:0 12px;margin-top:12px}.workspace{display:block}.watch-pane{position:static}.read-pane{margin-top:16px}.player video{max-height:40vh}}
+
+#personal-preview [data-note-time]{scroll-margin-top:20px}#personal-preview .current-note{background:#eaf1ff;outline:2px solid #2563eb;border-radius:6px}

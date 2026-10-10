@@ -1,51 +1,100 @@
 <!doctype html>
 <html lang="ru">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Создать конспект</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Запись · Video Descriptor</title>
 <link rel="stylesheet" href="/studio-assets/create.css">
 <body>
-<header><a href="/output/">← Все лекции</a><span class="eyebrow">VIDEO DESCRIPTOR · МАСТЕРСКАЯ</span>
-<h1>Из видео — в понятный конспект</h1><p>Речь, слайды и главные мысли. Наблюдайте, как собирается ваша лекция.</p></header>
-<section id="setup" class="setup" aria-label="Новое видео">
-<form id="upload-form">
-<label class="file-drop" id="drop-zone"><span class="upload-icon">↑</span><strong id="file-label">Выберите или перетащите видео</strong><span>MP4, MKV, MOV, WebM · до 4 ГБ</span><input id="video-file" type="file" accept=".mp4,.mkv,.mov,.webm" required></label>
-<div class="upload-options"><label>Название лекции<input id="lecture-name" maxlength="200" placeholder="Например: Основы AWS"></label>
-<label class="check"><input id="thinking-option" type="checkbox"> Включить рассуждения модели <small>Обработка будет дольше</small></label>
-<button id="start" class="primary" type="submit">Создать конспект →</button></div>
-</form><progress id="upload-progress" max="100" value="0" hidden></progress>
-<p id="upload-status" role="status" hidden></p>
-<div class="existing"><label>Уже обрабатывается?<select id="existing-runs"><option value="">Выберите видео</option></select></label><span>Можно наблюдать за запуском из терминала.</span></div>
-<div id="job-list"></div>
-</section>
-<button id="toggle-upload" hidden>＋ Другое видео / новый конспект</button>
-<main id="workspace" hidden>
-<div class="run-heading"><div><span class="eyebrow">СЕЙЧАС В РАБОТЕ</span><h2 id="run-title"></h2></div><span id="run-state" class="badge">Подготовка</span></div>
-<ol class="steps" id="steps"><li>Проверка</li><li>Речь</li><li>Слайды</li><li>Конспект</li><li>Отчёт</li><li>Перевод</li></ol>
+<header class="studio-header"><a href="/output/">← Материалы</a><button id="open-connections" type="button">Подключения</button><h1>Запись</h1><p>Источник, речь и конспект — в одном месте. Нажмите на этап, чтобы открыть результат и его настройки.</p></header>
+<div class="record-toolbar"><label id="record-versions" hidden>Версии этого видео<select id="existing-runs"><option value="">Выберите версию</option></select></label><details id="record-menu" class="record-menu" hidden><summary aria-label="Действия с версией">⋯</summary><button id="delete-version" class="danger" type="button" hidden>Удалить версию целиком</button></details><button id="toggle-upload" hidden>＋ Новая запись</button></div>
+<nav id="steps" class="stage-tabs" role="tablist" aria-label="Этапы записи">
+<button id="tab-source" type="button" role="tab" data-stage="source" aria-controls="stage-source" aria-selected="true">Источник <span id="state-source">Выберите файл</span></button>
+<button id="tab-speech" type="button" role="tab" data-stage="speech" aria-controls="stage-speech" aria-selected="false" tabindex="-1">Речь <span id="state-speech">Настройки и расшифровка</span></button>
+<button id="tab-notes" type="button" role="tab" data-stage="notes" aria-controls="stage-notes" aria-selected="false" tabindex="-1">Конспект <span id="state-notes">Стратегия и редактор</span></button>
+</nav>
+<main id="workspace" hidden><div class="run-heading"><h2 id="run-title"></h2><span id="run-state" class="badge">Подготовка</span></div>
 <div class="progress-line"><span id="stage-label">Ожидание запуска</span><span id="position-label"></span></div>
 <progress id="stage-progress" max="100" value="0"></progress>
 <p id="run-message" role="status"></p>
-<div class="columns">
-<div class="left-column"><p class="hint">Исходники для просмотра. Точный состав отправленного запроса — справа, в «Что отправили модели».</p>
-<section class="player-card"><video id="process-video" controls preload="metadata"></video>
-<div class="follow"><label><input id="follow" type="checkbox" checked> Следовать обработке</label><span id="video-clock">00:00</span></div>
-<input id="timeline" type="range" min="0" max="1" step="0.1" value="0" aria-label="Позиция в видео">
-<p class="hint">Указатель следует за реально обработанным фрагментом. Снимите галочку, чтобы смотреть видео самостоятельно.</p></section>
-<section><div class="card-heading"><h3>Речь в текущем фрагменте</h3><span id="speech-count" class="counter">0 реплик</span></div><div id="speech-feed" class="feed"><p class="empty">Здесь будут появляться реплики с таймкодами.</p></div></section>
-<section><div class="card-heading"><h3>Кадры текущего фрагмента · OCR</h3><span id="frame-count" class="counter">0 кадров</span></div><div id="frame-feed" class="frame-feed"><p class="empty">Выбранные кадры появятся после анализа экрана.</p></div></section>
-</div>
-<div class="right-column">
-<section><div class="card-heading"><h3>Конспект собирается</h3><span id="notes-count" class="counter">0 заметок</span></div><p id="notes-caption" class="hint">Здесь появляются заметки после завершения и проверки блока.</p><div id="notes-feed"><p class="empty">Сначала распознаем речь и прочитаем слайды, затем выделим главные мысли.</p></div></section>
-<section class="model-card"><div class="card-heading"><h3>Работа модели</h3><span id="task-label" class="counter">Ожидание</span></div><div id="request-stats" class="stats"></div>
-<label class="check"><input id="live-thinking" type="checkbox"> Рассуждения в следующих запросах</label><p id="thinking-control-status" class="hint" role="status">Изменение применяется со следующего запроса. Текущий запрос завершится в прежнем режиме.</p>
-<details id="request-panel"><summary>Что отправили модели</summary><p class="hint">Точный запрос из журнала. Для каждой задачи промпт и материал могут отличаться. Слева — исходный фрагмент видео для просмотра.</p><div id="request-feed"><p class="empty">Запрос появится после обращения к модели.</p></div></details>
-<details open><summary>Рассуждения</summary><pre id="thinking-feed">Текст появится, если модель передаёт рассуждения.</pre></details>
-<details><summary>Текущий ответ модели · ещё не проверен</summary><pre id="response-feed">Ожидаем ответ.</pre></details></section>
-<section id="errors-card" hidden><h3>Фрагменты, требующие проверки</h3><div id="errors-feed"></div></section>
-</div></div>
-<div class="finish-actions"><a id="open-report" class="primary" hidden>Открыть конспект →</a><button id="retry-job" hidden>Продолжить из кэша</button></div>
-<details class="log-panel"><summary>Подробный журнал</summary><pre id="log-feed"></pre></details>
+<p id="translation-summary" hidden></p>
+<div id="translation-blocks-panel" hidden><div id="translation-blocks" class="block-dots" aria-label="Состояние блоков перевода"></div><p class="block-legend">🟢 Готово · ⚪ Ожидает · 🟠 Повтор после сбоя · 🔵 Сейчас в работе · 🔴 Ошибка</p></div>
 </main>
+<div class="studio-layout"><aside id="shared-player" hidden><section class="player-card"><video id="process-video" controls preload="metadata"></video>
+<div class="follow"><label id="follow-control"><input id="follow" type="checkbox" checked> Следовать обработке</label><span id="video-clock">00:00</span></div>
+<p id="follow-hint" class="hint">Указатель следует за реально обработанным фрагментом. Снимите галочку, чтобы смотреть видео самостоятельно.</p></section><section><h3>Источник</h3><dl id="source-info"></dl><form id="source-title-form" class="stage-settings"><label>Название записи<input id="source-title" maxlength="200"></label><button type="submit">Сохранить название</button><p id="source-title-status" class="hint" role="status"></p></form></section></aside><div class="stage-content">
+<div id="stage-source" role="tabpanel" aria-labelledby="tab-source" data-stage-panel="source">
+<section id="setup" class="setup" aria-label="Новая запись">
+<form id="upload-form">
+<label class="file-drop" id="drop-zone"><span class="upload-icon">↑</span><strong id="file-label">Выберите или перетащите запись</strong><span>Видео или аудио · до 4 ГБ</span><input id="video-file" type="file" accept=".mp4,.mkv,.mov,.webm,.wav,.mp3,.m4a,.flac,.ogg"></label>
+<div class="upload-options"><label>Или файл из data<select id="source-file"><option value="">Выберите запись</option></select></label><label>Название записи<input id="lecture-name" maxlength="200" placeholder="Например: Основы AWS"></label>
+<button id="start" class="primary" type="submit">Обработать запись →</button></div>
+</form><progress id="upload-progress" max="100" value="0" hidden></progress>
+<p id="upload-status" role="status" hidden></p>
+</section>
+<p class="hint">Проверка файла выполняется автоматически. Настройки речи и конспекта доступны на соседних этапах до запуска.</p>
+<details class="queue-panel"><summary>Очередь обработки</summary><div id="job-list"></div></details>
+</div>
+<div id="stage-speech" role="tabpanel" aria-labelledby="tab-speech" data-stage-panel="speech" hidden>
+<section><details id="speech-settings" open><summary>Настройки речи</summary><div class="stage-settings"><label id="speech-engine-label">Обработчик речи<select id="speech-engine"><option value="whisper-npu-diarization-xpu">Whisper small NPU → Intel GPU: голоса</option><option value="whisper-npu">Whisper small NPU · текст</option><option value="gemini-diarization-xpu">Gemini: текст → Intel GPU: голоса</option><option value="whisper-diarization-xpu">Whisper small CPU → Intel GPU: голоса</option><option value="gemini">Gemini · текст и голоса</option><option value="whisper-diarization">Whisper + pyannote · CPU</option><option value="whisper" selected>Whisper small · CPU</option></select><small>Gemini отправляет аудио в Google и использует сохранённый ключ из «Подключений». Локальные обработчики с голосами требуют pyannote; Intel GPU — подготовленного XPU-окружения, NPU — Windows-сервиса Whisper.</small></label><button id="rerun-speech" type="button" disabled>Создать новую версию речи</button><p id="speech-settings-status" class="hint" role="status">Выберите обработчик для новой записи. Повторный запуск сохраняет предыдущий результат.</p></div></details></section>
+<section><p id="speaker-notice" class="hint" hidden></p><div class="card-heading"><h3 id="speech-heading">Речь в текущем фрагменте</h3><span id="speech-count" class="counter">0 реплик</span></div><div class="subtitle-tools"><label id="subtitle-mode-label" hidden>Показать <select id="subtitle-mode"><option value="both">Оригинал и перевод</option><option value="original">Оригинал</option><option value="ru">Перевод</option></select></label><button id="toggle-speaker-names" type="button" aria-expanded="false" aria-controls="speaker-settings" hidden>Назвать голоса</button><a id="download-transcript" hidden download>Транскрипт TXT ↓</a><a id="download-subtitles" hidden download>Субтитры ↓</a><a id="download-translation" hidden download>Перевод ↓</a></div><div id="speaker-settings" hidden><form id="speaker-names-form"><div id="speaker-names"></div><button type="submit">Сохранить имена</button><p id="speaker-names-status" class="hint" role="status"></p></form></div><div id="speech-feed" class="feed"><p class="empty">Здесь будут появляться реплики с таймкодами.</p></div></section><section><details id="translation-settings-panel"><summary>Перевод</summary><form id="translation-settings-form" class="translation-settings">
+<label>Переводчик<select id="translation-provider"><option value="ollama">Локально · Ollama</option><option value="gemini">Google · Gemini API</option></select></label>
+<label id="translation-local-label">Локальная модель<input id="translation-local-model" value="qwen3.5:9b" maxlength="150"></label><label id="translation-gemini-label">Модель Gemini<select id="gemini-model"><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option></select></label>
+<button type="button" id="load-gemini-models">Обновить доступные модели</button>
+<button type="submit">Сохранить настройки перевода</button><p id="translation-settings-status" role="status"></p>
+<p class="hint">Настройки применяются со следующего блока; готовые переводы сохраняются. Для некоторых моделей тариф в интерфейсе пока неизвестен.</p>
+</form></details></section>
+</div>
+<div id="stage-notes" role="tabpanel" aria-labelledby="tab-notes" data-stage-panel="notes" hidden>
+<section><div class="construction-actions"><button id="new-notes" type="button" hidden>Создать новый конспект</button><button id="delete-notes" class="danger" type="button" hidden>Удалить конспект</button></div><p id="notes-action-status" class="hint" role="status"></p><details id="notes-settings" open><summary>Настройки конспекта</summary><div id="construction-panel"><form id="construction-settings-form" class="construction-settings">
+<div class="construction-options"><label>Материал конспекта<select id="construction-input"><option value="speech">По речи</option><option value="slides">По речи и тексту слайдов</option></select></label>
+<label>Характер материала<select id="construction-material"><option value="lecture">Учебная лекция</option><option value="conversation">Разговорная лекция</option></select></label>
+<label>Модель для конспекта<select id="construction-provider"><option value="ollama">Локально · Ollama</option><option value="gemini">Google · Gemini</option></select></label>
+<label>Название модели<input id="construction-model" list="construction-models" value="qwen3.5:9b" required><datalist id="construction-models"></datalist></label>
+<label>Обработка<select id="construction-strategy"><option value="auto">Автоматически</option><option value="whole">Весь текст одним запросом</option><option value="chunks">По частям с объединением</option></select></label>
+</div>
+<button id="construction-load-models" type="button">Обновить список моделей</button>
+<p class="hint">Модель конспекта выбирается отдельно от переводчика. Gemini использует сохранённый API-ключ. В запрос передаётся расшифровка; при выборе слайдов добавляется их распознанный текст. Картинки и целое видео этот способ построения пока не отправляет.</p>
+<details><summary>Инструкция модели · редактировать</summary><label>Промпт<textarea id="construction-prompt" rows="12" required maxlength="50000"></textarea></label><button id="construction-reset-prompt" type="button">Стандартный для этого материала</button></details>
+<details><summary>Разбиение и лимиты модели</summary><div class="construction-options">
+<label>Границы частей<select id="construction-grouping"><option value="auto">Автоматически</option><option value="slides">По смене слайда</option><option value="speech">По паузам в речи</option><option value="time">По времени</option></select></label>
+<label>Контекст модели, токенов<input id="construction-context" type="number" min="4096" max="2097152" value="16384" required></label>
+<label>Предел ответа, токенов<input id="construction-output" type="number" min="512" max="65536" value="4096" required></label>
+<label>Целевая длина части, секунд<input id="construction-chunk" type="number" min="30" max="3600" value="180" required></label>
+<label>Максимальная длина части, секунд<input id="construction-max-chunk" type="number" min="60" max="7200" value="600" required></label>
+<label>Максимальный текст части, символов<input id="construction-max-chars" type="number" min="1000" max="1000000" value="18000" required></label>
+</div></details>
+<p id="construction-plan" role="status">Выберите готовую запись, чтобы оценить размер и способ обработки.</p>
+<p class="hint">До запуска показываем оценку размера. Контекст включает место для инструкции и ответа. При запуске проверяем лимиты модели; для Gemini дополнительно считаем точные токены. Обработка частей заканчивается общим конспектом и оглавлением; большие промежуточные результаты объединяются в несколько проходов.</p>
+<div class="construction-actions"><button id="construction-save" type="submit" disabled>Сохранить настройки</button><button id="construction-preview" type="button" disabled>Проверить план</button><button id="construction-run" type="button" disabled>Создать новый конспект</button><a id="construction-download" hidden download>Конспект Markdown ↓</a></div>
+<p id="construction-status" role="status">Загружаем настройки…</p>
+</form></div></details></section>
+<section id="report-editor-card" hidden><div class="card-heading"><h3>Конспект</h3><label id="notes-variant-label" hidden>Вариант<select id="notes-variant"></select></label></div><p id="report-version-notice" class="hint" hidden></p><iframe id="report-editor" title="Чтение и редактирование конспекта"></iframe></section>
+<section id="notes-card"><div class="card-heading"><h3>Конспект</h3><span id="notes-count" class="counter">0 заметок</span></div><p id="notes-caption" class="hint">Здесь появляются заметки после завершения и проверки блока.</p><div id="notes-feed"><p class="empty">Заметки появятся после обработки материала.</p></div></section><details id="slide-material" hidden><summary>Материал слайдов</summary><section id="frames-card"><div class="card-heading"><h3>Кадры текущего фрагмента · OCR</h3><span id="frame-count" class="counter">0 кадров</span></div><div id="frame-feed" class="frame-feed"><p class="empty">Выбранные кадры появятся после анализа экрана.</p></div></section></details>
+<section><details id="prompt-settings-panel"><summary>Промпты вспомогательных задач · редактировать</summary>
+<form id="prompt-settings-form" class="prompt-settings">
+<label>Задача<select id="prompt-task"></select></label>
+<label>Инструкция модели<textarea id="model-prompt" rows="16" required maxlength="50000"></textarea></label>
+<p class="hint">Сохранённый промпт используется в следующих блоках обработки. Текущий запрос и готовые результаты сохраняются. В лекционном режиме оставляйте требования к полям ответа и ссылкам на источники.</p>
+<div><button id="save-prompt" type="submit" disabled>Сохранить промпт</button> <button id="reset-prompt" type="button" disabled>Вернуть стандартный</button></div>
+<p id="prompt-status" role="status">Загружаем промпты…</p>
+</form></details></section>
+</div></div></div>
+<div class="finish-actions"><button id="retry-job" hidden>Продолжить из кэша</button></div>
+<details id="diagnostics" class="log-panel" hidden><summary>Подробности обработки</summary><p id="source-hint" class="hint">Запросы модели и журнал обработки.</p><section id="model-card" class="model-card"><div class="card-heading"><h3 id="processing-title">Текущий этап</h3><span id="task-label" class="counter">Ожидание</span></div><p id="processing-message" class="hint"></p><div id="request-stats" class="stats"></div>
+<div id="thinking-controls" hidden><label class="check"><input id="live-thinking" type="checkbox"> Рассуждения в следующих запросах</label><p id="thinking-control-status" class="hint" role="status">Изменение применяется со следующего запроса. Текущий запрос завершится в прежнем режиме.</p></div>
+<details id="request-panel"><summary>Что отправили модели</summary><p class="hint">Точный запрос из журнала. <a href="#prompt-settings-panel" id="open-prompt-settings">Редактировать промпты следующих запросов</a>. Слева — исходный фрагмент видео для просмотра.</p><div id="request-feed"><p class="empty">Запрос появится после обращения к модели.</p></div></details>
+<details id="thinking-panel" open hidden><summary>Рассуждения</summary><pre id="thinking-feed">Текст появится, если модель передаёт рассуждения.</pre></details>
+<details id="response-panel" hidden><summary>Текущий ответ модели · ещё не проверен</summary><pre id="response-feed">Ожидаем ответ.</pre></details></section><section id="errors-card" hidden><h3>Фрагменты, требующие проверки</h3><div id="errors-feed"></div></section><details><summary>Журнал</summary><pre id="log-feed"></pre></details></details>
+<dialog id="connections-dialog" aria-labelledby="connections-title"><form id="connections-form" class="translation-settings"><div class="card-heading"><h2 id="connections-title">Подключения</h2><button id="close-connections" type="button" aria-label="Закрыть">✕</button></div><label>API-ключ Gemini<input id="gemini-key" type="password" autocomplete="new-password" placeholder="Новый ключ; пустое поле сохраняет текущий"></label>
+<span id="gemini-key-state"></span>
+<label>Проект ключа<select id="gemini-billing"><option value="paid">Платный · Paid / Tier 1</option><option value="free">Бесплатный · Free Tier</option></select></label>
+<label id="gemini-free-label" hidden><input type="checkbox" id="gemini-free-ack"> Понимаю условия бесплатного режима: данные могут использоваться Google для улучшения продуктов; не отправляю конфиденциальные данные.</label>
+<p class="hint">Режим оплаты определяется проектом Google, а не этим переключателем. Здесь отмечаем тип вашего проекта. Бесплатная квота зависит от модели и аккаунта; платный ключ не становится бесплатным при выборе Free Tier.</p>
+<details><summary>Как получить API-ключ</summary><p>Откройте <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener">Google AI Studio → API Keys</a>, выберите проект и создайте ключ. Для платного режима проверьте активный Billing / Paid / Tier 1 и баланс. Вставьте ключ выше и сохраните, затем обновите список моделей.</p><p>В облако отправляется текст реплик с метками; видео и изображения при переводе не отправляются. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Условия обработки данных</a>.</p></details>
+<button type="submit">Сохранить подключение</button><p id="connections-status" role="status"></p><p class="hint">Общий ключ для речи, перевода и конспекта. Хранится на сервере и не возвращается браузеру.</p></form></dialog>
+<dialog id="delete-version-dialog" aria-labelledby="delete-version-heading"><h2 id="delete-version-heading">Удалить эту версию?</h2><p id="delete-version-name"></p><p id="delete-version-description">Будут удалены расшифровка, конспект и сохранённые правки этой версии. Исходный видеофайл и другие версии сохранятся. Отменить удаление нельзя.</p><div class="construction-actions"><button id="cancel-delete-version" type="button">Отмена</button><button id="confirm-delete-version" class="danger" type="button">Удалить версию</button></div><p id="delete-version-status" role="status"></p></dialog>
 <dialog id="image-viewer" aria-label="Увеличенное изображение"><button id="close-image" type="button" aria-label="Закрыть изображение">✕</button><img id="large-image" alt=""><p id="image-caption"></p></dialog>
+<script src="/studio-assets/speech-edit.js"></script>
+<script src="/studio-assets/construction.js"></script>
+<script src="/studio-assets/studio.js"></script>
 <script src="/studio-assets/create.js"></script>
 </body></html>

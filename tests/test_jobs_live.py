@@ -78,11 +78,14 @@ def test_snapshot_reads_actual_checkpoints_and_stream_without_accepting_draft(tm
     result = live.snapshot(tmp_path, folder)
     assert result["position"] == 7
     assert result["speech_count"] == 1
-    assert result["thinking"] == "reason"
-    assert result["response"] == "partial"
+    # A previous language-model request must not leak into the speech stage.
+    assert result["thinking"] == ""
+    assert result["response"] == ""
     assert result["notes"] == []
     assert result["running"] and not result["done"]
     jobs.write_json(request / "request.json", {"payload": {"messages": []}})
+    assert live.snapshot(tmp_path, folder)["request_url"] is None
+    jobs.write_json(folder / "progress.json", {"stage": "[4/5] Конспект", "task": "конспект"})
     assert live.snapshot(tmp_path, folder)["request_url"] == "/api/request?folder=lecture&request=one"
     jobs.write_json(folder / "transcript.json", [
         {"id": "s1", "start": 0, "end": 7, "text": "first"},
@@ -130,3 +133,42 @@ def test_thinking_is_opt_in_and_snapshots_are_written(tmp_path, monkeypatch):
     jobs.write_json(tmp_path / "analysis-control.json", {"thinking": True})
     chat_json("prompt", [], {}, "model", "http://local", log)
     assert post.call_args.kwargs["json"]["think"] is True
+
+
+def test_inactive_workspace_shows_entire_transcript(tmp_path, monkeypatch):
+    folder = tmp_path / "output" / "lecture"
+    folder.mkdir(parents=True)
+    jobs.write_json(folder / "manifest.json", {"video": str(tmp_path / "lecture.mp4"),
+                                              "processed_duration": 200})
+    transcript = [{"id": f"s{i}", "start": i, "end": i + 1, "text": f"Reply {i}"}
+                  for i in range(100)]
+    jobs.write_json(folder / "transcript.json", transcript)
+    jobs.write_json(folder / "progress.json", {"stage": "[4/5] Конспект", "span": "90–100 сек"})
+    monkeypatch.setattr(live, "active_video", lambda video: False)
+    result = live.snapshot(tmp_path, folder)
+    assert len(result["speech"]) == 100
+    assert result["speech"][0]["id"] == "s0"
+    assert result["speech_editor_url"] == "/create?folder=lecture"
+
+
+def test_interrupted_notes_can_be_deleted_without_ready_report(tmp_path, monkeypatch):
+    from video_descriptor.versions import delete_notes
+
+    folder = tmp_path / 'output' / 'draft'
+    folder.mkdir(parents=True)
+    jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'video.mp4')})
+    jobs.write_json(folder / 'transcript.json', [{'id': 's1', 'start': 0, 'end': 1, 'text': 'Keep'}])
+    jobs.write_json(folder / 'notes-live.json', {'notes': [], 'sections': []})
+    jobs.write_json(folder / 'notes-cache-0001.json', {'notes': [], 'sections': []})
+    jobs.write_json(folder / 'chunk-plan-cache.json', {})
+    monkeypatch.setattr(live, 'active_video', lambda video: False)
+    monkeypatch.setattr('video_descriptor.versions.active_video', lambda video: False)
+    before = live.snapshot(tmp_path, folder)
+    assert before['has_notes'] and not before['report_variants']
+    assert not before['notes_deleted']
+    delete_notes(tmp_path, 'draft')
+    after = live.snapshot(tmp_path, folder)
+    assert not after['has_notes']
+    assert after['notes_deleted'] and after['has_ready_transcript']
+    assert not after['notes'] and not after['sections']
+    assert after['speech'][0]['text'] == 'Keep'

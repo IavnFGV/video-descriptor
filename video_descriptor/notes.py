@@ -56,6 +56,8 @@ def group_sources(sources: list[Source], start: float, chunk_seconds: float):
 
 def chat_json(prompt, evidence, schema, model, base_url, log=None, context=16384,
               images=None, metrics=None, task="analysis", output_limit=4096) -> str:
+    from .prompt_settings import effective
+    prompt = effective(task, prompt, log)
     for attempt in range(3):
         try:
             return _chat_json_once(prompt, evidence, schema, model, base_url, log,
@@ -87,21 +89,25 @@ def _chat_json_once(prompt, evidence, schema, model, base_url, log=None, context
     if isinstance(log, ProgressLog) and log.lecture_context is not None:
         evidence = {"lecture_context": log.lecture_context.snapshot(), "current_material": evidence}
         prompt = prompt + "\n\n" + CONTEXT_PROMPT
-    message = {"role": "user", "content": json.dumps(evidence, ensure_ascii=False)}
+    message = {"role": "user", "content": evidence if schema is None and isinstance(evidence, str)
+               else json.dumps(evidence, ensure_ascii=False)}
     if images:
         message["images"] = images
     payload = {
         "model": model, "stream": True,
         "think": log.request_thinking() if isinstance(log, ProgressLog) else False,
-        "format": schema,
         "options": {"temperature": 0,
-                    "num_ctx": max(context, output_limit + 4096, 16384 if task != "translate" else 0),
+                    "num_ctx": context if task == 'construction' else max(context, output_limit + 4096, 16384 if task != "translate" else 0),
                     "num_predict": output_limit},
         "messages": [
             {"role": "system", "content": prompt},
             message,
         ],
     }
+    if schema is not None:
+        payload["format"] = schema
+    if isinstance(log, ProgressLog) and log.num_gpu is not None:
+        payload["options"]["num_gpu"] = log.num_gpu
     if isinstance(log, ProgressLog):
         log.begin_request(task, model, len(prompt) + len(message["content"]),
                           len(json.dumps(payload).encode("utf-8")), len(images or []), output_limit)
@@ -181,7 +187,7 @@ def _chat_json_once(prompt, evidence, schema, model, base_url, log=None, context
     if not completed:
         raise RuntimeError("Ollama: поток ответа оборвался до завершения")
     if limited:
-        if output_limit < 8192:
+        if output_limit < 8192 and task != 'construction':
             if log:
                 log(f"Ollama ({task}): достигнут лимит {output_limit} токенов; "
                     "повтор только этого запроса с лимитом 8192")

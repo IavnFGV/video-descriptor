@@ -137,8 +137,13 @@ def main() -> int:
         "OLLAMA_BASE_URL", "http://host.docker.internal:11434"
     ))
     parser.add_argument("--skip-notes", action="store_true", help="Только транскрипция и OCR")
+    parser.add_argument("--audio-only", action="store_true", help="Пропустить кадры и OCR; создать обычный конспект и отчёт")
+    parser.add_argument("--speech-result", type=Path, help="Готовый speech.json выбранного обработчика речи")
     args = parser.parse_args()
     args.chunk_strategy = args.chunk_strategy or ("slides" if args.frame_strategy == "scene" else "time")
+    if args.audio_only:
+        args.vision = "off"
+        args.chunk_strategy = "time"
     if not args.video.is_file():
         parser.error(f"Видео не найдено: {args.video}")
     if not math.isfinite(args.start) or args.start < 0:
@@ -159,8 +164,22 @@ def main() -> int:
                                "threshold": args.scene_threshold, "max_gap": args.max_frame_gap,
                                "version": 1})
         identity["frame_selection"] = frame_settings
+    if args.audio_only:
+        identity["mode"] = "audio"
+    speech_result = None
+    if args.speech_result:
+        speech_result = json.loads(args.speech_result.read_text(encoding="utf-8"))
+        if speech_result.get("status") != "done":
+            parser.error("Распознавание речи ещё не завершено")
+        from .speech import editable_result
+        speech_result = editable_result(args.speech_result.parent, speech_result)
+        if (args.speech_result.parent / "manifest.json").is_file():
+            previous = json.loads((args.speech_result.parent / "manifest.json").read_text())
+            if Path(previous["video"]).resolve() != video:
+                parser.error("Результат речи относится к другому файлу")
+        identity["engine"] = speech_result["engine"]
     digest = cache_digest(identity)
-    folder = args.output.resolve() / f"{video.stem}-{digest}"
+    folder = args.speech_result.resolve().parent if args.speech_result else args.output.resolve() / f"{video.stem}-{digest}"
     folder.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("video_descriptor")
     logger.setLevel(logging.INFO)
@@ -187,13 +206,19 @@ def main() -> int:
             if duration <= 0:
                 raise ValueError("Начало фрагмента находится за концом видео")
             duration = min(duration, args.duration or duration)
-            if not any(item.get("codec_type") == "video" for item in info["streams"]):
+            if not args.audio_only and not any(item.get("codec_type") == "video" for item in info["streams"]):
                 raise ValueError("В файле нет видеодорожки")
             save(folder / "manifest.json", {**identity, "processed_duration": duration})
             log(f"Фрагмент: {args.start:.0f}–{args.start + duration:.0f} сек")
         with stage("[2/5] Аудио и распознавание", log):
-            reuse_speech(folder, identity, log)
-            if any(item.get("codec_type") == "audio" for item in info["streams"]):
+            if speech_result is None:
+                reuse_speech(folder, identity, log)
+            if speech_result is not None:
+                speech = [Source(id=row.get("id", f"s{index}"), start=row["start"], end=row["end"], text=row["text"])
+                          for index, row in enumerate(speech_result["segments"], 1)]
+                save(folder / "transcript.json", [source.model_dump() for source in speech])
+                log("Речь из выбранного обработчика; повторное распознавание не требуется")
+            elif any(item.get("codec_type") == "audio" for item in info["streams"]):
                 audio = folder / "audio.wav"
                 if not audio.exists():
                     extract_audio(video, audio, args.start, duration)
@@ -205,12 +230,17 @@ def main() -> int:
                 speech = []
                 save(folder / "transcript.json", [])
         with stage("[3/5] Кадры и OCR", log):
-            frames = cached_sources(folder / "frames.json", lambda: extract_frames(
-                video, folder / "frames", args.start, duration, args.frame_interval,
-                args.ocr_language, log,
-                strategy=args.frame_strategy, scan_interval=args.scan_interval,
-                threshold=args.scene_threshold, max_gap=args.max_frame_gap,
-            ), log)
+            if args.audio_only:
+                frames = []
+                save(folder / "frames.json", [])
+                log("Анализ изображения пропущен")
+            else:
+                frames = cached_sources(folder / "frames.json", lambda: extract_frames(
+                    video, folder / "frames", args.start, duration, args.frame_interval,
+                    args.ocr_language, log,
+                    strategy=args.frame_strategy, scan_interval=args.scan_interval,
+                    threshold=args.scene_threshold, max_gap=args.max_frame_gap,
+                ), log)
         sources = speech + frames
         notes = []
         sections = []
@@ -263,6 +293,8 @@ def main() -> int:
                             failures.setdefault(item["block"], {**item, "total_blocks": len(groups)})
                 save(folder / "analysis-errors.json", list(failures.values()))
                 for index, group in enumerate(groups, 1):
+                    from .prompt_settings import overrides
+                    log.prompt_settings = overrides()
                     history = None
                     cache_notes_key = legacy_notes_key if index <= args.preserve_blocks else notes_key
                     block_key = cache_notes_key
@@ -281,6 +313,12 @@ def main() -> int:
                                     log.lecture_context.restore(history)
                                     block_key = candidate_key
                         save(folder / f"context-input-{block_key}-{index:04d}.json", history)
+                    if log.prompt_settings:
+                        prompt_digest = hashlib.sha256(json.dumps(log.prompt_settings, sort_keys=True).encode()).hexdigest()[:10]
+                        if not block_key.endswith(f"-p{prompt_digest}"):
+                            block_key += f"-p{prompt_digest}"
+                        if history is not None:
+                            save(folder / f"context-input-{block_key}-{index:04d}.json", history)
                     log.reset_request()
                     update_status(log, chunk=f"{index}/{len(groups)}",
                                   span=f"{min(s.start for s in group):.0f}–"
@@ -326,7 +364,7 @@ def main() -> int:
                         if any(section.quiz and not section.quiz.explanation
                                for section in result.sections):
                             quiz_key = hashlib.sha256(json.dumps(
-                                [args.model, args.base_url, QUIZ_PROMPT, result.model_dump(), history],
+                                [args.model, args.base_url, log.prompt_settings.get('quiz_explanation', QUIZ_PROMPT), result.model_dump(), history],
                                 sort_keys=True,
                             ).encode()).hexdigest()[:10]
                             quiz_target = folder / f"quiz-explained-{quiz_key}.json"
@@ -340,7 +378,7 @@ def main() -> int:
                                                          args.base_url, log, metrics)
                                 save(quiz_target, result.model_dump())
                         filter_key = hashlib.sha256(json.dumps(
-                            [args.model, args.base_url, FILTER_PROMPT, result.model_dump(), args.vision, history],
+                            [args.model, args.base_url, log.prompt_settings.get('filter', FILTER_PROMPT), result.model_dump(), args.vision, history],
                             sort_keys=True,
                         ).encode()).hexdigest()[:10]
                         filtered_target = folder / f"filtered-{filter_key}.json"

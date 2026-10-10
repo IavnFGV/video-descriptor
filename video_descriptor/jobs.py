@@ -31,9 +31,19 @@ def jobs_dir(root):
     return folder
 
 
-def enqueue(root, stream, length, filename, title="", thinking=False):
+def enqueue(root, stream, length, filename, title="", thinking=False, mode="lecture", engine="gemini", construction=None):
+    if mode not in {"lecture", "audio"}:
+        raise ValueError("Неизвестный режим")
+    if construction is not None:
+        from .construction import validate, validate_provider
+        construction = validate(construction)
+        validate_provider(root, construction)
+    from .speech import EXTENSIONS, validate_engine
+    if mode == "audio" or construction is not None:
+        validate_engine(root, engine)
     filename = Path(filename).name
-    if not filename or Path(filename).suffix.lower() not in {".mp4", ".mkv", ".mov", ".webm"}:
+    allowed = EXTENSIONS if mode == "audio" else {".mp4", ".mkv", ".mov", ".webm"}
+    if not filename or Path(filename).suffix.lower() not in allowed:
         raise ValueError("Выберите видео MP4, MKV, MOV или WebM")
     if not 0 < length <= 4 * 1024**3:
         raise ValueError("Размер видео должен быть от 1 байта до 4 ГБ")
@@ -59,7 +69,10 @@ def enqueue(root, stream, length, filename, title="", thinking=False):
     folder = jobs_dir(root) / id
     folder.mkdir()
     job = {"id": id, "video": str(video), "filename": filename, "title": title,
-           "thinking": thinking, "status": "queued", "created": time.time(), "folder": None}
+           "thinking": thinking, "mode": mode, "engine": engine,
+           "status": "queued", "created": time.time(), "folder": None}
+    if construction is not None:
+        job['construction'] = construction
     write_json(folder / "job.json", job)
     return job
 
@@ -78,7 +91,7 @@ def pipeline_busy():
             continue
         try:
             args = (folder / "cmdline").read_bytes().split(b"\0")
-            if b"video_descriptor" in args or b"video_descriptor.translate" in args:
+            if any(name in args for name in (b"video_descriptor", b"video_descriptor.translate", b"video_descriptor.construction")):
                 return True
         except OSError:
             continue
@@ -99,13 +112,52 @@ def run_job(root, folder, job):
     write_json(folder / "job.json", job)
     try:
         with (folder / "run.log").open("a") as log:
+            if job.get('mode') == 'notes':
+                settings = folder / 'construction.json'
+                write_json(settings, job['construction'])
+                result = root / 'output' / job['folder']
+                code = subprocess.run([sys.executable, '-u', '-m', 'video_descriptor.construction',
+                                       str(root), str(result), str(settings)], cwd=root, stdout=log,
+                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                if code:
+                    error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
+                    raise RuntimeError('Конспект остановлен: ' + error)
+                job.update(status='done', finished=time.time())
+                write_json(folder / 'job.json', job)
+                return
+            if job.get("mode") == "audio" or job.get("construction"):
+                completed = read_json(root / "output" / job["folder"] / "speech.json", {}) if job.get("folder") else {}
+                environment = ".venv-diarization-xpu" if job["engine"].endswith("-xpu") else ".venv-diarization"
+                python = root / environment / "bin/python"
+                if completed.get("status") != "done" and job["engine"].endswith("-xpu") and not python.exists():
+                    raise RuntimeError("Подготовьте Intel GPU: bash scripts/prepare_diarization_xpu.sh")
+                executable = str(python) if "diarization" in job["engine"] and python.exists() else sys.executable
+                code = 0
+                if completed.get("status") != "done":
+                    code = subprocess.run([executable, "-u", "-m", "video_descriptor.speech",
+                                           str(folder / "job.json")], cwd=root, stdout=log,
+                                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                    updated = read_json(folder / "job.json", {})
+                    job["folder"] = updated.get("folder")
+                if code:
+                    raise RuntimeError("Распознавание остановлено; готовые блоки сохранены. См. журнал.")
+            if job.get('speech_only'):
+                job.update(status='done', finished=time.time())
+                write_json(folder / 'job.json', job)
+                return
             command = [sys.executable, "-u", "-m", "video_descriptor", job["video"],
                        "--model", "qwen3.5:9b", "--frame-strategy", "scene", "--chunk-strategy", "slides"]
+            if job.get("mode") == "audio":
+                command.append("--audio-only")
+            if job.get("folder") and (root / "output" / job["folder"] / "speech.json").is_file():
+                command.extend(["--speech-result", str(root / "output" / job["folder"] / "speech.json")])
             if job["thinking"]:
                 command.append("--think")
+            if job.get('construction'):
+                command.append('--skip-notes')
             code = subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT,
                                   stdin=subprocess.DEVNULL, check=False).returncode
-            result = find_result(root, job["video"])
+            result = root / "output" / job["folder"] if job.get("folder") else find_result(root, job["video"])
             if result:
                 job["folder"] = result.name
                 write_json(folder / "job.json", job)
@@ -113,6 +165,17 @@ def run_job(root, folder, job):
                 raise RuntimeError(f"Обработка остановилась, код {code}; подробности в журнале")
             if result is None:
                 raise RuntimeError("Папка результата не найдена")
+            if job.get('construction'):
+                settings = folder / 'construction.json'
+                write_json(settings, job['construction'])
+                write_json(result / 'construction-job.json', {'id': job['id']})
+                (result / 'construction-error.json').unlink(missing_ok=True)
+                code = subprocess.run([sys.executable, '-u', '-m', 'video_descriptor.construction',
+                                       str(root), str(result), str(settings)], cwd=root, stdout=log,
+                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                if code:
+                    error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
+                    raise RuntimeError('Конспект остановлен: ' + error)
             if job["title"]:
                 from .library import save_title
                 save_title(result, job["title"])

@@ -23,6 +23,7 @@ class ProgressLog:
         self.lecture_context = None
         self.progress_file = None
         self.thinking_enabled = False
+        self.num_gpu = None
 
     def snapshot(self):
         with self.lock:

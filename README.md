@@ -286,6 +286,11 @@ Whisper на CPU/int8 и запросам Ollama через HTTP. Источни
 Основа devcontainer адаптирована из
 [reels-analyzer](https://github.com/IavnFGV/reels-analyzer/tree/61883348014931fb4c67726be3490aae93cd50f7/.devcontainer).
 Документация:
+[Замер Whisper на CPU и Intel NPU](docs/whisper-npu.md),
+[NPU из devcontainer](docs/whisper-npu-container.md),
+[Перевод через Ollama или Gemini](docs/translation-providers.md),
 [Dev Containers](https://code.visualstudio.com/docs/devcontainers/create-dev-container),
 [Docker Desktop networking](https://docs.docker.com/desktop/features/networking/),
 [Ollama FAQ](https://docs.ollama.com/faq).
+
+В [экране записи](docs/creation-ui.md) `/create` три этапа: Источник, Речь и Конспект, каждый со своими настройками. Материал конспекта выбирается по речи или по речи и тексту слайдов; аудио использует только речь. Старые `/speech` и отчёты открываются в том же экране. Повторные запуски речи и конспекта сохраняют отдельные версии.

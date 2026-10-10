@@ -1,11 +1,13 @@
 {
-  "name": "video-descriptor",
+  "name": "video-descriptor — Intel GPU (WSL2)",
   "build": {
-    "dockerfile": "Dockerfile",
+    "dockerfile": "intel-gpu/Dockerfile",
     "context": ".."
   },
   "remoteUser": "vscode",
-  "forwardPorts": [8000],
+  "forwardPorts": [
+    8000
+  ],
   "portsAttributes": {
     "8000": {
       "label": "Video Descriptor — отчёт",
@@ -14,13 +16,15 @@
   },
   "runArgs": [
     "--env-file",
-    "${localWorkspaceFolder}/.devcontainer/runtime.env"
+    "${localWorkspaceFolder}/.devcontainer/runtime.env",
+    "--device=/dev/dxg"
   ],
   "mounts": [
     "source=video-descriptor-pip-cache,target=/home/vscode/.cache/pip,type=volume",
     "source=video-descriptor-model-cache,target=/home/vscode/.cache/huggingface,type=volume",
     "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind",
-    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
+    "source=/usr/lib/wsl,target=/usr/lib/wsl,type=bind,readonly"
   ],
   "remoteEnv": {
     "PIP_CACHE_DIR": "/home/vscode/.cache/pip",
@@ -39,5 +43,8 @@
         "openai.chatgpt"
       ]
     }
+  },
+  "containerEnv": {
+    "LD_LIBRARY_PATH": "/usr/lib/wsl/lib"
   }
 }

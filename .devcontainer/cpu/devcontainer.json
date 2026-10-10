@@ -1,0 +1,45 @@
+{
+  "name": "video-descriptor",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "../.."
+  },
+  "remoteUser": "vscode",
+  "forwardPorts": [
+    8000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Video Descriptor — отчёт",
+      "onAutoForward": "notify"
+    }
+  },
+  "runArgs": [
+    "--env-file",
+    "${localWorkspaceFolder}/.devcontainer/runtime.env"
+  ],
+  "mounts": [
+    "source=video-descriptor-pip-cache,target=/home/vscode/.cache/pip,type=volume",
+    "source=video-descriptor-model-cache,target=/home/vscode/.cache/huggingface,type=volume",
+    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
+  ],
+  "remoteEnv": {
+    "PIP_CACHE_DIR": "/home/vscode/.cache/pip",
+    "HF_HOME": "/home/vscode/.cache/huggingface"
+  },
+  "postCreateCommand": "bash .devcontainer/prepare-cache.sh && python -m pip install -e . --no-deps --no-build-isolation",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "openai.chatgpt"
+      ]
+    }
+  }
+}
