@@ -28,7 +28,7 @@ REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.3.0-prototype'
+VERSION = '0.4.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +40,9 @@ def config():
         value.update(json.loads(local.read_text(encoding='utf-8')))
     if type(value['port']) is not int or not 1024 <= value['port'] <= 65535:
         raise ValueError('Некорректный порт приложения')
-    for key in ('npu_url', 'ollama_url'):
+    for key in ('npu_url', 'ollama_url', 'cpu_url', 'gpu_url'):
+        if key not in value:
+            continue
         parsed = urlsplit(value[key])
         if (parsed.scheme != 'http' or parsed.hostname not in {'localhost', '127.0.0.1', '::1'}
                 or parsed.username or parsed.password or parsed.query or parsed.fragment

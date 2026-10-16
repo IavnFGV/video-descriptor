@@ -21,20 +21,22 @@ class ComputeManager:
         self.settings_file = Path(value['workspace']) / '.devcontainer/compute-settings.json'
         worker = Path(value['npu_worker_directory'])
         npu_python = worker / '.venv-npu/Scripts/python.exe'
-        python = Path(value.get('openvino_python') or npu_python)
+        bundled = self.here.parent / 'python/python.exe'
+        python = Path(value.get('openvino_python') or (bundled if bundled.is_file() else npu_python))
         original_model = worker / 'OpenVINO-whisper-small-fp16-ov'
         model = Path(value.get('whisper_model_directory') or original_model)
         self.python, self.model = python, model
         self.backends = {}
         for device, port in [('NPU', 8766), ('GPU', 8768), ('CPU', 8767)]:
-            if device == 'NPU':
-                port = urlsplit(value['npu_url']).port or 80
-            script = worker / 'whisper_npu_server.py' if device == 'NPU' else self.here / 'whisper_worker.py'
-            args = ['--model-name', 'small', '--bind', '127.0.0.1'] if device == 'NPU' else ['--device', device]
+            url = value.get(device.lower() + '_url', f'http://127.0.0.1:{port}')
+            port = urlsplit(url).port or 80
+            external_npu = device == 'NPU' and npu_python.is_file() and (worker / 'whisper_npu_server.py').is_file()
+            script = worker / 'whisper_npu_server.py' if external_npu else self.here / 'whisper_worker.py'
+            args = ['--model-name', 'small', '--bind', '127.0.0.1'] if external_npu else ['--device', device]
             self.backends[device] = {'device': device,
-                                    'url': value['npu_url'] if device == 'NPU' else f'http://127.0.0.1:{port}',
-                                    'command': [str(npu_python if device == 'NPU' else python), '-X', 'utf8', '-u',
-                                                str(script), '--model', str(original_model if device == 'NPU' else model),
+                                    'url': url,
+                                    'command': [str(npu_python if external_npu else python), '-X', 'utf8', '-u',
+                                                str(script), '--model', str(original_model if external_npu else model),
                                                 *args, '--port', str(port)]}
         self._inventory = None
         self._lock = threading.RLock()

@@ -202,3 +202,32 @@ Job публикует имя результата после записи manif
 Это отдельный журнал от истории разработки в README/Git.
 
 Проверки и известные ограничения: [прогоны устройств](verification-devices.md).
+
+## ADR-004: упаковка 0.4 и границы установки
+
+Выбран CPython embeddable x64 + vendored wheel payload вместо переноса venv с абсолютными
+путями. `python312._pth` задаёт только stdlib, site-packages и каталог приложения;
+дочерние queue/speech workers используют этот же interpreter независимо от системного PATH.
+Launch script предпочитает bundled Python, а для исходников сохраняет `.venv-windows`.
+CPU/GPU/NPU adapter может использовать bundled OpenVINO, существующий внешний NPU остаётся
+приоритетным при наличии benchmark. Веса подключаются отдельно, автоматически не скачиваются.
+CPU/GPU URL теперь тоже настраиваются и валидируются как loopback: тестовая копия не должна
+обнаруживать рабочие сервисы другой установки на стандартных портах.
+
+Build получает только явный список исходников и reviewed wheel/hash inputs. Пакет
+содержит file manifest, dependency notices и Python LICENSE; Git/медиа/личные настройки/
+runtime/большие модели исключены. Маленький VAD ONNX остаётся частью faster-whisper.
+ZIP метаданные нормализованы. EXE строится Inno Setup 6.7.3, installer запускается per-user,
+не ставит системный Python/драйверы и не меняет PATH. Наш EXE пока не подписан.
+
+`runtime/` и `config.local.json` создаются пользователем после установки, не входят в
+installer file table и остаются после uninstall. Обновление меняет code/runtime binaries
+только после отказа при процессах из каталога установки; чужие внешние сервисы не убиваются.
+Windows Restart Manager auto-close выключен. Встроенного updater/автомиграции схем нет.
+Upgrade 0.4.0 → 0.4.1 в проверках — fixture installer lifecycle, не новый продуктовый release.
+
+CI Windows runner строит artifacts и проверяет install/reinstall/upgrade/uninstall,
+сохранность sentinel/config, отказ занятой установки и повторяемость ZIP. Реальные
+аппаратные тесты и минимальная чистая Windows VM — отдельные уровни. Локальная проверка
+на этом ноутбуке не означает, что hosted workflow уже прошёл. Коммиты не отправляются сами.
+Детали, входные hashes, команды и ограничения: [Windows release](windows-release.md).

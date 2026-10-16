@@ -14,7 +14,7 @@ def main():
     from scripts.whisper_npu_server import make_handler, model_digest, read_audio
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model', type=Path, required=True)
-    parser.add_argument('--device', choices=['CPU', 'GPU'], default='CPU')
+    parser.add_argument('--device', choices=['CPU', 'GPU', 'NPU'], default='CPU')
     parser.add_argument('--port', type=int, default=8767)
     parser.add_argument('--inventory', action='store_true')
     parser.add_argument('--probe', type=Path)
@@ -35,9 +35,10 @@ def main():
     if config.get('encoder_layers') != 12 or config.get('vocab_size') != 51865:
         raise ValueError('Expected official multilingual Whisper small IR')
     started = time.monotonic()
-    pipeline = genai.WhisperPipeline(str(args.model), args.device)
+    options = {'STATIC_PIPELINE': True} if args.device == 'NPU' else {}
+    pipeline = genai.WhisperPipeline(str(args.model), args.device, **options)
     loading = time.monotonic() - started
-    info = {'protocol': 1, 'device': args.device, 'model': 'small', 'pipeline': 'dynamic',
+    info = {'protocol': 1, 'device': args.device, 'model': 'small', 'pipeline': 'static' if args.device == 'NPU' else 'dynamic',
             'multilingual': True, 'word_timestamps': False, 'num_beams': 1,
             'model_sha256': model_digest(args.model), 'openvino': ov.__version__, 'genai': genai.__version__}
     if args.probe:

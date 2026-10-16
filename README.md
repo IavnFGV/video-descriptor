@@ -8,6 +8,7 @@ Windows-приложение для локальной обработки вид
 - [Сравнение 9 проектов и наше отличие](docs/competitive-analysis.md).
 - [Архитектура Windows, API, ADR и установка](docs/architecture-windows.md).
 - [Автовыбор NPU → GPU → CPU, настройки и план CI/CD](docs/device-policy-and-release.md).
+- [ZIP, Windows installer, сборка и CI](docs/windows-release.md).
 - [Что перенесено из WSL](windows-migration/START-HERE.md).
 
 ## Открыть приложение на Windows
@@ -32,7 +33,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File '.\windows-app\Start-App.ps1
 Теперь в настройках доступен **Авто: NPU → GPU → CPU** и явный выбор устройства.
 Выбор сохраняется для новых заданий; ручной режим не подменяет устройство при сбое.
 [Реальные прогоны CPU/GPU/NPU, восстановление и ограничения](docs/verification-devices.md).
-Автоматические проверки: **174 прошли, 1 пропущена** (нет Windows-права создания symlink).
+Автоматические проверки: **184 прошли, 1 пропущена** (нет Windows-права создания symlink).
 Ruff и `pip check` проходят. [Снимок интерфейса](docs/windows-preview.png).
 
 ## Архитектура первого Windows-режима
@@ -63,6 +64,7 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 
 | Дата | Изменение | Проверка |
 |---|---|---|
+| 2026-10-17 | Прототип 0.4: ZIP с собственным Python/OpenVINO/FFmpeg, per-user Windows installer, hash manifest/pinned inputs, защита занятой установки, CI-сборка и lifecycle smoke tests | 184 теста; реальный CPU/GPU ASR из ZIP и NPU static probe; lifecycle/повторяемость ZIP описаны в отчёте; hosted CI/чистая VM ещё не запускались |
 | 2026-10-17 | Прототип 0.3: выбор Авто/NPU/GPU/CPU, сохранённый план задания, отдельные OpenVINO CPU/GPU workers, переход после отказа с сохранением готовых фрагментов и журнал действий | 174 теста прошли, 1 пропущен; реальный 20 s MP4 на CPU/GPU/NPU/Auto, экспорт SRT; сохранение настройки в UI; исправлена гонка публикации manifest; Ruff/pip check |
 | 2026-10-17 | Уточнён целевой контракт: Auto NPU → GPU → CPU для речи, ручной выбор устройства, отдельные capabilities этапов и журнал действий; запланированы ZIP/installer и Windows CI-матрица | Архитектурное решение зафиксировано; текущий проверенный прототип остаётся NPU-only, новый выбор и сборка ещё не реализованы |
 | 2026-10-16 | Перенос в Windows-каталог с Git-историей, видео и результатами; WSL-копия сохранена | 10 631 файл, SHA256 совпали; два log-symlink материализованы |

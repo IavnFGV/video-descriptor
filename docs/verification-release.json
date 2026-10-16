@@ -1,0 +1,196 @@
+{
+  "checked_on": "2026-10-17",
+  "scope": "existing Windows host; isolated test installations; no clean VM or hosted CI run",
+  "tests": {
+    "passed": 184,
+    "skipped": 1,
+    "ruff": true,
+    "pip_check": true
+  },
+  "hardware": {
+    "zip_files_verified": 4386,
+    "portable": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "clean_vm": false,
+    "hardware_recognition": true,
+    "hardware_cases": [
+      {
+        "device": "CPU",
+        "seconds": 20.0,
+        "segments": 1,
+        "engine": {
+          "protocol": 1,
+          "device": "CPU",
+          "model": "small",
+          "pipeline": "dynamic",
+          "multilingual": true,
+          "word_timestamps": false,
+          "num_beams": 1,
+          "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+          "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+          "genai": "2026.4.1.0-3408-ab01d1771e4"
+        }
+      },
+      {
+        "device": "GPU",
+        "seconds": 20.0,
+        "segments": 1,
+        "engine": {
+          "protocol": 1,
+          "device": "GPU",
+          "model": "small",
+          "pipeline": "dynamic",
+          "multilingual": true,
+          "word_timestamps": false,
+          "num_beams": 1,
+          "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+          "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+          "genai": "2026.4.1.0-3408-ab01d1771e4"
+        }
+      }
+    ],
+    "candidate_zip_sha256": "3b663ac55a4787993450a157988d581281343af0cc9a9c5388f16407fdea62d7"
+  },
+  "control_probes": {
+    "CPU": {
+      "engine": {
+        "protocol": 1,
+        "device": "CPU",
+        "model": "small",
+        "pipeline": "dynamic",
+        "multilingual": true,
+        "word_timestamps": false,
+        "num_beams": 1,
+        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+        "genai": "2026.4.1.0-3408-ab01d1771e4"
+      },
+      "audio_seconds": 20.0,
+      "loading_seconds": 0.8280000000086147,
+      "inference_seconds": 2.1719999999913853,
+      "segments": 3,
+      "valid_timestamps": true,
+      "text_sha256": "272bada986ec7029abd28d3e4d1078e0c357e4e49bcbce3c03a64de0b4798835"
+    },
+    "GPU": {
+      "engine": {
+        "protocol": 1,
+        "device": "GPU",
+        "model": "small",
+        "pipeline": "dynamic",
+        "multilingual": true,
+        "word_timestamps": false,
+        "num_beams": 1,
+        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+        "genai": "2026.4.1.0-3408-ab01d1771e4"
+      },
+      "audio_seconds": 20.0,
+      "loading_seconds": 1.812999999994645,
+      "inference_seconds": 0.9530000000086147,
+      "segments": 3,
+      "valid_timestamps": true,
+      "text_sha256": "272bada986ec7029abd28d3e4d1078e0c357e4e49bcbce3c03a64de0b4798835"
+    },
+    "NPU": {
+      "engine": {
+        "protocol": 1,
+        "device": "NPU",
+        "model": "small",
+        "pipeline": "static",
+        "multilingual": true,
+        "word_timestamps": false,
+        "num_beams": 1,
+        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+        "genai": "2026.4.1.0-3408-ab01d1771e4"
+      },
+      "audio_seconds": 20.0,
+      "loading_seconds": 40.67200000002049,
+      "inference_seconds": 0.7189999999827705,
+      "segments": 3,
+      "valid_timestamps": true,
+      "text_sha256": "272bada986ec7029abd28d3e4d1078e0c357e4e49bcbce3c03a64de0b4798835"
+    }
+  },
+  "candidate_installer_lifecycle": {
+    "zip_files_verified": 4386,
+    "portable": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "clean_vm": false,
+    "hardware_recognition": false,
+    "installed": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "reinstall_preserves_data": true,
+    "running_upgrade_refused": true,
+    "upgrade_fixture": true,
+    "uninstall_preserves_data": true
+  },
+  "final_artifact_report": "dist/verification-release.json",
+  "workflow_executed_on_github": false,
+  "pushed": false,
+  "zip_reproducibility": {
+    "independent_builds": 2,
+    "equal_sha256": true,
+    "sha256": "ff213b688483244e208d9fb13fc54e2bde724d35270fd2dd027ba05f31cabbac"
+  },
+  "final_artifacts": [
+    {
+      "file": "VideoDescriptor-0.4.0-windows-x64-setup.exe",
+      "bytes": 222626907,
+      "sha256": "6d8dbd6262755ea5e6ded62d9b24c61f687712148d4a35fb413494a35b3c578b"
+    },
+    {
+      "file": "VideoDescriptor-0.4.0-windows-x64.zip",
+      "bytes": 264234114,
+      "sha256": "ff213b688483244e208d9fb13fc54e2bde724d35270fd2dd027ba05f31cabbac"
+    }
+  ],
+  "final_artifact_verification": {
+    "zip_sha256": "ff213b688483244e208d9fb13fc54e2bde724d35270fd2dd027ba05f31cabbac",
+    "zip_files_verified": 4387,
+    "portable": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "clean_vm": false,
+    "hardware_recognition": false,
+    "installer_sha256": "6d8dbd6262755ea5e6ded62d9b24c61f687712148d4a35fb413494a35b3c578b",
+    "installed": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "reinstall_preserves_data": true,
+    "running_upgrade_refused": true,
+    "uninstall_preserves_data": true
+  },
+  "changed_files_since_hardware_candidate": [
+    "README.md",
+    "docs/architecture-windows.md",
+    "docs/device-policy-and-release.md",
+    "docs/windows-release.md",
+    "windows-app/README.md",
+    "windows-app/release_lifecycle.py"
+  ]
+}

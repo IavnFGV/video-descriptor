@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $appDirectory = $PSScriptRoot
 $projectDirectory = Split-Path -Parent $appDirectory
 $pythonPath = Join-Path $projectDirectory '.venv-windows\Scripts\python.exe'
+if (Test-Path -LiteralPath (Join-Path $projectDirectory 'python\python.exe')) { $pythonPath = Join-Path $projectDirectory 'python\python.exe' }
 if (-not (Test-Path -LiteralPath $pythonPath)) { throw 'Run windows-app\Install-App.ps1 first. The NPU environment is separate.' }
 $env:PYTHONUTF8 = '1'
 $env:PYTHONIOENCODING = 'utf-8'
