@@ -1,0 +1,26 @@
+{
+  "checked_on": "2026-10-17",
+  "authorization": "User explicitly agreed to enable Windows Sandbox",
+  "feature": "Containers-DisposableClientVM",
+  "feature_status": "enabled",
+  "restart_needed": true,
+  "automatic_restart_performed": false,
+  "guest_started": false,
+  "guest_tests_passed": null,
+  "configuration": {
+    "memory_mib": 4096,
+    "networking": "Disable",
+    "vgpu": "Disable",
+    "input_folder_read_only": true,
+    "dedicated_reports_folder_writable": true,
+    "clipboard_audio_video_printers": "Disable",
+    "checkout_models_secrets_shared": false
+  },
+  "checks": {
+    "powershell_syntax": true,
+    "wsb_xml": true,
+    "staged_artifact_hashes": true
+  },
+  "prepared_run": "windows-app/runtime/sandbox/20261017-014453-497",
+  "next_step": "User restarts Windows; open prepared Video Descriptor.wsb and inspect reports/status.json"
+}

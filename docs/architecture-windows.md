@@ -231,3 +231,20 @@ CI Windows runner строит artifacts и проверяет install/reinstall
 аппаратные тесты и минимальная чистая Windows VM — отдельные уровни. Локальная проверка
 на этом ноутбуке не означает, что hosted workflow уже прошёл. Коммиты не отправляются сами.
 Детали, входные hashes, команды и ограничения: [Windows release](windows-release.md).
+
+## Проверочный хост Windows Sandbox
+
+`Prepare-Sandbox.ps1` создаёт отдельный `runtime/sandbox/<run-id>`: копирует только
+проверенные по SHA256 ZIP/EXE, verification script и bootstrap. WSB получает 4096 MiB,
+отключённые network/vGPU/audio/video/clipboard/printer и две mapped folders: input
+read-only, reports writeable. Исходный checkout, модели, ключи и рабочие данные не шарятся.
+Guest bootstrap распаковывает runtime внутрь гостя и запускает существующий lifecycle
+verifier на ZIP/installer; stdout/stderr/status/JSON пишутся в папку reports хоста.
+Это проверка установки/безмодельного запуска, а не доказательство NPU/GPU совместимости.
+
+Включение `Containers-DisposableClientVM -All -NoRestart` идёт отдельным elevated helper
+после явного согласия пользователя. Статус сохраняется на хосте; требование reboot
+не выполняется автоматически. Sandbox не запускается до готовности компонента.
+Гость запускается по WSB, не меняет основной app на 8780 и внешние workers.
+Подготовка WSB, успешное включение и прошедший guest run — три разных состояния.
+Инструкция и сохранность отчётов: [Windows Sandbox](windows-sandbox.md).

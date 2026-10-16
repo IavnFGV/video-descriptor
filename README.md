@@ -9,6 +9,7 @@ Windows-приложение для локальной обработки вид
 - [Архитектура Windows, API, ADR и установка](docs/architecture-windows.md).
 - [Автовыбор NPU → GPU → CPU, настройки и план CI/CD](docs/device-policy-and-release.md).
 - [ZIP, Windows installer, сборка и CI](docs/windows-release.md).
+- [Локальная проверка в Windows Sandbox](docs/windows-sandbox.md).
 - [Что перенесено из WSL](windows-migration/START-HERE.md).
 
 ## Открыть приложение на Windows
@@ -64,6 +65,7 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 
 | Дата | Изменение | Проверка |
 |---|---|---|
+| 2026-10-17 | Подготовлен запуск Windows Sandbox: изолированная staging-папка, 4 ГБ RAM, read-only сборки, отдельные отчёты, автоматическая проверка ZIP/installer без сети/GPU; компонент включён после согласия пользователя, без авто-reboot | PowerShell AST, WSB XML и hashes проверены; Windows вернула restart_needed=true; гостевой прогон ожидает ручной перезагрузки и не засчитан как прошедший |
 | 2026-10-17 | Прототип 0.4: ZIP с собственным Python/OpenVINO/FFmpeg, per-user Windows installer, hash manifest/pinned inputs, защита занятой установки, CI-сборка и lifecycle smoke tests | 184 теста; реальный CPU/GPU ASR из ZIP и NPU static probe; lifecycle/повторяемость ZIP описаны в отчёте; hosted CI/чистая VM ещё не запускались |
 | 2026-10-17 | Прототип 0.3: выбор Авто/NPU/GPU/CPU, сохранённый план задания, отдельные OpenVINO CPU/GPU workers, переход после отказа с сохранением готовых фрагментов и журнал действий | 174 теста прошли, 1 пропущен; реальный 20 s MP4 на CPU/GPU/NPU/Auto, экспорт SRT; сохранение настройки в UI; исправлена гонка публикации manifest; Ruff/pip check |
 | 2026-10-17 | Уточнён целевой контракт: Auto NPU → GPU → CPU для речи, ручной выбор устройства, отдельные capabilities этапов и журнал действий; запланированы ZIP/installer и Windows CI-матрица | Архитектурное решение зафиксировано; текущий проверенный прототип остаётся NPU-only, новый выбор и сборка ещё не реализованы |
