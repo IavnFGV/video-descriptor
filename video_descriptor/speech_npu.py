@@ -33,15 +33,15 @@ def timed_items(response, offset, seconds):
     word_timing = bool(response.get('words'))
     items = response['words'] if word_timing else response.get('segments')
     if not isinstance(items, list):
-        raise TypeError('Whisper NPU: в ответе нет списка реплик или слов')
+        raise TypeError('Whisper: в ответе нет списка реплик или слов')
     result = []
     for item in items:
         start = float(item.get('start', item.get('start_ts')))
         end = float(item.get('end', item.get('end_ts')))
         if end == -1:
-            raise ValueError('Whisper NPU: end_ts=-1, конечная граница не предсказана; нужна проверка фрагмента')
+            raise ValueError('Whisper: end_ts=-1, конечная граница не предсказана; нужна проверка фрагмента')
         if not (math.isfinite(start) and math.isfinite(end) and 0 <= start <= end <= seconds + .01):
-            raise ValueError('Whisper NPU: неверные таймкоды в ответе')
+            raise ValueError('Whisper: неверные таймкоды в ответе')
         text = item['text'].strip()
         if text:
             result.append({'start': offset + start, 'end': offset + end,

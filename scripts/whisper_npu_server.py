@@ -80,7 +80,7 @@ def make_handler(pipeline, info):
             try:
                 with lock:
                     started = time.perf_counter()
-                    print(f"NPU: processing {duration:.1f}s of audio", flush=True)
+                    print(f"{info['device']}: processing {duration:.1f}s of audio", flush=True)
                     options = {}
                     if info.get('multilingual'):
                         options['task'] = 'transcribe'
@@ -95,12 +95,12 @@ def make_handler(pipeline, info):
                         begin, end = float(chunk.start_ts), float(chunk.end_ts)
                         if not (math.isfinite(begin) and math.isfinite(end)
                                 and 0 <= begin <= end <= duration + 1):
-                            raise ValueError("NPU returned invalid timestamps")
+                            raise ValueError(f"{info['device']} returned invalid timestamps")
                         if chunk.text.strip() and begin < duration:
                             segments.append({"start": begin, "end": min(end, duration),
                                              "text": chunk.text.strip()})
                     elapsed = time.perf_counter() - started
-                    print(f"NPU: done in {elapsed:.2f}s, segments={len(segments)}", flush=True)
+                    print(f"{info['device']}: done in {elapsed:.2f}s, segments={len(segments)}", flush=True)
                 self.respond(200, {"segments": segments, "audio_seconds": duration,
                                    "seconds": elapsed, "engine": info})
             except Exception as exc:  # noqa: BLE001 — API boundary preserves diagnostics.

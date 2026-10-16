@@ -21,13 +21,14 @@ import webbrowser
 from functools import partial
 from http.server import ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
+sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.2.0-prototype'
+VERSION = '0.3.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 
@@ -127,6 +128,7 @@ def environment(value):
                       WHISPER_BACKEND='openvino-http', OLLAMA_BASE_URL=value['ollama_url'],
                       OLLAMA_MODEL=value['ollama_model'],
                       HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+    os.environ['VIDEO_DESCRIPTOR_EVENTS'] = str(HERE / 'runtime/logs/events.jsonl')
     if value['diarization_python']:
         os.environ['VIDEO_DESCRIPTOR_DIARIZATION_PYTHON'] = value['diarization_python']
     executable = ffmpeg_path()
@@ -191,7 +193,11 @@ def start_npu(value):
 
 
 def make_handler(value, instance):
-    from video_descriptor.jobs import read_json
+    from compute import ComputeManager
+
+    from video_descriptor.action_history import record
+    from video_descriptor.jobs import enqueue, read_json, start_worker
+    manager = ComputeManager(value, HERE) if 'npu_worker_directory' in value else None
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
@@ -201,7 +207,25 @@ def make_handler(value, instance):
                 return self.json_response(200, {'app': APP, 'version': VERSION,
                                                'instance': instance, 'workspace': value['workspace']})
             if path == '/api/doctor':
-                return self.json_response(200, doctor(value))
+                result = doctor(value)
+                if manager is not None:
+                    result['compute'] = manager.snapshot()
+                return self.json_response(200, result)
+            if path == '/api/compute-settings' and manager is not None:
+                return self.json_response(200, manager.snapshot())
+            if path == '/api/native/events':
+                event_file = HERE / 'runtime/logs/events.jsonl'
+                events = []
+                if event_file.exists():
+                    with event_file.open('rb') as source:
+                        source.seek(0, 2)
+                        source.seek(max(0, source.tell() - 128 * 1024))
+                        for line in source.read().decode('utf-8', errors='replace').splitlines()[-80:]:
+                            try:
+                                events.append(json.loads(line))
+                            except ValueError:
+                                continue  # A truncated first line or concurrently appended last line.
+                return self.json_response(200, events)
             if path in {'/', '/native.js', '/native.css'}:
                 name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css'}[path]
                 body = (HERE / 'ui' / name).read_bytes()
@@ -216,6 +240,34 @@ def make_handler(value, instance):
 
         def do_POST(self):
             path = urlsplit(self.path).path
+            if path == '/api/upload' and parse_qs(urlsplit(self.path).query).get('engine', [''])[0] != 'whisper-local':
+                return super().do_POST()
+            if manager is not None and path in {'/api/compute-settings', '/api/native/prepare', '/api/upload'}:
+                if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
+                    return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})
+                try:
+                    if path == '/api/compute-settings':
+                        length = int(self.headers.get('Content-Length', '0'))
+                        if not 0 < length <= 1024 or self.headers.get_content_type() != 'application/json':
+                            raise ValueError('Ожидается JSON настроек устройства')
+                        return self.json_response(200, manager.save(json.loads(self.rfile.read(length))))
+                    if path == '/api/native/prepare':
+                        if self.headers.get('X-App-Instance') != instance:
+                            return self.json_response(403, {'error': 'Откройте приложение заново'})
+                        return self.json_response(202, manager.prepare())
+                    params = parse_qs(urlsplit(self.path).query)
+                    requested = params.get('device', [manager.settings()['speech_device']])[0]
+                    device_plan = manager.make_plan(requested)
+                    job = enqueue(Path(value['workspace']), self.rfile, int(self.headers.get('Content-Length', '0')),
+                                  params.get('filename', [''])[0], params.get('title', [''])[0],
+                                  mode='audio', engine='whisper-local', speech_only=True,
+                                  language=params.get('language', ['auto'])[0], device_plan=device_plan)
+                    record('job_device_snapshot', job_id=job['id'], requested=device_plan['requested'],
+                           device=device_plan['selected'], stage='speech')
+                    start_worker(Path(value['workspace']))
+                    return self.json_response(202, job)
+                except (OSError, RuntimeError, ValueError, TypeError) as exc:
+                    return self.json_response(400, {'error': str(exc)})
             if path in {'/api/native/start-npu', '/api/native/stop'}:
                 if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
                     return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})

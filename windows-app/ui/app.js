@@ -2,6 +2,7 @@
   const $ = id => document.getElementById(id);
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Нужна проверка'};
+  const actionNames = {settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
   const stamp = s => new Date(Math.max(0,s)*1000).toISOString().slice(11,19);
   async function api(url, options) {
     const response = await fetch(url, options);
@@ -14,6 +15,19 @@
   async function readiness() {
     try {
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
+      if(d.compute){
+        const c=d.compute, chosen=c.selected, ready=chosen&&c.capabilities[chosen].ready;
+        $('speech-device').value=c.settings.speech_device;
+        for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+cap.reason;}
+        $('device-status').textContent=c.preparing?'Подготавливаем модель…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
+        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,c.capabilities[name].reason)),check('Ollama · перевод',d.ollama.ready));
+        $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
+        $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing;
+        $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing;
+        $('npu-notice').textContent=ready?'Модель готова. Можно добавлять запись.':'Подготовка использует установленную модель, без скачивания весов.';
+        const events=await api('/api/native/events');$('events').textContent=events.slice(-20).map(e=>`${new Date(e.time_utc).toLocaleTimeString()} · ${actionNames[e.action]||e.action}${e.device||e.requested?' · '+(e.device||e.requested):''}${e.previous_device?' ← '+e.previous_device:''}${e.job_id?' · запись '+e.job_id.slice(0,8):''}`).join('\n')||'Событий пока нет';
+        return;
+      }
       $('readiness').replaceChildren(check('Распознавание · Intel NPU',d.npu.ready),check('Видео и аудио',!!d.ffmpeg),check('Ollama · перевод',d.ollama.ready));
       $('ready-dot').className='dot'+(d.npu.ready&&d.ffmpeg?' good':'');
       $('start').disabled=uploading||!d.npu.ready||!d.ffmpeg;
@@ -33,7 +47,8 @@
   function render(result,job) {
     $('result-panel').hidden=false;$('result-title').textContent=job.title||job.filename;
     $('status').textContent=statusNames[job.status]||job.status;
-    $('progress-text').textContent=job.error||result?.message||'Ожидаем свободный обработчик';
+    const device=result?.device||job.device_plan?.selected;
+    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+(job.error||result?.message||'Ожидаем свободный обработчик');
     $('progress').value=result?.duration?Math.min(100,100*result.processed/result.duration):0;
     $('retry').hidden=job.status!=='error';
     const done=job.status==='done'&&result?.status==='done';$('exports').hidden=!done;
@@ -65,14 +80,15 @@
   $('upload').onsubmit=e=>{
     e.preventDefault();const file=$('file').files[0];if(!file||uploading)return;
     if(file.size>4*1024**3){message('Файл больше 4 ГБ',true);return;}
-    const query=new URLSearchParams({filename:file.name,title:$('title').value,mode:'audio',engine:'whisper-npu',speech_only:'true',language:$('language').value});
+    const query=new URLSearchParams({filename:file.name,title:$('title').value,mode:'audio',engine:'whisper-local',device:$('speech-device').value,speech_only:'true',language:$('language').value});
     const xhr=new XMLHttpRequest();xhr.open('POST','/api/upload?'+query);uploading=true;$('start').disabled=true;$('upload-progress').hidden=false;message('Копируем запись в библиотеку…');
     xhr.upload.onprogress=e=>{if(e.lengthComputable)$('upload-progress').value=100*e.loaded/e.total;};
     xhr.onload=()=>{try{const data=JSON.parse(xhr.responseText);if(xhr.status!==202)throw Error(data.error||'Ошибка загрузки');message('Запись добавлена. Можно закрыть вкладку — обработка продолжится.');select(data.id);jobs().catch(e=>message(e.message,true));}catch(e){message(e.message,true);}finally{uploading=false;$('upload-progress').hidden=true;readiness();}};
     xhr.onerror=()=>{uploading=false;message('Соединение прервалось. Откройте приложение повторно.',true);$('start').disabled=false;};xhr.send(file);
   };
   $('retry').onclick=async()=>{try{await api('/api/retry?id='+selected,{method:'POST'});poll();}catch(e){message(e.message,true);}};
-  $('start-npu').onclick=async()=>{try{await api('/api/native/start-npu',{method:'POST',headers:{'X-App-Instance':instance}});message('Загружаем существующую модель. Ничего не скачиваем.');$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{setTimeout(()=>{$('start-npu').disabled=false;readiness();},4000);}};
+  $('start-npu').onclick=async()=>{message('Загружаем выбранную модель. Ничего не скачиваем.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
+  $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await readiness();}catch(e){message(e.message,true);}};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
   api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));

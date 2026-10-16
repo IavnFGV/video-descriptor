@@ -12,8 +12,8 @@ def test_bilingual_editor_split_exports_and_report_preserve_later_ids(tmp_path):
     from video_descriptor.subtitles import webvtt
     folder = tmp_path / 'output' / 'english'
     folder.mkdir(parents=True)
-    original = [dict(id='s1', start=0, end=4, text='Hello. Goodbye.'),
-                dict(id='s2', start=4, end=6, text='Next.')]
+    original = [{'id': 's1', 'start': 0, 'end': 4, 'text': 'Hello. Goodbye.'},
+                {'id': 's2', 'start': 4, 'end': 6, 'text': 'Next.'}]
     for name, value in {
         'transcript.json': original, 'translations.json': {'s1': 'Привет. Пока.', 's2': 'Далее.'},
         'manifest.json': {'video': str(tmp_path / 'video.mp4')},
@@ -21,18 +21,18 @@ def test_bilingual_editor_split_exports_and_report_preserve_later_ids(tmp_path):
     }.items():
         (folder / name).write_text(json.dumps(value))
     result = state(tmp_path, {'folder': ['english']})['result']
-    saved = edit_utterance(tmp_path, dict(folder='english', revision=result['edit_revision'],
-                          index=0, action='split', at=2, text='Hello.', right_text='Goodbye.',
-                          speaker='unknown', right_speaker='unknown'))
+    saved = edit_utterance(tmp_path, {'folder': 'english', 'revision': result['edit_revision'],
+                          'index': 0, 'action': 'split', 'at': 2, 'text': 'Hello.', 'right_text': 'Goodbye.',
+                          'speaker': 'unknown', 'right_speaker': 'unknown'})
     second_id = saved['segments'][1]['id']
     assert saved['translations']['s1'] == 'Привет. Пока.'
     assert saved['translations'][second_id] == ''
     assert saved['segments'][2]['id'] == 's2'
     assert saved['translations']['s2'] == 'Далее.'
-    edited = edit_utterance(tmp_path, dict(folder='english', revision=saved['edit_revision'],
-                           index=0, action='edit', text='Hello!', speaker='unknown', translation='Привет!'))
-    edited = edit_utterance(tmp_path, dict(folder='english', revision=edited['edit_revision'],
-                           index=1, action='edit', text='Goodbye.', speaker='unknown', translation='Пока.'))
+    edited = edit_utterance(tmp_path, {'folder': 'english', 'revision': saved['edit_revision'],
+                           'index': 0, 'action': 'edit', 'text': 'Hello!', 'speaker': 'unknown', 'translation': 'Привет!'})
+    edited = edit_utterance(tmp_path, {'folder': 'english', 'revision': edited['edit_revision'],
+                           'index': 1, 'action': 'edit', 'text': 'Goodbye.', 'speaker': 'unknown', 'translation': 'Пока.'})
     assert 'Hello!' in webvtt(edited)
     assert '00:00:02.000 --> 00:00:04.000\nПока.' in webvtt(edited, 'ru')
     assert (folder / 'original.vtt').read_text() == webvtt(edited)
@@ -42,8 +42,8 @@ def test_bilingual_editor_split_exports_and_report_preserve_later_ids(tmp_path):
     assert json.loads((folder / 'transcript.json').read_text()) == original
     assert json.loads((folder / 'translations.json').read_text())['s1'] == 'Привет. Пока.'
     with pytest.raises(ValueError, match='изменились'):
-        edit_utterance(tmp_path, dict(folder='english', revision=saved['edit_revision'],
-                       index=0, action='edit', text='Stale', speaker='unknown'))
+        edit_utterance(tmp_path, {'folder': 'english', 'revision': saved['edit_revision'],
+                       'index': 0, 'action': 'edit', 'text': 'Stale', 'speaker': 'unknown'})
 
 
 def test_subtitle_timestamps_translation_and_escaped_markup(tmp_path):

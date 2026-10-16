@@ -18,7 +18,7 @@ from .media import extract_audio, probe
 from .translation_settings import load
 
 ENGINES = {'gemini', 'gemini-diarization-xpu', 'whisper', 'whisper-diarization',
-           'whisper-diarization-xpu', 'whisper-npu', 'whisper-npu-diarization-xpu'}
+           'whisper-diarization-xpu', 'whisper-npu', 'whisper-npu-diarization-xpu', 'whisper-local'}
 EXTENSIONS = {'.mp4', '.mkv', '.mov', '.webm', '.wav', '.mp3', '.m4a', '.flac', '.ogg'}
 EDIT_LOCK = threading.RLock()
 
@@ -331,8 +331,6 @@ def run(root, job_folder, job):
     name = job.get('folder') or 'speech-' + job['id']
     folder = root / 'output' / name
     folder.mkdir(exist_ok=True)
-    job['folder'] = name
-    write_json(job_folder / 'job.json', job)
     stat = video.stat()
     identity = hashlib.sha256(f'{video}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()[:16]
     shared = root / 'output' / ('speech-audio-' + identity)
@@ -340,6 +338,9 @@ def run(root, job_folder, job):
     duration = float(probe(video)['format']['duration'])
     write_json(folder / 'manifest.json', {'video': str(video), 'start': 0, 'duration': None,
                                          'processed_duration': duration, 'mode': 'audio', 'engine': job['engine']})
+    # Publish only after snapshot() has the manifest needed for progress polling.
+    job['folder'] = name
+    write_json(job_folder / 'job.json', job)
     result = read_json(folder / 'speech.json') or {
         'folder': name, 'video': str(video.relative_to(root)), 'title': job['title'] or video.name,
         'engine': job['engine'], 'duration': duration, 'created': time.time(), 'status': 'running',
@@ -424,17 +425,25 @@ def run(root, job_folder, job):
                 update('Фрагмент сохранён', min(start + 900, duration))
             write_json(folder / 'words.json', words)
             result['speaker_notice'] = 'Метки голосов разных блоков независимы. Их можно вручную назвать одинаково после проверки.'
-        elif job['engine'].startswith('whisper-npu'):
+        elif job['engine'].startswith('whisper-npu') or job['engine'] == 'whisper-local':
             from .speech_npu import transcribe
 
             def on_chunk(items, processed):
                 result['segments'] = group_words(items)
-                update('Whisper NPU: фрагмент сохранён', processed)
+                update('Whisper: фрагмент сохранён', processed)
 
-            words, timing = transcribe(audio, folder, on_chunk, update)
+            if job['engine'] == 'whisper-local':
+                from .speech_devices import transcribe as transcribe_devices
+                words, timing = transcribe_devices(audio, folder, on_chunk, update,
+                                                   job['device_plan'], job['id'], job.get('language', 'auto'))
+                devices = read_json(folder / 'device-state.json')
+                result.update(device=devices['active'], device_switches=devices['switches'],
+                              requested_device=job['device_plan']['requested'])
+            else:
+                words, timing = transcribe(audio, folder, on_chunk, update)
             result['timing'] = timing
             result['speaker_notice'] = ('Таймкоды отдельных слов' if timing == 'word' else
-                                        'NPU возвращает таймкоды целых реплик; границы слов пока не определяются.')
+                                        'Whisper возвращает таймкоды целых реплик; границы слов пока не определяются.')
         else:
             from faster_whisper import WhisperModel
             model_options = {'device': 'cpu', 'compute_type': 'int8', 'cpu_threads': 4}

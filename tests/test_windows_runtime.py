@@ -22,6 +22,26 @@ def native():
     return module
 
 
+def test_speech_publishes_job_folder_after_manifest_exists(tmp_path, monkeypatch):
+    video = tmp_path / 'data/test.mp4'
+    video.parent.mkdir()
+    video.write_bytes(b'test')
+    job_folder = tmp_path / 'output/jobs/test'
+    job_folder.mkdir(parents=True)
+    job = {'id': 'test', 'video': str(video), 'engine': 'whisper-local', 'title': ''}
+    monkeypatch.setattr(speech, 'probe', lambda _: {'format': {'duration': '20'}})
+
+    def capture(path, value):
+        if path == job_folder / 'job.json':
+            assert (tmp_path / 'output' / value['folder'] / 'manifest.json').is_file()
+            raise RuntimeError('publication verified')
+        jobs.write_json(path, value)
+
+    monkeypatch.setattr(speech, 'write_json', capture)
+    with pytest.raises(RuntimeError, match='publication verified'):
+        speech.run(tmp_path, job_folder, job)
+
+
 def test_actual_lock_excludes_other_process_and_releases_on_close(tmp_path):
     path = tmp_path / 'worker.lock'
     script = '''

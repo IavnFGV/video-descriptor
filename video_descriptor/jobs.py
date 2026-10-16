@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import quote
 
+from .action_history import record
 from .platform_support import environment_python, lock_file, subprocess_options, windows_processes
 
 
@@ -33,7 +34,9 @@ def jobs_dir(root):
 
 
 def enqueue(root, stream, length, filename, title="", thinking=False, mode="lecture", engine="gemini", construction=None,
-            *, language='auto', speech_only=False):
+            *, language='auto', speech_only=False, device_plan=None):
+    if engine == 'whisper-local' and not isinstance(device_plan, dict):
+        raise ValueError('Для локального backend нужен сохранённый план устройств')
     if language not in {'auto', 'en', 'ru', 'uk'}:
         raise ValueError('Выберите язык: auto, en, ru или uk')
     if type(speech_only) is not bool or (speech_only and mode != 'audio'):
@@ -78,9 +81,12 @@ def enqueue(root, stream, length, filename, title="", thinking=False, mode="lect
            "thinking": thinking, "mode": mode, "engine": engine,
            "status": "queued", "created": time.time(), "folder": None}
     job.update(language=language, speech_only=speech_only)
+    if device_plan is not None:
+        job['device_plan'] = device_plan
     if construction is not None:
         job['construction'] = construction
     write_json(folder / "job.json", job)
+    record('job_added', job_id=id, stage='speech', language=language)
     return job
 
 
@@ -120,6 +126,7 @@ def find_result(root, video):
 def run_job(root, folder, job):
     job.update(status="running", started=time.time(), error=None)
     write_json(folder / "job.json", job)
+    record('job_started', job_id=job['id'], stage='speech', requested=job.get('device_plan', {}).get('requested'))
     try:
         with (folder / "run.log").open("a") as log:
             if job.get('mode') == 'notes':
@@ -156,6 +163,7 @@ def run_job(root, folder, job):
             if job.get('speech_only'):
                 job.update(status='done', finished=time.time())
                 write_json(folder / 'job.json', job)
+                record('job_finished', job_id=job['id'], stage='speech', status='done')
                 return
             command = [sys.executable, "-u", "-m", "video_descriptor", job["video"],
                        "--model", "qwen3.5:9b", "--frame-strategy", "scene", "--chunk-strategy", "slides"]
@@ -200,6 +208,7 @@ def run_job(root, folder, job):
         job["status"] = "done"
     except (OSError, RuntimeError) as exc:
         job.update(status="error", error=str(exc))
+        record('job_failed', job_id=job['id'], status='error', reason=type(exc).__name__)
     job["finished"] = time.time()
     write_json(folder / "job.json", job)
 

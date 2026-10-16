@@ -2,7 +2,8 @@ import json
 import sys
 from unittest.mock import Mock
 
-from video_descriptor import __main__ as cli, jobs, live
+from video_descriptor import __main__ as cli
+from video_descriptor import jobs, live
 from video_descriptor.models import Note, Notes
 
 

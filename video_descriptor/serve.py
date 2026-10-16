@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 from . import translation_settings
+from .action_history import record
 from .editor import EditConflict, load_document, save_document
 from .gemini import GeminiServiceError
 from .gemini import models as gemini_models
@@ -103,6 +104,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                         body = (subrip if format == 'srt' else webvtt)(result, language).encode()
                     self.send_response(200)
                     mime = 'application/x-subrip' if format == 'srt' else 'text/vtt'
+                    record('export', stage='speech', format='txt' if path == '/api/transcript-text' else format)
                     self.send_header("Content-Type", "text/plain; charset=utf-8" if path == "/api/transcript-text" else mime + '; charset=utf-8')
                     self.send_header("Content-Disposition", 'attachment; filename="transcript.txt"' if path == "/api/transcript-text" else f'attachment; filename="{language}.{format}"')
                     self.send_header("Content-Length", str(len(body)))
@@ -270,7 +272,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     raise TypeError("Ожидается объект JSON")
                 if path == "/api/speech-edit":
                     from .speech import edit_utterance
-                    return self.json_response(200, edit_utterance(root, value))
+                    result = edit_utterance(root, value)
+                    record('transcript_edited', stage='speech')
+                    return self.json_response(200, result)
                 if path.endswith("names"):
                     name = value["folder"]
                     if not name or Path(name).name != name:
@@ -353,6 +357,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                         raise ValueError("Задание уже обрабатывается или не найдено")
                     job.update(status="queued", error=None)
                     write_json(file, job)
+                    record('job_retried', job_id=job['id'], stage='speech')
                 start_worker(root)
                 return self.json_response(202, job)
             except (ValueError, OSError, TypeError) as exc:
