@@ -38,3 +38,12 @@ dist/
 /.devcontainer/construction-settings.json
 /.devcontainer/construction-settings.tmp
 /.devcontainer/construction-presets/
+
+# Machine-local migration evidence and native application runtime.
+/windows-migration/benchmark-reference/
+/windows-migration/copy.log
+/windows-migration/copy-verification.json
+/.venv-windows/
+/windows-app/runtime/
+/windows-app/config.local.json
+/docs/research/raw/

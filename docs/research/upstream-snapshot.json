@@ -1,0 +1,261 @@
+{
+  "checked_on": "2026-10-16",
+  "repositories": [
+    {
+      "full_name": "SubtitleEdit/subtitleedit",
+      "html_url": "https://github.com/SubtitleEdit/subtitleedit",
+      "default_branch": "main",
+      "pushed_at": "2026-10-16T15:57:06Z",
+      "archived": false,
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "description": "the subtitle editor :)",
+      "head": "abefe387700cbf8754f659575a63801658cf38f7",
+      "last_commit_date": "2026-10-16T15:24:04Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/abefe387700cbf8754f659575a63801658cf38f7/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/abefe387700cbf8754f659575a63801658cf38f7/LICENSE"
+        }
+      ]
+    },
+    {
+      "full_name": "artificemachine/vidistiller",
+      "html_url": "https://github.com/artificemachine/vidistiller",
+      "default_branch": "main",
+      "pushed_at": "2026-10-14T21:32:01Z",
+      "archived": false,
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "description": "Self-hosted video transcription API \u00e2\u20ac\u201d YouTube, Vimeo, TikTok and more, outputs markdown with timestamps and optional frame snapshots",
+      "head": "94fc24b418f3e758db221e6d2463f67fb9e5d23e",
+      "last_commit_date": "2026-10-08T11:43:30Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/artificemachine/vidistiller/94fc24b418f3e758db221e6d2463f67fb9e5d23e/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/artificemachine/vidistiller/94fc24b418f3e758db221e6d2463f67fb9e5d23e/LICENSE"
+        },
+        {
+          "path": "docker-compose.yml",
+          "url": "https://raw.githubusercontent.com/artificemachine/vidistiller/94fc24b418f3e758db221e6d2463f67fb9e5d23e/docker-compose.yml"
+        },
+        {
+          "path": "pyproject.toml",
+          "url": "https://raw.githubusercontent.com/artificemachine/vidistiller/94fc24b418f3e758db221e6d2463f67fb9e5d23e/pyproject.toml"
+        }
+      ]
+    },
+    {
+      "full_name": "chidiwilliams/buzz",
+      "html_url": "https://github.com/chidiwilliams/buzz",
+      "default_branch": "main",
+      "pushed_at": "2026-10-11T14:27:54Z",
+      "archived": false,
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "description": "Buzz transcribes and translates audio offline on your personal computer. Powered by OpenAI's Whisper.",
+      "head": "851c8b359343db8c9460aa15ee59a40f2ab66aa8",
+      "last_commit_date": "2026-10-11T14:26:24Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/chidiwilliams/buzz/851c8b359343db8c9460aa15ee59a40f2ab66aa8/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/chidiwilliams/buzz/851c8b359343db8c9460aa15ee59a40f2ab66aa8/LICENSE"
+        },
+        {
+          "path": "pyproject.toml",
+          "url": "https://raw.githubusercontent.com/chidiwilliams/buzz/851c8b359343db8c9460aa15ee59a40f2ab66aa8/pyproject.toml"
+        }
+      ]
+    },
+    {
+      "full_name": "fdff87554/whisper-ui",
+      "html_url": "https://github.com/fdff87554/whisper-ui",
+      "default_branch": "main",
+      "pushed_at": "2026-10-11T01:45:04Z",
+      "archived": false,
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "description": "Streamlit UI for OpenAI Whisper speech-to-text",
+      "head": "685d0a077d36bb8a3b8421951a3132ac4fd231f5",
+      "last_commit_date": "2026-10-07T01:57:12Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/fdff87554/whisper-ui/685d0a077d36bb8a3b8421951a3132ac4fd231f5/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/fdff87554/whisper-ui/685d0a077d36bb8a3b8421951a3132ac4fd231f5/LICENSE"
+        },
+        {
+          "path": "pyproject.toml",
+          "url": "https://raw.githubusercontent.com/fdff87554/whisper-ui/685d0a077d36bb8a3b8421951a3132ac4fd231f5/pyproject.toml"
+        }
+      ]
+    },
+    {
+      "full_name": "jaypetersdotdev/self-hosted-video-starter-kit",
+      "html_url": "https://github.com/jaypetersdotdev/self-hosted-video-starter-kit",
+      "default_branch": "main",
+      "pushed_at": "2025-07-28T17:30:49Z",
+      "archived": false,
+      "license": null,
+      "description": "A local, extensible video automation stack with n8n, Whisper (speech-to-text), and Postgres\u00e2\u20ac\u201dall powered by Docker Compose. Transcribe audio/video, automate workflows, and keep your data private. Learn more & connect: https://www.youtube.com/@jaypetersdotdev",
+      "head": "2108431d0a14b8b5ac5617f92bcbe6cf686a439a",
+      "last_commit_date": "2025-07-28T17:30:47Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/jaypetersdotdev/self-hosted-video-starter-kit/2108431d0a14b8b5ac5617f92bcbe6cf686a439a/README.md"
+        },
+        {
+          "path": "docker-compose.yml",
+          "url": "https://raw.githubusercontent.com/jaypetersdotdev/self-hosted-video-starter-kit/2108431d0a14b8b5ac5617f92bcbe6cf686a439a/docker-compose.yml"
+        }
+      ]
+    },
+    {
+      "full_name": "jhj0517/Whisper-WebUI",
+      "html_url": "https://github.com/jhj0517/Whisper-WebUI",
+      "default_branch": "master",
+      "pushed_at": "2025-12-29T07:53:10Z",
+      "archived": false,
+      "license": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "description": "A Web UI for easy subtitle using whisper model.",
+      "head": "c3bb3b18e959826b28b1192486a8d5b361b6a4e0",
+      "last_commit_date": "2025-12-29T06:25:40Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/jhj0517/Whisper-WebUI/c3bb3b18e959826b28b1192486a8d5b361b6a4e0/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/jhj0517/Whisper-WebUI/c3bb3b18e959826b28b1192486a8d5b361b6a4e0/LICENSE"
+        }
+      ]
+    },
+    {
+      "full_name": "rongtianjie/SubWeaver",
+      "html_url": "https://github.com/rongtianjie/SubWeaver",
+      "default_branch": "main",
+      "pushed_at": "2026-06-19T13:40:33Z",
+      "archived": false,
+      "license": null,
+      "description": "A web-based audio/video transcription and subtitle generation service powered by OpenAI Whisper, featuring multi-language translation, online video downloading, user authentication, and task queue management.",
+      "head": "b46c4d236d91f93e6607be44953acbd1ac3b6f11",
+      "last_commit_date": "2026-06-19T13:40:13Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/rongtianjie/SubWeaver/b46c4d236d91f93e6607be44953acbd1ac3b6f11/README.md"
+        },
+        {
+          "path": "docker-compose.yml",
+          "url": "https://raw.githubusercontent.com/rongtianjie/SubWeaver/b46c4d236d91f93e6607be44953acbd1ac3b6f11/docker-compose.yml"
+        },
+        {
+          "path": "pyproject.toml",
+          "url": "https://raw.githubusercontent.com/rongtianjie/SubWeaver/b46c4d236d91f93e6607be44953acbd1ac3b6f11/pyproject.toml"
+        }
+      ]
+    },
+    {
+      "full_name": "thewh1teagle/vibe",
+      "html_url": "https://github.com/thewh1teagle/vibe",
+      "default_branch": "main",
+      "pushed_at": "2026-10-06T11:28:19Z",
+      "archived": false,
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "description": "Transcribe on your own!",
+      "head": "2ea5ecef989933282fca517d82d4e3128ae5fb0b",
+      "last_commit_date": "2026-10-06T11:28:17Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/thewh1teagle/vibe/2ea5ecef989933282fca517d82d4e3128ae5fb0b/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/thewh1teagle/vibe/2ea5ecef989933282fca517d82d4e3128ae5fb0b/LICENSE"
+        }
+      ]
+    },
+    {
+      "full_name": "psyb0t/docker-talkies",
+      "html_url": "https://github.com/psyb0t/docker-talkies",
+      "default_branch": "main",
+      "pushed_at": "2026-08-27T22:26:31Z",
+      "archived": false,
+      "license": {
+        "key": "wtfpl",
+        "name": "Do What The F*ck You Want To Public License",
+        "spdx_id": "WTFPL",
+        "url": "https://api.github.com/licenses/wtfpl",
+        "node_id": "MDc6TGljZW5zZTE4"
+      },
+      "description": "Self-hosted Docker speech API for OpenAI-compatible transcription and text-to-speech, streaming ASR, voice cloning, phoneme recognition, and MCP.",
+      "head": "f157302fcf789b1611db8ba3e51d2d4e19d4bb6f",
+      "last_commit_date": "2026-08-27T22:26:14Z",
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://raw.githubusercontent.com/psyb0t/docker-talkies/f157302fcf789b1611db8ba3e51d2d4e19d4bb6f/README.md"
+        },
+        {
+          "path": "LICENSE",
+          "url": "https://raw.githubusercontent.com/psyb0t/docker-talkies/f157302fcf789b1611db8ba3e51d2d4e19d4bb6f/LICENSE"
+        },
+        {
+          "path": "pyproject.toml",
+          "url": "https://raw.githubusercontent.com/psyb0t/docker-talkies/f157302fcf789b1611db8ba3e51d2d4e19d4bb6f/pyproject.toml"
+        }
+      ]
+    }
+  ],
+  "gitlab_note": "Requested GitLab URL returned HTTP 503. Same author/project inspected on GitHub; equivalence of GitLab revision not asserted."
+}
