@@ -10,6 +10,7 @@ Windows-приложение для локальной обработки вид
 - [Автовыбор NPU → GPU → CPU, настройки и план CI/CD](docs/device-policy-and-release.md).
 - [ZIP, Windows installer, сборка и CI](docs/windows-release.md).
 - [Локальная проверка в Windows Sandbox](docs/windows-sandbox.md).
+- [Граница ближайшего выпуска и оставшаяся работа](docs/release-readiness.md).
 - [Что перенесено из WSL](windows-migration/START-HERE.md).
 
 ## Открыть приложение на Windows
@@ -65,6 +66,8 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 
 | Дата | Изменение | Проверка |
 |---|---|---|
+| 2026-10-17 | Уточнена цель ближайшего выпуска: пригодный installer/setup и полный пользовательский путь; сохраняем работающий native NPU/UI, Compose используем по необходимости без переписывания ради стека | Зафиксированы четыре оставшихся блока: первоначальная настройка, фасад компонентов, полный сценарий и итоговая приёмка; результаты реального Sandbox сохранены |
+| 2026-10-17 | Выполнен настоящий прогон ZIP/installer в Windows Sandbox после перезагрузки; добавлены preparing, уникальный bootstrap, защита от дублей и корректный ExitCode PS 5.1 | Windows 11 Enterprise 26100, 4 ГБ, без Python/сетевого адаптера; 4387 hashes, UI/doctor, install/reinstall, отказ занятого update, сохранность данных после uninstall; интерфейс открыт в гостевом Edge; аппаратное ASR в госте не проверялось |
 | 2026-10-17 | Подготовлен запуск Windows Sandbox: изолированная staging-папка, 4 ГБ RAM, read-only сборки, отдельные отчёты, автоматическая проверка ZIP/installer без сети/GPU; компонент включён после согласия пользователя, без авто-reboot | PowerShell AST, WSB XML и hashes проверены; исправлена сериализация manifest в PS 5.1, повторная подготовка прошла; Windows вернула restart_needed=true; гостевой прогон ожидает ручной перезагрузки и не засчитан как прошедший |
 | 2026-10-17 | Прототип 0.4: ZIP с собственным Python/OpenVINO/FFmpeg, per-user Windows installer, hash manifest/pinned inputs, защита занятой установки, CI-сборка и lifecycle smoke tests | 184 теста; реальный CPU/GPU ASR из ZIP и NPU static probe; lifecycle/повторяемость ZIP описаны в отчёте; hosted CI/чистая VM ещё не запускались |
 | 2026-10-17 | Прототип 0.3: выбор Авто/NPU/GPU/CPU, сохранённый план задания, отдельные OpenVINO CPU/GPU workers, переход после отказа с сохранением готовых фрагментов и журнал действий | 174 теста прошли, 1 пропущен; реальный 20 s MP4 на CPU/GPU/NPU/Auto, экспорт SRT; сохранение настройки в UI; исправлена гонка публикации manifest; Ruff/pip check |

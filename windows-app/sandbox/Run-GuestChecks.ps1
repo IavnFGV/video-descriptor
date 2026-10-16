@@ -1,10 +1,15 @@
 $ErrorActionPreference = 'Stop'
 $inputDirectory = 'C:\VD-Input'
 $reportDirectory = 'C:\VD-Reports'
-$bootstrapDirectory = Join-Path $env:USERPROFILE 'VD-bootstrap'
+$bootstrapDirectory = Join-Path $env:USERPROFILE ('VD-bootstrap-' + [guid]::NewGuid().ToString('N'))
 $env:PYTHONUTF8 = '1'
 $env:PYTHONIOENCODING = 'utf-8'
+$checkMutex = [System.Threading.Mutex]::new($false, 'Local\VideoDescriptorSandboxChecks')
+if (-not $checkMutex.WaitOne(0)) { $checkMutex.Dispose(); Write-Host 'Sandbox checks are already running.'; exit 0 }
 try {
+    $existingChecks = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like '*C:\VD-Input\verify_release.py*' })
+    if ($existingChecks.Count -gt 0) { Write-Host 'Sandbox verifier is already running; keeping its existing report.'; exit 0 }
+    @{status='preparing'; environment='Windows Sandbox'; started_at=(Get-Date).ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportDirectory 'status.json') -Encoding UTF8
     Write-Host 'Video Descriptor: checking ZIP and installer in Windows Sandbox. Network and vGPU are disabled.'
     $inputs = Get-Content -LiteralPath (Join-Path $inputDirectory 'inputs.json') -Raw | ConvertFrom-Json
     foreach ($artifact in $inputs.artifacts) {
@@ -14,14 +19,14 @@ try {
     $zipPath = Join-Path $inputDirectory $inputs.zip
     Expand-Archive -LiteralPath $zipPath -DestinationPath $bootstrapDirectory
     $python = Join-Path $bootstrapDirectory 'python\python.exe'
-    $arguments = '-X utf8 "' + (Join-Path $inputDirectory 'verify_release.py') + '" "' + $zipPath + '" --installer "' + (Join-Path $inputDirectory $inputs.installer) + '" --output "' + (Join-Path $reportDirectory 'verification-release.json') + '"'
-    $testProcess = Start-Process -FilePath $python -ArgumentList $arguments -WorkingDirectory $bootstrapDirectory -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $reportDirectory 'stdout.log') -RedirectStandardError (Join-Path $reportDirectory 'stderr.log')
+    $attemptReport = Join-Path $reportDirectory ('verification-release-' + [guid]::NewGuid().ToString('N') + '.json')
+    $arguments = '-X utf8 "' + (Join-Path $inputDirectory 'verify_release.py') + '" "' + $zipPath + '" --installer "' + (Join-Path $inputDirectory $inputs.installer) + '" --output "' + $attemptReport + '"'
     @{status='running'; environment='Windows Sandbox'; started_at=(Get-Date).ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportDirectory 'status.json') -Encoding UTF8
     Write-Host 'Checks are running. Reports are saved to the dedicated host reports folder. Keep this window open.'
-    $testProcess.WaitForExit()
-    $testProcess.Refresh()
-    if ($testProcess.ExitCode -ne 0) { throw ('Checks failed; exit ' + $testProcess.ExitCode + '. See stderr.log.') }
-    $report = Get-Content -LiteralPath (Join-Path $reportDirectory 'verification-release.json') -Raw | ConvertFrom-Json
+    # -Wait keeps a valid ExitCode on Windows PowerShell 5.1; WaitForExit/Refresh can return null.
+    $testProcess = Start-Process -FilePath $python -ArgumentList $arguments -WorkingDirectory $bootstrapDirectory -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput (Join-Path $reportDirectory 'stdout.log') -RedirectStandardError (Join-Path $reportDirectory 'stderr.log')
+    if ($null -eq $testProcess.ExitCode -or $testProcess.ExitCode -ne 0) { throw ('Checks failed; exit ' + $testProcess.ExitCode + '. See stderr.log.') }
+    $report = Get-Content -LiteralPath $attemptReport -Raw | ConvertFrom-Json
     $report | Add-Member -NotePropertyName execution_environment -NotePropertyValue 'Windows Sandbox; no network; vGPU disabled'
     $report | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $reportDirectory 'verification-release.json') -Encoding UTF8
     @{status='passed'; environment='Windows Sandbox'; finished_at=(Get-Date).ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportDirectory 'status.json') -Encoding UTF8
@@ -29,4 +34,8 @@ try {
 } catch {
     @{status='failed'; message=$_.Exception.Message; finished_at=(Get-Date).ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportDirectory 'status.json') -Encoding UTF8
     Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
+} finally {
+    $checkMutex.ReleaseMutex()
+    $checkMutex.Dispose()
 }

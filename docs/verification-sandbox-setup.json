@@ -3,10 +3,10 @@
   "authorization": "User explicitly agreed to enable Windows Sandbox",
   "feature": "Containers-DisposableClientVM",
   "feature_status": "enabled",
-  "restart_needed": true,
+  "restart_needed": false,
   "automatic_restart_performed": false,
-  "guest_started": false,
-  "guest_tests_passed": null,
+  "guest_started": true,
+  "guest_tests_passed": true,
   "configuration": {
     "memory_mib": 4096,
     "networking": "Disable",
@@ -22,6 +22,6 @@
     "staged_artifact_hashes": true
   },
   "prepared_run": "windows-app/runtime/sandbox/20261017-014641-487",
-  "next_step": "User restarts Windows; open prepared Video Descriptor.wsb and inspect reports/status.json",
+  "next_step": "First-run model/service setup; see docs/release-readiness.md",
   "feature_enable_evidence": "windows-app/runtime/sandbox/20261017-014453-497/feature-status.json"
 }

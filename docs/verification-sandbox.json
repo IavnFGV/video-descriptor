@@ -1,0 +1,47 @@
+{
+  "exit_code_control": {
+    "success_exit": 0,
+    "failure_exit": 7
+  },
+  "scope": "Installer and UI without models; not hardware ASR or independent minimal VM",
+  "verification": {
+    "zip_sha256": "ff213b688483244e208d9fb13fc54e2bde724d35270fd2dd027ba05f31cabbac",
+    "zip_files_verified": 4387,
+    "portable": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "clean_vm": false,
+    "hardware_recognition": false,
+    "installer_sha256": "6d8dbd6262755ea5e6ded62d9b24c61f687712148d4a35fb413494a35b3c578b",
+    "installed": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "reinstall_preserves_data": true,
+    "running_upgrade_refused": true,
+    "uninstall_preserves_data": true,
+    "execution_environment": "Windows Sandbox; no network; vGPU disabled"
+  },
+  "status": {
+    "finished_at": "2026-10-17T02:26:05.9908059+03:00",
+    "status": "passed",
+    "environment": "Windows Sandbox"
+  },
+  "checked_on": "2026-10-17",
+  "guest_environment": {
+    "os": "Microsoft Windows 11 Enterprise",
+    "build": "26100",
+    "ram_bytes": 4293857280,
+    "python_on_path": false,
+    "network_adapter_count": 0
+  },
+  "concurrent_bootstrap_preserves_status": true,
+  "screenshot": "docs/windows-sandbox-preview.png"
+}

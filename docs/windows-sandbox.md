@@ -38,7 +38,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/Prepare-Sandbox.
 
 Отчёты сохраняются сразу наружу:
 
-- `reports/status.json`: running/passed/failed, время и сообщение ошибки.
+- `reports/status.json`: preparing/running/passed/failed, время и сообщение ошибки.
 - `reports/stdout.log`, `stderr.log`: вывод verifier.
 - `reports/verification-release.json`: точные artifact hashes и результаты.
 
@@ -49,3 +49,33 @@ Sandbox не тождественен минимальной независим�
 
 Официальные сведения: [установка](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-install),
 [WSB configuration](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-configure-using-wsb-file).
+
+## Первый фактический запуск 17 октября 2026
+
+После ручной перезагрузки WindowsSandbox.exe стал доступен. Первый запуск дополнительно
+обновил приложение Windows Sandbox на хосте. Гость: Windows 11 Enterprise build 26100,
+4096 MiB назначенной памяти, системный Python отсутствует, сетевых адаптеров нет.
+
+Гостевой verifier проверил 4387 файлов ZIP, loopback UI/doctor, отсутствие модели,
+штатную остановку, install/reinstall, отказ обновления работающей копии и uninstall
+с сохранением sentinel/config. ZIP/EXE hashes совпали с исходными артефактами 0.4.0.
+Это реальная гостевая проверка; аппаратное ASR и upgrade fixture 0.4.1 здесь не запускались.
+
+Первая распаковка выполнялась без раннего status-файла и создала впечатление, что
+автозапуск не сработал. Повторный bootstrap столкнулся с уже существующей папкой;
+этот отдельный retry не считается ошибкой ZIP/installer. Добавлены ранний preparing,
+уникальная bootstrap-папка и mutex/проверка активного verifier. Конкурентный запуск
+проверен внутри гостя: он завершается без изменения текущего status/report.
+В Windows PowerShell 5.1 последовательность WaitForExit/Refresh дала пустой ExitCode
+при успешном verifier. Заменена на Start-Process -Wait -PassThru; отдельная гостевая
+проба подтверждает exit 0 и exit 7. Каждая попытка пишет собственный JSON, чтобы
+старый успешный отчёт не мог подменить результат новой попытки.
+
+Интерфейс из ZIP открыт в Edge внутри гостя через локальный ярлык. Приложение
+корректно показывает отсутствие моделей; аппаратное распознавание не включалось.
+[Снимок гостевого интерфейса](windows-sandbox-preview.png).
+
+После установки обновления доступен официальный [wsb CLI](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-cli).
+Для диагностики можно использовать `wsb list` и `wsb exec --id <id> --run-as ExistingLogin
+--command <command>`. Вывод гостя CLI не передаёт: диагностика сохраняется в reports.
+Отключённый clipboard мешает UI-paste; включать его ради диагностики не требуется.
