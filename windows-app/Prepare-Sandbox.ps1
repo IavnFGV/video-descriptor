@@ -17,7 +17,10 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'sandbox\Run-GuestChecks.ps1') -
 $zip = @($artifacts | Where-Object { $_.file -like '*.zip' })
 $installer = @($artifacts | Where-Object { $_.file -like '*-setup.exe' })
 if ($zip.Count -ne 1 -or $installer.Count -ne 1) { throw 'Expected exactly one ZIP and installer' }
-@{zip=$zip[0].file; installer=$installer[0].file; artifacts=$artifacts} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $inputDirectory 'inputs.json') -Encoding UTF8
+# Windows PowerShell 5.1 can serialize a ConvertFrom-Json root array as {value,Count}.
+$artifactManifest = @()
+foreach ($artifact in $artifacts) { $artifactManifest += @{file=[string]$artifact.file; bytes=[long]$artifact.bytes; sha256=[string]$artifact.sha256} }
+@{zip=[string]$zip[0].file; installer=[string]$installer[0].file; artifacts=$artifactManifest} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $inputDirectory 'inputs.json') -Encoding UTF8
 $escapedInput = [Security.SecurityElement]::Escape($inputDirectory)
 $escapedReports = [Security.SecurityElement]::Escape($reportDirectory)
 $configuration = @"

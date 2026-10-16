@@ -21,6 +21,7 @@
     "wsb_xml": true,
     "staged_artifact_hashes": true
   },
-  "prepared_run": "windows-app/runtime/sandbox/20261017-014453-497",
-  "next_step": "User restarts Windows; open prepared Video Descriptor.wsb and inspect reports/status.json"
+  "prepared_run": "windows-app/runtime/sandbox/20261017-014641-487",
+  "next_step": "User restarts Windows; open prepared Video Descriptor.wsb and inspect reports/status.json",
+  "feature_enable_evidence": "windows-app/runtime/sandbox/20261017-014453-497/feature-status.json"
 }

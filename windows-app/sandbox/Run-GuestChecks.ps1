@@ -19,6 +19,7 @@ try {
     @{status='running'; environment='Windows Sandbox'; started_at=(Get-Date).ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportDirectory 'status.json') -Encoding UTF8
     Write-Host 'Checks are running. Reports are saved to the dedicated host reports folder. Keep this window open.'
     $testProcess.WaitForExit()
+    $testProcess.Refresh()
     if ($testProcess.ExitCode -ne 0) { throw ('Checks failed; exit ' + $testProcess.ExitCode + '. See stderr.log.') }
     $report = Get-Content -LiteralPath (Join-Path $reportDirectory 'verification-release.json') -Raw | ConvertFrom-Json
     $report | Add-Member -NotePropertyName execution_environment -NotePropertyValue 'Windows Sandbox; no network; vGPU disabled'
