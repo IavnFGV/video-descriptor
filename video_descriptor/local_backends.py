@@ -41,6 +41,8 @@ def engine_info(backend, timeout=1):
         if (not isinstance(info, dict) or any(info.get(k) != v for k, v in expected.items())
                 or info.get('word_timestamps', False) or not info.get('model_sha256')):
             raise ValueError('Worker profile mismatch')
+        if backend.get('expected_model_sha256') and info['model_sha256'] != backend['expected_model_sha256']:
+            raise ValueError('Worker model differs from the configured model')
         return info
     except (OSError, ValueError, urllib.error.URLError) as exc:
         raise BackendUnavailable(f'{backend["device"]}: обработчик недоступен или профиль не совпал') from exc

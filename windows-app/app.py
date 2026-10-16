@@ -196,10 +196,12 @@ def start_npu(value):
 
 def make_handler(value, instance):
     from compute import ComputeManager
+    from setup_service import SetupService, choose_folder, inspect_model
 
     from video_descriptor.action_history import record
     from video_descriptor.jobs import enqueue, read_json, start_worker
     manager = ComputeManager(value, HERE) if 'npu_worker_directory' in value else None
+    setup = SetupService(manager, HERE) if manager is not None else None
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
@@ -215,6 +217,8 @@ def make_handler(value, instance):
                 return self.json_response(200, result)
             if path == '/api/compute-settings' and manager is not None:
                 return self.json_response(200, manager.snapshot())
+            if path == '/api/setup' and setup is not None:
+                return self.json_response(200, setup.snapshot())
             if path == '/api/native/events':
                 event_file = HERE / 'runtime/logs/events.jsonl'
                 events = []
@@ -242,6 +246,27 @@ def make_handler(value, instance):
 
         def do_POST(self):
             path = urlsplit(self.path).path
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model'}:
+                try:
+                    length = int(self.headers.get('Content-Length', '0'))
+                    origin = self.headers.get('Origin')
+                    if self.headers.get('X-App-Instance') != instance or (origin and urlsplit(origin).netloc != self.headers.get('Host')):
+                        if 0 < length <= 4096:
+                            self.rfile.read(length)
+                        return self.json_response(403, {'error': 'Откройте мастер из приложения'})
+                    if path == '/api/setup/pick-model':
+                        return self.json_response(200, {'path': choose_folder()})
+                    if not 0 < length <= 4096 or self.headers.get_content_type() != 'application/json':
+                        raise ValueError('Ожидается путь к модели в JSON')
+                    body = json.loads(self.rfile.read(length))
+                    if not isinstance(body, dict):
+                        raise TypeError('Ожидается объект настроек модели')
+                    result = inspect_model(body.get('path'), HERE) if path.endswith('/inspect') else setup.apply(body.get('path'))
+                    return self.json_response(200, result)
+                except (ValueError, TypeError, OSError, subprocess.SubprocessError) as exc:
+                    return self.json_response(400, {'error': str(exc)})
+                except RuntimeError as exc:
+                    return self.json_response(409, {'error': str(exc)})
             if path == '/api/upload' and parse_qs(urlsplit(self.path).query).get('engine', [''])[0] != 'whisper-local':
                 return super().do_POST()
             if manager is not None and path in {'/api/compute-settings', '/api/native/prepare', '/api/upload'}:

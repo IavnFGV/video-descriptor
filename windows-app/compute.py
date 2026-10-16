@@ -30,7 +30,9 @@ class ComputeManager:
         for device, port in [('NPU', 8766), ('GPU', 8768), ('CPU', 8767)]:
             url = value.get(device.lower() + '_url', f'http://127.0.0.1:{port}')
             port = urlsplit(url).port or 80
-            external_npu = device == 'NPU' and npu_python.is_file() and (worker / 'whisper_npu_server.py').is_file()
+            external_npu = (device == 'NPU' and npu_python.is_file()
+                            and (worker / 'whisper_npu_server.py').is_file()
+                            and model.resolve() == original_model.resolve())
             script = worker / 'whisper_npu_server.py' if external_npu else self.here / 'whisper_worker.py'
             args = ['--model-name', 'small', '--bind', '127.0.0.1'] if external_npu else ['--device', device]
             self.backends[device] = {'device': device,
@@ -38,6 +40,8 @@ class ComputeManager:
                                     'command': [str(npu_python if external_npu else python), '-X', 'utf8', '-u',
                                                 str(script), '--model', str(original_model if external_npu else model),
                                                 *args, '--port', str(port)]}
+            if value.get('whisper_model_sha256'):
+                self.backends[device]['expected_model_sha256'] = value['whisper_model_sha256']
         self._inventory = None
         self._lock = threading.RLock()
         self.preparing = False
@@ -80,7 +84,8 @@ class ComputeManager:
                 return device, {'available': True, 'ready': True, 'engine': info, 'reason': 'Готово'}
             except BackendUnavailable:
                 available = device in detected and inventory['model_present'] and device not in self.failed
-                reason = self.failed.get(device) or ('Модель не загружена' if available else 'Нет совместимого устройства/runtime/модели')
+                reason = self.failed.get(device) or ('Модель не загружена' if available else
+                         'Подключите модель' if not inventory['model_present'] else 'Нет совместимого устройства или runtime')
                 return device, {'available': available, 'ready': False, 'reason': reason}
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             return dict(pool.map(inspect, DEVICES))

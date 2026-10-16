@@ -94,7 +94,7 @@ def source_paths():
     paths = list((ROOT / 'video_descriptor').rglob('*.py'))
     paths += [p for name in ('assets', 'prompts') for p in (ROOT / 'video_descriptor' / name).rglob('*') if p.is_file()]
     paths += [HERE / name for name in (
-        'app.py', 'compute.py', 'whisper_worker.py', 'release_lifecycle.py',
+        'app.py', 'compute.py', 'setup_service.py', 'whisper_worker.py', 'release_lifecycle.py',
         'Start-App.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
     paths += [p for p in (HERE / 'ui').iterdir() if p.is_file()]

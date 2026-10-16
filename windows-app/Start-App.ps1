@@ -12,7 +12,7 @@ if ($Doctor) { & $pythonPath -X utf8 $appPath --doctor; exit $LASTEXITCODE }
 if ($Stop) { & $pythonPath -X utf8 $appPath --stop; exit $LASTEXITCODE }
 $settings = Get-Content -LiteralPath (Join-Path $appDirectory 'config.example.json') -Raw | ConvertFrom-Json
 $localPath = Join-Path $appDirectory 'config.local.json'
-if (Test-Path -LiteralPath $localPath) { $localSettings = Get-Content -LiteralPath $localPath -Raw | ConvertFrom-Json; foreach ($property in $localSettings.PSObject.Properties) { $settings.($property.Name) = $property.Value } }
+if (Test-Path -LiteralPath $localPath) { $localSettings = Get-Content -LiteralPath $localPath -Raw | ConvertFrom-Json; foreach ($property in $localSettings.PSObject.Properties) { $settings | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value -Force } }
 $url = 'http://127.0.0.1:' + $settings.port
 $expectedWorkspace = [IO.Path]::GetFullPath((Join-Path $appDirectory $settings.workspace))
 $logsPath = Join-Path $appDirectory 'runtime\logs'

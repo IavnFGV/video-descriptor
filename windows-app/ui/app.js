@@ -2,7 +2,7 @@
   const $ = id => document.getElementById(id);
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Нужна проверка'};
-  const actionNames = {settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
+  const actionNames = {model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
   const stamp = s => new Date(Math.max(0,s)*1000).toISOString().slice(11,19);
   async function api(url, options) {
     const response = await fetch(url, options);
@@ -11,6 +11,21 @@
     return data;
   }
   function message(text, error=false) { $('message').textContent=text; $('message').style.color=error?'#a04b30':'#5b7760'; }
+  async function setupStatus() {
+    const s=await api('/api/setup');
+    $('setup-summary').textContent=s.verified?'Модель подключена и проверена. Можно подготовить распознавание.':s.model_present?'Найдена существующая модель. Проверьте и подключите её в мастере.':'Для распознавания нужно подключить модель. Начните с выбора папки.';
+    if(!$('model-path').value)$('model-path').value=s.model_present?s.model_path:'';
+    if(!s.model_present)$('setup-form').hidden=false;
+  }
+  async function modelAction(save) {
+    const buttons=['pick-model','inspect-model','apply-model'].map($);buttons.forEach(b=>b.disabled=true);
+    $('setup-feedback').textContent='Проверяем комплект файлов и контрольную сумму модели…';
+    try {
+      const r=await api(save?'/api/setup/model':'/api/setup/inspect',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({path:$('model-path').value})});
+      $('setup-feedback').textContent=`${r.model} · ${(r.bytes/1024/1024).toFixed(0)} МиБ · файлы проверены.`+(save?' Модель подключена. Нажмите «Подготовить распознавание» в панели готовности.':' Можно подключить модель.');
+      if(save){await setupStatus();await readiness();}
+    } catch(e){$('setup-feedback').textContent=e.message;}finally{buttons.forEach(b=>b.disabled=false);}
+  }
   function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className=ready?'good':'warning';b.textContent=suffix||(ready?'Готово':'Не подключено');row.append(a,b);return row; }
   async function readiness() {
     try {
@@ -91,6 +106,10 @@
   $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await readiness();}catch(e){message(e.message,true);}};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;};
+  $('inspect-model').onclick=()=>modelAction(false);
+  $('setup-form').onsubmit=e=>{e.preventDefault();modelAction(true);};
+  $('pick-model').onclick=async()=>{const b=$('pick-model');b.disabled=true;$('setup-feedback').textContent='Выберите папку в окне Windows…';try{const r=await api('/api/setup/pick-model',{method:'POST',headers:{'X-App-Instance':instance}});if(r.path)$('model-path').value=r.path;$('setup-feedback').textContent=r.path?'Папка выбрана. Теперь проверьте и подключите модель.':'Выбор отменён.';}catch(e){$('setup-feedback').textContent=e.message;}finally{b.disabled=false;}};
+  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();
