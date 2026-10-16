@@ -6,6 +6,7 @@ Unlike the short-video pipeline, retain every segment and its source timestamps.
 import json
 import math
 import os
+import shutil
 import subprocess
 import wave
 from pathlib import Path
@@ -14,13 +15,31 @@ from .models import Source
 
 
 def run(command: list[str]) -> str:
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if command[0] == 'ffmpeg' and not shutil.which('ffmpeg') and not os.getenv('VIDEO_DESCRIPTOR_FFMPEG'):
+        try:
+            import imageio_ffmpeg
+            command = [imageio_ffmpeg.get_ffmpeg_exe(), *command[1:]]
+        except ImportError:
+            raise RuntimeError('FFmpeg не найден; подготовьте Windows-окружение приложения') from None
+    if command[0] == 'ffmpeg' and os.getenv('VIDEO_DESCRIPTOR_FFMPEG'):
+        command = [os.environ['VIDEO_DESCRIPTOR_FFMPEG'], *command[1:]]
+    result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8',
+                            errors='replace', check=False,
+                            **({'creationflags': 0x08000000} if os.name == 'nt' else {}))
     if result.returncode:
         raise RuntimeError(f"{command[0]}: {result.stderr.strip()[-2000:]}")
     return result.stdout
 
 
 def probe(video: Path) -> dict:
+    if not shutil.which('ffprobe'):
+        # The Windows FFmpeg wheel has no ffprobe; PyAV is already a dependency.
+        import av
+        with av.open(str(video)) as container:
+            if container.duration is None:
+                raise ValueError('Не удалось определить длительность записи')
+            return {'format': {'duration': str(container.duration / av.time_base)},
+                    'streams': [{'codec_type': stream.type} for stream in container.streams]}
     return json.loads(run([
         "ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json", str(video)
     ]))

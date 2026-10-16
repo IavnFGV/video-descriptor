@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import shutil
 from pathlib import Path
@@ -10,7 +11,7 @@ from video_descriptor.frames import extract_scene_frames
 from video_descriptor.media import run
 
 
-@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required")
+@pytest.mark.skipif(not shutil.which("ffmpeg") and not importlib.util.find_spec('imageio_ffmpeg'), reason="FFmpeg required")
 def test_ffmpeg_selects_change_and_heartbeat_with_absolute_times(monkeypatch, tmp_path):
     video = tmp_path / "clip.mp4"
     run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=black:s=160x90:d=3",

@@ -2,7 +2,6 @@
 
 import json
 import re
-import tempfile
 from pathlib import Path
 
 from .models import Source
@@ -40,14 +39,12 @@ def extract_scene_frames(video: Path, folder: Path, start: float, duration: floa
     filter_graph = selection_filter(scan_interval, threshold, max_gap)
     log(f"FFmpeg: отбор по изменениям, проверка раз в {scan_interval:g} сек, "
         f"порог {threshold:g}, контрольный интервал {max_gap:g} сек")
-    with tempfile.TemporaryDirectory(prefix="video-descriptor-scenes-") as temporary:
-        metadata = Path(temporary) / "selection.txt"
-        run(["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-y",
-             "-ss", str(start), "-i", str(video), "-t", str(duration), "-an",
-             "-vf", filter_graph + f",metadata=print:file={metadata}",
-             "-fps_mode", "vfr", "-q:v", "2", str(folder / "f%05d.jpg")])
-        selected = [item for item in parse_selection(metadata.read_text())
-                    if 0 <= item["time"] < duration]
+    # stdout avoids embedding a Windows drive colon/backslashes in FFmpeg's filter grammar.
+    metadata = run(["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-y",
+                    "-ss", str(start), "-i", str(video), "-t", str(duration), "-an",
+                    "-vf", filter_graph + ",metadata=print:file=-",
+                    "-fps_mode", "vfr", "-q:v", "2", str(folder / "f%05d.jpg")])
+    selected = [item for item in parse_selection(metadata) if 0 <= item["time"] < duration]
     if not selected:
         raise RuntimeError("FFmpeg не извлёк ни одного кадра; уменьшите --scan-interval")
     log(f"FFmpeg: отобрано {len(selected)} кадров; OCR читает только их")

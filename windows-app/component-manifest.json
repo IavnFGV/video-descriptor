@@ -1,0 +1,22 @@
+{
+  "checked_on": "2026-10-16",
+  "python": "3.12.10",
+  "ffmpeg": {
+    "package": "imageio-ffmpeg",
+    "package_version": "0.6.0",
+    "binary_name": "ffmpeg-win-x86_64-v7.1.exe",
+    "bytes": 87638016,
+    "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "source": "https://pypi.org/project/imageio-ffmpeg/0.6.0/",
+    "wheel_sha256": "02fa47c83703c37df6bfe4896aab339013f62bf02c5ebf2dce6da56af04ffc0a",
+    "wrapper_license": "BSD-2-Clause",
+    "binary_license": "GPL-3.0-or-later, verified with the installed binary's -L output"
+  },
+  "whisper_model": {
+    "source": "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+    "revision": "2410d022171ca8a97343182f88eec8807a324db9",
+    "recorded_download_bytes": 493214244,
+    "engine_digest_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+    "note": "Digest over sorted top-level XML/BIN/JSON names and contents, as defined by the existing worker; not an archive checksum. Model already present; not downloaded."
+  }
+}

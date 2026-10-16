@@ -83,7 +83,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     return self.json_response(200, public(root))
                 if path in ("/api/subtitles", "/api/transcript-text"):
                     from .speech import editable_result, subtitle_result
-                    from .subtitles import webvtt
+                    from .subtitles import subrip, webvtt
                     name = params.get("folder", [""])[0]
                     if not name or Path(name).name != name:
                         raise ValueError("Неизвестная папка")
@@ -93,14 +93,18 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     language = params.get("language", ["original"])[0]
                     if language not in ("original", "ru"):
                         raise ValueError("Неизвестный язык")
+                    format = params.get('format', ['vtt'])[0]
+                    if format not in {'srt', 'vtt'}:
+                        raise ValueError('Выберите формат SRT или VTT')
                     if path == "/api/transcript-text":
                         from .subtitles import plain_transcript
                         body = plain_transcript(result).encode()
                     else:
-                        body = webvtt(result, language).encode()
+                        body = (subrip if format == 'srt' else webvtt)(result, language).encode()
                     self.send_response(200)
-                    self.send_header("Content-Type", "text/plain; charset=utf-8" if path == "/api/transcript-text" else "text/vtt; charset=utf-8")
-                    self.send_header("Content-Disposition", 'attachment; filename="transcript.txt"' if path == "/api/transcript-text" else f'attachment; filename="{language}.vtt"')
+                    mime = 'application/x-subrip' if format == 'srt' else 'text/vtt'
+                    self.send_header("Content-Type", "text/plain; charset=utf-8" if path == "/api/transcript-text" else mime + '; charset=utf-8')
+                    self.send_header("Content-Disposition", 'attachment; filename="transcript.txt"' if path == "/api/transcript-text" else f'attachment; filename="{language}.{format}"')
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-store")
                     self.end_headers()
@@ -204,6 +208,11 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc != self.headers.get("Host"):
+            # On Windows closing a socket with an unread body can reset the 403 response.
+            length = int(self.headers.get('Content-Length', '0'))
+            if 0 < length <= 2_000_000:
+                self.connection.settimeout(5)
+                self.rfile.read(length)
             return self.json_response(403, {"error": "Сохранение доступно из страницы отчёта"})
         path = urlsplit(self.path).path
         if path in ('/api/delete-version', '/api/delete-notes'):
@@ -331,7 +340,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     job = enqueue(root, self.rfile, int(self.headers.get("Content-Length", "0")),
                                   params.get("filename", [""])[0], params.get("title", [""])[0],
                                   params.get("thinking", ["false"])[0] == "true",
-                                  params.get("mode", ["lecture"])[0], params.get("engine", ["gemini"])[0], construction)
+                                  params.get("mode", ["lecture"])[0], params.get("engine", ["gemini"])[0], construction,
+                                  language=params.get('language', ['auto'])[0],
+                                  speech_only=params.get('speech_only', ['false'])[0] == 'true')
                 else:
                     id = params.get("id", [""])[0]
                     if not re.fullmatch(r"[0-9a-f]{32}", id):

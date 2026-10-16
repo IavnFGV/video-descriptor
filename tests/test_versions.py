@@ -46,11 +46,20 @@ def test_block_deletion_when_dependent_job_is_active(tmp_path, status):
     assert folder.exists()
 
 
-def test_reject_symlink_and_embedded_source(tmp_path):
+def test_reject_symlink(tmp_path):
     folder = make_version(tmp_path)
-    (folder.parent / 'alias').symlink_to(folder, target_is_directory=True)
+    try:
+        (folder.parent / 'alias').symlink_to(folder, target_is_directory=True)
+    except OSError as exc:
+        if getattr(exc, 'winerror', None) == 1314:
+            pytest.skip('Windows account lacks the optional symlink privilege')
+        raise
     with pytest.raises(ValueError):
         delete_version(tmp_path, 'alias')
+
+
+def test_reject_embedded_source(tmp_path):
+    folder = make_version(tmp_path)
     write_json(folder / 'manifest.json', {'video': str(folder / 'video.mp4')})
     with pytest.raises(ValueError, match='Исходный файл'):
         delete_version(tmp_path, 'example')

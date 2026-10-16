@@ -38,3 +38,17 @@ def webvtt(result, language="original"):
             cues.extend([id, f"{stamp(row['start'])} --> {stamp(end)}",
                          html.escape(text).replace("\n\n", "\n"), ""])
     return "\n".join(cues)
+
+
+def subrip(result, language='original'):
+    """Share cue selection/translated grouping with VTT; preserve stable IDs in JSON."""
+    lines = webvtt(result, language).splitlines()[2:]
+    cues, current = [], []
+    for line in [*lines, '']:
+        if line:
+            current.append(line)
+        elif current:
+            cues.append(current)
+            current = []
+    return '\n\n'.join('\n'.join([str(index), cue[1].replace('.', ','), *cue[2:]])
+                         for index, cue in enumerate(cues, 1)) + ('\n' if cues else '')

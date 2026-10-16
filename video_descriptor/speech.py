@@ -82,7 +82,13 @@ def edit_utterance(root, value):
             return {**old, 'text': text.strip(), 'speaker': speaker, 'start': start, 'end': end}
 
         if value.get('action') == 'edit':
-            replacement = [part(value.get('text'), value.get('speaker'), old['start'], old['end'])]
+            start, end = value.get('start', old['start']), value.get('end', old['end'])
+            duration = original.get('duration', float('inf'))
+            if (type(start) not in (int, float) or type(end) not in (int, float)
+                    or not math.isfinite(start) or not math.isfinite(end)
+                    or not 0 <= start < end <= duration + .01):
+                raise ValueError('Укажите корректные границы внутри записи')
+            replacement = [part(value.get('text'), value.get('speaker'), start, end)]
         elif value.get('action') == 'split':
             at = value.get('at')
             if (type(at) not in (int, float) or not math.isfinite(at)
@@ -175,6 +181,8 @@ def state(root, params):
         return {'job': job, 'result': None}
     resolved = (root / 'output' / folder).resolve()
     resolved.relative_to((root / 'output').resolve())
+    if job and not (resolved / 'speech.json').exists() and not (resolved / 'transcript.json').exists():
+        return {'job': job, 'result': None}
     result = subtitle_result(resolved)
     if result is None:
         raise ValueError('Результат не найден')
@@ -475,7 +483,12 @@ def run(root, job_folder, job):
                 diar = diarize(root, audio, folder, device, update)
             words = assign_speakers(words, diar)
         result['segments'] = group_words(words)
-        result.update(status='done', stage='done', processed=duration, message='Распознавание завершено')
+        if job.get('speech_only'):
+            result['segments'] = [{**row, 'id': f's{index:05d}'}
+                                  for index, row in enumerate(result['segments'], 1)]
+        result.update(status='done', stage='done', processed=duration,
+                      no_speech=not bool(result['segments']),
+                      message='Распознавание завершено' if result['segments'] else 'Речь не обнаружена после VAD')
         write_json(folder / 'speech.json', result)
     except Exception as exc:
         if pool is not None:

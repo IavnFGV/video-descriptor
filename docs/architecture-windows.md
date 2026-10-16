@@ -24,7 +24,7 @@ flowchart LR
 | Граница | Контракт, запуск, хранение | Доказательство |
 |---|---|---|
 | UI/API | `python -m video_descriptor.serve`; порт 8000, старый default bind 0.0.0.0. `/create`, `/output/`, `/api/jobs`, `/api/job?id=...`, `/api/runs`. | `serve.py`, код. Native launcher ограничивает bind loopback. |
-| Загрузка/очередь | `POST /api/upload?filename=...&mode=audio&engine=whisper-npu` с сырым телом файла; до 4 GiB. `POST /api/retry?id=...`; исходник в `data/uploads/<uuid>`, состояние `output/jobs/<uuid>/job.json`. | `serve.py`, `jobs.py`; uuid, video, engine, status, folder, timestamps. |
+| Загрузка/очередь | `POST /api/upload?filename=...&mode=audio&engine=whisper-npu&speech_only=true&language=auto` с сырым телом файла; до 4 GiB. `POST /api/retry?id=...`; исходник в `data/uploads/<uuid>`, состояние `output/jobs/<uuid>/job.json`. | `serve.py`, `jobs.py`; uuid, video, engine, language, status, folder, timestamps. |
 | Подготовка | FFprobe определяет длительность, FFmpeg извлекает PCM16 mono 16000 Hz. Общее аудио `output/speech-audio-<identity>/audio.wav`. | `media.py`, `speech.run`; ключ содержит абсолютный путь, размер и mtime. |
 | ASR | `GET http://127.0.0.1:8766/health`; `POST /transcribe` — `audio/wav`, `X-Whisper-Model: small`, `X-Language: auto` или код; не больше 300 s / 10 MiB. | Windows `whisper_npu_server.py`; код и старые замеры. |
 | ASR ответ | `{segments:[{start,end,text}], audio_seconds, seconds, engine:{protocol,device,model,multilingual,pipeline,num_beams,model_sha256,openvino,genai}}`; ошибки `{error}`. Таймкоды относительно отправленного WAV, offset восстанавливает клиент. | `speech_npu.py`, `whisper_http.py`; engine и duration сверяются. |
@@ -116,9 +116,37 @@ GPU-диаризация, clean-machine installer, desktop shell и перено
 
 - Перенос абсолютных Linux-путей/identity делать явной утилитой с backup, dry-run и
   проверкой содержимого, а не массовой заменой JSON.
-- Язык NPU в старом клиенте фиксирован auto: UI-выбор языка ещё нужно подключить целиком.
+- В новом UI выбор auto/RU/UK/EN передаётся в NPU-запрос; смена языка отклоняет
+  старый кэш. Отдельные качественные EN/UK/mixed-language испытания ещё не выполнены.
 - `end_ts=-1` означает отсутствующую границу. Не обрезать её до длительности файла;
   при неисправимом блоке сохранять diagnostics и выдавать понятную ошибку/needs_review.
 - Для нового публичного релиза нужны лицензия самого проекта и полный third-party notice
   (OpenVINO, Whisper, pyannote model CC-BY-4.0, Ollama/Qwen, FFmpeg и прочие зависимости).
 - Энергопотребление, точность и преимущество NPU относительно Vibe/Buzz не измерены.
+
+## Реализованный прототип и эксплуатационные границы
+
+`windows-app/app.py` → существующий `RangeRequestHandler`, порт 8780/loopback.
+Новый стартовый UI использует те же `/api/upload`, `/api/speech`, `/api/retry`,
+`/api/speech-edit`, `/api/subtitles` и не вводит второй конвейер распознавания.
+`/health` возвращает app/version/instance/workspace; `/api/doctor` проверяет зависимости
+и внешние сервисы без загрузки моделей. Для управляемого NPU-старта и остановки UI —
+`POST /api/native/start-npu` и `/api/native/stop` с instance header и same-origin проверкой.
+Эти endpoints не принимают произвольные команды/пути от web-страницы.
+
+Нативная блокировка использует msvcrt, Unix-профиль сохраняет fcntl; Windows process
+inspection — psutil. Межпроцессная блокировка очереди не даёт обработать одно задание
+двумя workers. После простоя worker выходит, повторная загрузка запускает новый.
+FFmpeg берётся из PATH/явной переменной или pinned imageio-ffmpeg, контейнерный PATH
+не нужен. При отсутствии ffprobe probe делает уже имеющийся PyAV.
+
+Расширение export API: `format=srt|vtt` (default vtt), язык original/ru.
+Правка `action=edit` принимает опциональные числовые start/end, проверяет конечность,
+порядок и длительность; ID сохраняется, сырые результаты не меняются.
+Native speech-only результаты получают стабильные IDs `s00001...`; в SRT остаётся
+стандартная нумерация cues. Неисправимые временные метки не подменяются.
+
+Реальные прогоны 20/900 s и тишины, результаты, UI-проверки и честные ограничения:
+[отчёт](verification-windows.md), [машиночитаемая сводка](verification-windows.json).
+Окружение приложения устанавливается отдельно, не затрагивая NPU venv; clean-machine
+installer/updater, GPU probe, полный SBOM и автоматическая миграция истории остаются планом.

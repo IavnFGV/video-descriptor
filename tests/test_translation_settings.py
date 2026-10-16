@@ -11,7 +11,10 @@ def test_settings_keep_key_private_and_require_free_acknowledgement(tmp_path):
     assert result["has_key"] and "api_key" not in result
     assert translation_settings.load(tmp_path)["api_key"] == "secret"
     path = tmp_path / ".devcontainer" / "translation-settings.json"
-    assert path.stat().st_mode & 0o777 == 0o600
+    # Windows uses inherited NTFS ACLs rather than POSIX permission bits.
+    import os
+    if os.name != 'nt':
+        assert path.stat().st_mode & 0o777 == 0o600
     with pytest.raises(ValueError, match="Подтвердите"):
         translation_settings.save(tmp_path, {"billing_mode": "free"})
     result = translation_settings.save(tmp_path, {"billing_mode": "free", "free_ack": True,

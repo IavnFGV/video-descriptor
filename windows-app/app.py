@@ -1,0 +1,315 @@
+"""Native launcher for the existing application; owns an isolated workspace only."""
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import hashlib
+import importlib.metadata
+import json
+import logging
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import time
+import urllib.error
+import urllib.request
+import uuid
+import webbrowser
+from functools import partial
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlsplit
+
+HERE = Path(__file__).resolve().parent
+REPOSITORY = HERE.parent
+sys.path.insert(0, str(REPOSITORY))
+APP = 'video-descriptor-windows'
+VERSION = '0.2.0-prototype'
+START_LOCK = threading.Lock()
+LOGGER = logging.getLogger(__name__)
+
+
+def config():
+    value = json.loads((HERE / 'config.example.json').read_text(encoding='utf-8'))
+    local = HERE / 'config.local.json'
+    if local.exists():
+        value.update(json.loads(local.read_text(encoding='utf-8')))
+    if type(value['port']) is not int or not 1024 <= value['port'] <= 65535:
+        raise ValueError('Некорректный порт приложения')
+    for key in ('npu_url', 'ollama_url'):
+        parsed = urlsplit(value[key])
+        if (parsed.scheme != 'http' or parsed.hostname not in {'localhost', '127.0.0.1', '::1'}
+                or parsed.username or parsed.password or parsed.query or parsed.fragment
+                or parsed.path not in {'', '/'}):
+            raise ValueError(f'{key}: в прототипе разрешён только локальный HTTP-сервис')
+        value[key] = value[key].rstrip('/')
+    workspace = (HERE / value['workspace']).resolve()
+    workspace.relative_to((HERE / 'runtime').resolve())
+    value['workspace'] = str(workspace)
+    worker = value['npu_worker_directory']
+    value['npu_worker_directory'] = str(Path(worker) if worker else Path.home() / 'Downloads' / 'windows-benchmark')
+    return value
+
+
+def fetch(url, timeout=2):
+    # Ignore proxy environment for loopback-only service contracts.
+    with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(url, timeout=timeout) as response:
+        return json.load(response)
+
+
+def expected_npu(info):
+    return isinstance(info, dict) and not info.get('word_timestamps', False) and all(info.get(key) == value for key, value in {
+        'protocol': 1, 'device': 'NPU', 'model': 'small', 'multilingual': True,
+        'pipeline': 'static', 'num_beams': 1}.items())
+
+
+def service(url, kind):
+    try:
+        data = fetch(url + ('/health' if kind == 'npu' else '/api/tags'))
+        if not isinstance(data, dict):
+            raise TypeError('Сервис вернул неожиданный JSON')
+        if kind == 'npu' and not expected_npu(data):
+            return {'ready': False, 'message': 'На порту другой профиль Whisper; нужен small/NPU/static/beam=1'}
+        return {'ready': True, 'details': data}
+    except (OSError, ValueError, TypeError, urllib.error.URLError) as exc:
+        return {'ready': False, 'message': 'Сервис недоступен: ' + str(exc)}
+
+
+def ffmpeg_path():
+    if path := shutil.which('ffmpeg'):
+        return path
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except (ImportError, RuntimeError):
+        return None
+
+
+def doctor(value):
+    import psutil
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        npu = pool.submit(service, value['npu_url'], 'npu')
+        ollama = pool.submit(service, value['ollama_url'], 'ollama')
+        npu, ollama = npu.result(), ollama.result()
+    packages = {}
+    for name in ('pydantic', 'requests', 'faster-whisper', 'av', 'opencv-python-headless', 'psutil', 'imageio-ffmpeg'):
+        try:
+            packages[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            packages[name] = None
+    worker = Path(value['npu_worker_directory'])
+    python = worker / '.venv-npu' / 'Scripts' / 'python.exe'
+    model = worker / 'OpenVINO-whisper-small-fp16-ov'
+    state_path = HERE / 'runtime' / 'npu-start.json'
+    try:
+        startup = json.loads(state_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        startup = None
+    return {'app': APP, 'version': VERSION, 'workspace': value['workspace'],
+            'python': sys.version.split()[0], 'packages': packages,
+            'ffmpeg': ffmpeg_path(), 'probe': 'ffprobe' if shutil.which('ffprobe') else 'PyAV',
+            'ram_gib': round(psutil.virtual_memory().total / 1024**3, 1),
+            'free_disk_gib': round(shutil.disk_usage(HERE).free / 1024**3, 1),
+            'cpu': os.environ.get('PROCESSOR_IDENTIFIER', 'unknown'),
+            'npu': npu, 'ollama': ollama, 'npu_startup': startup,
+            'can_start_npu': python.is_file() and (worker / 'whisper_npu_server.py').is_file() and (model / 'config.json').is_file(),
+            'diarization': {'ready': False, 'message': 'Windows XPU/pyannote не проверены; доступен режим без разделения говорящих'},
+            'model_downloads': False}
+
+
+def environment(value):
+    os.environ.update(PYTHONUTF8='1', PYTHONIOENCODING='utf-8',
+                      PYTHONPATH=str(REPOSITORY) + os.pathsep + os.environ.get('PYTHONPATH', ''),
+                      SPEECH_NPU_URL=value['npu_url'], WHISPER_HTTP_URL=value['npu_url'],
+                      WHISPER_BACKEND='openvino-http', OLLAMA_BASE_URL=value['ollama_url'],
+                      OLLAMA_MODEL=value['ollama_model'],
+                      HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+    if value['diarization_python']:
+        os.environ['VIDEO_DESCRIPTOR_DIARIZATION_PYTHON'] = value['diarization_python']
+    executable = ffmpeg_path()
+    if executable and not shutil.which('ffmpeg'):
+        # media.run accepts a concrete executable; no global PATH or system install.
+        os.environ['VIDEO_DESCRIPTOR_FFMPEG'] = executable
+
+
+def start_npu(value):
+    with START_LOCK:
+        status = service(value['npu_url'], 'npu')
+        if status['ready']:
+            return {'status': 'ready', 'reused': True}
+        parsed = urlsplit(value['npu_url'])
+        if parsed.hostname != '127.0.0.1' or parsed.port != 8766:
+            raise ValueError('Автозапуск разрешён только для 127.0.0.1:8766')
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+                if os.name == 'nt':
+                    probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+                probe.bind(('127.0.0.1', 8766))
+        except OSError:
+            raise ValueError('Порт 8766 занят другим или загружающимся сервисом; второй экземпляр не запущен') from None
+        worker = Path(value['npu_worker_directory'])
+        python = worker / '.venv-npu' / 'Scripts' / 'python.exe'
+        model = worker / 'OpenVINO-whisper-small-fp16-ov'
+        if not python.is_file() or not (model / 'config.json').is_file():
+            raise ValueError('Не найдены существующие NPU Python/модель; ничего не скачано')
+        state_path = HERE / 'runtime' / 'npu-start.json'
+        if state_path.exists():
+            import psutil
+            previous = json.loads(state_path.read_text(encoding='utf-8'))
+            try:
+                process = psutil.Process(previous['pid'])
+                if abs(process.create_time() - previous['created']) < .1:
+                    return {'status': 'loading', 'pid': process.pid}
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        logs = HERE / 'runtime' / 'logs'
+        logs.mkdir(parents=True, exist_ok=True)
+        with (logs / 'npu.log').open('ab') as log:
+            process = subprocess.Popen([str(python), '-X', 'utf8', '-u', str(worker / 'whisper_npu_server.py'),
+                                        '--model', str(model), '--model-name', 'small', '--bind', '127.0.0.1', '--port', '8766'],
+                                       cwd=worker, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                                       creationflags=0x08000000 if os.name == 'nt' else 0)
+        import psutil
+        state_path.write_text(json.dumps({'pid': process.pid, 'created': psutil.Process(process.pid).create_time()}), encoding='utf-8')
+        def observe_exit():
+            code = process.wait()
+            # Preserve the failure for diagnosis; never kill or restart external services.
+            try:
+                state = json.loads(state_path.read_text(encoding='utf-8'))
+                if state.get('pid') == process.pid:
+                    state.update(exit_code=code, finished=time.time())
+                    temporary = state_path.with_suffix('.tmp')
+                    temporary.write_text(json.dumps(state), encoding='utf-8')
+                    temporary.replace(state_path)
+            except OSError:
+                LOGGER.exception('Could not save NPU startup status')
+        threading.Thread(target=observe_exit, name='npu-startup-monitor', daemon=True).start()
+        return {'status': 'loading', 'pid': process.pid}
+
+
+def make_handler(value, instance):
+    from video_descriptor.jobs import read_json
+    from video_descriptor.serve import RangeRequestHandler
+
+    class Handler(RangeRequestHandler):
+        def do_GET(self):
+            path = urlsplit(self.path).path
+            if path == '/health':
+                return self.json_response(200, {'app': APP, 'version': VERSION,
+                                               'instance': instance, 'workspace': value['workspace']})
+            if path == '/api/doctor':
+                return self.json_response(200, doctor(value))
+            if path in {'/', '/native.js', '/native.css'}:
+                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css'}[path]
+                body = (HERE / 'ui' / name).read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type', {'html': 'text/html', 'js': 'text/javascript', 'css': 'text/css'}[name.rsplit('.', 1)[-1]] + '; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            return super().do_GET()
+
+        def do_POST(self):
+            path = urlsplit(self.path).path
+            if path in {'/api/native/start-npu', '/api/native/stop'}:
+                if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
+                    return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})
+                if self.headers.get('X-App-Instance') != instance:
+                    return self.json_response(403, {'error': 'Откройте приложение заново'})
+                try:
+                    if path.endswith('start-npu'):
+                        return self.json_response(202, start_npu(value))
+                    jobs = Path(value['workspace']) / 'output' / 'jobs'
+                    if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
+                        return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
+                    self.json_response(200, {'stopped': True})
+                    threading.Thread(target=self.server.shutdown, daemon=True).start()
+                    return
+                except (OSError, ValueError) as exc:
+                    return self.json_response(400, {'error': str(exc)})
+            return super().do_POST()
+
+        def log_message(self, format, *args):
+            LOGGER.info(format, *args)
+
+    return partial(Handler, directory=value['workspace'])
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--doctor', action='store_true')
+    parser.add_argument('--stop', action='store_true')
+    parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--start-npu', action='store_true')
+    args = parser.parse_args()
+    value = config()
+    environment(value)
+    if args.doctor:
+        print(json.dumps(doctor(value), ensure_ascii=False, indent=2))
+        return 0
+    url = f'http://127.0.0.1:{value["port"]}'
+    fingerprint = hashlib.sha256(value['workspace'].encode()).hexdigest()[:16]
+    state = HERE / 'runtime' / f'instance-{fingerprint}.json'
+    if args.stop:
+        recorded = json.loads(state.read_text(encoding='utf-8'))
+        info = fetch(url + '/health')
+        if info.get('app') != APP or info.get('instance') != recorded['instance'] or info.get('workspace') != value['workspace']:
+            raise ValueError('На порту другой экземпляр; остановка отменена')
+        request = urllib.request.Request(url + '/api/native/stop', data=b'',
+                                         headers={'X-App-Instance': recorded['instance']}, method='POST')
+        with urllib.request.urlopen(request, timeout=5) as response:
+            print(response.read().decode())
+        return 0
+    state.parent.mkdir(parents=True, exist_ok=True)
+    logs = HERE / 'runtime' / 'logs'
+    logs.mkdir(exist_ok=True)
+    logging.basicConfig(filename=logs / 'app.log', encoding='utf-8', level=logging.INFO)
+    from video_descriptor.platform_support import lock_file
+    with (state.parent / f'instance-{fingerprint}.lock').open('a+') as lock:
+        try:
+            lock_file(lock)
+        except BlockingIOError:
+            for _ in range(30):
+                try:
+                    info = fetch(url + '/health')
+                    if info.get('app') != APP or info.get('workspace') != value['workspace']:
+                        raise ValueError('Порт занят другим приложением')
+                    if not args.no_browser:
+                        webbrowser.open(url)
+                    print('Уже запущено: ' + url)
+                    return 0
+                except (OSError, urllib.error.URLError):
+                    time.sleep(.2)
+            raise ValueError('Другой экземпляр запускается, но не ответил за 6 секунд; см. runtime/logs/app.log') from None
+        workspace = Path(value['workspace'])
+        for folder in ('data', 'output', '.devcontainer'):
+            (workspace / folder).mkdir(parents=True, exist_ok=True)
+        # An interrupted worker owns recovery; opening the UI does not restart old jobs.
+        if args.start_npu:
+            print(json.dumps(start_npu(value)))
+        instance = uuid.uuid4().hex
+        with ThreadingHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance)) as server:
+            state.write_text(json.dumps({'instance': instance, 'pid': os.getpid(), 'workspace': value['workspace']}), encoding='utf-8')
+            print('Готово: ' + url, flush=True)
+            if not args.no_browser:
+                webbrowser.open(url)
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                state.unlink(missing_ok=True)
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError) as exc:
+        print('Не удалось запустить приложение: ' + str(exc), file=sys.stderr)
+        raise SystemExit(1) from None

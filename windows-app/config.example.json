@@ -1,0 +1,9 @@
+{
+  "port": 8780,
+  "workspace": "runtime/workspace",
+  "npu_url": "http://127.0.0.1:8766",
+  "ollama_url": "http://127.0.0.1:11434",
+  "ollama_model": "qwen3.5:9b",
+  "npu_worker_directory": "",
+  "diarization_python": ""
+}

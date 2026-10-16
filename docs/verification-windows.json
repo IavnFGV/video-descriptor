@@ -1,0 +1,83 @@
+{
+  "checked_on": "2026-10-16",
+  "platform": "win32",
+  "source_video_name": "Фригг.mp4",
+  "engine": {
+    "protocol": 1,
+    "device": "NPU",
+    "model": "small",
+    "pipeline": "static",
+    "multilingual": true,
+    "word_timestamps": false,
+    "num_beams": 1,
+    "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+    "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+    "genai": "2026.4.1.0-3408-ab01d1771e4"
+  },
+  "cases": [
+    {
+      "case": "short",
+      "job": "19efc4f952ac43c0b58a8815aa98fff4",
+      "media_sha256": "5a4a5afe2f9a95e44144a12d0d10ad9d9d69ab0999ad1eeb17d964ea4583a580",
+      "audio_seconds": 20.0,
+      "segments": 1,
+      "elapsed_seconds": 2.34,
+      "valid_timestamps": true,
+      "unique_ids": true,
+      "no_speech": false,
+      "busy_stop_refused": false,
+      "edit_and_export": true,
+      "original_immutable": true,
+      "stale_edit_rejected": true,
+      "retry_keeps_completed_speech": true
+    },
+    {
+      "case": "long",
+      "job": "7daaaeb22ee5418b9df20c20d1230ec4",
+      "media_sha256": "8bb9ab9b57b9c7fb826f694baeea4a26faefc48913552a40ca77138364aaa012",
+      "audio_seconds": 900.0,
+      "segments": 56,
+      "elapsed_seconds": 39.47,
+      "valid_timestamps": true,
+      "unique_ids": true,
+      "no_speech": false,
+      "busy_stop_refused": true
+    },
+    {
+      "case": "silence",
+      "job": "79ad4047b5c044ea8f98d7b823433379",
+      "media_sha256": "ea7cc9662de90a55c7f204c9b8bf6dcf1f38a7c71cb2446d98af302e997e4a2b",
+      "audio_seconds": 30.0,
+      "segments": 0,
+      "elapsed_seconds": 2.22,
+      "valid_timestamps": true,
+      "unique_ids": true,
+      "no_speech": true,
+      "busy_stop_refused": false
+    }
+  ],
+  "repeat_launch_same_instance": true,
+  "cloud_used": false,
+  "gpu_diarization_tested": false,
+  "notes_translation_tested": false,
+  "automated_tests": {
+    "passed": 157,
+    "skipped": 1,
+    "skip_reason": "Windows symlink privilege unavailable"
+  },
+  "native_background_start": {
+    "ready": true,
+    "external_services_stopped": false,
+    "note": "An own test worker was stopped to verify background startup; existing NPU files/environment were unchanged."
+  },
+  "ui_checks": [
+    "result displayed",
+    "video controls loaded",
+    "text and time editor opened",
+    "start=2.8/end=19.7 saved through UI"
+  ],
+  "scene_selection_real_ffmpeg": true,
+  "desktop_shortcut_created": true,
+  "installer_repeat_existing_venv": true,
+  "ui_clean_restart_preserves_results": true
+}

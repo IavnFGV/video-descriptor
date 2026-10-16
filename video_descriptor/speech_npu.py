@@ -21,7 +21,7 @@ def health():
         engine = response.json()
     except (requests.RequestException, ValueError) as exc:
         raise ValueError('Whisper NPU недоступен: запустите многоязычный Windows-сервис на 8766') from exc
-    if (engine.get('protocol'), engine.get('device'), engine.get('model'),
+    if engine.get('word_timestamps', False) or (engine.get('protocol'), engine.get('device'), engine.get('model'),
             engine.get('multilingual'), engine.get('pipeline'), engine.get('num_beams')) != (
                 1, 'NPU', 'small', True, 'static', 1):
         raise ValueError('Нужен Windows Whisper small multilingual · NPU · static · beam=1')
@@ -38,6 +38,8 @@ def timed_items(response, offset, seconds):
     for item in items:
         start = float(item.get('start', item.get('start_ts')))
         end = float(item.get('end', item.get('end_ts')))
+        if end == -1:
+            raise ValueError('Whisper NPU: end_ts=-1, конечная граница не предсказана; нужна проверка фрагмента')
         if not (math.isfinite(start) and math.isfinite(end) and 0 <= start <= end <= seconds + .01):
             raise ValueError('Whisper NPU: неверные таймкоды в ответе')
         text = item['text'].strip()
@@ -94,14 +96,14 @@ def request_with_vad(raw, part, engine, offset, log):
                 wav.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
                 wav.writeframes(raw[first * 2:last * 2])
             write_json(folder / 'request.json', {
-                'url': worker_url() + '/transcribe', 'model': 'small', 'language': 'auto',
+                'url': worker_url() + '/transcribe', 'model': 'small', 'language': os.getenv('SPEECH_LANGUAGE', 'auto'),
                 'start': offset + first / 16000, 'audio_seconds': duration,
                 'wav_bytes': len(body.getvalue()), 'engine': engine})
             log(f'VAD → NPU: речь {offset + first / 16000:g}–{offset + last / 16000:g} сек · '
                 f'отправлено={duration:g} сек')
             http = requests.post(worker_url() + '/transcribe', data=body.getvalue(),
                                  headers={'Content-Type': 'audio/wav', 'X-Whisper-Model': 'small',
-                                          'X-Language': 'auto'}, timeout=(5, 600))
+                                          'X-Language': os.getenv('SPEECH_LANGUAGE', 'auto')}, timeout=(5, 600))
             if not http.ok:
                 (folder / 'error.txt').write_text(http.text)
                 if http.status_code == 500 and 'invalid timestamps' in http.text:
@@ -111,7 +113,11 @@ def request_with_vad(raw, part, engine, offset, log):
         reported = float(response.get('audio_seconds', -1))
         if response.get('engine') != engine or not math.isfinite(reported) or abs(reported - duration) > .01:
             raise ValueError('Whisper NPU: модель или длительность ответа не совпали с запросом')
-        items, timing = timed_items(response, first / 16000, duration)
+        try:
+            items, timing = timed_items(response, first / 16000, duration)
+        except (ValueError, TypeError, KeyError):
+            write_json(folder / 'invalid-response.json', response)
+            raise
         write_json(folder / 'response.json', response)
         collected.extend(items)
         timings.add(timing)
@@ -123,6 +129,14 @@ def request_with_vad(raw, part, engine, offset, log):
 
 def transcribe(audio, folder, on_chunk, log):
     engine = health()
+    language = os.getenv('SPEECH_LANGUAGE', 'auto')
+    if language not in {'auto', 'en', 'ru', 'uk'}:
+        raise ValueError('Неизвестный язык NPU')
+    legacy_language = 'auto' if (folder / 'npu-engine.json').exists() else language
+    previous_language = read_json(folder / 'npu-language.json', {'language': legacy_language})
+    if previous_language['language'] != language:
+        raise ValueError('Язык изменился: создайте новую версию речи, чтобы сохранить кэш')
+    write_json(folder / 'npu-language.json', {'language': language})
     previous = read_json(folder / 'npu-engine.json')
     if previous and previous != engine:
         raise ValueError('NPU-модель или режим изменились: создайте новый вариант, чтобы не смешивать кэш')

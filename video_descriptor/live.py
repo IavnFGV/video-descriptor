@@ -1,12 +1,14 @@
 """Read bounded live snapshots from the existing pipeline artifacts."""
 
 import json
+import os
 import re
 from pathlib import Path
 from urllib.parse import quote
 
 from .jobs import read_json, video_url
 from .library import lecture_info
+from .platform_support import windows_processes
 
 
 def tail(path, limit=128 * 1024):
@@ -21,6 +23,20 @@ def tail(path, limit=128 * 1024):
 
 
 def active_video(video):
+    if os.name == 'nt':
+        for args, cwd in windows_processes():
+            if not {'video_descriptor', 'video_descriptor.translate'}.intersection(args):
+                continue
+            for arg in args:
+                try:
+                    path = Path(arg) if Path(arg).is_absolute() else cwd / arg
+                    if path.resolve() == Path(video).resolve():
+                        return True
+                    if path.is_dir() and read_json(path / 'manifest.json', {}).get('video') == video:
+                        return True
+                except (OSError, ValueError):
+                    continue
+        return False
     for folder in Path("/proc").iterdir():
         if folder.name.isdigit():
             try:
@@ -246,7 +262,7 @@ def snapshot(root, folder):
         except ValueError:
             pass
     try:
-        source_video = str(Path(manifest['video']).resolve().relative_to(root.resolve()))
+        source_video = Path(manifest['video']).resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
         source_video = None
     report_variants = []

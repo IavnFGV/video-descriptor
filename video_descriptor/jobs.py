@@ -1,7 +1,6 @@
 """Small disk-backed upload queue, processed by an independent local worker."""
 
 import argparse
-import fcntl
 import json
 import os
 import subprocess
@@ -10,6 +9,8 @@ import time
 import uuid
 from pathlib import Path
 from urllib.parse import quote
+
+from .platform_support import environment_python, lock_file, subprocess_options, windows_processes
 
 
 def write_json(path, value):
@@ -31,7 +32,12 @@ def jobs_dir(root):
     return folder
 
 
-def enqueue(root, stream, length, filename, title="", thinking=False, mode="lecture", engine="gemini", construction=None):
+def enqueue(root, stream, length, filename, title="", thinking=False, mode="lecture", engine="gemini", construction=None,
+            *, language='auto', speech_only=False):
+    if language not in {'auto', 'en', 'ru', 'uk'}:
+        raise ValueError('Выберите язык: auto, en, ru или uk')
+    if type(speech_only) is not bool or (speech_only and mode != 'audio'):
+        raise ValueError('Режим только речи доступен для audio')
     if mode not in {"lecture", "audio"}:
         raise ValueError("Неизвестный режим")
     if construction is not None:
@@ -71,6 +77,7 @@ def enqueue(root, stream, length, filename, title="", thinking=False, mode="lect
     job = {"id": id, "video": str(video), "filename": filename, "title": title,
            "thinking": thinking, "mode": mode, "engine": engine,
            "status": "queued", "created": time.time(), "folder": None}
+    job.update(language=language, speech_only=speech_only)
     if construction is not None:
         job['construction'] = construction
     write_json(folder / "job.json", job)
@@ -81,11 +88,14 @@ def start_worker(root):
     with (jobs_dir(root) / "worker.log").open("a") as log:
         subprocess.Popen([sys.executable, "-u", "-m", "video_descriptor.jobs", str(root)],
                          cwd=root, stdin=subprocess.DEVNULL, stdout=log,
-                         stderr=subprocess.STDOUT, start_new_session=True)
+                         stderr=subprocess.STDOUT, **subprocess_options())
 
 
 def pipeline_busy():
     """Respect existing terminal runs on this devcontainer, as well as queued jobs."""
+    if os.name == 'nt':
+        names = {'video_descriptor', 'video_descriptor.translate', 'video_descriptor.construction'}
+        return any(names.intersection(args) for args, _ in windows_processes())
     for folder in Path("/proc").iterdir():
         if not folder.name.isdigit() or int(folder.name) == os.getpid():
             continue
@@ -128,15 +138,17 @@ def run_job(root, folder, job):
             if job.get("mode") == "audio" or job.get("construction"):
                 completed = read_json(root / "output" / job["folder"] / "speech.json", {}) if job.get("folder") else {}
                 environment = ".venv-diarization-xpu" if job["engine"].endswith("-xpu") else ".venv-diarization"
-                python = root / environment / "bin/python"
+                python = environment_python(root, environment)
                 if completed.get("status") != "done" and job["engine"].endswith("-xpu") and not python.exists():
-                    raise RuntimeError("Подготовьте Intel GPU: bash scripts/prepare_diarization_xpu.sh")
+                    raise RuntimeError("Не подготовлено отдельное Python-окружение Intel GPU/XPU. "
+                                       "Выберите Whisper small NPU без голосов или настройте диаризацию.")
                 executable = str(python) if "diarization" in job["engine"] and python.exists() else sys.executable
                 code = 0
                 if completed.get("status") != "done":
                     code = subprocess.run([executable, "-u", "-m", "video_descriptor.speech",
                                            str(folder / "job.json")], cwd=root, stdout=log,
-                                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False,
+                                          env={**os.environ, 'SPEECH_LANGUAGE': job.get('language', 'auto')}).returncode
                     updated = read_json(folder / "job.json", {})
                     job["folder"] = updated.get("folder")
                 if code:
@@ -195,7 +207,7 @@ def run_job(root, folder, job):
 def worker(root, stay_alive=True):
     with (jobs_dir(root) / "worker.lock").open("a") as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock_file(lock)
         except BlockingIOError:
             return
         # A terminated worker leaves an explicit error, rather than a false running state.
@@ -204,12 +216,13 @@ def worker(root, stay_alive=True):
             if job.get("status") == "running":
                 job.update(status="error", error="Рабочий процесс был прерван; кэш сохранён")
                 write_json(path, job)
+        idle_since = time.monotonic()
         while True:
             queued = [(path, read_json(path, {})) for path in jobs_dir(root).glob("*/job.json")]
             queued = sorted(((p, j) for p, j in queued if j.get("status") == "queued"),
                             key=lambda item: item[1]["created"])
             if not queued:
-                if not stay_alive:
+                if not stay_alive or time.monotonic() - idle_since > 30:
                     return
                 time.sleep(2)
                 continue
@@ -218,11 +231,12 @@ def worker(root, stay_alive=True):
                 continue
             path, job = queued[0]
             run_job(root, path.parent, job)
+            idle_since = time.monotonic()
 
 
 def video_url(root, video):
     try:
-        return "/" + quote(str(Path(video).resolve().relative_to(root.resolve())))
+        return "/" + quote(Path(video).resolve().relative_to(root.resolve()).as_posix())
     except ValueError:
         return None
 

@@ -1,11 +1,11 @@
 """Recover stopped NPU transcription while the existing GPU diarization keeps running."""
-import fcntl
 import hashlib
 import sys
 import time
 from pathlib import Path
 
 from .jobs import read_json, start_worker, write_json
+from .platform_support import lock_file
 from .speech import group_words
 from .speech_npu import transcribe
 
@@ -19,7 +19,7 @@ def main(job_file):
             or not result.get('parallel', {}).get('transcription', '').startswith('NPU остановлен:')):
         raise RuntimeError('Recovery requires stopped NPU transcription and an existing GPU run')
     with (job_file.parent / 'npu-recovery.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_file(lock)
         video = Path(job['video']).resolve()
         stat = video.stat()
         identity = hashlib.sha256(f'{video}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()[:16]

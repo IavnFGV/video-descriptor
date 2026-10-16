@@ -1,5 +1,5 @@
-import html
 import hashlib
+import html
 import json
 import os
 from importlib.resources import files
@@ -78,7 +78,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
                              f"{vtt_time(source.start)} --> {vtt_time(end)}", text, ""])
         (folder / name).write_text("\n".join(cues), encoding="utf-8")
     by_id = {source.id: source for source in sources}
-    video_url = quote(os.path.relpath(video, folder), safe="/")
+    video_url = quote(Path(os.path.relpath(video, folder)).as_posix(), safe="/")
     markdown = [f"# {video.stem}", ""]
     sections = []
     navigation = []

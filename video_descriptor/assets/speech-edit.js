@@ -14,6 +14,8 @@
     const firstSpeaker=form.elements.speaker, secondSpeaker=form.elements.rightSpeaker;
     const boundary=dialog.querySelector('.boundary'), range=dialog.querySelector('.split-range');
     const error=dialog.querySelector('.error');let splitting=false, saving=false;
+    const times=document.createElement('div');times.innerHTML='<label>Начало, секунды<input name="startTime" type="number" min="0" step="0.001" required></label><label>Конец, секунды<input name="endTime" type="number" min="0" step="0.001" required></label>';
+    dialog.querySelector('.bounds').after(times);form.elements.startTime.value=Number(row.start.toFixed(3));form.elements.endTime.value=Number(row.end.toFixed(3));
     const speakers=original.speaker_options||[...new Set(original.segments.map(s=>s.speaker))];
     for(const select of [firstSpeaker,secondSpeaker]){select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||s)));select.value=row.speaker;}
     left.value=row.text;
@@ -34,7 +36,7 @@
     dialog.querySelector('.cancel').onclick=()=>{if(!saving)dialog.close();};
     dialog.addEventListener('cancel',e=>{if(saving)e.preventDefault();});
     dialog.addEventListener('close',()=>{editing=false;dialog.remove();});
-    form.onsubmit=async e=>{e.preventDefault();if(saving)return;const payload={folder:original.folder,revision:original.edit_revision,index,action:splitting?'split':'edit',text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value};if(splitting){boundary.onchange();if(error.textContent)return;payload.at=Number(range.value);payload.right_text=right.value;payload.right_speaker=secondSpeaker.value;payload.right_translation=form.elements.rightTranslation.value;}saving=true;form.querySelector('[type=submit]').disabled=true;error.textContent='Сохраняем…';try{const saved=await post('/api/speech-edit',payload);onSave(saved);dialog.close();}catch(e){error.textContent=e.message;}finally{saving=false;form.querySelector('[type=submit]').disabled=false;}};
+    form.onsubmit=async e=>{e.preventDefault();if(saving)return;const payload={folder:original.folder,revision:original.edit_revision,index,action:splitting?'split':'edit',text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value};if(!splitting){payload.start=Number(form.elements.startTime.value);payload.end=Number(form.elements.endTime.value);}if(splitting){boundary.onchange();if(error.textContent)return;payload.at=Number(range.value);payload.right_text=right.value;payload.right_speaker=secondSpeaker.value;payload.right_translation=form.elements.rightTranslation.value;}saving=true;form.querySelector('[type=submit]').disabled=true;error.textContent='Сохраняем…';try{const saved=await post('/api/speech-edit',payload);onSave(saved);dialog.close();}catch(e){error.textContent=e.message;}finally{saving=false;form.querySelector('[type=submit]').disabled=false;}};
     editing=true;document.body.append(dialog);dialog.showModal();left.focus();
   }
   function option(value,label){const o=document.createElement('option');o.value=value;o.textContent=label;return o;}
