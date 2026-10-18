@@ -91,6 +91,8 @@ def enqueue(root, stream, length, filename, title="", thinking=False, mode="lect
 
 
 def start_worker(root):
+    if os.getenv('VIDEO_DESCRIPTOR_MANAGED_WORKER') == '1':
+        return  # The container supervisor owns the persistent worker.
     with (jobs_dir(root) / "worker.log").open("a") as log:
         subprocess.Popen([sys.executable, "-u", "-m", "video_descriptor.jobs", str(root)],
                          cwd=root, stdin=subprocess.DEVNULL, stdout=log,
@@ -175,7 +177,7 @@ def run_job(root, folder, job):
                 record('job_finished', job_id=job['id'], stage='speech', status='done')
                 return
             command = [sys.executable, "-u", "-m", "video_descriptor", job["video"],
-                       "--model", "qwen3.5:9b", "--frame-strategy", "scene", "--chunk-strategy", "slides"]
+                       "--model", os.getenv('OLLAMA_MODEL', 'qwen3.5:9b'), "--frame-strategy", "scene", "--chunk-strategy", "slides"]
             if job.get("mode") == "audio":
                 command.append("--audio-only")
             if job.get("folder") and (root / "output" / job["folder"] / "speech.json").is_file():
@@ -209,7 +211,7 @@ def run_job(root, folder, job):
                 from .library import save_title
                 save_title(result, job["title"])
             code = subprocess.run([sys.executable, "-u", "-m", "video_descriptor.translate",
-                                   str(result), "--model", "qwen3.5:9b"], cwd=root,
+                                   str(result), "--model", os.getenv('OLLAMA_MODEL', 'qwen3.5:9b')], cwd=root,
                                   stdout=log, stderr=subprocess.STDOUT,
                                   stdin=subprocess.DEVNULL, check=False).returncode
             if code:
@@ -240,7 +242,8 @@ def worker(root, stay_alive=True):
             queued = sorted(((p, j) for p, j in queued if j.get("status") == "queued"),
                             key=lambda item: item[1]["created"])
             if not queued:
-                if not stay_alive or time.monotonic() - idle_since > 30:
+                if not stay_alive or (os.getenv('VIDEO_DESCRIPTOR_MANAGED_WORKER') != '1'
+                                      and time.monotonic() - idle_since > 30):
                     return
                 time.sleep(2)
                 continue

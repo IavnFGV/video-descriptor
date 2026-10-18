@@ -13,7 +13,46 @@ Windows-приложение для локальной обработки вид
 - [Граница ближайшего выпуска и оставшаяся работа](docs/release-readiness.md).
 - [Что перенесено из WSL](windows-migration/START-HERE.md).
 
-## Открыть приложение на Windows
+## Для пользователя: установка через Docker Desktop
+
+Установите [Docker Desktop с WSL 2](https://docs.docker.com/desktop/setup/install/windows-install/),
+запустите Linux Engine и распакуйте ZIP исходников в постоянную папку. Python/FFmpeg/OCR
+вручную устанавливать не нужно. Из PowerShell в корне:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\VideoDescriptor.ps1 -Action Install
+```
+
+Откройте **http://localhost:8000/create**, выберите **Whisper small · CPU**.
+Модель скачивается при первом распознавании отдельно от образа. Конспекты/перевод
+требуют подключения Ollama либо Gemini для выбранной стадии.
+Данные сохраняются в `container-data/` между обновлениями и удалением контейнера.
+Подробности: [установка, обновление, удаление, модели и диагностика](docs/container-install.md),
+[аудит зависимостей](docs/container-audit.md), [реальные проверки](docs/container-verification.md).
+Готовый GHCR/Compose ZIP будет доступен после первого проверенного релиза;
+сейчас установка из исходников собирает образ локально.
+
+## Для разработчика: Python, CLI и Dev Container
+
+Клонируйте репозиторий и откройте сохранённый `.devcontainer` для разработки.
+Intel-профиль требует соответствующего устройства; CPU Dockerfile также сохранён.
+В подготовленном Python-окружении:
+
+```sh
+python -m pip install -r requirements-dev.txt
+python -m pip install -e '.[windows]'
+python -X utf8 -m pytest -q
+ruff check video_descriptor tests windows-app scripts/smoke_compose.py scripts/whisper_npu_server.py
+python -m video_descriptor --help
+```
+
+Контейнерный запуск: `docker compose up -d --build --wait`.
+На Linux сначала создайте `container-data` с правом записи для UID 1000.
+Остановка: `docker compose stop`; логи: `docker compose logs -f app`.
+CI и выпуск по тегу описаны в [инструкции](docs/container-install.md#ci-и-настоящий-релиз).
+Нативный Windows путь для проверенного Intel NPU/GPU сохраняется ниже.
+
+## Открыть нативное приложение на Windows
 
 Для этой машины подготовлен [нативный прототип](windows-app/README.md):
 двойной щелчок по `windows-app/Open-App.cmd` или ярлыку **Video Descriptor**.
@@ -66,6 +105,7 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 
 | Дата | Изменение | Проверка |
 |---|---|---|
+| 2026-10-18 | Добавлен самостоятельный Compose CPU путь: persistent workspace, supervisor HTTP/worker, health/connection diagnostics, PowerShell lifecycle, Linux CI и GHCR/Release по тегу | Windows: 217 passed/2 skipped; Linux WSL: 219 passed, реальный supervisor/SIGTERM/worker failure; Ruff/pip check/Compose config проходят; Docker Desktop падает до Engine, build/container smoke не выполнены — docs/container-verification.md |
 | 2026-10-18 | 0.6: кнопки «Перевести на русский» и «Конспект и перевод» в основной странице, отдельные версии из исправленных реплик, закреплённая модель Ollama в задании, этапы очереди, русский SRT и ссылка на конспект | 210 тестов; обе кнопки проверены реально; ZIP/EXE собраны, полный сценарий через API очереди из ZIP прошёл на 20 s MP4; исходник сохраняется; отдельный installer lifecycle 0.6 и Sandbox ещё не пройдены |
 | 2026-10-18 | Собраны ZIP/EXE 0.5 с мастерами настройки; ZIP побайтно воспроизводим; полный CPU → Qwen конспект → перевод → русский SRT прошёл из bundled runtime на хосте | 201 тест, Ruff/pip check; 4388 файлов; host install/reinstall/upgrade fixture/uninstall с сохранением данных прошли; новый Sandbox заблокировал native DLL политикой Application Control до installer lifecycle, см. отдельный отчёт; гостевую приёмку 0.5 успешной не считаем |
 | 2026-10-18 | Подготовлена 0.5 с мастерами Whisper/Ollama; исправлены передача выбранной модели в перевод, ненулевой exit при пропусках и обновление speech-only отчёта без frames.json; добавлен явный проверочный сценарий ZIP → CPU ASR → Ollama → русский SRT | Реальный source-прогон конспекта и перевода Qwen на короткой записи; новые регрессионные проверки; результаты собранной поставки фиксируются отдельно в docs/verification-language-workflow.json |

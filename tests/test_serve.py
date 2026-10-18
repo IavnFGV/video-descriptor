@@ -9,6 +9,13 @@ import requests
 from video_descriptor.serve import RangeRequestHandler
 
 
+def test_http_health_is_independent_of_optional_models(server):
+    base = server.removesuffix('/video.mp4')
+    response = requests.get(base + '/health', timeout=5)
+    assert response.status_code == 200
+    assert response.json() == {'status': 'ok'}
+
+
 def test_delete_version_requires_same_origin_and_updates_inventory(server, tmp_path):
     from video_descriptor.jobs import write_json
 

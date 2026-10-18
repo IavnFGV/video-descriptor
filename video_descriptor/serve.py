@@ -52,6 +52,11 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         if any(part.startswith(".") for part in Path(unquote(path)).parts if part not in ("/", ".")):
             return self.send_error(403)
         params = parse_qs(urlsplit(self.path).query)
+        if path == '/health':
+            return self.json_response(200, {'status': 'ok'})
+        if path == '/api/diagnostics':
+            from .diagnostics import connections
+            return self.json_response(200, connections(root))
         if path in ("/speech", "/studio-assets/speech.html"):
             query = urlsplit(self.path).query
             self.send_response(302)

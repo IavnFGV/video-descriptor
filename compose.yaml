@@ -1,0 +1,27 @@
+name: video-descriptor
+services:
+  app:
+    platform: linux/amd64
+    image: ${VIDEO_DESCRIPTOR_IMAGE:-video-descriptor:local}
+    build: .
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "127.0.0.1:${VIDEO_DESCRIPTOR_PORT:-8000}:8000"
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:9b}
+      SPEECH_NPU_URL: ${SPEECH_NPU_URL:-http://host.docker.internal:8766}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - type: bind
+        source: ${VIDEO_DESCRIPTOR_HOME:-./container-data}
+        target: /workspace
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

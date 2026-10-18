@@ -8,6 +8,8 @@ __pycache__/
 .ruff_cache/
 .env
 .env.*
+!.env.example
+/container-data/
 *.env
 *.ses
 data/

@@ -1,4 +1,15 @@
 *
+!Dockerfile
+!pyproject.toml
+!requirements-container.txt
+!requirements-container.lock
 !requirements-dev.txt
+!video_descriptor/
+!video_descriptor/**
+video_descriptor/**/__pycache__/
+!tests/
+!tests/**
+tests/**/__pycache__/
 !.devcontainer/
 !.devcontainer/Dockerfile
+!.devcontainer/**/Dockerfile
