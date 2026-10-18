@@ -24,6 +24,9 @@ Windows-приложение для локальной обработки вид
 одно окно на установку, readiness/error/retry, сохранение active queue при закрытии,
 Host/Origin защита native API, pinned SDK и desktop smoke в Windows CI.
 Реальный EXE/WebView2 проверен на хосте; чистая VM и аппаратная приёмка оболочки остаются.
+Итог: 227 passed / 2 skipped, Ruff/pip check, packaged WebView2 smoke, Compose smoke,
+4402 hashes, одинаковый ZIP SHA256 и install/reinstall/upgrade/uninstall прошли.
+[Машинный отчёт 0.7](docs/verification-desktop.json); hosted desktop CI пока не запускался.
 
 ## Для пользователя: установка через Docker Desktop
 

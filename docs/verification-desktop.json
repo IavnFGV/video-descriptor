@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-18",
+  "version": "0.7.0-private-preview",
+  "implementation_commit": "2acd50f0ea3d12d3d013821f3a4b3d0bd00fc9e3",
+  "environment": "Existing Windows host; isolated temporary installations; not a clean VM",
+  "unit_tests": {
+    "command": "python -X utf8 -m pytest -q",
+    "passed": 227,
+    "skipped": 2
+  },
+  "ruff": "passed",
+  "pip_check": "passed",
+  "workflow_yaml": "valid",
+  "desktop": {
+    "passed": true,
+    "checks": [
+      "real WebView2 initialization",
+      "existing UI DOM loaded",
+      "active queue rejects shutdown",
+      "close hides window without disposal",
+      "backend identity after close",
+      "second launch restores the same window",
+      "backend loss displays error",
+      "retry reconnects and restores WebView"
+    ],
+    "packaged_python": true,
+    "backend_stop_exit": 0
+  },
+  "visual_inspection": [
+    "existing UI in own window",
+    "visible backend loss screen"
+  ],
+  "compose": {
+    "config": "passed",
+    "real_smoke": "passed",
+    "checks": [
+      "HTTP",
+      "worker queue/error",
+      "idle",
+      "interruption recovery",
+      "stop/recreate persistence",
+      "worker crash restart"
+    ]
+  },
+  "cli_help": "passed",
+  "zip_repack_sha256_identical": true,
+  "artifacts": [
+    {
+      "file": "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+      "bytes": 222858251,
+      "sha256": "384fdbbe18a15f0d2872be318333329ea0620db778f80c84c72c2b464b37285e"
+    },
+    {
+      "file": "VideoDescriptor-0.7.0-windows-x64.zip",
+      "bytes": 264515178,
+      "sha256": "a7152199d43406da2006d27cccc1e218004ef0dfaf7dafe693f4fb4eb2ba7cd7"
+    }
+  ],
+  "lifecycle": {
+    "zip_sha256": "a7152199d43406da2006d27cccc1e218004ef0dfaf7dafe693f4fb4eb2ba7cd7",
+    "zip_files_verified": 4402,
+    "portable": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "clean_vm": false,
+    "hardware_recognition": false,
+    "installer_sha256": "384fdbbe18a15f0d2872be318333329ea0620db778f80c84c72c2b464b37285e",
+    "installed": {
+      "imports": true,
+      "loopback_ui": true,
+      "no_system_python_path": true,
+      "no_model": true,
+      "graceful_stop": true
+    },
+    "reinstall_preserves_data": true,
+    "running_upgrade_refused": true,
+    "upgrade_fixture": true,
+    "uninstall_preserves_data": true
+  },
+  "desktop_hosted_ci_run": false,
+  "public_release_created": false,
+  "not_verified": [
+    "clean Windows 11 VM",
+    "real long ASR job closed to tray",
+    "NPU/GPU recognition through desktop shell",
+    "export download dialog",
+    "multiple monitors and DPI",
+    "WebView2 Runtime absent",
+    "installer upgrade with active desktop tray"
+  ]
+}

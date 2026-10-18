@@ -8,6 +8,13 @@
 
 ## Состав и запуск
 
+Проверка 0.7 от 18.10.2026 на существующем Windows host: 4402 файла ZIP по manifest,
+встроенный Python без системного Python в PATH, реальный WebView2 EXE/close-to-tray/
+повторный запуск/error/retry; install/reinstall, отказ занятого upgrade, upgrade fixture
+0.7.1 и uninstall с сохранением данных/настроек. Повторная упаковка одинакового payload
+дала тот же ZIP SHA256. [Отчёт с SHA256 и границами проверки](verification-desktop.json).
+Это не чистая VM и не новый аппаратный ASR-прогон; публичный Release не создавался.
+
 - ZIP содержит приложение, CPython embeddable 3.12.10, закреплённые Python-библиотеки,
   OpenVINO/GenAI и FFmpeg. Python, Docker, WSL и pip на целевой машине для запуска не нужны.
 - Whisper IR/Qwen/pyannote, пользовательские видео, история, `.env`, Git и локальные ключи
