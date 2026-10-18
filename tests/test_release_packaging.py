@@ -14,6 +14,32 @@ def builder():
     return module
 
 
+@pytest.mark.parametrize('same_directory', [True, False])
+def test_packaged_smoke_checks_workspace_identity_not_path_spelling(tmp_path, monkeypatch, same_directory):
+    path = Path(__file__).resolve().parents[1] / 'windows-app/verify_release.py'
+    spec = importlib.util.spec_from_file_location('verify_release', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    folder = tmp_path / 'portable'
+    expected = folder / 'windows-app/runtime/workspace'
+    expected.mkdir(parents=True)
+    other = tmp_path / 'foreign'
+    other.mkdir()
+    # Distinct spelling for the same real directory, analogous to a Windows 8.3 alias.
+    reported = expected / '..' / 'workspace' if same_directory else other
+    monkeypatch.setenv('SystemRoot', str(tmp_path))
+    monkeypatch.setattr(module.subprocess, 'Popen', Mock())
+    monkeypatch.setattr(module, 'request', lambda *args: {
+        'app': 'video-descriptor-windows', 'workspace': str(reported), 'instance': 'test'})
+    if same_directory:
+        _, log, instance = module.start(folder, 12345)
+        log.close()
+        assert instance == 'test'
+    else:
+        with pytest.raises(AssertionError):
+            module.start(folder, 12345)
+
+
 def test_release_zip_is_byte_reproducible_and_independent_of_mtime(tmp_path):
     module = builder()
     folder = tmp_path / 'payload'

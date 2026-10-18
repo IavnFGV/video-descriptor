@@ -23,7 +23,23 @@ CPU Python-окружении Ubuntu WSL 2; старый WSL-репозитор�
   выключенном Engine завершается ошибкой и инструкцией запуска Docker, до создания .env/данных.
 - YAML workflows разбирается; `python -m video_descriptor --help` работает.
 
-## Что не удалось подтвердить
+## Проверка на GitHub Actions
+
+[Container CI для db50437](https://github.com/IavnFGV/video-descriptor/actions/runs/39149394797)
+**успешен**: установка hash-locked зависимостей, pytest/Ruff, Compose validation,
+Docker build и настоящий lifecycle smoke на Ubuntu runner. Smoke подтвердил HTTP/UI,
+очередь/ошибку невалидного медиа, idle worker, interrupted → error, сохранность
+входа/результата/настроек/кэша после stop/recreate и restart после аварии worker.
+Это проверка без ML-моделей, не подтверждение качества ASR.
+
+Первый [Windows workflow](https://github.com/IavnFGV/video-descriptor/actions/runs/39149394771)
+прошёл unit/Ruff, сборку ZIP/installer и побайтную воспроизводимость ZIP,
+но остановился в lifecycle: runner использует RUNNER~1 в TEMP, а приложение возвращает
+полный resolved путь. verify_release сравнивал написание пути вместо идентичности
+каталога. Проверка заменена на samefile: проверяются тот же каталог и отказ для чужого
+каталога; добавлена регрессия. Полный повтор фиксируется по результату следующего CI.
+
+## Что не удалось выполнить локально
 
 Docker Desktop 4.67.0 установлен, Ubuntu и docker-desktop зарегистрированы как WSL 2.
 Engine недоступен. Попытка `docker desktop start` закончилась внутренней ошибкой Desktop:
@@ -38,7 +54,6 @@ stop/recreate и container restart policy локально **не выполне
 Linux Python-тесты не считаются заменой Docker-проверки.
 Они включены как обязательные шаги container-ci и перед публикацией релиза.
 
-GitHub workflows подготовлены; их успешное исполнение здесь не заявляется.
 GHCR image/Release/релизный тег не создавались. Публичность GHCR package и права
 Actions требуют проверки владельцем репозитория при первом настоящем выпуске.
 Чистая Windows установка с рабочим Docker Engine, ML inference в контейнере,

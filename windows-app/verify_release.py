@@ -76,7 +76,8 @@ def start(folder, port):
         try:
             info = request(port, '/health')
             assert info['app'] == 'video-descriptor-windows'
-            assert Path(info['workspace']) == folder / 'windows-app/runtime/workspace'
+            # Runner TEMP may use RUNNER~1 while app.resolve() expands the same path.
+            assert Path(info['workspace']).samefile(folder / 'windows-app/runtime/workspace')
             return process, log, info['instance']
         except (OSError, ValueError):
             if process.poll() is not None:
