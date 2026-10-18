@@ -1,5 +1,14 @@
 # Компоненты и условия распространения
 
+Сборка 0.7 после приёмки 19.10.2026 включает app-local Microsoft Visual C++ Runtime
+14.44.35211.0 (12 x64 DLL рядом с python.exe). Источник — официальный подписанный
+Microsoft `VC_redist.x64.exe`, точный URL/SHA256 и хеши DLL в release-inputs.json;
+лицензия из bundle включается как python/Microsoft-Visual-Cpp-LICENSE.rtf.
+DLL не берутся из System32 хоста, redistributable не устанавливается в систему.
+Условия Microsoft распространяются на эти файлы отдельно от лицензий Python/OpenVINO:
+[Redistributing Visual C++ files](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
+WiX 6.0.2 используется только для извлечения build input, в приложение не входит.
+
 Прототип подключается к существующим моделям/сервисам. В Git нет моделей, FFmpeg
 binary, Python venv или чужих исходников. Это перечень компонентов, не заключение
 о лицензии готового будущего дистрибутива.

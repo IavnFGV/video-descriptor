@@ -98,6 +98,15 @@ Installer 0.6 собран; отдельный lifecycle-прогон для н�
 
 ## Сборка
 
+После проверки чистой Sandbox 19.10.2026 builder также поставляет Microsoft C++ Runtime
+app-local: Python embed не содержит MSVCP140.dll, необходимой OpenVINO. Точный Microsoft
+redistributable 14.44.35211.0, WiX 6.0.2 для извлечения, SHA256 каждой x64 DLL и лицензии
+закреплены в release-inputs.json. Извлечение использует существующий .NET 8+ на build host
+и системный expand.exe; установка VC++ на build host или целевую Windows не выполняется.
+Все включённые DLL/лицензия попадают в release manifest. Системный WebView2 остаётся
+отдельным требованием. Повторная проверка — в verification-sandbox-desktop-0.7.md;
+наличие исправления в исходниках само по себе не подтверждает успешный гостевой прогон.
+
 ```powershell
 $compiler = & ./windows-app/Prepare-BuildTools.ps1
 powershell -NoProfile -File windows-app/Prepare-Desktop.ps1
