@@ -100,3 +100,12 @@ DPAPI roundtrip проверяется настоящим Windows API, без mo
 на свободном порту; по завершении останавливает только этот процесс. Пользовательские
 сервисы и исходная модель не меняются. Windows CI выполняет тесты мастера без больших
 моделей и сохраняет прежние сборку ZIP, installer lifecycle и WebView2 smoke.
+
+
+19.10.2026: финальный ZIP проверен по 4404 хешам, packaged WebView2 smoke прошёл.
+Installer на текущем Windows host прошёл установку, отказ обновления работающего backend,
+переустановку, upgrade fixture 0.7.1 и удаление. После каждого изменения сохранены
+runtime-модель (маленький тестовый файл), setup-state, настройки устройства/конспекта
+и пользовательские данные. Это не новая чистая VM и не публичный релиз.
+См. [installer report](verification-setup-release.json),
+[WebView2 report](verification-setup-desktop.json).

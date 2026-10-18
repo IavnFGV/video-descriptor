@@ -25,7 +25,9 @@ Windows-приложение для локальной обработки вид
 одного pinned Whisper small FP16 с SHA256/прогрессом/повтором, явный WAV probe,
 выбор Ollama для перевода/конспекта и Gemini с Windows DPAPI. Подтверждён изолированный
 CPU-сценарий от подключения модели до SRT и восстановления настроек, а также inference
-упакованным Python/OpenVINO. Проверки: 250 passed / 2 skipped, Ruff и pip check. Новые NPU/GPU,
+упакованным Python/OpenVINO. Проверки: 250 passed / 2 skipped, Ruff и pip check. 19.10.2026 дополнительно прошли packaged WebView2 smoke, проверка 4404 хешей,
+установка/переустановка/upgrade fixture/удаление с сохранением модели и настроек мастера.
+[Отчёт](docs/verification-setup-release.json). Новые NPU/GPU,
 полная сетевая загрузка модели и генерация облака в этой итерации не подтверждены.
 
 История 18.10.2026: добавлены WinForms/WebView2 host, безопасная проверка identity,
