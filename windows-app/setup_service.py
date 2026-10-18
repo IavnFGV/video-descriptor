@@ -4,9 +4,51 @@ import os
 import subprocess
 from pathlib import Path
 
+import requests
+
 from scripts.whisper_npu_server import model_digest
+from video_descriptor import translation_settings
 from video_descriptor.action_history import record
 from video_descriptor.jobs import read_json, write_json
+
+
+def ollama_request(value, endpoint, body=None):
+    with requests.Session() as session:
+        session.trust_env = False
+        url = value.get('ollama_url', 'http://127.0.0.1:11434') + endpoint
+        response = session.get(url, timeout=5) if body is None else session.post(url, json=body, timeout=5)
+        response.raise_for_status()
+        return response.json()
+
+
+def ollama_status(value):
+    settings = translation_settings.load(value['workspace'])
+    selected = settings.get('ollama_model') or value.get('ollama_model', '')
+    try:
+        data = ollama_request(value, '/api/tags')
+        models = [{'name': item['name'], 'bytes': item.get('size', 0)} for item in data['models']]
+        present = selected in {item['name'] for item in models}
+        return {'ready': present, 'service_ready': True, 'selected': selected, 'models': models,
+                'message': 'Модель установлена; генерация проверяется при обработке' if present else
+                           'Выберите установленную модель для перевода'}
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return {'ready': False, 'service_ready': False, 'selected': selected, 'models': [],
+                'message': 'Запустите установленную Ollama и обновите список. Автоустановка пока не подключена.'}
+
+
+def select_ollama(value, model):
+    status = ollama_status(value)
+    if not isinstance(model, str) or model not in {item['name'] for item in status['models']}:
+        raise ValueError('Выберите модель из списка установленной Ollama')
+    try:
+        details = ollama_request(value, '/api/show', {'model': model})
+        if 'completion' not in details.get('capabilities', []):
+            raise ValueError('Эта модель не поддерживает генерацию текста; выберите языковую модель')
+    except (requests.RequestException, TypeError) as exc:
+        raise ValueError('Не удалось проверить возможности модели Ollama') from exc
+    translation_settings.save(value['workspace'], {'provider': 'ollama', 'ollama_model': model})
+    record('translation_model_configured', stage='translation', status='configured')
+    return {'selected': model, 'provider': 'ollama', 'configured': True}
 
 
 def inspect_model(value, here):

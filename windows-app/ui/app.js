@@ -2,7 +2,7 @@
   const $ = id => document.getElementById(id);
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Нужна проверка'};
-  const actionNames = {model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
+  const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
   const stamp = s => new Date(Math.max(0,s)*1000).toISOString().slice(11,19);
   async function api(url, options) {
     const response = await fetch(url, options);
@@ -26,6 +26,15 @@
       if(save){await setupStatus();await readiness();}
     } catch(e){$('setup-feedback').textContent=e.message;}finally{buttons.forEach(b=>b.disabled=false);}
   }
+  async function ollamaStatus() {
+    try {
+      const s=await api('/api/setup/ollama'), list=$('ollama-model');
+      const options=s.models.map(m=>{const o=document.createElement('option');o.value=m.name;o.textContent=`${m.name} · ${(m.bytes/1024**3).toFixed(1)} ГиБ`;return o;});
+      if(!options.length){const o=document.createElement('option');o.value='';o.textContent='Нет доступных моделей';options.push(o);}
+      list.replaceChildren(...options);if(s.models.some(m=>m.name===s.selected))list.value=s.selected;
+      $('ollama-connect').disabled=!s.models.length;$('ollama-feedback').textContent=s.message+(s.ready?' · '+s.selected:'');
+    }catch(e){$('ollama-feedback').textContent=e.message;}
+  }
   function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className=ready?'good':'warning';b.textContent=suffix||(ready?'Готово':'Не подключено');row.append(a,b);return row; }
   async function readiness() {
     try {
@@ -35,7 +44,7 @@
         $('speech-device').value=c.settings.speech_device;
         for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+cap.reason;}
         $('device-status').textContent=c.preparing?'Подготавливаем модель…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
-        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,c.capabilities[name].reason)),check('Ollama · перевод',d.ollama.ready));
+        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,c.capabilities[name].reason)),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Модель установлена':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
         $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing;
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing;
@@ -107,9 +116,11 @@
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;};
+  $('ollama-refresh').onclick=ollamaStatus;
+  $('ollama-form').onsubmit=async e=>{e.preventDefault();const b=$('ollama-connect');b.disabled=true;try{const s=await api('/api/setup/ollama',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({model:$('ollama-model').value})});$('ollama-feedback').textContent='Подключена '+s.selected+'. Перевод доступен в редакторе записи. Для конспекта модель выбирается отдельно в конструкторе.';await readiness();}catch(error){$('ollama-feedback').textContent=error.message;}finally{b.disabled=false;}};
   $('inspect-model').onclick=()=>modelAction(false);
   $('setup-form').onsubmit=e=>{e.preventDefault();modelAction(true);};
   $('pick-model').onclick=async()=>{const b=$('pick-model');b.disabled=true;$('setup-feedback').textContent='Выберите папку в окне Windows…';try{const r=await api('/api/setup/pick-model',{method:'POST',headers:{'X-App-Instance':instance}});if(r.path)$('model-path').value=r.path;$('setup-feedback').textContent=r.path?'Папка выбрана. Теперь проверьте и подключите модель.':'Выбор отменён.';}catch(e){$('setup-feedback').textContent=e.message;}finally{b.disabled=false;}};
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

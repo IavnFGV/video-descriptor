@@ -118,6 +118,7 @@ def test_setup_api_requires_instance_and_origin_and_saves_valid_model(configured
         base = f'http://127.0.0.1:{server.server_port}'
         try:
             assert requests.post(base + '/api/setup/model', json={'path': str(model)}, timeout=5).status_code == 403
+            assert requests.post(base + '/api/setup/ollama', json={'model': 'test'}, timeout=5).status_code == 403
             headers = {'X-App-Instance': 'instance', 'Origin': 'https://foreign.invalid'}
             assert requests.post(base + '/api/setup/model', headers=headers, json={'path': str(model)}, timeout=5).status_code == 403
             headers = {'X-App-Instance': 'instance'}
@@ -128,3 +129,54 @@ def test_setup_api_requires_instance_and_origin_and_saves_valid_model(configured
         finally:
             server.shutdown()
             thread.join()
+
+
+def test_ollama_service_without_selected_model_is_not_ready(configured, monkeypatch):
+    _, _, manager, _ = configured
+    manager.value['ollama_model'] = 'missing:9b'
+    monkeypatch.setattr(setup_api, 'ollama_request', lambda *args: {'models': [{'name': 'present:9b', 'size': 1024}]})
+    status = setup_api.ollama_status(manager.value)
+    assert status['service_ready'] and not status['ready']
+    assert status['models'] == [{'name': 'present:9b', 'bytes': 1024}]
+
+
+def test_ollama_selection_uses_existing_translation_settings_and_preserves_secret(configured, monkeypatch):
+    from video_descriptor import translation_settings
+
+    _, _, manager, _ = configured
+    root = manager.value['workspace']
+    translation_settings.save(root, {'api_key': 'keep-private', 'billing_mode': 'free'})
+
+    def request(value, endpoint, body=None):
+        return {'models': [{'name': 'language:9b'}]} if endpoint == '/api/tags' else {'capabilities': ['completion']}
+
+    monkeypatch.setattr(setup_api, 'ollama_request', request)
+    result = setup_api.select_ollama(manager.value, 'language:9b')
+    saved = translation_settings.load(root)
+    assert saved['provider'] == 'ollama' and saved['ollama_model'] == 'language:9b'
+    assert saved['api_key'] == 'keep-private' and saved['billing_mode'] == 'free'
+    assert 'api_key' not in result
+    assert setup_api.ollama_status(manager.value)['ready']
+
+
+def test_ollama_embedding_and_uninstalled_models_cannot_be_selected(configured, monkeypatch):
+    _, _, manager, _ = configured
+    monkeypatch.setattr(setup_api, 'ollama_request', lambda value, endpoint, body=None:
+                        {'models': [{'name': 'embedding:latest'}]} if endpoint == '/api/tags' else
+                        {'capabilities': ['embedding']})
+    with pytest.raises(ValueError, match='генерацию текста'):
+        setup_api.select_ollama(manager.value, 'embedding:latest')
+    with pytest.raises(ValueError, match='из списка'):
+        setup_api.select_ollama(manager.value, 'not-installed:9b')
+    assert not (Path(manager.value['workspace']) / '.devcontainer/translation-settings.json').exists()
+
+
+def test_stopped_ollama_reports_a_recoverable_state(configured, monkeypatch):
+    _, _, manager, _ = configured
+
+    def stopped(*args):
+        raise requests.ConnectionError('stopped')
+
+    monkeypatch.setattr(setup_api, 'ollama_request', stopped)
+    status = setup_api.ollama_status(manager.value)
+    assert not status['ready'] and not status['service_ready'] and status['models'] == []
