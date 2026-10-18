@@ -1,4 +1,4 @@
-﻿{
+{
     "verified_by_app":  true,
     "source":  "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
     "environment":  "Windows Sandbox",

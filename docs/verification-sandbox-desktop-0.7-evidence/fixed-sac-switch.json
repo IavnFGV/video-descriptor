@@ -1,4 +1,4 @@
-﻿{
+{
     "environment":  "Windows Sandbox",
     "authorization":  "User explicitly authorized guest-only SAC change and guest reboot",
     "after":  0,
