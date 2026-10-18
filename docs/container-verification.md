@@ -54,7 +54,41 @@ ZIP повторно побайтно совпал (SHA256 `64686689177103c18212
 YAML и bash-сценарии release workflow проверены синтаксически через bash -n.
 Публикация остаётся непроверенной: настоящий tag/registry release здесь не запускались.
 
-## Что не удалось выполнить локально
+## Повторная локальная проверка после обновления Docker
+
+После обновления пользователем: Docker Desktop **4.95.0 (242831)**, Engine **29.8.2**,
+Compose **5.6.0**, Linux amd64, ядро `6.6.87.2-microsoft-standard-WSL2`.
+Проверена рабочая копия b5701b6 на этой Windows-машине:
+
+- `docker compose config --quiet` и настоящая локальная `docker compose build` — успешно.
+- `python -X utf8 scripts/smoke_compose.py` — **PASS**: HTTP/UI, обработка очереди и
+  ошибки невалидного медиа, idle worker, interrupted job, сохранность данных/настроек/
+  кэша после stop/recreate и автоматический restart после аварии worker.
+  Прогон использовал отдельную временную папку и проект; временный контейнер удалён.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/VideoDescriptor.ps1 -Action Install`
+  — успешно: WSL/Engine preflight, создание локальной конфигурации и каталогов,
+  сборка, Compose readiness, HTTP readiness. Создана новая `container-data`, старая очередь
+  и native-сервисы не подключались и не изменялись.
+- После установки `/health` возвращает `ok`, `/create` — HTTP 200;
+  `video-descriptor-app-1` healthy, опубликован только `127.0.0.1:8000`.
+  Приложение оставлено запущенным для пользователя.
+- Отдельный дополнительный Stop/Start через PowerShell launcher не выполнялся:
+  составную команду отклонил автоматический контроль выполнения (`blocked by policy`).
+  Это не сбой Docker; stop/recreate/restart реально проверены smoke-сценарием выше.
+
+Docker Desktop отдельно сообщил о сбое **Ubuntu WSL integration**: в Ubuntu не найден
+`/mnt/wsl/docker-desktop/shared-sockets/host-services/backend.sock` и `/var/run/docker.sock`.
+При этом Engine в distro docker-desktop продолжал обслуживать Windows CLI и приложение.
+Предложен Restart the WSL integration в диалоге; повторное появление ошибки можно
+обойти Skip WSL distro integration для Windows/PowerShell пути. Это не подтверждает
+исправность Docker CLI внутри Ubuntu. Настройки интеграции автоматически не менялись.
+Разделение Engine и необязательной интеграции дистрибутива описано в
+[документации Docker](https://docs.docker.com/desktop/features/wsl/).
+
+Модели не скачивались. Реальный ML inference и GPU/NPU внутри контейнера,
+приёмка чистой Windows и публикация GHCR по-прежнему не проверялись этим прогоном.
+
+## Первоначальная локальная ошибка (устранена обновлением Docker)
 
 Docker Desktop 4.67.0 установлен, Ubuntu и docker-desktop зарегистрированы как WSL 2.
 Engine недоступен. Попытка `docker desktop start` закончилась внутренней ошибкой Desktop:
@@ -74,9 +108,9 @@ Actions требуют проверки владельцем репозитор�
 Чистая Windows установка с рабочим Docker Engine, ML inference в контейнере,
 NPU/GPU из контейнера и обновление между двумя опубликованными версиями не проверены.
 
-## Следующая обязательная проверка
+## Команды повторения и следующий этап
 
-Восстановить Docker Desktop по его диагностике, затем из корня репозитория:
+Сборка и smoke ниже уже успешно повторены после обновления Docker. Из корня репозитория:
 
 ```powershell
 docker compose config --quiet
