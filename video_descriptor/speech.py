@@ -172,7 +172,7 @@ def state(root, params):
         if len(id) != 32 or any(c not in '0123456789abcdef' for c in id):
             raise ValueError('Неизвестное задание')
         job = read_json(jobs_dir(root) / id / 'job.json')
-        if not job or job.get('mode') not in {'audio', 'lecture'}:
+        if not job or job.get('mode') not in {'audio', 'lecture', 'notes', 'postprocess'}:
             raise ValueError('Задание аудио не найдено')
         folder = job.get('folder')
     else:

@@ -38,13 +38,13 @@ jobs:
         run: |
           python -X utf8 windows-app/build_release.py --output dist/rebuild
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $first = (Get-FileHash dist/VideoDescriptor-0.5.0-windows-x64.zip).Hash
-          $second = (Get-FileHash dist/rebuild/VideoDescriptor-0.5.0-windows-x64.zip).Hash
+          $first = (Get-FileHash dist/VideoDescriptor-0.6.0-windows-x64.zip).Hash
+          $second = (Get-FileHash dist/rebuild/VideoDescriptor-0.6.0-windows-x64.zip).Hash
           if ($first -ne $second) { throw 'ZIP is not reproducible from the same inputs' }
       - name: ZIP, install, running-update refusal, reinstall, upgrade fixture, uninstall
         run: |
           $compiler = Join-Path $PWD 'windows-app/runtime/build-cache/inno-6.7.3/ISCC.exe'
-          python -X utf8 windows-app/verify_release.py dist/VideoDescriptor-0.5.0-windows-x64.zip --installer dist/VideoDescriptor-0.5.0-windows-x64-setup.exe --iscc $compiler
+          python -X utf8 windows-app/verify_release.py dist/VideoDescriptor-0.6.0-windows-x64.zip --installer dist/VideoDescriptor-0.6.0-windows-x64-setup.exe --iscc $compiler
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain preview artifacts and verification report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

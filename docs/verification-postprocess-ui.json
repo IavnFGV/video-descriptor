@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-18",
+  "environment": "source app on real Windows host",
+  "browser_actions": true,
+  "cases": [
+    {
+      "task": "notes",
+      "status": "done",
+      "model": "qwen3.5:9b",
+      "segments": 1,
+      "translation_complete": true,
+      "notes_report": true
+    },
+    {
+      "task": "translate",
+      "status": "done",
+      "model": "qwen3.5:9b",
+      "segments": 1,
+      "translation_complete": true,
+      "notes_report": false
+    }
+  ],
+  "new_versions": true,
+  "unit_tests_passed": 210,
+  "private_screenshot_kept_outside_git": true
+}

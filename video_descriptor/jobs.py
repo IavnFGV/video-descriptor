@@ -126,9 +126,17 @@ def find_result(root, video):
 def run_job(root, folder, job):
     job.update(status="running", started=time.time(), error=None)
     write_json(folder / "job.json", job)
-    record('job_started', job_id=job['id'], stage='speech', requested=job.get('device_plan', {}).get('requested'))
+    stage = job.get('task', 'notes' if job.get('mode') == 'notes' else 'speech')
+    record('job_started', job_id=job['id'], stage=stage, requested=job.get('device_plan', {}).get('requested'))
     try:
         with (folder / "run.log").open("a") as log:
+            if job.get('mode') == 'postprocess':
+                from .postprocess import run
+                run(root, folder, job, log)
+                job.update(status='done', finished=time.time())
+                write_json(folder / 'job.json', job)
+                record('job_finished', job_id=job['id'], stage=stage, status='done')
+                return
             if job.get('mode') == 'notes':
                 settings = folder / 'construction.json'
                 write_json(settings, job['construction'])
@@ -141,6 +149,7 @@ def run_job(root, folder, job):
                     raise RuntimeError('Конспект остановлен: ' + error)
                 job.update(status='done', finished=time.time())
                 write_json(folder / 'job.json', job)
+                record('job_finished', job_id=job['id'], stage='notes', status='done')
                 return
             if job.get("mode") == "audio" or job.get("construction"):
                 completed = read_json(root / "output" / job["folder"] / "speech.json", {}) if job.get("folder") else {}
@@ -208,7 +217,7 @@ def run_job(root, folder, job):
         job["status"] = "done"
     except (OSError, RuntimeError) as exc:
         job.update(status="error", error=str(exc))
-        record('job_failed', job_id=job['id'], status='error', reason=type(exc).__name__)
+        record('job_failed', job_id=job['id'], stage=stage, status='error', reason=type(exc).__name__)
     job["finished"] = time.time()
     write_json(folder / "job.json", job)
 

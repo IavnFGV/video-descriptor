@@ -1,6 +1,6 @@
 (() => {
   const $ = id => document.getElementById(id);
-  let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false;
+  let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Нужна проверка'};
   const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
   const stamp = s => new Date(Math.max(0,s)*1000).toISOString().slice(11,19);
@@ -63,31 +63,43 @@
   async function jobs() {
     const all=await api('/api/jobs');
     const buttons=all.sort((a,b)=>b.created-a.created).map(job=>{
-      const b=document.createElement('button');b.className='job';const title=document.createElement('strong');title.textContent=job.title||job.filename;const state=document.createElement('small');state.textContent=statusNames[job.status]||job.status;b.append(title,state);b.onclick=()=>select(job.id);return b;
+      const b=document.createElement('button');b.className='job';const title=document.createElement('strong');title.textContent=job.title||job.filename;const state=document.createElement('small');state.textContent=(job.mode==='notes'?'Конспект · ':'')+(statusNames[job.status]||job.status);b.append(title,state);b.onclick=()=>select(job.id);return b;
     });
     if(buttons.length)$('jobs').replaceChildren(...buttons);
   }
   function select(id) { selected=id;history.replaceState(null,'','?job='+id);$('result-panel').hidden=false;clearTimeout(timer);poll(); }
   function render(result,job) {
+    currentJob=job;
     $('result-panel').hidden=false;$('result-title').textContent=job.title||job.filename;
     $('status').textContent=statusNames[job.status]||job.status;
     const device=result?.device||job.device_plan?.selected;
     $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+(job.error||result?.message||'Ожидаем свободный обработчик');
     $('progress').value=result?.duration?Math.min(100,100*result.processed/result.duration):0;
+    if(['postprocess','notes'].includes(job.mode)){
+      const phases={queued:'В очереди',notes:'Создаём конспект',translation:'Переводим реплики',done:'Готово'};
+      $('progress-text').textContent=job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.translation_model||job.construction?.model||'Ollama'}`;
+      if(['queued','running'].includes(job.status))$('progress').removeAttribute('value');
+    }
     $('retry').hidden=job.status!=='error';
     const done=job.status==='done'&&result?.status==='done';$('exports').hidden=!done;
+    $('postprocess-actions').hidden=!done||!result?.segments?.length;
+    $('translate-run').disabled=processing;$('notes-run').disabled=processing;
+    $('ru-srt').hidden=!done||!result?.has_translation;
+    $('open-report').hidden=!done||(job.mode!=='notes'&&job.task!=='notes');
     if(!result)return;
     const source='/'+result.video.replaceAll('\\','/');if($('video').dataset.source!==source){$('video').src=source;$('video').dataset.source=source;}
     if(done){
       const q=new URLSearchParams({folder:job.folder,language:'original'});
       $('vtt').href='/api/subtitles?'+q;$('srt').href='/api/subtitles?'+q+'&format=srt';$('txt').href='/api/transcript-text?'+q;
       $('editor').href='/create?folder='+encodeURIComponent(job.folder);
+      $('ru-srt').href='/api/subtitles?'+new URLSearchParams({folder:job.folder,language:'ru',format:'srt'});
+      $('open-report').href='/output/'+encodeURIComponent(job.folder)+'/report.html';
     }
     $('timing-note').textContent=result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.';
     const rows=result.segments.map((segment,index)=>{
       const row=document.createElement('div');row.className='row';const time=document.createElement('time');time.textContent=stamp(segment.start)+' — '+stamp(segment.end);time.onclick=()=>{$('video').currentTime=segment.start;$('video').play().catch(()=>{});};
       if(done){const edit=document.createElement('button');edit.textContent='Исправить';edit.onclick=()=>window.editSpeechReply(result,index,$('video'),saved=>render(saved,job));row.append(edit);}
-      const p=document.createElement('p');p.textContent=segment.text;row.append(time,p);return row;
+      const p=document.createElement('p');p.textContent=segment.text;row.append(time,p);const translated=result.translations?.[segment.id];if(translated){const ru=document.createElement('p');ru.className='translation';ru.textContent=translated;row.append(ru);}return row;
     });
     if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent=result.no_speech?'Речевых фрагментов не найдено.':'Текст появится после первого сохранённого фрагмента.';rows.push(p);}
     $('transcript').replaceChildren(...rows);
@@ -115,6 +127,13 @@
   $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await readiness();}catch(e){message(e.message,true);}};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
+  async function postprocess(task) {
+    if(!currentJob?.folder||processing)return;
+    processing=true;$('translate-run').disabled=true;$('notes-run').disabled=true;
+    try{const job=await api('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({folder:currentJob.folder,task})});message('Создана отдельная версия. Исходная расшифровка сохранена.');select(job.id);await jobs();}catch(e){message(e.message,true);}finally{processing=false;$('translate-run').disabled=false;$('notes-run').disabled=false;}
+  }
+  $('translate-run').onclick=()=>postprocess('translate');
+  $('notes-run').onclick=()=>postprocess('notes');
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;};
   $('ollama-refresh').onclick=ollamaStatus;
   $('ollama-form').onsubmit=async e=>{e.preventDefault();const b=$('ollama-connect');b.disabled=true;try{const s=await api('/api/setup/ollama',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({model:$('ollama-model').value})});$('ollama-feedback').textContent='Подключена '+s.selected+'. Перевод доступен в редакторе записи. Для конспекта модель выбирается отдельно в конструкторе.';await readiness();}catch(error){$('ollama-feedback').textContent=error.message;}finally{b.disabled=false;}};

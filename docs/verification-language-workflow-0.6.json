@@ -1,0 +1,22 @@
+{
+  "version": "0.6.0",
+  "environment": "real Windows host / extracted ZIP",
+  "clean_vm": false,
+  "models_downloaded": false,
+  "zip_files_verified": 4389,
+  "zip_sha256": "ad44783a4f0b0307497117c88466a413879d1b9b1d8d8f06067e298346753c10",
+  "asr": {
+    "device": "CPU",
+    "seconds": 20.0,
+    "segments": 1
+  },
+  "status": "passed",
+  "postprocess_api": true,
+  "model_pinned_to_job": true,
+  "model": "qwen3.5:9b",
+  "translated_segments": 1,
+  "notes": 1,
+  "chapters": 1,
+  "translated_srt": true,
+  "elapsed_seconds": 32.72
+}

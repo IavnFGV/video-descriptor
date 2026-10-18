@@ -84,6 +84,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path, help="Папка с transcript.json и manifest.json")
     parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", ""))
+    parser.add_argument('--local-model', help='Зафиксированная локальная модель задания, независимо от текущих настроек')
     parser.add_argument("--base-url", default=os.getenv(
         "OLLAMA_BASE_URL", "http://host.docker.internal:11434"))
     parser.add_argument("--refresh-only", action="store_true",
@@ -118,7 +119,8 @@ def main():
             for index, group in enumerate(groups, 1):
                 from .prompt_settings import effective, overrides
                 log.prompt_settings = overrides()
-                settings = translation_settings()
+                settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
+                            if args.local_model else translation_settings())
                 log.translation_settings = settings
                 active_model = settings["model"] if settings["provider"] == "gemini" else (settings.get("ollama_model") or args.model)
                 active_base = "gemini" if settings["provider"] == "gemini" else args.base_url

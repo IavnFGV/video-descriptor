@@ -2,8 +2,6 @@
 import argparse
 import hashlib
 import json
-import os
-import subprocess
 import tempfile
 import time
 import urllib.error
@@ -76,22 +74,14 @@ def main():
         report['asr'] = {'device': 'CPU', 'seconds': speech['result']['duration'],
                          'segments': len(speech['result']['segments'])}
         print('ASR passed; generating notes with installed Ollama', flush=True)
-        job = post('/api/notes-run', {'folder': speech['job']['folder'], 'settings': {
-            'input': 'speech', 'provider': 'ollama', 'model': args.ollama_model,
-            'context_tokens': 8192, 'output_tokens': 2048}})
+        job = post('/api/native/postprocess', {'folder': speech['job']['folder'], 'task': 'notes'})
+        assert job['translation_model'] == args.ollama_model
         notes = wait_for(lambda: next(item for item in request(port, '/api/jobs') if item['id'] == job['id']),
                          lambda s: s['status'] in {'done', 'error'}, 300)
         assert notes['status'] == 'done', notes.get('error')
         workspace = root / 'windows-app/runtime/workspace'
         folder = workspace / 'output' / job['folder']
-        print('Notes passed; translating with packaged Python', flush=True)
-        env = {**os.environ, 'OLLAMA_BASE_URL': settings['ollama_url'], 'PYTHONUTF8': '1'}
-        with (root / 'translation.log').open('wb') as output:
-            completed = subprocess.run([str(root / 'python/python.exe'), '-X', 'utf8', '-m',
-                                       'video_descriptor.translate', str(folder), '--model', args.ollama_model],
-                                      cwd=workspace, env=env, stdout=output, stderr=subprocess.STDOUT,
-                                      timeout=300, check=False, creationflags=0x08000000)
-        assert completed.returncode == 0, 'Translation failed; see translation.log'
+        print('Queued notes and translation passed with packaged Python', flush=True)
         transcript = json.loads((folder / 'transcript.json').read_text(encoding='utf-8'))
         translations = json.loads((folder / 'translations.json').read_text(encoding='utf-8'))
         assert all(translations.get(row['id'], '').strip() for row in transcript)
@@ -102,7 +92,8 @@ def main():
         query = urlencode({'folder': job['folder'], 'language': 'ru', 'format': 'srt'})
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/subtitles?{query}', timeout=10) as response:
             assert '-->' in response.read().decode('utf-8')
-        report.update(status='passed', model=args.ollama_model, translated_segments=len(transcript),
+        report.update(status='passed', postprocess_api=True, model_pinned_to_job=True,
+                      model=args.ollama_model, translated_segments=len(transcript),
                       notes=len(generated['notes']), chapters=len(chapters), translated_srt=True,
                       elapsed_seconds=round(time.monotonic() - began, 2))
         args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -8,14 +8,18 @@ from video_descriptor import gemini, translation_settings
 
 
 @pytest.mark.parametrize('failure', [False, True])
-def test_translation_cli_uses_selected_model_and_fails_on_incomplete_result(tmp_path, monkeypatch, failure):
+@pytest.mark.parametrize('pinned', [False, True])
+def test_translation_cli_uses_selected_model_and_fails_on_incomplete_result(tmp_path, monkeypatch, failure, pinned):
     from video_descriptor import translate
 
     folder = tmp_path / 'speech'
     folder.mkdir()
     (folder / 'transcript.json').write_text(json.dumps([
         {'id': 's1', 'start': 0, 'end': 5, 'text': 'Hello world'}]))
-    monkeypatch.setattr(sys, 'argv', ['translate', str(folder), '--model', 'fallback-model'])
+    args = ['translate', str(folder), '--model', 'fallback-model']
+    if pinned:
+        args += ['--local-model', 'pinned-model']
+    monkeypatch.setattr(sys, 'argv', args)
     monkeypatch.setattr(translate, 'translation_settings', lambda: {'provider': 'ollama', 'ollama_model': 'selected-model'})
     monkeypatch.setattr(translate, 'refresh_reports', lambda *args: None)
     calls = []
@@ -28,7 +32,7 @@ def test_translation_cli_uses_selected_model_and_fails_on_incomplete_result(tmp_
 
     monkeypatch.setattr(translate, 'translate_resilient', generate)
     assert translate.main() == (1 if failure else 0)
-    assert calls == ['selected-model']
+    assert calls == ['pinned-model' if pinned else 'selected-model']
     errors = json.loads((folder / 'translation-errors.json').read_text())
     assert bool(errors) == failure
 

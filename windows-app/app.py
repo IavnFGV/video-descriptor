@@ -28,7 +28,7 @@ REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.5.0-prototype'
+VERSION = '0.6.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 
@@ -203,6 +203,7 @@ def make_handler(value, instance):
         inspect_model,
         ollama_status,
         select_ollama,
+        validate_ollama_model,
     )
 
     from video_descriptor.action_history import record
@@ -255,7 +256,7 @@ def make_handler(value, instance):
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama'}:
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
                     origin = self.headers.get('Origin')
@@ -270,6 +271,15 @@ def make_handler(value, instance):
                     body = json.loads(self.rfile.read(length))
                     if not isinstance(body, dict):
                         raise TypeError('Ожидается объект настроек модели')
+                    if path == '/api/native/postprocess':
+                        from video_descriptor.postprocess import enqueue as enqueue_postprocess
+                        status = ollama_status(value)
+                        model = status['selected']
+                        validate_ollama_model(value, model)
+                        job = enqueue_postprocess(Path(value['workspace']), body.get('folder'),
+                                                  body.get('task'), model, value['ollama_url'])
+                        start_worker(Path(value['workspace']))
+                        return self.json_response(202, job)
                     if path == '/api/setup/ollama':
                         return self.json_response(200, select_ollama(value, body.get('model')))
                     result = inspect_model(body.get('path'), HERE) if path.endswith('/inspect') else setup.apply(body.get('path'))

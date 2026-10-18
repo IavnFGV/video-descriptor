@@ -36,7 +36,7 @@ def ollama_status(value):
                 'message': 'Запустите установленную Ollama и обновите список. Автоустановка пока не подключена.'}
 
 
-def select_ollama(value, model):
+def validate_ollama_model(value, model):
     status = ollama_status(value)
     if not isinstance(model, str) or model not in {item['name'] for item in status['models']}:
         raise ValueError('Выберите модель из списка установленной Ollama')
@@ -46,6 +46,10 @@ def select_ollama(value, model):
             raise ValueError('Эта модель не поддерживает генерацию текста; выберите языковую модель')
     except (requests.RequestException, TypeError) as exc:
         raise ValueError('Не удалось проверить возможности модели Ollama') from exc
+
+
+def select_ollama(value, model):
+    validate_ollama_model(value, model)
     translation_settings.save(value['workspace'], {'provider': 'ollama', 'ollama_model': model})
     record('translation_model_configured', stage='translation', status='configured')
     return {'selected': model, 'provider': 'ollama', 'configured': True}
