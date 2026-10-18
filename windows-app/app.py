@@ -28,7 +28,7 @@ REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.4.0-prototype'
+VERSION = '0.5.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 

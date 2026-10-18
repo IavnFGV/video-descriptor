@@ -1,9 +1,49 @@
 import json
+import sys
 
 import pytest
 import requests
 
 from video_descriptor import gemini, translation_settings
+
+
+@pytest.mark.parametrize('failure', [False, True])
+def test_translation_cli_uses_selected_model_and_fails_on_incomplete_result(tmp_path, monkeypatch, failure):
+    from video_descriptor import translate
+
+    folder = tmp_path / 'speech'
+    folder.mkdir()
+    (folder / 'transcript.json').write_text(json.dumps([
+        {'id': 's1', 'start': 0, 'end': 5, 'text': 'Hello world'}]))
+    monkeypatch.setattr(sys, 'argv', ['translate', str(folder), '--model', 'fallback-model'])
+    monkeypatch.setattr(translate, 'translation_settings', lambda: {'provider': 'ollama', 'ollama_model': 'selected-model'})
+    monkeypatch.setattr(translate, 'refresh_reports', lambda *args: None)
+    calls = []
+
+    def generate(sources, model, base, log):
+        calls.append(model)
+        if failure:
+            raise ValueError('Invalid translation')
+        return {'s1': 'Привет, мир'}
+
+    monkeypatch.setattr(translate, 'translate_resilient', generate)
+    assert translate.main() == (1 if failure else 0)
+    assert calls == ['selected-model']
+    errors = json.loads((folder / 'translation-errors.json').read_text())
+    assert bool(errors) == failure
+
+
+def test_refresh_translated_speech_only_report_does_not_require_video_frames(tmp_path):
+    from video_descriptor import translate
+
+    values = {'manifest.json': {'video': str(tmp_path / 'audio.wav')},
+              'transcript.json': [{'id': 's1', 'start': 0, 'end': 5, 'text': 'Hello'}],
+              'notes.json': {'notes': [], 'sections': []}, 'translations.json': {'s1': 'Привет'}}
+    for name, value in values.items():
+        (tmp_path / name).write_text(json.dumps(value), encoding='utf-8')
+    translate.refresh_reports(tmp_path)
+    assert 'Привет' in (tmp_path / 'report.html').read_text(encoding='utf-8')
+    assert (tmp_path / 'ru.vtt').is_file()
 
 
 def test_settings_keep_key_private_and_require_free_acknowledgement(tmp_path):

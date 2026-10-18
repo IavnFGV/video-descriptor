@@ -1,6 +1,6 @@
 # Windows preview: ZIP, installer и CI
 
-Версия пакета 0.4.0, Windows x64 / Windows 10+. Это частная проверочная сборка,
+Текущая версия исходников пакета 0.5.0, Windows x64 / Windows 10+. Это частная проверочная сборка,
 без цифровой подписи нашего EXE, выбранной лицензии проекта и готового публичного release.
 
 ## Состав и запуск
@@ -12,9 +12,43 @@
 - Распакуйте ZIP и откройте `Open Video Descriptor.cmd` либо запустите `*-setup.exe`.
   Installer устанавливает только для текущего пользователя, без admin и изменения PATH.
 - Установщик создаёт пункт Start Menu; ярлык Desktop — отдельная необязательная галочка.
-- Веса Whisper подключаются существующим путём `whisper_model_directory` в
-  `windows-app/config.local.json`. Скачивания весов/драйверов при установке нет.
+- В 0.5 веса Whisper подключаются через «Настроить модель», модель перевода — через
+  «Перевод через Ollama». Прямой config.local.json остаётся дополнительным способом.
+  Скачивания весов/драйверов при установке нет.
   Без модели интерфейс работает, но распознавание показывает недоступность.
+
+Разделы ниже с результатами 0.4 относятся к сохранённым старым artifacts. Новые
+проверки 0.5 записываются отдельно; наличие новых исходников не доказывает прогон CI.
+Реальная opt-in проверка полного speech-only пути на хосте:
+
+```powershell
+.venv-windows\Scripts\python.exe windows-app/verify_language_workflow.py dist/VideoDescriptor-0.5.0-windows-x64.zip --video D:/samples/short.mp4 --model D:/AI/models/OpenVINO-whisper-small-fp16-ov --output dist/verification-language-workflow.json
+```
+
+Нужны уже установленные Whisper/Ollama/Qwen, без автоматических скачиваний.
+Проверка создаёт временный workspace и не изменяет существующие результаты.
+
+## Фактические результаты 0.5 от 18.10.2026
+
+- ZIP 264243699 байт, EXE 222633812 байт. SHA256 ZIP:
+  `cdaee34a6ba6006a144244ce5572cbc99cf681244e07a64bc307629fca45ff7f`;
+  EXE: `159decfbdc4a7d92142e2e9547bfcd26083525c083424075b8336bcf35b57b8a`.
+- Две независимые сборки ZIP дали одинаковую SHA256; проверено 4388 файлов payload.
+- Полный speech-only сценарий на хосте из распакованного ZIP прошёл: 20 s MP4, CPU,
+  новая версия конспекта и перевод Qwen 3.5 9B, report/chapters и русский SRT.
+  49.23 s после запуска приложения включают подготовку CPU; Ollama уже прогрета.
+  Это проверка работоспособности, не сравнительный benchmark.
+  [Машинный результат](verification-language-workflow.json).
+- Новый гостевой Sandbox-прогон **не прошёл**: Code Integrity 3033/3077 заблокировал
+  native psutil/charset_normalizer при portable doctor до install lifecycle.
+  DLL psutil побайтно та же, что в ранее прошедшей 0.4; причина изменения применения
+  гостевой политики не установлена. Политика не отключалась и не обходилась.
+  [Доказательство и точные границы](verification-sandbox-0.5.json).
+- Hosted CI не запускался; новая сборка остаётся частным unsigned preview.
+- На хосте отдельно прошли install/reinstall, отказ замены занятой установки,
+  upgrade fixture 0.5.0 → 0.5.1 и uninstall с сохранением config и тестовых данных.
+  Это не чистая VM и не аппаратный тест установленного EXE.
+  [Отчёт lifecycle](verification-release-0.5.json), [сводка поставки](verification-package-0.5.json).
 
 Пример конфигурации после распаковки/установки:
 

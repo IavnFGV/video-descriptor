@@ -1,0 +1,20 @@
+{
+  "version": "0.5.0",
+  "environment": "real Windows host / extracted ZIP",
+  "clean_vm": false,
+  "models_downloaded": false,
+  "zip_files_verified": 4388,
+  "zip_sha256": "cdaee34a6ba6006a144244ce5572cbc99cf681244e07a64bc307629fca45ff7f",
+  "asr": {
+    "device": "CPU",
+    "seconds": 20.0,
+    "segments": 1
+  },
+  "status": "passed",
+  "model": "qwen3.5:9b",
+  "translated_segments": 1,
+  "notes": 1,
+  "chapters": 1,
+  "translated_srt": true,
+  "elapsed_seconds": 49.23
+}

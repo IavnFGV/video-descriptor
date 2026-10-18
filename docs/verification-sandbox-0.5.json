@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-18",
+  "version": "0.5.0",
+  "status": "blocked_by_guest_application_control",
+  "environment": "Windows Sandbox; network and vGPU disabled",
+  "zip_sha256": "cdaee34a6ba6006a144244ce5572cbc99cf681244e07a64bc307629fca45ff7f",
+  "installer_sha256": "159decfbdc4a7d92142e2e9547bfcd26083525c083424075b8336bcf35b57b8a",
+  "stage": "portable doctor before installer lifecycle",
+  "code_integrity_events": [3033, 3077, 3089],
+  "policy_id": "0283ac0f-fff1-49ae-ada1-8a933130cad6",
+  "blocked_libraries": ["psutil/_psutil_windows.pyd", "charset_normalizer/cd.cp312-win_amd64.pyd"],
+  "psutil_pyd_sha256": "0035450801bd7d938e9e146c5ec28e619cb5a5f4a18cdc53ac7e9734c7f94f78",
+  "psutil_bytes_identical_to_previously_verified_0_4": true,
+  "security_policy_changed": false,
+  "installer_lifecycle_passed_in_this_guest": false,
+  "evidence_directory": "windows-app/runtime/sandbox/20261018-162855-190/reports"
+}

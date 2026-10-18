@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-18",
+  "version": "0.5.0",
+  "artifacts": [
+    {
+      "file": "VideoDescriptor-0.5.0-windows-x64.zip",
+      "bytes": 264243699,
+      "sha256": "cdaee34a6ba6006a144244ce5572cbc99cf681244e07a64bc307629fca45ff7f"
+    },
+    {
+      "file": "VideoDescriptor-0.5.0-windows-x64-setup.exe",
+      "bytes": 222633812,
+      "sha256": "159decfbdc4a7d92142e2e9547bfcd26083525c083424075b8336bcf35b57b8a"
+    }
+  ],
+  "independent_zip_builds_identical": true,
+  "unit_tests": {"passed": 201, "skipped": 1},
+  "ruff": "passed",
+  "pip_check": "passed",
+  "real_zip_language_workflow": "verification-language-workflow.json",
+  "host_installer_lifecycle": "verification-release-0.5.json",
+  "sandbox_result": "verification-sandbox-0.5.json",
+  "hosted_ci_run": false,
+  "public_release": false,
+  "installer_signed": false
+}

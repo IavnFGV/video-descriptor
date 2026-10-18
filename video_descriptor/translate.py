@@ -13,6 +13,7 @@ import requests
 
 from .chapters import build_chapters
 from .gemini import GeminiServiceError
+from .jobs import read_json
 from .models import Chapter, Notes, Source
 from .notes import chat_json, group_sources
 from .progress import ProgressLog, update_status
@@ -60,8 +61,8 @@ def translate_resilient(sources, model, base_url, log=None):
 def refresh_reports(folder: Path, translations=None):
     manifest = json.loads((folder / "manifest.json").read_text())
     video = Path(manifest["video"])
-    sources = [Source.model_validate(item) for name in ("transcript.json", "frames.json")
-               for item in json.loads((folder / name).read_text())]
+    sources = [Source.model_validate(item) for item in
+               json.loads((folder / 'transcript.json').read_text()) + read_json(folder / 'frames.json', [])]
     if translations is None:
         path = folder / "translations.json"
         translations = json.loads(path.read_text()) if path.exists() else {}
@@ -149,7 +150,7 @@ def main():
                         batch = json.loads(cached.read_text())
                         log("Перевод блока загружен из кэша")
                     else:
-                        batch = translate_resilient(group, args.model, args.base_url, log)
+                        batch = translate_resilient(group, active_model, active_base, log)
                         save(target, batch)
                     translations.update(batch)
                     save(folder / "translations.json", translations)
@@ -164,6 +165,7 @@ def main():
         refresh_reports(folder, translations)
         if failures:
             log(f"ПЕРЕВОД С ПРОПУСКАМИ: {len(failures)} блоков; см. translation-errors.json")
+            return 1
         log(f"ГОТОВО: {folder / 'report.html'}")
         return 0
     except (Exception, KeyboardInterrupt) as exc:  # noqa: BLE001 — CLI preserves completed batches.

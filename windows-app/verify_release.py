@@ -227,8 +227,10 @@ def main():
             upgrade_payload = test_root / 'upgrade-payload'
             with zipfile.ZipFile(args.zip) as archive:
                 archive.extractall(upgrade_payload)
-            run([args.iscc.resolve(), '/Qp', '/DPayload=' + str(upgrade_payload), '/DAppVersion=0.4.1', '/O' + str(test_root), script])
-            upgrade = test_root / 'VideoDescriptor-0.4.1-windows-x64-setup.exe'
+            major, minor, patch = map(int, manifest['version'].split('.'))
+            upgrade_version = f'{major}.{minor}.{patch + 1}'
+            run([args.iscc.resolve(), '/Qp', '/DPayload=' + str(upgrade_payload), '/DAppVersion=' + upgrade_version, '/O' + str(test_root), script])
+            upgrade = test_root / f'VideoDescriptor-{upgrade_version}-windows-x64-setup.exe'
             run([upgrade, *install_args])
             assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
             report['upgrade_fixture'] = True
