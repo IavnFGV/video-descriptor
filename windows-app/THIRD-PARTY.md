@@ -16,6 +16,11 @@ binary, Python venv или чужих исходников. Это перече�
 | pyannote community-1 | [CC-BY-4.0 model card](https://huggingface.co/pyannote/speaker-diarization-community-1) | Отдельные условия доступа Hugging Face/атрибуции; модель в прототип не скачивается. |
 | Ollama/Qwen | [Ollama MIT](https://github.com/ollama/ollama/blob/main/LICENSE), лицензия конкретной модели в её card | Не переносить лицензию Ollama на все доступные веса; проверять выбранный tag/revision перед распространением. |
 
+Desktop 0.7 включает Microsoft.Web.WebView2 SDK 1.0.2903.40 (NuGet), три runtime/managed
+DLL; LICENSE.txt из проверенного nupkg включается рядом в desktop-sdk. URL/SHA256
+закреплены в release-inputs.json. WebView2 Runtime не распространяется и автоматически
+не ставится; применяются отдельные условия Microsoft. .NET Framework используется системный.
+
 Все фактически разрешённые версии Python-зависимостей — в `requirements-lock.txt`.
 Проверенные размер/SHA256 FFmpeg binary и модельный digest — `component-manifest.json`.
 Отдельные библиотеки могут иметь дополнительные notices и транзитивные зависимости:

@@ -95,13 +95,15 @@ def source_paths():
     paths += [p for name in ('assets', 'prompts') for p in (ROOT / 'video_descriptor' / name).rglob('*') if p.is_file()]
     paths += [HERE / name for name in (
         'app.py', 'compute.py', 'setup_service.py', 'whisper_worker.py', 'release_lifecycle.py',
+        'desktop.py', 'Desktop.ps1', 'DesktopHost.cs', 'app.ico',
         'Start-App.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
     paths += [p for p in (HERE / 'ui').iterdir() if p.is_file()]
     paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md']
     paths += [ROOT / 'docs' / name for name in ('architecture-windows.md', 'device-policy-and-release.md',
                                                'competitive-analysis.md', 'verification-devices.md',
-                                               'verification-devices.json', 'windows-release.md')]
+                                               'verification-devices.json', 'windows-release.md',
+                                               'desktop-windows.md')]
     return sorted({p for p in paths if '__pycache__' not in p.parts})
 
 
@@ -154,6 +156,14 @@ def main():
             safe_member(member.filename)
         archive.extractall(python_dir)
     unpack_wheels(wheels, python_dir / 'Lib/site-packages')
+    sdk = HERE / 'runtime/desktop-sdk'
+    if not (sdk / 'VideoDescriptor.exe').is_file():
+        raise ValueError('Run windows-app/Prepare-Desktop.ps1 before building the desktop preview')
+    desktop_build = json.loads((sdk / 'desktop-build.json').read_text())
+    if (desktop_build['source_sha256'] != sha256(HERE / 'DesktopHost.cs')
+            or desktop_build['sdk_sha256'] != inputs['webview2']['sha256']):
+        raise ValueError('Desktop build is stale; run windows-app/Prepare-Desktop.ps1')
+    shutil.copytree(sdk, folder / 'windows-app/desktop-sdk')
     (python_dir / 'python312._pth').write_text('python312.zip\n.\nLib/site-packages\n..\n../windows-app\nimport site\n', encoding='ascii')
     # Keep packaged subprocesses on this runtime; ignore system PYTHONPATH/registry.
     (folder / 'Open Video Descriptor.cmd').write_text('@echo off\r\ncall "%~dp0windows-app\\Open-App.cmd"\r\n', encoding='ascii')

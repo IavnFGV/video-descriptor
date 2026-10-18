@@ -1,6 +1,9 @@
 # Windows preview: ZIP, installer и CI
 
-Текущая версия исходников пакета 0.6.0, Windows x64 / Windows 10+. Это частная проверочная сборка,
+Текущая версия исходников пакета 0.7.0, Windows x64. Desktop целевой сценарий — Windows 11.
+Добавлены WinForms EXE, pinned WebView2 SDK и трей; WebView2 Runtime нужен отдельно.
+[Проверки desktop и ограничения](desktop-windows.md). Исторические результаты ниже
+относятся к указанным версиям 0.4–0.6. Это частная проверочная сборка,
 без цифровой подписи нашего EXE, выбранной лицензии проекта и готового публичного release.
 
 ## Состав и запуск
@@ -90,6 +93,7 @@ Installer 0.6 собран; отдельный lifecycle-прогон для н�
 
 ```powershell
 $compiler = & ./windows-app/Prepare-BuildTools.ps1
+powershell -NoProfile -File windows-app/Prepare-Desktop.ps1
 ./.venv-windows/Scripts/python.exe -X utf8 windows-app/build_release.py --iscc $compiler
 ```
 

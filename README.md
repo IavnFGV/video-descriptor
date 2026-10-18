@@ -13,6 +13,18 @@ Windows-приложение для локальной обработки вид
 - [Граница ближайшего выпуска и оставшаяся работа](docs/release-readiness.md).
 - [Что перенесено из WSL](windows-migration/START-HERE.md).
 
+## Для пользователя: Windows desktop preview
+
+[Desktop 0.7](docs/desktop-windows.md): ярлык/ZIP открывает существующий интерфейс
+в отдельном окне WebView2 и подключает или запускает нативный backend без Docker.
+Крестик скрывает окно в трей; обработка продолжается. Выход — через меню значка в трее.
+Для обычного запуска не нужны браузер, терминал и системный Python.
+
+История 18.10.2026: добавлены WinForms/WebView2 host, безопасная проверка identity,
+одно окно на установку, readiness/error/retry, сохранение active queue при закрытии,
+Host/Origin защита native API, pinned SDK и desktop smoke в Windows CI.
+Реальный EXE/WebView2 проверен на хосте; чистая VM и аппаратная приёмка оболочки остаются.
+
 ## Для пользователя: установка через Docker Desktop
 
 Установите [Docker Desktop с WSL 2](https://docs.docker.com/desktop/setup/install/windows-install/),

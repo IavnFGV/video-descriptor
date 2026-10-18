@@ -28,9 +28,22 @@ REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.6.0-prototype'
+VERSION = '0.7.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
+
+
+def installation_id():
+    return hashlib.sha256(str(HERE.resolve()).encode()).hexdigest()
+
+
+class NativeHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if os.name == 'nt':
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 def config():
@@ -213,11 +226,27 @@ def make_handler(value, instance):
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
+        def parse_request(self):
+            if not super().parse_request():
+                return False
+            # Reject DNS rebinding and cross-site requests before any native/inherited API.
+            port = self.server.server_port
+            hosts = {f'127.0.0.1:{port}', f'localhost:{port}'}
+            origin = self.headers.get('Origin')
+            if (self.headers.get('Host') not in hosts
+                    or (origin and origin not in {f'http://{host}' for host in hosts})
+                    or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
+                self.close_connection = True
+                self.send_error(403, 'Only local application requests are allowed')
+                return False
+            return True
+
         def do_GET(self):
             path = urlsplit(self.path).path
             if path == '/health':
                 return self.json_response(200, {'app': APP, 'version': VERSION,
-                                               'instance': instance, 'workspace': value['workspace']})
+                                               'instance': instance, 'workspace': value['workspace'],
+                                               'installation': installation_id(), 'desktop_protocol': 1})
             if path == '/api/doctor':
                 result = doctor(value)
                 if manager is not None:
@@ -393,7 +422,7 @@ def main():
         if args.start_npu:
             print(json.dumps(start_npu(value)))
         instance = uuid.uuid4().hex
-        with ThreadingHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance)) as server:
+        with NativeHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance)) as server:
             state.write_text(json.dumps({'instance': instance, 'pid': os.getpid(), 'workspace': value['workspace']}), encoding='utf-8')
             print('Готово: ' + url, flush=True)
             if not args.no_browser:

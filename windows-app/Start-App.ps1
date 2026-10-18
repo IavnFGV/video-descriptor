@@ -2,6 +2,10 @@ param([switch]$NoBrowser, [switch]$StartNpu, [switch]$Doctor, [switch]$Stop)
 $ErrorActionPreference = 'Stop'
 $appDirectory = $PSScriptRoot
 $projectDirectory = Split-Path -Parent $appDirectory
+if (-not $NoBrowser -and -not $StartNpu -and -not $Doctor -and -not $Stop) {
+    & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File (Join-Path $appDirectory 'Desktop.ps1')
+    exit $LASTEXITCODE
+}
 $pythonPath = Join-Path $projectDirectory '.venv-windows\Scripts\python.exe'
 if (Test-Path -LiteralPath (Join-Path $projectDirectory 'python\python.exe')) { $pythonPath = Join-Path $projectDirectory 'python\python.exe' }
 if (-not (Test-Path -LiteralPath $pythonPath)) { throw 'Run windows-app\Install-App.ps1 first. The NPU environment is separate.' }

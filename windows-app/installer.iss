@@ -23,6 +23,7 @@ WizardStyle=modern
 CloseApplications=no
 RestartApplications=no
 UninstallDisplayName=Video Descriptor
+UninstallDisplayIcon={app}\windows-app\app.ico
 Uninstallable=yes
 SetupLogging=yes
 [Files]
@@ -30,8 +31,8 @@ Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs cr
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 [Icons]
-Name: "{group}\Video Descriptor"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""{app}\windows-app\Start-App.ps1"""; WorkingDir: "{app}"
-Name: "{autodesktop}\Video Descriptor"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""{app}\windows-app\Start-App.ps1"""; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\Video Descriptor"; Filename: "{app}\windows-app\desktop-sdk\VideoDescriptor.exe"; WorkingDir: "{app}"; IconFilename: "{app}\windows-app\app.ico"
+Name: "{autodesktop}\Video Descriptor"; Filename: "{app}\windows-app\desktop-sdk\VideoDescriptor.exe"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\windows-app\app.ico"
 [Code]
 function InstallationBusy(): Boolean;
 var

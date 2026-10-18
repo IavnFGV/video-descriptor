@@ -1,5 +1,20 @@
 # Windows: фактическая архитектура и решение
 
+## ADR-007: desktop preview 0.7, 18.10.2026
+
+Native launcher расширен WinForms/WebView2 окном и треем. Tauri 2 не введён:
+готовые app.py, Python payload, locks, очередь и per-user installer позволяют добавить
+только C# host без Rust и повторного управления сервисами. Ярлык → VideoDescriptor.exe →
+desktop.py → прежний app.py → прежний UI/API. По умолчанию native backend без Docker;
+Compose остаётся самостоятельным поддерживаемым путём.
+
+Health дополнен installation/desktop_protocol; сверяются workspace и instance из state.
+Mutex/activation event обеспечивают одно окно; прежний backend lock и exclusive Windows
+bind обеспечивают один listener. Крестик скрывает в трей без stop; явный выход использует
+прежний stop API с отказом при active queue. Внешние процессы не завершаются.
+Host/Origin/Fetch-Site guard защищает весь native handler; WebView ограничен origin
+приложения, native bridge отключён. Детали и границы проверки: [desktop](desktop-windows.md).
+
 Дополнение 18.10.2026: добавлен независимый [Compose CPU путь](container-install.md).
 Один Linux amd64 контейнер содержит HTTP и прежний subprocess-worker под supervisor.
 Постоянный `/workspace` хранит uploads, output/queue, настройки и HF cache; код установлен
