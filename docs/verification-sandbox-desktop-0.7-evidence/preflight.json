@@ -1,0 +1,38 @@
+﻿{
+    "existing_installation":  false,
+    "environment":  "Windows Sandbox",
+    "network_adapters":  [
+                             {
+                                 "Name":  "Ethernet",
+                                 "Status":  "Up",
+                                 "InterfaceDescription":  "Microsoft Hyper-V Network Adapter"
+                             }
+                         ],
+    "webview2":  [
+                     "155.0.4283.45",
+                     "155.0.4283.62",
+                     "SetupMetrics"
+                 ],
+    "os":  {
+               "caption":  "Microsoft Windows 11 Enterprise",
+               "build":  "26100",
+               "version":  "10.0.26100"
+           },
+    "python_commands":  [
+
+                        ],
+    "timestamp":  "2026-10-19T00:43:55.0278306+03:00",
+    "display_devices":  [
+                            {
+                                "Name":  "Microsoft Remote Display Adapter",
+                                "DriverVersion":  "10.0.26100.9711"
+                            }
+                        ],
+    "existing_user_models":  false,
+    "docker_commands":  [
+
+                        ],
+    "secret_environment_names":  [
+
+                                 ]
+}

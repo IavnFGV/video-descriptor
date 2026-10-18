@@ -1,0 +1,100 @@
+﻿{
+    "verified_by_app":  true,
+    "source":  "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+    "environment":  "Windows Sandbox",
+    "files":  [
+                  {
+                      "sha256":  "9715fd2243b6f06a5858b5e32950d2853f73dd5bc201aafcf76f5082a2d8acd1",
+                      "file":  "added_tokens.json",
+                      "bytes":  34604
+                  },
+                  {
+                      "sha256":  "2d1cf9f56daeb3c1afabb7fbd9df05e9d9e00d4aca728be033097cd9ab8ebf1f",
+                      "file":  "config.json",
+                      "bytes":  1325
+                  },
+                  {
+                      "sha256":  "bf619a40ae65e028b089124d04b294b0e8aabfbc0f9f8c5b93b584652d15ec5e",
+                      "file":  "generation_config.json",
+                      "bytes":  3841
+                  },
+                  {
+                      "sha256":  "2df2990a395e35e8dfbc7511e08c12d56018d8d04691e0133e5d63b21e154dc6",
+                      "file":  "merges.txt",
+                      "bytes":  493869
+                  },
+                  {
+                      "sha256":  "bf1c507dc8724ca9cf9903640dacfb69dae2f00edee4f21ceba106a7392f26dd",
+                      "file":  "normalizer.json",
+                      "bytes":  52666
+                  },
+                  {
+                      "sha256":  "31ce50290e94bf7d59e9011514cc62fc8d24621026a1aba9982c02a8ba217e29",
+                      "file":  "openvino_decoder_model.bin",
+                      "bytes":  307161756
+                  },
+                  {
+                      "sha256":  "703dd97dbb9a175990b0498099c2fa15a686f2442d66057266006f8e5fd02c27",
+                      "file":  "openvino_decoder_model.xml",
+                      "bytes":  960207
+                  },
+                  {
+                      "sha256":  "2542d1fe6c4c5d838e7b7c61b24996b94ae0cb54e64ff6dbaab2b9dd5ddd7ca0",
+                      "file":  "openvino_detokenizer.bin",
+                      "bytes":  736181
+                  },
+                  {
+                      "sha256":  "abce72395c3a9d54fba270bae4464e79b13721b051158b04010c0dc187764484",
+                      "file":  "openvino_detokenizer.xml",
+                      "bytes":  9699
+                  },
+                  {
+                      "sha256":  "771c2f08bc68f51d19d0c1e5ce13111ed9828a7e475df98eddb4043dd756f3f2",
+                      "file":  "openvino_encoder_model.bin",
+                      "bytes":  176308330
+                  },
+                  {
+                      "sha256":  "6be017fe6d700dbcac71dbc888068afa9dcfaf0aaac17382314f96d87f965a02",
+                      "file":  "openvino_encoder_model.xml",
+                      "bytes":  469182
+                  },
+                  {
+                      "sha256":  "846f3c65f7a71f120fce7aaaf41b342f0767eb13e3c4e7c2a54f1d49b5c38fda",
+                      "file":  "openvino_tokenizer.bin",
+                      "bytes":  1898933
+                  },
+                  {
+                      "sha256":  "7bc0e5c42c380282f065b53d6597860df3ac51c5becc145d48bcef9b6dd4238b",
+                      "file":  "openvino_tokenizer.xml",
+                      "bytes":  27011
+                  },
+                  {
+                      "sha256":  "994838f1fa6462c8b9b3c90edada831f11f3dd8b4664634e18f4694d005c9dbf",
+                      "file":  "preprocessor_config.json",
+                      "bytes":  356
+                  },
+                  {
+                      "sha256":  "e67ae3a0aaa99abcd9f187138e12db1f65c16a14761c50ef10eef2c174a7a691",
+                      "file":  "special_tokens_map.json",
+                      "bytes":  2194
+                  },
+                  {
+                      "sha256":  "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+                      "file":  "tokenizer.json",
+                      "bytes":  3930494
+                  },
+                  {
+                      "sha256":  "21a4fc0483c14b87f4e0bbc177a9a357479bfa7c95aaf21ad53d71e9c5afafb9",
+                      "file":  "tokenizer_config.json",
+                      "bytes":  282713
+                  },
+                  {
+                      "sha256":  "8f680bba319e01a653d2e8a5dbc17a9157179e0576e6ce74ce0c06356c6e24f9",
+                      "file":  "vocab.json",
+                      "bytes":  835550
+                  }
+              ],
+    "model_path":  "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Programs\\VideoDescriptor\\windows-app\\runtime\\models\\whisper-small-2410d022171ca8a97343182f88eec8807a324db9",
+    "revision":  "2410d022171ca8a97343182f88eec8807a324db9",
+    "status":  "PASS"
+}

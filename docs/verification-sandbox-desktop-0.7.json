@@ -1,0 +1,887 @@
+{
+  "checked_on": "2026-10-19",
+  "status": "BLOCKED",
+  "acceptance_complete": false,
+  "phase": "evidence_finalized_acceptance_incomplete",
+  "branch": "feat/windows-desktop-shell",
+  "build_commit_sha": "30f5f7146cc3fe2d00fa3c0ebf0a4b92de4b73be",
+  "application_version": "0.7.0",
+  "python_project_metadata_version": "0.1.0",
+  "build": {
+    "rebuilt_this_session": true,
+    "source_worktree_clean_before_build": true,
+    "command": ".venv-windows/Scripts/python.exe -X utf8 windows-app/build_release.py --iscc windows-app/runtime/build-cache/inno-6.7.3/ISCC.exe",
+    "artifacts": [
+      {
+        "sha256": "73095e95fca5990d09b3d5433caece2f57a7d1949423a770100d7c27cb690d96",
+        "file": "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+        "bytes": 223640342
+      },
+      {
+        "sha256": "414bb08d4f48cbae6e9c212a69a9b17d86779786a5a7cc5ddac9a22a07b13ada",
+        "file": "VideoDescriptor-0.7.0-windows-x64.zip",
+        "bytes": 265451844
+      }
+    ],
+    "dependencies_evidence": "Pinned build inputs and packaged metadata; OpenVINO/GenAI additionally loaded in fixed clean guest.",
+    "dependencies": {
+      "python": "3.12.10",
+      "openvino": "2026.4.1",
+      "openvino-genai": "2026.4.1.0",
+      "openvino-tokenizers": "2026.4.1.0",
+      "faster-whisper": "1.2.1",
+      "numpy": "2.5.4",
+      "imageio-ffmpeg": "0.6.0",
+      "bundled_ffmpeg": "7.1",
+      "webview2_sdk": "1.0.2903.40",
+      "inno_setup": "6.7.3",
+      "microsoft_vcrt": "14.44.35211.0, app-local"
+    }
+  },
+  "sandbox": {
+    "instance_id": "3c3924ac-4755-4042-9420-4f871966cd89",
+    "cli_version": "0.8.107.0",
+    "memory_mib": 8192,
+    "networking": "Enable, explicitly authorized",
+    "vgpu": "Disable",
+    "clipboard_audio_video_printers": "Disable",
+    "preflight": {
+      "existing_installation": false,
+      "environment": "Windows Sandbox",
+      "network_adapters": [
+        {
+          "Name": "Ethernet 2",
+          "Status": "Up",
+          "InterfaceDescription": "Microsoft Hyper-V Network Adapter #2"
+        }
+      ],
+      "webview2": [
+        "155.0.4283.45",
+        "155.0.4283.62",
+        "SetupMetrics"
+      ],
+      "os": {
+        "caption": "Microsoft Windows 11 Enterprise",
+        "build": "26100",
+        "version": "10.0.26100"
+      },
+      "python_commands": [],
+      "timestamp": "2026-10-19T01:09:52.6745809+03:00",
+      "display_devices": [
+        {
+          "Name": "Microsoft Remote Display Adapter",
+          "DriverVersion": "10.0.26100.9711"
+        }
+      ],
+      "existing_user_models": false,
+      "docker_commands": [],
+      "secret_environment_names": []
+    },
+    "host_security_changed": false,
+    "defender_or_firewall_disabled": false,
+    "guest_security_change": "Explicitly authorized guest-only SAC registry state 1 -> 0, CiTool policy refresh and guest reboot. Protected MinValueSeen modification was denied; no ownership/ACL changes attempted. Host, Defender and Firewall unchanged.",
+    "final_state": "wsb list --raw returned WindowsSandboxEnvironments: [] on final continuation; guest disk/model/installation no longer available. Cause of closure not established.",
+    "networking_after_download": "Guest Ethernet 2 disabled; no CPU inference ran after this change."
+  },
+  "checks": [
+    {
+      "id": "guest_started",
+      "check": "Запущена настоящая Windows Sandbox",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "CLI instance e3d0bf90-ff47-409f-a022-e414f7581a25; визуально проверен гостевой рабочий стол."
+    },
+    {
+      "id": "no_python",
+      "check": "Нет системного Python",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Get-Command python,python3,py не нашёл команд до установки."
+    },
+    {
+      "id": "no_docker",
+      "check": "Нет Docker",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Get-Command docker не нашёл команд."
+    },
+    {
+      "id": "no_prior_state",
+      "check": "Нет предыдущей установки и пользовательского HF cache",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "existing_installation=false; existing_user_models=false."
+    },
+    {
+      "id": "no_secret_environment",
+      "check": "Не унаследованы переменные API-ключей",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Нет имён переменных GEMINI/API_KEY/HF_TOKEN/OPENAI/WHISPER/OLLAMA; значения секретов не читались."
+    },
+    {
+      "id": "mapped_folders",
+      "check": "Минимальные общие папки",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Только C:\\VD-Input read-only и C:\\VD-Reports writable; repository/home/private folders не смонтированы."
+    },
+    {
+      "id": "network",
+      "check": "Отдельный сетевой профиль с согласия пользователя",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Старый профиль Networking=Disable; новый Enable согласован в чате, Ethernet Up подтверждён в госте."
+    },
+    {
+      "id": "webview_inventory",
+      "check": "WebView2 Runtime уже присутствует",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "155.0.4283.45 и 155.0.4283.62; сценарий отсутствующего Runtime этим не проверен."
+    },
+    {
+      "id": "artifact_hashes",
+      "check": "SHA256 и размеры EXE/ZIP",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Fixed EXE/ZIP hashes and sizes verified inside the new guest; see fixed-artifact-verification.json."
+    },
+    {
+      "id": "zip_hashes",
+      "check": "Состав и SHA256 файлов ZIP",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "All 4415 packaged ZIP files checked against release manifest in the new guest; no extra entries."
+    },
+    {
+      "id": "install_default",
+      "check": "Запуск EXE в стандартной защите гостя",
+      "status": "BLOCKED",
+      "environment": "Windows Sandbox",
+      "detail": "Original unsigned EXE blocked by guest Smart App Control (0x800711C7, Code Integrity 3033/3077). Fixed EXE is also unsigned; its default-policy launch was not independently retested. Modified-policy installation is recorded separately."
+    },
+    {
+      "id": "install_without_python",
+      "check": "Установка без системного Python",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Fresh rebuilt guest: interactive EXE install completed without system Python or VC++ installation, after the authorized guest-only SAC change.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "start_menu",
+      "check": "Ярлык Start Menu",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Installed Start Menu shortcut observed and used to launch the app.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "desktop_launch",
+      "check": "Обычный запуск Desktop",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Launched the installed Start Menu shortcut in the fresh guest.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "webview_window",
+      "check": "Отдельное окно WebView2 без браузера",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Separate desktop WebView2 window rendered the wizard; browser launch was not required.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "own_backend",
+      "check": "Подключение к собственному Python backend",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Installed embedded Python backend served the desktop UI; saved /health identifies the guest installation/workspace.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "local_api_ui",
+      "check": "Локальный API и интерфейс",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Wizard rendered and responded; read-only health/setup/diagnostics corroborated the UI. Main transcription flow was not exercised.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "tray_restore",
+      "check": "Скрытие в трей и восстановление",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "full_exit",
+      "check": "Полное завершение приложения",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "wizard",
+      "check": "Мастер первоначальной настройки",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "First-run wizard rendered in the fresh installed application.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "cpu_detect",
+      "check": "Обнаружение CPU в мастере",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "UI and OpenVINO device inventory reported CPU; OpenVINO and GenAI versions loaded successfully.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "gpu_npu_absent",
+      "check": "Корректное отображение отсутствующих GPU/NPU",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "UI reported no Intel GPU/NPU; diagnostics list only CPU. vGPU was disabled.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "model_absent_ui",
+      "check": "Отсутствие модели в UI",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Initial wizard reported no Whisper model before download.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "download_offer",
+      "check": "Предложение модели и source/revision/size",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "UI displayed official OpenVINO Whisper small FP16 source, pinned revision and approximately 470 MiB download.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "download_consent",
+      "check": "Подтверждение загрузки через UI",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Consent checkbox and Download button operated through the real UI.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "real_model_download",
+      "check": "Реальная загрузка официальной модели",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Real download completed inside the guest from pinned Hugging Face revision; no host model copied.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "model_file_hashes",
+      "check": "SHA256 всех скачанных файлов модели",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "All 18 downloaded files independently checked for SHA256 and size against packaged component manifest; 493208911 bytes total.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "model_connected",
+      "check": "Подключение скачанной модели",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "UI reported the verified model connected after download. This does not establish worker readiness.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "cpu_select",
+      "check": "Выбор CPU",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "cpu_prepare",
+      "check": "Успешная инициализация CPU worker",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "ready_only_after_init",
+      "check": "Состояние Готово только после инициализации",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "video_select_upload",
+      "check": "Выбор и загрузка настоящего тестового видео через UI",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "cpu_transcription",
+      "check": "Настоящая CPU-транскрипция видео",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "speech_segments",
+      "check": "Результат с сегментами речи",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "timestamps",
+      "check": "Корректные таймкоды",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "editor",
+      "check": "Открытие редактора",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "edit_save",
+      "check": "Изменение и сохранение реплики",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "export_srt",
+      "check": "Экспорт SRT и проверка содержимого",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "export_txt",
+      "check": "Экспорт TXT и проверка содержимого",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "long_job_tray",
+      "check": "Настоящее длинное задание продолжает работу в трее",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "long_job_result",
+      "check": "Результат доступен после восстановления окна",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "optional_absent",
+      "check": "Отсутствие Ollama/Gemini не мешает CPU",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "no_cloud",
+      "check": "Отсутствие скрытых запросов к облаку во время обработки",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "repeat_launch",
+      "check": "Повторный запуск",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "settings_persist",
+      "check": "Сохранение настроек",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "results_persist",
+      "check": "Сохранение результатов",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "running_install",
+      "check": "Установщик при работающем приложении",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "reinstall",
+      "check": "Переустановка",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "uninstall",
+      "check": "Удаление",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "data_preservation",
+      "check": "Сохранение пользовательских данных при удалении",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "backend_unavailable",
+      "check": "Понятная ошибка: backend недоступен",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "missing_model_error",
+      "check": "Понятная ошибка: модель отсутствует",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Inspecting files with an empty model path displayed an inline instruction to choose a Whisper small FP16 folder; no traceback.",
+      "run": "fresh rebuilt clean guest (SAC disabled with consent)"
+    },
+    {
+      "id": "incompatible_model",
+      "check": "Понятная ошибка: несовместимая модель",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "occupied_port",
+      "check": "Понятная ошибка: порт занят",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "download_offline",
+      "check": "Понятная ошибка: сеть недоступна",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "cancel_setup",
+      "check": "Отмена настройки пользователем",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Not executed before the guest disappeared. Final continuation found no running Sandbox. No result inferred from CI, mocks, download completion or host tests."
+    },
+    {
+      "id": "missing_webview",
+      "check": "Отсутствующий WebView2 и его официальная установка",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Runtime уже присутствует; не удалялся."
+    },
+    {
+      "id": "low_disk",
+      "check": "Недостаток места через изолированный mock",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Отдельная проверка в этом прогоне не выполнялась."
+    },
+    {
+      "id": "upgrade",
+      "check": "Версионное обновление",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Подходящий подписанный upgrade artifact не подготовлен; прежний host fixture не засчитывается."
+    },
+    {
+      "id": "ocr",
+      "check": "OCR",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Реальная зависимость не проверена."
+    },
+    {
+      "id": "diarization",
+      "check": "Диаризация",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Реальная зависимость не проверена."
+    },
+    {
+      "id": "npu",
+      "check": "Аппаратное NPU-распознавание",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Устройство в госте не подтверждено; vGPU отключён."
+    },
+    {
+      "id": "gpu",
+      "check": "Аппаратное GPU-распознавание",
+      "status": "NOT_TESTED",
+      "environment": "Windows Sandbox",
+      "detail": "Гость показывает Microsoft Remote Display Adapter; физический GPU не предоставлен."
+    },
+    {
+      "id": "offline_network_state",
+      "check": "Отключение сети гостя после загрузки",
+      "status": "PASS",
+      "environment": "Windows Sandbox",
+      "detail": "Guest Ethernet 2 disabled and state recorded. No subsequent recognition was run; this is not proof of offline transcription."
+    }
+  ],
+  "execution_categories": {
+    "windows_sandbox": {
+      "evidence_directory": "verification-sandbox-desktop-0.7-evidence",
+      "application_started": true,
+      "security_qualification": "Functional PASS results require explicitly authorized guest-only SAC Off; standard-policy block remains unresolved."
+    },
+    "windows_host": {
+      "pytest": {
+        "passed": 250,
+        "skipped": 2,
+        "duration_seconds": 51.33
+      },
+      "ruff": "passed",
+      "pip_check": "passed",
+      "application_installation_test_this_session": false
+    },
+    "ci": {
+      "status": "PASS",
+      "build_commit_sha": "30f5f7146cc3fe2d00fa3c0ebf0a4b92de4b73be",
+      "pull_request": "https://github.com/IavnFGV/video-descriptor/pull/1",
+      "workflow_runs": [
+        {
+          "id": 39170868602,
+          "name": "Windows preview build and lifecycle checks",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39170868602",
+          "scope": "Unit/API, verified build, real WebView2/tray smoke, deterministic ZIP, install/running-update refusal/reinstall/upgrade fixture/uninstall on runner. Not clean Sandbox model transcription."
+        },
+        {
+          "id": 39170868594,
+          "name": "Container CI",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39170868594"
+        }
+      ]
+    },
+    "mocks": {
+      "location": "Windows host pytest suite, not Sandbox acceptance",
+      "examples": [
+        "tests/test_first_run_setup.py: test_mutated_model_and_wrong_model_are_rejected",
+        "tests/test_first_run_setup.py: test_interrupted_download_reuses_only_verified_files",
+        "tests/test_first_run_setup.py: test_download_hash_mismatch_never_publishes_or_changes_settings",
+        "tests/test_desktop.py: test_foreign_listener_is_never_started_or_stopped"
+      ]
+    }
+  },
+  "fixtures": {
+    "known_text": "This is a local transcription test. The blue train arrives at the station at nine. Please save this sentence as subtitles.",
+    "origin": "Windows System.Speech synthesis on host + bundled FFmpeg; synthetic public test speech, no personal media",
+    "short_video": {
+      "file": "known-speech.mp4",
+      "bytes": 83169,
+      "sha256": "88e3086d22d257a4af4485287c4ca0184259408c12722f80ead0b4e4517a8b72"
+    },
+    "long_video": {
+      "file": "known-speech-long.mp4",
+      "seconds": 180,
+      "bytes": 1492135,
+      "purpose": "Real repeated speech, not artificial worker delay"
+    }
+  },
+  "recognition_results": null,
+  "exports": [],
+  "fixes": [
+    {
+      "commit": "30f5f7146cc3fe2d00fa3c0ebf0a4b92de4b73be",
+      "problem": "OpenVINO DLL import failed on clean Windows because MSVCP140.dll was absent.",
+      "change": "Bundle 12 SHA256-pinned app-local Microsoft VC++ runtime DLLs and license. Extract pinned signed official redist using pinned WiX, without system-wide runtime installation.",
+      "validation": "Fresh rebuilt guest installation loads OpenVINO/GenAI and detects CPU; host suite 250 passed/2 skipped; Windows and Container CI passed."
+    }
+  ],
+  "blocker": {
+    "id": "SAC_UNSIGNED_INSTALLER",
+    "code": "0x800711C7",
+    "events": [
+      3033,
+      3077
+    ],
+    "signature": "NotSigned",
+    "gui_confirmed_by_user": true,
+    "reference": "https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions"
+  },
+  "runs": [
+    {
+      "name": "original clean guest",
+      "build_commit_sha": "1f622e6a7f71aa5e029e9a91313edc49aa3849d3",
+      "instance_id": "e3d0bf90-ff47-409f-a022-e414f7581a25",
+      "build": {
+        "rebuilt_this_session": true,
+        "source_worktree_clean_before_build": true,
+        "command": ".venv-windows/Scripts/python.exe -X utf8 windows-app/build_release.py --iscc windows-app/runtime/build-cache/inno-6.7.3/ISCC.exe",
+        "artifacts": [
+          {
+            "file": "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+            "bytes": 222872297,
+            "sha256": "1268709d14f28a1a6b8848116fce8cbda54fa16b2e072878f9b2773c9a84c3c2"
+          },
+          {
+            "file": "VideoDescriptor-0.7.0-windows-x64.zip",
+            "bytes": 264531291,
+            "sha256": "50cea9e2f5acefbcd2f8a53819f013e018cd24ba7d5eddb9439be6eeb50e0a6f"
+          }
+        ],
+        "dependencies_evidence": "Packaged executable version resource, wheel METADATA and pinned release inputs; not guest runtime execution",
+        "dependencies": {
+          "python": "3.12.10",
+          "openvino": "2026.4.1",
+          "openvino-genai": "2026.4.1.0",
+          "openvino-tokenizers": "2026.4.1.0",
+          "faster-whisper": "1.2.1",
+          "numpy": "2.5.4",
+          "imageio-ffmpeg": "0.6.0",
+          "bundled_ffmpeg": "7.1",
+          "webview2_sdk": "1.0.2903.40",
+          "inno_setup": "6.7.3"
+        }
+      },
+      "preflight": {
+        "existing_installation": false,
+        "environment": "Windows Sandbox",
+        "network_adapters": [
+          {
+            "Name": "Ethernet",
+            "Status": "Up",
+            "InterfaceDescription": "Microsoft Hyper-V Network Adapter"
+          }
+        ],
+        "webview2": [
+          "155.0.4283.45",
+          "155.0.4283.62",
+          "SetupMetrics"
+        ],
+        "os": {
+          "caption": "Microsoft Windows 11 Enterprise",
+          "build": "26100",
+          "version": "10.0.26100"
+        },
+        "python_commands": [],
+        "timestamp": "2026-10-19T00:43:55.0278306+03:00",
+        "display_devices": [
+          {
+            "Name": "Microsoft Remote Display Adapter",
+            "DriverVersion": "10.0.26100.9711"
+          }
+        ],
+        "existing_user_models": false,
+        "docker_commands": [],
+        "secret_environment_names": []
+      },
+      "default_install": "BLOCKED: unsigned installer rejected by Smart App Control",
+      "authorized_modified_guest": "Installation and WebView2 launch succeeded. OpenVINO import failed: missing app-local MSVCP140.dll.",
+      "runtime_result": "FAIL",
+      "diagnostic_only": "Copying Microsoft runtime DLLs into this installation restored imports; patched installation is not the acceptance rerun."
+    },
+    {
+      "name": "fresh rebuilt clean guest",
+      "build_commit_sha": "30f5f7146cc3fe2d00fa3c0ebf0a4b92de4b73be",
+      "instance_id": "3c3924ac-4755-4042-9420-4f871966cd89",
+      "modified_guest_security": true,
+      "result": "Installer, Start Menu launch, WebView2, OpenVINO CPU inventory, genuine UI model download and 18 file hashes passed. CPU inference/edit/export/lifecycle remain untested.",
+      "zip_files_verified": 4415
+    }
+  ],
+  "model_download": {
+    "status": "PASS",
+    "source": "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+    "revision": "2410d022171ca8a97343182f88eec8807a324db9",
+    "file_count": 18,
+    "bytes": 493208911,
+    "evidence": "verification-sandbox-desktop-0.7-evidence/model-hashes.json",
+    "cpu_worker_initialized": false,
+    "transcription_executed": false
+  },
+  "remaining": [
+    "Default-policy trust/signing",
+    "Explicit CPU selection, worker initialization and real video transcription",
+    "Segments/timestamps/editor/save/SRT/TXT content",
+    "Real long job in tray and restored result",
+    "CPU behavior without Ollama/Gemini and absence of cloud traffic during inference",
+    "Repeat launch, persistence, running installer, reinstall/uninstall/data preservation in Sandbox",
+    "Backend/model compatibility/occupied port/offline download/cancel/low-disk negative cases",
+    "Real GPU/NPU, OCR and diarization where dependencies/hardware are available"
+  ],
+  "counts": {
+    "PASS": 27,
+    "BLOCKED": 1,
+    "NOT_TESTED": 36
+  },
+  "evidence_manifest": [
+    {
+      "file": "artifact-verification.json",
+      "bytes": 809,
+      "sha256": "eb8d9b4c9f89f9d8a8bc26d6a31550b246a85092c9e8809792fdf8ccb9d9d842"
+    },
+    {
+      "file": "ci-refresh.json",
+      "bytes": 21,
+      "sha256": "77c94c65f0ff13ba3468784e9df7bded793138d71060a5beaa7ff125e4d6edb3"
+    },
+    {
+      "file": "code-integrity.json",
+      "bytes": 3916,
+      "sha256": "b8d4adc1d04fdd85faa2f4fe20283e0184fc551cc3913115472064340c2ece71"
+    },
+    {
+      "file": "fixed-artifact-verification.json",
+      "bytes": 809,
+      "sha256": "076c187ec7abd9ce8f2b5e46c26cb3769ffa03f51a023d6ba05cdb1c67366d6e"
+    },
+    {
+      "file": "fixed-ci-refresh.json",
+      "bytes": 24,
+      "sha256": "bff88010b0d921f3181039636ab5008fe58ba7d4e51fe80f094f06dfd408dbdc"
+    },
+    {
+      "file": "fixed-diagnostics-before-download.json",
+      "bytes": 1129,
+      "sha256": "af5e7f426ea6b8fab0bafe4c4d130a88c8e26e2bb09af6ce2bf5588bf0b48010"
+    },
+    {
+      "file": "fixed-download-in-progress.json",
+      "bytes": 533,
+      "sha256": "ea009b6658e8228cea2178ab8cfaa07f0ff36ebfe5d0313fe2a6207bed6f27d3"
+    },
+    {
+      "file": "fixed-health.json",
+      "bytes": 347,
+      "sha256": "85289150bce6b66f2d2285a9ff0db8fc8449f774fb636cf65099644b115299a9"
+    },
+    {
+      "file": "fixed-network-offline.json",
+      "bytes": 131,
+      "sha256": "c351af1cd8f3c1e63dd6b921bde53f3dc14c57136601455a8d7a2bf1af655094"
+    },
+    {
+      "file": "fixed-preflight.json",
+      "bytes": 1283,
+      "sha256": "3083a0aa25092347029654d5423609325ea70560a18112a843e03ffa006a48f6"
+    },
+    {
+      "file": "fixed-sac-switch.json",
+      "bytes": 248,
+      "sha256": "f82764f207c384b0675f2adae880536f0e2a907407c538bc0770c026e91e212b"
+    },
+    {
+      "file": "fixed-shortcuts.json",
+      "bytes": 65,
+      "sha256": "9f76c556048f3e81f5a692c2f973e170a71ce46b68ddb6ef97e7b8bda1f36e56"
+    },
+    {
+      "file": "fixed-wizard-cpu.jpg",
+      "bytes": 190657,
+      "sha256": "6ceae78f9a1b6ff96d7175dba2d4b336fa0bcb9375c23bc063e6af29b8874536"
+    },
+    {
+      "file": "install-fixed-tail.log",
+      "bytes": 3461,
+      "sha256": "50a2569c8b0a36d4931142c9642c2294e8b3f6635662b673173946717b75a652"
+    },
+    {
+      "file": "install-original-tail.log",
+      "bytes": 892,
+      "sha256": "1c5f0e759b25a31e4b49776ed8ac605d2ae78015b1a92991be618c530b1bcb54"
+    },
+    {
+      "file": "installer-complete.jpg",
+      "bytes": 403668,
+      "sha256": "ba9d83005d3df3d4a9ce1079153020475b5d8ea55a9119f355244e745ddb3360"
+    },
+    {
+      "file": "installer-fixed-complete.jpg",
+      "bytes": 430114,
+      "sha256": "88371d58846af5c7d7d7034180009223f6af3a002bd5e3ba530a15f0560aad86"
+    },
+    {
+      "file": "installer-signature.json",
+      "bytes": 343,
+      "sha256": "e14cd0577cce85bd5c7ee345b2952551c5f65bce1045e1d172e236c0966a9abf"
+    },
+    {
+      "file": "model-downloaded.jpg",
+      "bytes": 202550,
+      "sha256": "d106dc9659642f8e00a8f320a9da133e044046a69815668d085d66e981193da5"
+    },
+    {
+      "file": "model-hashes.json",
+      "bytes": 4789,
+      "sha256": "10c05be90de789e36c848b88bdb85d568c9b82942d9a4ff0eafe672f514a7145"
+    },
+    {
+      "file": "model-source-and-missing-state.jpg",
+      "bytes": 192490,
+      "sha256": "2615d9bf8de4a53db0ca14b262b0d89a700ccd2c65aede4c31b6e949ae0328bc"
+    },
+    {
+      "file": "openvino-import.stderr.log",
+      "bytes": 734,
+      "sha256": "2624b11ce704125fbb145835e23b3c7e760c3f2092c73af2e8b7a4c8ef5b1f48"
+    },
+    {
+      "file": "original-wizard-runtime-missing.jpg",
+      "bytes": 346694,
+      "sha256": "48d89a5282519a9cf8bb0f4bc6a95e0b9f2051a819577a6a98fb2c6c472c7d0f"
+    },
+    {
+      "file": "preflight.json",
+      "bytes": 1278,
+      "sha256": "6394d1862949742f684618734d3342421f7adf028cc213e57d4894f0527b121f"
+    },
+    {
+      "file": "sac-state-readonly.json",
+      "bytes": 731,
+      "sha256": "75b54d2bd32e1c3c1db029af8889fcb05b96d0f111bbabd424167f7098c80520"
+    },
+    {
+      "file": "sac-switch.json",
+      "bytes": 982,
+      "sha256": "12671eff68ed24a8c930c34711308ef8d18dc239c57c67554f72bc4c1febaa47"
+    },
+    {
+      "file": "security-ui-unavailable.png",
+      "bytes": 81980,
+      "sha256": "c0b4106d3e96d3611ea55cfc4025f26c3ab7b29a02054d7c3da11e7eaa8df06f"
+    },
+    {
+      "file": "smart-app-control-block.png",
+      "bytes": 46600,
+      "sha256": "c9edae582fb1973bde81be9b1a366e968d60e24db5fb24f05b0af92e69421082"
+    },
+    {
+      "file": "vcrt-probe.stdout.log",
+      "bytes": 93,
+      "sha256": "114489b1d88439f9da5515a9431a80bab3e5d024c1d67a7a1710372d7fe684e4"
+    }
+  ]
+}

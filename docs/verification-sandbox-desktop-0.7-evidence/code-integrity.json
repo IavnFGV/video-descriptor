@@ -1,0 +1,77 @@
+[
+    {
+        "TimeCreated":  "\/Date(1792359889144)\/",
+        "Id":  3089,
+        "Message":  "Signature information for another event. Match using the Correlation Id."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359889144)\/",
+        "Id":  3077,
+        "Message":  "Code Integrity determined that a process (\\Device\\HarddiskVolume2\\Windows\\System32\\CExecSvc.exe) attempted to load \\Device\\HarddiskVolume2\\VD-Input\\VideoDescriptor-0.7.0-windows-x64-setup.exe that did not meet the Enterprise signing level requirements or violated code integrity policy (Policy ID:{0283ac0f-fff1-49ae-ada1-8a933130cad6})."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359887559)\/",
+        "Id":  3089,
+        "Message":  "Signature information for another event. Match using the Correlation Id."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359887559)\/",
+        "Id":  3033,
+        "Message":  "Code Integrity determined that a process (\\Device\\HarddiskVolume2\\Windows\\System32\\CExecSvc.exe) attempted to load \\Device\\HarddiskVolume2\\VD-Input\\VideoDescriptor-0.7.0-windows-x64-setup.exe that did not meet the Enterprise signing level requirements."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819231)\/",
+        "Id":  3102,
+        "Message":  "Code Integrity policy refresh finished for 6 policies."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819230)\/",
+        "Id":  3096,
+        "Message":  "No change in active Code Integrity policy {1678656c-05ef-481f-bc5b-ebd8c991502d} VerifiedAndReputableDesktopFlightSupplemental after refresh. id 27766.241221-1700. Status 0x0"
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819230)\/",
+        "Id":  3096,
+        "Message":  "No change in active Code Integrity policy {0283ac0f-fff1-49ae-ada1-8a933130cad6} VerifiedAndReputableDesktop after refresh. id 27555.1000.240208. Status 0x0"
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819230)\/",
+        "Id":  3096,
+        "Message":  "No change in active Code Integrity policy {d2bda982-ccf6-4344-ac5b-0b44427b6816} Microsoft Windows Driver Policy after refresh. id 10.0.29520.0. Status 0x0"
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819230)\/",
+        "Id":  3096,
+        "Message":  "No change in active Code Integrity policy {a072029f-588b-4b5e-b7f9-05aad67df687} Microsoft Windows Virtualization Based Security Policy after refresh. id 10.0.29661.0. Status 0x0"
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819230)\/",
+        "Id":  3096,
+        "Message":  "No change in active Code Integrity policy {784c4414-79f4-4c32-a6a5-f0fb42a51d0d} Microsoft Windows Cross Certificates for Code Integrity Exceptions Audit Policy after refresh. id 10.29611.0.0. Status 0x0"
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819230)\/",
+        "Id":  3096,
+        "Message":  "No change in active Code Integrity policy {60fd87f8-4593-44a0-91b0-2e0da022f248} Microsoft Windows Endpoint Security Policy after refresh. id 10.0.29526.0. Status 0x0"
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819213)\/",
+        "Id":  3105,
+        "Message":  "Trying to refresh Code Integrity policy with policy ID {2678656c-05ef-481f-bc5b-ebd8c991502d}."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819213)\/",
+        "Id":  3103,
+        "Message":  "Ignoring refresh for Code Integrity policy ID {1939ed82-bfd5-4d32-b58e-d31d3c49715a}. Status 0x0."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819212)\/",
+        "Id":  3105,
+        "Message":  "Trying to refresh Code Integrity policy with policy ID {1939ed82-bfd5-4d32-b58e-d31d3c49715a}."
+    },
+    {
+        "TimeCreated":  "\/Date(1792359819212)\/",
+        "Id":  3105,
+        "Message":  "Trying to refresh Code Integrity policy with policy ID {1678656c-05ef-481f-bc5b-ebd8c991502d}."
+    }
+]
