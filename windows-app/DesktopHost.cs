@@ -166,6 +166,8 @@ namespace VideoDescriptor {
                             try {
                                 string content = await core.ExecuteScriptAsync("document.body.innerText");
                                 if (content.Length < 80) throw new Exception("UI document is empty");
+                                string setup = await core.ExecuteScriptAsync("['setup-wizard','download-consent','probe-model','gemini-form','setup-finish'].every(id=>!!document.getElementById(id)) && typeof document.getElementById('setup-open').onclick === 'function'");
+                                if (setup != "true") throw new Exception("AI setup DOM or handlers missing");
                                 string job = Path.Combine((string)session["workspace"], "output", "jobs", "desktop-smoke", "job.json");
                                 Directory.CreateDirectory(Path.GetDirectoryName(job));
                                 File.WriteAllText(job, "{\"status\":\"running\"}");

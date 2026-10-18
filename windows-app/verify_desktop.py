@@ -52,7 +52,7 @@ def main():
         stopped = subprocess.run([str(python), '-X', 'utf8', str(root / 'windows-app/app.py'), '--stop'],
                                  check=False, capture_output=True, timeout=10)
         report = {'passed': result is not None and result.returncode == 0 and stopped.returncode == 0,
-                  'checks': ['real WebView2 initialization', 'existing UI DOM loaded',
+                  'checks': ['real WebView2 initialization', 'existing UI DOM loaded', 'AI setup DOM and JavaScript handlers loaded',
                              'active queue rejects shutdown', 'close hides window without disposal',
                              'backend identity after close', 'second launch restores the same window',
                              'backend loss displays error', 'retry reconnects and restores WebView'],

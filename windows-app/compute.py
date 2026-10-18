@@ -44,6 +44,7 @@ class ComputeManager:
                 self.backends[device]['expected_model_sha256'] = value['whisper_model_sha256']
         self._inventory = None
         self._lock = threading.RLock()
+        self.operation = None
         self.preparing = False
         self.last_error = ''
         self.failed = {}
@@ -56,6 +57,8 @@ class ComputeManager:
             raise TypeError('Ожидается объект настроек устройства')
         device = requested_device(changes.get('speech_device'))
         with self._lock:
+            if self.operation or self.preparing:
+                raise RuntimeError('Дождитесь завершения настройки')
             self.settings_file.parent.mkdir(parents=True, exist_ok=True)
             write_json(self.settings_file, {'speech_device': device})
         record('settings_changed', requested=device, stage='speech')
@@ -71,22 +74,29 @@ class ComputeManager:
                                             creationflags=0x08000000 if os.name == 'nt' else 0)
                     self._inventory = json.loads(result.stdout)
                 except (OSError, ValueError, subprocess.SubprocessError):
-                    self._inventory = {'devices': [], 'model_present': False}
+                    self._inventory = {'devices': [], 'model_present': (self.model / 'config.json').is_file(), 'runtime_ready': False}
             return self._inventory
 
     def capabilities(self):
         inventory = self.inventory()
         detected = {d.split('.')[0] for d in inventory['devices']}
+        runtime_ready = bool(inventory.get('openvino') and inventory.get('genai'))
 
         def inspect(device):
             try:
                 info = engine_info(self.backends[device], timeout=.5)
-                return device, {'available': True, 'ready': True, 'engine': info, 'reason': 'Готово'}
+                return device, {'available': True, 'ready': True, 'detected': device in detected, 'runtime_ready': runtime_ready,
+                                'model_present': inventory['model_present'], 'service_ready': True, 'engine': info, 'reason': 'Готово'}
             except BackendUnavailable:
-                available = device in detected and inventory['model_present'] and device not in self.failed
+                available = device in detected and runtime_ready and inventory['model_present'] and device not in self.failed
                 reason = self.failed.get(device) or ('Модель не загружена' if available else
                          'Подключите модель' if not inventory['model_present'] else 'Нет совместимого устройства или runtime')
-                return device, {'available': available, 'ready': False, 'reason': reason}
+                if not runtime_ready:
+                    reason = 'OpenVINO/GenAI runtime недоступен'
+                elif device not in detected:
+                    reason = 'Устройство не обнаружено OpenVINO'
+                return device, {'available': available, 'ready': False, 'detected': device in detected, 'runtime_ready': runtime_ready,
+                                'model_present': inventory['model_present'], 'service_ready': False, 'reason': reason}
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             return dict(pool.map(inspect, DEVICES))
 
@@ -98,9 +108,11 @@ class ComputeManager:
         except ValueError:
             selected = None
         return {'settings': settings, 'capabilities': caps, 'selected': selected,
-                'preparing': self.preparing, 'error': self.last_error}
+                'preparing': self.preparing, 'operation': self.operation, 'error': self.last_error}
 
     def make_plan(self, requested):
+        if self.operation and self.operation != 'probe':
+            raise BackendUnavailable('Дождитесь завершения настройки модели')
         resolved = plan(requested, self.capabilities(), self.backends, self.runtime)
         self.failed.update({r['device']: r['reason'] for r in resolved['selection_reasons']})
         record('device_selected', requested=resolved['requested'], device=resolved['selected'],
@@ -109,6 +121,8 @@ class ComputeManager:
 
     def prepare(self):
         with self._lock:
+            if self.operation:
+                raise RuntimeError('Дождитесь завершения настройки модели')
             if self.preparing:
                 return {'status': 'loading'}
             requested = self.settings()['speech_device']

@@ -20,6 +20,14 @@ Windows-приложение для локальной обработки вид
 Крестик скрывает окно в трей; обработка продолжается. Выход — через меню значка в трее.
 Для обычного запуска не нужны браузер, терминал и системный Python.
 
+История 18.10.2026, мастер AI: [первоначальная настройка](docs/ai-setup-windows.md)
+в прежнем WebView2, раздельная диагностика PnP/runtime/model/worker, импорт и загрузка
+одного pinned Whisper small FP16 с SHA256/прогрессом/повтором, явный WAV probe,
+выбор Ollama для перевода/конспекта и Gemini с Windows DPAPI. Подтверждён изолированный
+CPU-сценарий от подключения модели до SRT и восстановления настроек, а также inference
+упакованным Python/OpenVINO. Проверки: 250 passed / 2 skipped, Ruff и pip check. Новые NPU/GPU,
+полная сетевая загрузка модели и генерация облака в этой итерации не подтверждены.
+
 История 18.10.2026: добавлены WinForms/WebView2 host, безопасная проверка identity,
 одно окно на установку, readiness/error/retry, сохранение active queue при закрытии,
 Host/Origin защита native API, pinned SDK и desktop smoke в Windows CI.

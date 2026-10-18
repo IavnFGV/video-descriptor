@@ -358,3 +358,25 @@ finish/failure с типом этапа. API состояния речи теп�
 UI показывает этап очереди, отдельную версию, переведённые реплики, русский SRT и
 ссылку на конспект; при обработке прогресс неопределённый. Режим конспекта здесь
 speech-only. Конструктор слайдов/OCR остаётся расширенной возможностью.
+
+
+## Мастер AI, 18.10.2026
+
+Расширен прежний `SetupService`, новый supervisor не добавлен. `ComputeManager`
+сохраняет runtime inventory, health/profile проверки и запуск собственных workers.
+Его lock/reservation разделяют загрузку, probe, смену модели и постановку ASR в очередь.
+Windows PnP — отдельное read-only обнаружение: наличие устройства не даёт readiness.
+
+Защищённые instance/Host/Origin POST API `/api/setup/download`, `/probe`, `/complete`,
+`/refresh`, `/gemini` дополняют прежние import/inspect/Ollama API. Download требует
+`confirmed: true`; адреса и имена файлов берутся только из поставляемого манифеста.
+GET `/api/setup` возвращает прогресс без запуска inference; `/api/setup/diagnostics`
+возвращает отдельные возможности. Короткий probe принимает только WAV до 15 секунд.
+
+Один `model_download.py` реализует pinned Whisper, per-file SHA256, bounded streaming,
+повтор с проверенными файлами и атомарную публикацию. Настройки по-прежнему находятся
+в `config.local.json` и workspace `.devcontainer`; notes selection в `notes-settings.json`.
+Завершение мастера — `runtime/setup-state.json`. Installer сохраняет runtime и настройки.
+Сохранение Gemini через существующий translation_settings на Windows шифрует ключ DPAPI;
+public API возвращает только `has_key`. Модели не входят в installer. Подробности и
+границы проверок: [мастер](ai-setup-windows.md).

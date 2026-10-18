@@ -2,3 +2,5 @@
 .setup-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:14px}#setup-card{border-color:#b3cdbd}#setup-form>label{display:block}#setup-feedback{overflow-wrap:anywhere}
 
 .row .translation{color:#416861;border-left:3px solid #94b5a8;padding-left:12px;grid-column:2/-1}
+
+input[type=checkbox]{width:auto;margin-right:8px}#setup-wizard .check{display:flex;justify-content:space-between;gap:20px;padding:9px 0;font-size:13px}#operation-feedback{font-size:13px;overflow-wrap:anywhere}#gemini-form label{display:block;margin:12px 0}

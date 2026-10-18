@@ -94,7 +94,7 @@ def source_paths():
     paths = list((ROOT / 'video_descriptor').rglob('*.py'))
     paths += [p for name in ('assets', 'prompts') for p in (ROOT / 'video_descriptor' / name).rglob('*') if p.is_file()]
     paths += [HERE / name for name in (
-        'app.py', 'compute.py', 'setup_service.py', 'whisper_worker.py', 'release_lifecycle.py',
+        'app.py', 'compute.py', 'setup_service.py', 'model_download.py', 'whisper_worker.py', 'release_lifecycle.py',
         'desktop.py', 'Desktop.ps1', 'DesktopHost.cs', 'app.ico',
         'Start-App.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
@@ -103,7 +103,7 @@ def source_paths():
     paths += [ROOT / 'docs' / name for name in ('architecture-windows.md', 'device-policy-and-release.md',
                                                'competitive-analysis.md', 'verification-devices.md',
                                                'verification-devices.json', 'windows-release.md',
-                                               'desktop-windows.md')]
+                                               'desktop-windows.md', 'ai-setup-windows.md')]
     return sorted({p for p in paths if '__pycache__' not in p.parts})
 
 

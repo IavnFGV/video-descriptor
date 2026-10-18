@@ -101,6 +101,12 @@ def smoke(folder):
     try:
         doctor = request(port, '/api/doctor')
         assert all(doctor['packages'].values()) and doctor['ffmpeg']
+        setup = request(port, '/api/setup')
+        assert not setup['model_present'] and setup['downloads']
+        assert setup['download']['revision'] == '2410d022171ca8a97343182f88eec8807a324db9'
+        request(port, '/api/setup/complete', data=b'{}',
+                headers={'Content-Type': 'application/json', 'X-App-Instance': instance})
+        assert request(port, '/api/setup')['completed']
         compute = request(port, '/api/compute-settings')
         assert compute['selected'] is None
         assert not any(cap['available'] for cap in compute['capabilities'].values())
@@ -109,7 +115,7 @@ def smoke(folder):
             assert 'Устройство распознавания' in page.read().decode()
     finally:
         stop(process, log, port, instance)
-    return {'imports': True, 'loopback_ui': True, 'no_system_python_path': True, 'no_model': True, 'graceful_stop': True}
+    return {'imports': True, 'loopback_ui': True, 'no_system_python_path': True, 'no_model': True, 'graceful_stop': True, 'setup_wizard': True}
 
 
 def hardware_smoke(folder, video, model):
@@ -210,6 +216,16 @@ def main():
         sentinel.write_text('preserve user data', encoding='utf-8')
         settings = installed / 'windows-app/config.local.json'
         saved_settings = settings.read_bytes()
+        preserved_setup = {
+            'runtime/models/whisper-fixture/model.bin': b'small fixture; no model download',
+            'runtime/setup-state.json': b'{"completed":true}',
+            'runtime/workspace/.devcontainer/notes-settings.json': b'{"ollama_model":"notes-fixture:9b"}',
+            'runtime/workspace/.devcontainer/compute-settings.json': b'{"speech_device":"CPU"}',
+        }
+        for relative, payload in preserved_setup.items():
+            destination = installed / 'windows-app' / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(payload)
         port = json.loads(saved_settings)['port']
         process, log, instance = start(installed, port)
         try:
@@ -220,6 +236,7 @@ def main():
             stop(process, log, port, instance)
         run([args.installer.resolve(), *install_args])
         assert settings.read_bytes() == saved_settings and sentinel.read_text() == 'preserve user data'
+        assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
         report['reinstall_preserves_data'] = True
         report['running_upgrade_refused'] = True
         if args.iscc:
@@ -234,12 +251,15 @@ def main():
             upgrade = test_root / f'VideoDescriptor-{upgrade_version}-windows-x64-setup.exe'
             run([upgrade, *install_args])
             assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
+            assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
             report['upgrade_fixture'] = True
         run([installed / 'unins000.exe', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
         assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
         assert not (installed / 'python/python.exe').exists()
         assert not (installed / 'windows-app/app.py').exists()
+        assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
         report['uninstall_preserves_data'] = True
+        report['setup_and_model_files_preserved'] = True
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report), flush=True)
