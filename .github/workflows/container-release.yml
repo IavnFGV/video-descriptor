@@ -30,13 +30,19 @@ jobs:
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           if docker manifest inspect "$image:$VERSION" >/dev/null 2>&1; then
-            echo 'Refusing to overwrite an existing versioned image.' >&2
-            exit 1
+            docker pull "$image:$VERSION"
+            revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image:$VERSION")
+            if [[ "$revision" != "$GITHUB_SHA" ]]; then
+              echo 'Refusing to overwrite a version from another commit.' >&2
+              exit 1
+            fi
+            echo 'Reusing the same commit image after an interrupted release.'
+            docker tag "$image:$VERSION" "$image:sha-$GITHUB_SHA"
+          else
+            docker build --build-arg "APP_VERSION=$VERSION" --build-arg "VCS_REF=$GITHUB_SHA" --tag "$image:$VERSION" --tag "$image:sha-$GITHUB_SHA" .
+            docker push "$image:$VERSION"
           fi
-          docker build --build-arg "APP_VERSION=$VERSION" --build-arg "VCS_REF=$GITHUB_SHA" --tag "$image:$VERSION" --tag "$image:sha-$GITHUB_SHA" .
-          docker push "$image:$VERSION"
           docker push "$image:sha-$GITHUB_SHA"
-          docker logout ghcr.io
       - name: Smoke the registry image and package installer commands
         env:
           VERSION: ${{ github.ref_name }}
@@ -67,3 +73,6 @@ jobs:
           CPU mode is included. Intel NPU uses an external Windows worker; hardware acceleration is not verified by this release workflow.
           NOTES
           gh release create "$VERSION" "VideoDescriptor-$VERSION-compose.zip" SHA256SUMS.txt --verify-tag --title "Video Descriptor $VERSION" --notes-file release-notes.md
+      - name: Logout of registry
+        if: always()
+        run: docker logout ghcr.io

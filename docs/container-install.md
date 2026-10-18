@@ -153,6 +153,9 @@ Smoke проверяет HTTP/UI, обработку невалидного фа
 smoke опубликованного образа → ZIP Compose/PowerShell/VERSION и SHA256 → GitHub Release.
 Ручной workflow_dispatch без тега выполняет только verify, ничего не публикует.
 Существующий `windows-release.yml` сохранён для native ZIP/installer lifecycle.
+Приватный GHCR-пакет проверяется runner с авторизацией до logout; повтор прерванного
+выпуска может использовать уже опубликованный образ того же commit, но откажется
+перезаписать версию другого commit.
 
 Администратору репозитория: разрешить Actions и `packages:write`/`contents:write`,
 проверить правила тегов и сделать GHCR package публичным для установки без login.

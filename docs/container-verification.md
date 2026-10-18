@@ -8,9 +8,9 @@ CPU Python-окружении Ubuntu WSL 2; старый WSL-репозитор�
 - Исходный pytest в Windows без UTF-8: 19 failed, 191 passed, 1 skipped. Причина —
   чтение UTF-8 файлов через системную cp1252. Повтор с `python -X utf8 -m pytest -q`:
   **210 passed, 1 skipped**. Существующий Windows CI уже задаёт PYTHONUTF8=1.
-- После изменений Windows: **217 passed, 2 skipped**. Пропуски: существующее отсутствие
+- После изменений, включая исправление Windows path alias: **219 passed, 2 skipped**. Пропуски: существующее отсутствие
   права symlink и новый Linux-only тест supervisor/process groups.
-- Linux Ubuntu WSL, CPython 3.12.3: **219 passed**. Полный набор тестов, включая
+- Linux Ubuntu WSL, CPython 3.12.3: **221 passed**. Полный набор тестов, включая
   настоящий запуск supervisor/HTTP/worker, SIGTERM → exit 0, SIGKILL worker → exit 1,
   повторный запуск и состояние interrupted → error с сохранением файлов.
 - `pip install --require-hashes -r requirements-container.lock` в отдельном Linux venv:
@@ -37,7 +37,22 @@ Docker build и настоящий lifecycle smoke на Ubuntu runner. Smoke п�
 но остановился в lifecycle: runner использует RUNNER~1 в TEMP, а приложение возвращает
 полный resolved путь. verify_release сравнивал написание пути вместо идентичности
 каталога. Проверка заменена на samefile: проверяются тот же каталог и отказ для чужого
-каталога; добавлена регрессия. Полный повтор фиксируется по результату следующего CI.
+каталога; добавлена регрессия.
+
+Повтор для **dca7d9a**: [Container CI](https://github.com/IavnFGV/video-descriptor/actions/runs/39149814516)
+и [Windows lifecycle](https://github.com/IavnFGV/video-descriptor/actions/runs/39149814507)
+оба **success**. Windows runner: 220 passed, 1 skipped; 4391 файлов ZIP проверено,
+ZIP повторно побайтно совпал (SHA256 `64686689177103c18212b4348ab683578c43484d28be551812d981126ff9e8bf`).
+Запуск ZIP и установленной копии без системного Python, graceful stop, install/reinstall,
+отказ обновления работающей установки, upgrade fixture и uninstall с сохранением
+настроек/данных подтверждены. Артефакт VideoDescriptor-windows-x64-preview загружен.
+Это Windows Server 2025 hosted runner без моделей, а не приёмка ASR на чистой Windows 11.
+
+После этих прогонов изменены только release workflow и документация: GHCR login
+сохраняется до проверки опубликованного (в том числе приватного) образа, logout — always;
+повтор после прерывания переиспользует версию лишь с тем же revision label.
+YAML и bash-сценарии release workflow проверены синтаксически через bash -n.
+Публикация остаётся непроверенной: настоящий tag/registry release здесь не запускались.
 
 ## Что не удалось выполнить локально
 
@@ -46,7 +61,7 @@ Engine недоступен. Попытка `docker desktop start` законч�
 `initializing Inference manager ... dockerInference: The file cannot be accessed by the system`.
 Журнал: `%LOCALAPPDATA%\Docker\log\host\com.docker.backend.exe.log`.
 Речь о runtime reparse point; безопасное переименование этого объекта также отклонено
-Windows. Файлы/настройки Docker не изменились, factory reset и переустановка не выполнялись.
+Windows. Runtime-файл и настройки Docker не изменились, factory reset и переустановка не выполнялись.
 
 Поэтому **Docker build попытались выполнить, но он не начался из-за отсутствия Engine**.
 Контейнерный smoke `scripts/smoke_compose.py`, bind mount persistence при реальном
