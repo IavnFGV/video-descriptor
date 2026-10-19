@@ -144,3 +144,5 @@ summary:focus-visible,.nav-item:focus-visible,.brand:focus-visible,.job:focus-vi
 .speaker-controls{display:inline-flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.speaker-controls>.vd-help:empty{display:none}.reply-heading>.seek{flex-shrink:0}.reply-tools{flex-wrap:wrap;max-width:100%}.reply-heading{margin-bottom:var(--vd-space-2)}.row p{clear:both}
 
 .speaker-name,.speaker-assignment{display:inline-flex;align-items:center;gap:var(--vd-space-1)}.speaker-name svg,.speaker-assignment svg{width:16px;height:16px;flex-shrink:0}
+
+.quick-reply-editor{margin-top:var(--vd-space-3)}.quick-reply-editor textarea{width:100%;min-height:120px;resize:vertical;font:inherit;font-size:var(--vd-reading);line-height:1.65}.quick-reply-editor .vd-actions{margin-top:var(--vd-space-2)}.row>p[tabindex]:hover{cursor:text}.row>p[tabindex]:focus-visible{outline:2px solid var(--vd-focus);outline-offset:3px}

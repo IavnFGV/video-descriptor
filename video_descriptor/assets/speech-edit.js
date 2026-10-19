@@ -17,6 +17,45 @@
     });
   };
   let editing=false;
+  let hoveredReply=null,quickEdit=null;
+  window.mayLeaveQuickReply=async()=>!quickEdit||(!quickEdit.saving()&&(!quickEdit.dirty()||await window.confirmDiscard('Текст реплики ещё не сохранён. Закрыть без сохранения?')));
+  window.closeQuickReplyEdit=()=>quickEdit?.close();
+  document.addEventListener('keydown',e=>{if(e.key==='Control'&&!e.repeat)hoveredReply?.();});
+  window.enableQuickReplyEdit = function(text, original, index, onSave){
+    const row=original.segments[index];
+    text.title='Ctrl + наведение — быстро исправить текст';text.tabIndex=0;
+    const open=()=>{
+      if(editing||!text.isConnected)return;
+      editing=true;hoveredReply=null;
+      const panel=document.createElement('div'),input=document.createElement('textarea'),actions=document.createElement('div');
+      const save=document.createElement('button'),cancel=document.createElement('button'),feedback=document.createElement('p');
+      panel.className='quick-reply-editor';input.className='vd-textarea';input.value=row.text;
+      input.setAttribute('aria-label','Текст реплики '+stamp(row.start));actions.className='vd-actions';
+      save.type=cancel.type='button';save.className='vd-button vd-button--primary';cancel.className='vd-button';
+      save.textContent='Сохранить';cancel.textContent='Отмена';feedback.setAttribute('role','status');feedback.className='vd-error';
+      let saving=false;
+      const beforeUnload=e=>{if(input.value!==row.text){e.preventDefault();e.returnValue='';}};
+      window.addEventListener('beforeunload',beforeUnload);
+      const close=()=>{editing=false;quickEdit=null;window.removeEventListener('beforeunload',beforeUnload);panel.replaceWith(text);text.focus({preventScroll:true});};
+      quickEdit={close,dirty:()=>input.value!==row.text,saving:()=>saving};
+      cancel.onclick=()=>{if(!saving)close();};
+      save.onclick=async()=>{
+        if(saving)return;if(!input.value.trim()){feedback.textContent='Введите текст реплики.';input.focus();return;}
+        saving=true;save.disabled=cancel.disabled=true;input.disabled=true;panel.setAttribute('aria-busy','true');feedback.textContent='Сохраняем…';
+        try{
+          const saved=await post('/api/speech-edit',{folder:original.folder,revision:original.edit_revision,index,action:'edit',
+            text:input.value,speaker:row.speaker,translation:original.translations?.[row.id||`s${index+1}`]||''});
+          close();onSave(saved);
+        }catch(e){feedback.textContent=e.message;}
+        finally{saving=false;save.disabled=cancel.disabled=false;input.disabled=false;panel.removeAttribute('aria-busy');}
+      };
+      input.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();cancel.click();}if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();save.click();}};
+      actions.append(save,cancel);panel.append(input,actions,feedback);text.replaceWith(panel);input.focus({preventScroll:true});
+    };
+    text.onpointerenter=e=>{hoveredReply=open;if(e.ctrlKey)open();};
+    text.onpointerleave=()=>{if(hoveredReply===open)hoveredReply=null;};
+    text.onkeydown=e=>{if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();open();}};
+  };
   function speakerActionIcon(path){
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','16');svg.setAttribute('height','16');
