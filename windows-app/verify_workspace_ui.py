@@ -185,6 +185,9 @@ def run(args, report):
 
     cdp.click('#tab-speech')
     for selector, extension in [('#download-srt', '.srt'), ('#download-subtitles', '.vtt'), ('#download-transcript', '.txt')]:
+        # Returning from AI settings reloads the workspace asynchronously.
+        wait_for(lambda selector=selector: cdp.evaluate(
+            f'(() => {{const e=document.querySelector({json.dumps(selector)});return !!e?.getClientRects().length&&!!e.href&&!e.hidden;}})()'))
         cdp.click(selector)
         wait_for(lambda extension=extension: list(downloads.glob('*' + extension)))
     report['checks'].append('real SRT/VTT/TXT downloads through production links')
