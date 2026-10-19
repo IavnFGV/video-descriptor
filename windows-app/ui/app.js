@@ -124,7 +124,8 @@
     $('status').textContent=statusNames[job.status]||job.status;
     $('status').dataset.tone={running:'info',done:'success',error:'danger'}[job.status]||'neutral';
     const device=result?.device||job.device_plan?.selected;
-    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&result?.message?result.message:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    const failureMessage=result?.message==='Не удалось получить достоверные таймкоды; см. диагностику фрагмента'?'Модель вернула некорректные временные метки реплик. Этот фрагмент не удалось сохранить. Это ошибка распознавания; повторный запуск может её повторить.':result?.message;
+    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
     $('progress').hidden=job.status==='error';
     if(job.status==='done'&&result?.status==='done')$('progress').value=100;
     else if(result?.duration>0&&Number.isFinite(result.processed))$('progress').value=Math.max(0,Math.min(100,100*result.processed/result.duration));
@@ -151,7 +152,7 @@
       $('ru-srt').href='/api/subtitles?'+new URLSearchParams({folder:job.folder,language:'ru',format:'srt'});
       $('open-report').href='/output/'+encodeURIComponent(job.folder)+'/report.html';
     }
-    $('timing-note').textContent=result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.';
+    $('timing-note').textContent=job.status==='error'?'':result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.';
     const content=JSON.stringify([job.id,result.segments,result.translations,result.edit_revision,done,result.no_speech]);
     if($('transcript').dataset.content===content)return;
     $('transcript').dataset.content=content;
