@@ -1,13 +1,9 @@
 name: Container release
-on:
-  push:
-    tags: ['v*.*.*']
-  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   verify:
-    uses: ./.github/workflows/container-ci.yml
+    uses: ./.github/workflows/full-acceptance.yml
   publish:
     needs: verify
     if: startsWith(github.ref, 'refs/tags/v')
@@ -16,63 +12,86 @@ jobs:
     permissions:
       contents: write
       packages: write
+      actions: read
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Validate semantic version tag
-        env:
-          VERSION: ${{ github.ref_name }}
-        run: '[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
-      - name: Login, build and publish verified version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.ref_name }}
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY,,}"
-          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          if docker manifest inspect "$image:$VERSION" >/dev/null 2>&1; then
-            docker pull "$image:$VERSION"
-            revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image:$VERSION")
-            if [[ "$revision" != "$GITHUB_SHA" ]]; then
-              echo 'Refusing to overwrite a version from another commit.' >&2
-              exit 1
-            fi
-            echo 'Reusing the same commit image after an interrupted release.'
-            docker tag "$image:$VERSION" "$image:sha-$GITHUB_SHA"
-          else
-            docker build --build-arg "APP_VERSION=$VERSION" --build-arg "VCS_REF=$GITHUB_SHA" --tag "$image:$VERSION" --tag "$image:sha-$GITHUB_SHA" .
-            docker push "$image:$VERSION"
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Retrieve the exact Windows binaries accepted in this run
+      run: gh run download "$GITHUB_RUN_ID" --name VideoDescriptor-full-acceptance --dir accepted-windows
+      env:
+        GH_TOKEN: ${{ github.token }}
+    - name: Retrieve accepted container image without rebuilding
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |-
+        gh run download "$GITHUB_RUN_ID" --name accepted-container-image --dir accepted-container
+        gunzip -c accepted-container/container-image.tar.gz | docker load
+    - name: Validate semantic version tag
+      env:
+        VERSION: ${{ github.ref_name }}
+      run: '[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+    - name: Publish the accepted immutable container image
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ github.ref_name }}
+      run: |
+        image="ghcr.io/${GITHUB_REPOSITORY,,}"
+        echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        if docker manifest inspect "$image:$VERSION" >/dev/null 2>&1; then
+          docker pull "$image:$VERSION"
+          revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image:$VERSION")
+          if [[ "$revision" != "$GITHUB_SHA" ]]; then
+            echo 'Refusing to overwrite a version from another commit.' >&2
+            exit 1
           fi
-          docker push "$image:sha-$GITHUB_SHA"
-      - name: Smoke the registry image and package installer commands
-        env:
-          VERSION: ${{ github.ref_name }}
-        run: |
-          export VIDEO_DESCRIPTOR_IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION"
-          docker pull "$VIDEO_DESCRIPTOR_IMAGE"
-          python scripts/smoke_compose.py
-          mkdir -p bundle/scripts bundle/docs
-          cp compose.yaml .env.example bundle/
-          cp scripts/VideoDescriptor.ps1 bundle/scripts/
-          cp docs/container-install.md bundle/docs/
-          printf '%s\n' "$VERSION" > bundle/VERSION
-          (cd bundle && zip -r "../VideoDescriptor-$VERSION-compose.zip" .)
-          sha256sum "VideoDescriptor-$VERSION-compose.zip" > SHA256SUMS.txt
-      - name: Create GitHub Release with install instructions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.ref_name }}
-        run: |
-          cat > release-notes.md <<'NOTES'
-          Download the Compose ZIP, extract it to a permanent folder, install Docker Desktop with WSL 2, then run:
-          ```powershell
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\VideoDescriptor.ps1 -Action Install
-          ```
-          Open http://localhost:8000/create. Python/FFmpeg/OCR are supplied by the image.
-          See docs/container-install.md in the ZIP for model downloads, connections, data backup, update and uninstall.
-          Data is preserved in container-data; never delete it during an update. Copy the new bundle over the existing folder and run Install to select its version.
-          CPU mode is included. Intel NPU uses an external Windows worker; hardware acceleration is not verified by this release workflow.
-          NOTES
-          gh release create "$VERSION" "VideoDescriptor-$VERSION-compose.zip" SHA256SUMS.txt --verify-tag --title "Video Descriptor $VERSION" --notes-file release-notes.md
-      - name: Logout of registry
-        if: always()
-        run: docker logout ghcr.io
+          echo 'Reusing the same commit image after an interrupted release.'
+          docker tag "$image:$VERSION" "$image:sha-$GITHUB_SHA"
+        else
+          docker tag video-descriptor:local "$image:$VERSION"
+          docker tag video-descriptor:local "$image:sha-$GITHUB_SHA"
+          docker push "$image:$VERSION"
+        fi
+        docker push "$image:sha-$GITHUB_SHA"
+    - name: Smoke the registry image and package installer commands
+      env:
+        VERSION: ${{ github.ref_name }}
+      run: |
+        export VIDEO_DESCRIPTOR_IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION"
+        docker pull "$VIDEO_DESCRIPTOR_IMAGE"
+        python scripts/smoke_compose.py
+        mkdir -p bundle/scripts bundle/docs
+        cp compose.yaml .env.example bundle/
+        cp scripts/VideoDescriptor.ps1 bundle/scripts/
+        cp docs/container-install.md bundle/docs/
+        printf '%s\n' "$VERSION" > bundle/VERSION
+        (cd bundle && zip -r "../VideoDescriptor-$VERSION-compose.zip" .)
+        sha256sum "VideoDescriptor-$VERSION-compose.zip" > SHA256SUMS.txt
+    - name: Create GitHub Release with install instructions
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ github.ref_name }}
+      run: |
+        cat > release-notes.md <<'NOTES'
+        Download the Compose ZIP, extract it to a permanent folder, install Docker Desktop with WSL 2, then run:
+        ```powershell
+        powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\VideoDescriptor.ps1 -Action Install
+        ```
+        Open http://localhost:8000/create. Python/FFmpeg/OCR are supplied by the image.
+        See docs/container-install.md in the ZIP for model downloads, connections, data backup, update and uninstall.
+        Data is preserved in container-data; never delete it during an update. Copy the new bundle over the existing folder and run Install to select its version.
+        CPU mode is included. Intel NPU uses an external Windows worker; hardware acceleration is not verified by this release workflow.
+        NOTES
+        gh release create "$VERSION" accepted-windows/*.zip accepted-windows/*-setup.exe accepted-windows/SHA256SUMS.json accepted-windows/acceptance-provenance.json "VideoDescriptor-$VERSION-compose.zip" SHA256SUMS.txt --verify-tag --title "Video Descriptor $VERSION" --notes-file release-notes.md
+    - name: Logout of registry
+      if: always()
+      run: docker logout ghcr.io
+'on':
+  push:
+    tags:
+    - v*.*.*
+  workflow_dispatch: null
+concurrency:
+  group: container-release-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false

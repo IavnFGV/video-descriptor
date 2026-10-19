@@ -1,0 +1,8 @@
+# Tooling only; application dependencies remain in the platform runtime locks.
+pytest==8.4.2
+ruff==0.17.1
+PyYAML==6.0.3
+psutil==7.2.2
+imageio-ffmpeg==0.6.0
+setuptools==80.9.0
+wheel==0.45.1

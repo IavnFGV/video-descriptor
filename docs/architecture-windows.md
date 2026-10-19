@@ -442,3 +442,12 @@ and passes only a loopback remote-debugging port through CoreWebView2Environment
 Normal launches keep the test port disabled and retain existing WebView2 settings.
 This supports elevated CI/Sandbox without environment overrides, registry/policy
 changes, browser security changes or a generic command bridge.
+
+CI contract (19.10.2026): PR/main use one CI workflow with Fast Linux/Windows suites
+and path-selected reusable Windows/Container smoke jobs. The stable `required` job
+aggregates failures even when expensive jobs are skipped for documentation. Native
+ZIP smoke does not install the app; packaging changes opt into one install smoke.
+Full installer lifecycle/reproducibility/Whisper/Ollama/API/UI remain in explicitly
+invoked or release acceptance. Release assets require checksum + source provenance;
+published binaries are downloaded and tested, never replaced by a new build.
+No product runtime/API/device policy changed. See [CI policy](ci-policy.md).
