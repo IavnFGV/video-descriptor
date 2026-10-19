@@ -6,14 +6,22 @@
 или обращения к Ollama нет. В процессе показываются стадии обработки голосов.
 При ошибке можно повторить диаризацию, исходный текст остаётся доступным.
 
-На этой машине проверен Windows CPU с PyTorch 2.14.1+cpu, pyannote.audio 4.0.7
+На этой машине проверены Windows CPU (PyTorch 2.14.1+cpu) и Intel GPU/XPU
+(PyTorch 2.14.1+xpu) с pyannote.audio 4.0.7
 и существующей локальной community-1. Модель перенесена из старого кэша,
 повторно не скачивалась. Docker применялся один раз для извлечения файлов из
 старого тома; при работе приложения и обработчика он не требуется.
 
+Проверка GPU: Intel Arc 140V, тот же 60-секундный PCM-фрагмент — 22.625 s
+против 27.984 s CPU; оба вернули 17 интервалов и 3 голоса. Это короткий
+технический прогон, а не оценка DER или обещание такого ускорения на полной
+записи. Результаты: [verification-native-diarization-gpu.json](verification-native-diarization-gpu.json).
+
 ## Настройка
 
-Отдельное окружение `.venv-diarization` не связано с `.venv-npu`.
+Для установки нужен обычный Python с поддержкой venv/pip; системный Python
+скрипт автоматически не устанавливает. Отдельные `.venv-diarization` и
+`.venv-diarization-xpu` не связаны с `.venv-npu`.
 При уже подготовленных зависимостях и локальной модели:
 
 ```powershell
@@ -27,16 +35,34 @@ powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/Prepare-Diarizat
 Python-зависимостей CPU добавьте `-InstallDependencies`; модель этот скрипт
 не скачивает. Зависимости закреплены в `requirements-diarization.txt`.
 
-Устройство Intel GPU/XPU проверяется отдельно в подготовленном Python:
+## Автоматический выбор CPU / Intel GPU
+
+По умолчанию подготовка использует `-Device auto`:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/Prepare-Diarization.ps1 -ModelDirectory E:\LocalAI\models\pyannote-community-1 -Device xpu -PythonPath 'E:\path\to\python.exe'
+powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/Prepare-Diarization.ps1 -ModelDirectory E:\LocalAI\models\pyannote-community-1 -InstallDependencies
 ```
 
-При недоступном XPU проверка заканчивается ошибкой и настройки не меняются.
-Нативный GPU-прогон pyannote на этой машине пока не подтверждён. NPU
-для этой модели не предлагается. Режим Auto распознавания к диаризации
-не относится; выбранное устройство написано в стадии обработки.
+При обнаружении Intel GPU устанавливаются закреплённые XPU-зависимости из
+`requirements-diarization-xpu.txt` в отдельную `.venv-diarization-xpu`. CPU-
+окружение и `.venv-npu` не заменяются. Это установка Python-пакетов; веса
+community-1 берутся из указанной локальной папки, драйверы не устанавливаются.
+Наличие дисплейного адаптера — только предварительный выбор: перед изменением
+настроек обязательны реальное вычисление PyTorch XPU и диаризация встроенной
+речевой записи. Можно передать собственный короткий WAV через `-ProbeAudio`.
+
+Если Auto-проверка GPU не проходит, выбирается проверенный CPU и сохраняется
+`diarization_setup_warning` с причиной. Явный `-Device xpu` завершается ошибкой
+без подмены на CPU и без изменения прежних настроек. Другие производители GPU
+пока не подключены к автоматической установке: CUDA/ROCm требуют собственной
+проверенной поставки и не выдаются за совместимый Intel XPU.
+
+`-Device cpu` позволяет явно сохранить CPU. `-PlanOnly` показывает обнаруженные
+адаптеры и предполагаемый backend без установки и изменения конфигурации.
+Пакеты окружения с активным заданием не обновляются; уже созданные задания
+сохраняют Python и устройство из снимка. Новые настройки применяются после
+обычного перезапуска приложения при пустой очереди. Поддержка NPU для этой
+диаризации не заявляется.
 
 ## Точность
 

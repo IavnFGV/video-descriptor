@@ -43,7 +43,8 @@ def status(settings):
     configured = python.is_file() and (model / 'config.yaml').is_file()
     device = settings.get('diarization_device', 'cpu')
     return {'state': 'configured' if configured else 'setup_required', 'device': device,
-            'message': f'Настроено · {device.upper()} · запускается по запросу' if configured else
+            'message': (f'Настроено · {device.upper()} · запускается по запросу' +
+                        (' · ' + settings['diarization_setup_warning'] if settings.get('diarization_setup_warning') else '')) if configured else
                        'Нужны отдельное Python-окружение и локальная модель pyannote community-1.'}
 
 

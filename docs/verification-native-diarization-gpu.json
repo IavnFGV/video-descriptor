@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-20",
+  "platform": "native Windows",
+  "device": "xpu",
+  "device_name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+  "torch": "2.14.1+xpu",
+  "driver": "32.0.101.8132",
+  "pyannote": "4.0.7",
+  "audio_seconds": 60.0,
+  "pcm_sha256": "f001f7390817fa56c6df58995783af1e1f310dadfd21475e0797f2f8e84a9daf",
+  "inference_seconds": 22.625,
+  "cpu_reference_seconds": 27.984000000004016,
+  "same_audio_as_cpu": true,
+  "turns": 17,
+  "speakers": 3,
+  "valid_timestamps": true,
+  "model_downloaded": false,
+  "current_cpu_job_interrupted": false,
+  "checks": {
+    "application_passed": 305,
+    "application_skipped": 2,
+    "ci_policy_passed": 20,
+    "ruff": "passed",
+    "source_payload": "setup module and GPU requirements included"
+  },
+  "limits": [
+    "One 60-second probe is not a full-length diarization benchmark or DER evaluation.",
+    "Automatic GPU installation currently targets compatible Intel XPU; CUDA/ROCm are not implemented."
+  ],
+  "default_installer_probe": {
+    "device": "xpu",
+    "device_name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+    "audio_seconds": 9.138125,
+    "inference_seconds": 5.546999999998661,
+    "speakers": 1
+  },
+  "configured_device": "xpu",
+  "requested_device": "auto",
+  "activation": "Settings saved; currently running CPU job remains pinned and server restart is deferred until queue is empty."
+}

@@ -1,27 +1,21 @@
-﻿param(
+param(
     [Parameter(Mandatory=$true)][string]$ModelDirectory,
-    [ValidateSet('cpu','xpu')][string]$Device = 'cpu',
+    [ValidateSet('auto','cpu','xpu')][string]$Device = 'auto',
     [string]$PythonPath,
-    [switch]$InstallDependencies
+    [string]$ProbeAudio,
+    [switch]$InstallDependencies,
+    [switch]$PlanOnly
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-if (-not (Test-Path -LiteralPath (Join-Path $ModelDirectory 'config.yaml'))) { throw 'Укажите существующую локальную модель pyannote community-1. Модели автоматически не скачиваются.' }
-if (-not $PythonPath) { $PythonPath = Join-Path $root '.venv-diarization\Scripts\python.exe' }
-if ($InstallDependencies) {
-    if ($Device -ne 'cpu') { throw 'Для Intel GPU подготовьте отдельный Python с PyTorch XPU и передайте -PythonPath. Автоматической подмены CPU нет.' }
-    if (-not (Test-Path -LiteralPath $PythonPath)) { & python -m venv (Join-Path $root '.venv-diarization'); if ($LASTEXITCODE) { throw 'Не удалось создать окружение диаризации.' } }
-    & $PythonPath -m pip install -r (Join-Path $root 'requirements-diarization.txt')
-    if ($LASTEXITCODE) { throw 'Не удалось установить зависимости диаризации.' }
+$bootstrap = Join-Path $root '.venv-windows\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $bootstrap)) {
+    if ($PythonPath -and (Test-Path -LiteralPath $PythonPath)) { $bootstrap = $PythonPath } else { $bootstrap = 'python' }
 }
-if (-not (Test-Path -LiteralPath $PythonPath)) { throw 'Окружение не найдено. Укажите -PythonPath или явно добавьте -InstallDependencies.' }
-& $PythonPath -X utf8 (Join-Path $PSScriptRoot 'diarization_worker.py') --doctor --model $ModelDirectory --device $Device
-if ($LASTEXITCODE) { throw 'Проверка диаризации не прошла. Настройки приложения не изменены.' }
-$local = Join-Path $PSScriptRoot 'config.local.json'
-$settings = @{}
-if (Test-Path -LiteralPath $local) { $document = Get-Content -LiteralPath $local -Raw | ConvertFrom-Json; foreach ($property in $document.PSObject.Properties) { $settings[$property.Name] = $property.Value } }
-$settings['diarization_python'] = (Resolve-Path -LiteralPath $PythonPath).Path
-$settings['diarization_model_directory'] = (Resolve-Path -LiteralPath $ModelDirectory).Path
-$settings['diarization_device'] = $Device
-[System.IO.File]::WriteAllText($local, ($settings | ConvertTo-Json), (New-Object System.Text.UTF8Encoding($false)))
-Write-Output 'Диаризация настроена. Перезапустите приложение после завершения очереди. Docker не требуется.'
+$setupArguments = @('-X', 'utf8', (Join-Path $PSScriptRoot 'diarization_setup.py'), '--model', $ModelDirectory, '--device', $Device)
+if ($PythonPath) { $setupArguments += @('--python', $PythonPath) }
+if ($ProbeAudio) { $setupArguments += @('--probe-audio', $ProbeAudio) }
+if ($InstallDependencies) { $setupArguments += '--install' }
+if ($PlanOnly) { $setupArguments += '--plan-only' }
+& $bootstrap @setupArguments
+if ($LASTEXITCODE) { throw 'Diarization preparation failed. Existing application settings were preserved.' }

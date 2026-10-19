@@ -43,7 +43,8 @@ def main():
         assert float((torch.arange(16, device='xpu', dtype=torch.float32) ** 2).sum().cpu()) == 1240
         torch.xpu.synchronize()
     if args.doctor:
-        print(json.dumps({'ready': True, 'device': args.device, 'torch': torch.__version__}), flush=True)
+        print(json.dumps({'ready': True, 'device': args.device, 'torch': torch.__version__,
+                          'device_name': torch.xpu.get_device_name(0) if args.device == 'xpu' else 'CPU'}), flush=True)
         return
     if not args.audio or not args.output or not args.progress:
         parser.error('--audio, --output and --progress are required')
@@ -73,8 +74,12 @@ def main():
             progress(f'Говорящие · {args.device.upper()} · {stages.get(step_name, "обработка голосов")}' +
                      (f' · {percent}%' if percent is not None else ''))
 
+    if args.device == 'xpu':
+        torch.xpu.synchronize()
     started = time.monotonic()
     prediction = pipeline({'waveform': signal, 'sample_rate': 16000}, hook=hook)
+    if args.device == 'xpu':
+        torch.xpu.synchronize()
     duration = len(raw) / 32000
     turns = [{'start': float(segment.start), 'end': float(segment.end), 'speaker': str(speaker)}
              for segment, speaker in prediction.exclusive_speaker_diarization]
@@ -82,6 +87,7 @@ def main():
            not 0 <= row['start'] <= row['end'] <= duration + .1 for row in turns):
         raise ValueError('Диаризация вернула неверные границы голосов. Исходная расшифровка сохранена.')
     save(args.output, {'turns': turns, 'device': args.device, 'torch': torch.__version__,
+                       'device_name': torch.xpu.get_device_name(0) if args.device == 'xpu' else 'CPU',
                        'duration': duration, 'pcm_sha256': hashlib.sha256(raw).hexdigest(),
                        'audio_sha256': hashlib.sha256(args.audio.read_bytes()).hexdigest(),
                        'inference_seconds': time.monotonic() - started})

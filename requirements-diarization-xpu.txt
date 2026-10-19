@@ -1,0 +1,5 @@
+# Native Intel GPU environment, independent from the active CPU/NPU workers.
+--extra-index-url https://download.pytorch.org/whl/xpu
+torch==2.14.1+xpu
+torchaudio==2.11.0
+pyannote.audio==4.0.7
