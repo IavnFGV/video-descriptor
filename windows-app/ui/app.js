@@ -1,5 +1,6 @@
 (() => {
   const $ = id => document.getElementById(id);
+  let wizardLoaded=false, setupPolling=false;
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Нужна проверка'};
   const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
@@ -13,6 +14,14 @@
   function message(text, error=false) { $('message').textContent=text; $('message').style.color=error?'#a04b30':'#5b7760'; }
   async function setupStatus() {
     const s=await api('/api/setup');
+    if(!wizardLoaded){$('setup-wizard').hidden=s.completed;wizardLoaded=true;}
+    $('download-info').textContent=`Официальный источник: ${s.download.source} · revision ${s.download.revision} · ${(s.download.download_bytes/1024**2).toFixed(0)} МиБ. После сбоя повторите загрузку: готовые файлы будут проверены и использованы.`;
+    const op=s.operation;
+    $('setup-progress').hidden=op.status!=='running';
+    if(op.total)$('setup-progress').value=100*op.bytes/op.total;else $('setup-progress').removeAttribute('value');
+    $('operation-feedback').textContent=(op.status==='error'?'Ошибка: ':op.status==='done'?'Готово: ':'')+(op.result?.message||op.message||'')+(op.result?.device?' · '+op.result.device+' · реплик: '+op.result.segments:'');
+    $('download-model').disabled=op.status==='running';$('probe-model').disabled=op.status==='running';$('probe-custom').disabled=op.status==='running';
+    if(op.status==='running'&&!setupPolling){setupPolling=true;setTimeout(()=>{setupPolling=false;setupStatus().catch(e=>message(e.message,true));readiness();},1000);}
     $('setup-summary').textContent=s.verified?'Модель подключена и проверена. Можно подготовить распознавание.':s.model_present?'Найдена существующая модель. Проверьте и подключите её в мастере.':'Для распознавания нужно подключить модель. Начните с выбора папки.';
     if(!$('model-path').value)$('model-path').value=s.model_present?s.model_path:'';
     if(!s.model_present)$('setup-form').hidden=false;
@@ -44,10 +53,10 @@
         $('speech-device').value=c.settings.speech_device;
         for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+cap.reason;}
         $('device-status').textContent=c.preparing?'Подготавливаем модель…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
-        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,c.capabilities[name].reason)),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Модель установлена':'Нужна настройка'));
+        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,c.capabilities[name].reason)),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
-        $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing;
-        $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing;
+        $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
+        $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
         $('npu-notice').textContent=ready?'Модель готова. Можно добавлять запись.':'Подготовка использует установленную модель, без скачивания весов.';
         const events=await api('/api/native/events');$('events').textContent=events.slice(-20).map(e=>`${new Date(e.time_utc).toLocaleTimeString()} · ${actionNames[e.action]||e.action}${e.device||e.requested?' · '+(e.device||e.requested):''}${e.previous_device?' ← '+e.previous_device:''}${e.job_id?' · запись '+e.job_id.slice(0,8):''}`).join('\n')||'Событий пока нет';
         return;
@@ -136,10 +145,36 @@
   $('notes-run').onclick=()=>postprocess('notes');
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;};
   $('ollama-refresh').onclick=ollamaStatus;
-  $('ollama-form').onsubmit=async e=>{e.preventDefault();const b=$('ollama-connect');b.disabled=true;try{const s=await api('/api/setup/ollama',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({model:$('ollama-model').value})});$('ollama-feedback').textContent='Подключена '+s.selected+'. Перевод доступен в редакторе записи. Для конспекта модель выбирается отдельно в конструкторе.';await readiness();}catch(error){$('ollama-feedback').textContent=error.message;}finally{b.disabled=false;}};
+  $('ollama-form').onsubmit=async e=>{e.preventDefault();const b=$('ollama-connect');b.disabled=true;try{const s=await api('/api/setup/ollama',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({model:$('ollama-model').value,task:$('ollama-task').value})});$('ollama-feedback').textContent='Подключена '+s.selected+'. Назначение: '+$('ollama-task').selectedOptions[0].textContent+'.';await readiness();}catch(error){$('ollama-feedback').textContent=error.message;}finally{b.disabled=false;}};
   $('inspect-model').onclick=()=>modelAction(false);
   $('setup-form').onsubmit=e=>{e.preventDefault();modelAction(true);};
   $('pick-model').onclick=async()=>{const b=$('pick-model');b.disabled=true;$('setup-feedback').textContent='Выберите папку в окне Windows…';try{const r=await api('/api/setup/pick-model',{method:'POST',headers:{'X-App-Instance':instance}});if(r.path)$('model-path').value=r.path;$('setup-feedback').textContent=r.path?'Папка выбрана. Теперь проверьте и подключите модель.':'Выбор отменён.';}catch(e){$('setup-feedback').textContent=e.message;}finally{b.disabled=false;}};
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  async function setupPost(path, body={}) {return api('/api/setup/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify(body)});}
+  async function diagnostics() {
+    const d=await api('/api/setup/diagnostics');
+    const inv=d.inventory;
+    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),check('Intel GPU · обнаружение',!!d.hardware.intel_gpu.length,d.hardware.intel_gpu.join(', ')||'Не обнаружен'),check('Intel NPU · обнаружение',!!d.hardware.intel_npu.length,d.hardware.intel_npu.join(', ')||'Не обнаружен'),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Перевод',d.translation.state==='configured',d.translation.state==='configured'?'Настроено · генерация не проверена':'Требуется настройка'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',false,d.diarization.message));
+    if(!document.activeElement.closest('#gemini-form')){$('gemini-model').value=d.gemini.model;$('gemini-billing').value=d.gemini.billing_mode;$('gemini-ack').checked=d.gemini.free_ack;}
+    $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
+  }
+  $('setup-open').onclick=()=>{$('setup-wizard').hidden=false;diagnostics().catch(e=>message(e.message,true));$('setup-wizard').scrollIntoView({behavior:'smooth'});};
+  $('setup-finish').onclick=async()=>{try{await setupPost('complete');$('setup-wizard').hidden=true;$('upload').scrollIntoView({behavior:'smooth'});}catch(e){message(e.message,true);}};
+  $('diagnostics-refresh').onclick=async()=>{try{await setupPost('refresh');await diagnostics();await readiness();}catch(e){message(e.message,true);}};
+  $('download-model').onclick=async()=>{try{await setupPost('download',{confirmed:$('download-consent').checked});await setupStatus();}catch(e){$('operation-feedback').textContent=e.message;}};
+  async function runProbe(custom=false) {
+    const feedback=$('operation-feedback'), buttons=[$('probe-model'),$('probe-custom')];
+    const file=custom?$('probe-audio').files[0]:null;
+    feedback.scrollIntoView({block:'center',behavior:'smooth'});
+    if(custom&&(!file||file.size>500000)){feedback.textContent=!file?'Сначала выберите свой WAV или нажмите «Проверить на встроенной записи».':'Файл слишком большой: '+(file.size/1024).toFixed(0)+' КБ. Для проверки нужен WAV до 500 КБ и до 15 секунд. Можно использовать встроенную запись.';return;}
+    buttons.forEach(b=>b.disabled=true);
+    feedback.textContent=custom?'Отправляем выбранный WAV на проверку…':'Запускаем распознавание встроенной тестовой записи…';
+    try{if(custom){await api('/api/setup/probe',{method:'POST',headers:{'X-App-Instance':instance,'Content-Type':'audio/wav'},body:file});}else{await setupPost('probe');}await setupStatus();}
+    catch(e){feedback.textContent='Не удалось выполнить проверку: '+e.message;buttons.forEach(b=>b.disabled=false);}
+  }
+  $('probe-model').onclick=()=>runProbe();
+  $('probe-custom').onclick=()=>runProbe(true);
+  $('gemini-form').onsubmit=async e=>{e.preventDefault();try{await setupPost('gemini',{api_key:$('gemini-key').value,model:$('gemini-model').value,billing_mode:$('gemini-billing').value,free_ack:$('gemini-ack').checked});$('gemini-key').value='';$('gemini-feedback').textContent='Настройки сохранены. Перевод через Gemini доступен в расширенном редакторе.';await diagnostics();}catch(error){$('gemini-feedback').textContent=error.message;}};
+  $('gemini-check').onclick=async()=>{const b=$('gemini-check');b.disabled=true;try{const r=await setupPost('gemini',{check:true});$('gemini-models').replaceChildren(...r.models.map(m=>{const o=document.createElement('option');o.value=m.id;return o;}));$('gemini-feedback').textContent=r.message+(r.available?' Выбранная модель доступна.':' Выберите доступную модель из списка.');}catch(e){$('gemini-feedback').textContent=e.message;}finally{b.disabled=false;}};
+  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus(),diagnostics()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

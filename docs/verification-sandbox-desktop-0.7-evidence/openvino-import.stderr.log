@@ -1,0 +1,27 @@
+python.exe : Traceback (most recent call last):
+
+At line:5 char:1
+
++ & "$root\python\python.exe" -X utf8 -c 'import openvino; print(openvi ...
+
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)
+
+   ::String) [], RemoteException
+
+    + FullyQualifiedErrorId : NativeCommandError
+
+
+
+  File "<string>", line 1, in <module>
+
+  File "C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\pyth
+
+on\Lib\site-packages\openvino\__init__.py", line 21, in <module>
+
+    from openvino._pyopenvino import AxisSet
+
+ImportError: DLL load failed while importing _pyopenvino: The specified module
+
+could not be found.

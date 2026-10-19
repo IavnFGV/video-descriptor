@@ -1,0 +1,1 @@
+﻿{"protocol": 1, "device": "CPU", "model": "small", "pipeline": "dynamic", "multilingual": true, "word_timestamps": false, "num_beams": 1, "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809", "openvino": "2026.4.1-22982-e213a147257-releases/2026/4", "genai": "2026.4.1.0-3408-ab01d1771e4"}

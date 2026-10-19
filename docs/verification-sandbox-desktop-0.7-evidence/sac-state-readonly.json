@@ -1,0 +1,10 @@
+{
+    "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy":  {
+                                                                  "VerifiedAndReputablePolicyState":  1,
+                                                                  "VerifiedAndReputablePolicyStateMinValueSeen":  null
+                                                              },
+    "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Protected":  {
+                                                                     "VerifiedAndReputablePolicyState":  null,
+                                                                     "VerifiedAndReputablePolicyStateMinValueSeen":  2
+                                                                 }
+}

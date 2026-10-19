@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "checks": [
+    "real WebView2 initialization",
+    "existing UI DOM loaded",
+    "AI setup DOM and JavaScript handlers loaded",
+    "active queue rejects shutdown",
+    "close hides window without disposal",
+    "backend identity after close",
+    "second launch restores the same window",
+    "backend loss displays error",
+    "retry reconnects and restores WebView"
+  ],
+  "isolated_installation": "E:\\LocalAI\\video desriptor\\windows-app\\runtime\\desktop-smoke-9dchdsn0",
+  "packaged_python": true,
+  "backend_stop_exit": 0
+}

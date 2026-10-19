@@ -19,6 +19,8 @@ cache/
 *.mkv
 *.mov
 *.wav
+!windows-app/samples/speech-check.wav
+!windows-app/samples/speech-check.mp4
 *.webm
 *.avi
 *.m4v

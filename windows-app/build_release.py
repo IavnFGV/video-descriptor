@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -94,15 +95,55 @@ def source_paths():
     paths = list((ROOT / 'video_descriptor').rglob('*.py'))
     paths += [p for name in ('assets', 'prompts') for p in (ROOT / 'video_descriptor' / name).rglob('*') if p.is_file()]
     paths += [HERE / name for name in (
-        'app.py', 'compute.py', 'setup_service.py', 'whisper_worker.py', 'release_lifecycle.py',
-        'Start-App.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
+        'app.py', 'compute.py', 'setup_service.py', 'model_download.py', 'whisper_worker.py', 'release_lifecycle.py',
+        'desktop.py', 'Desktop.ps1', 'DesktopHost.cs', 'app.ico',
+        'Start-App.ps1', 'Ensure-WebView2.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
     paths += [p for p in (HERE / 'ui').iterdir() if p.is_file()]
+    paths += [HERE / 'samples' / name for name in ('speech-check.wav', 'speech-check.mp4', 'README.md')]
     paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md']
     paths += [ROOT / 'docs' / name for name in ('architecture-windows.md', 'device-policy-and-release.md',
                                                'competitive-analysis.md', 'verification-devices.md',
-                                               'verification-devices.json', 'windows-release.md')]
+                                               'verification-devices.json', 'windows-release.md',
+                                               'desktop-windows.md', 'ai-setup-windows.md')]
     return sorted({p for p in paths if '__pycache__' not in p.parts})
+
+
+def stage_vcrt(inputs, cache, destination):
+    """App-local Microsoft CRT from reviewed bytes; never install a host prerequisite."""
+    import tempfile
+
+    dotnet = shutil.which('dotnet')
+    if not dotnet:
+        raise ValueError('Building the app-local VC runtime requires an existing .NET 8+ runtime')
+    runtime = download(inputs['vcrt'], cache)
+    wix_package = download(inputs['vcrt_extractor'], cache)
+    work = Path(tempfile.mkdtemp(prefix='vcrt-', dir=cache))
+    wix = work / 'wix'
+    with zipfile.ZipFile(wix_package) as archive:
+        for member in archive.infolist():
+            safe_member(member.filename)
+        archive.extractall(wix)
+    # WiX 6 targets net6.0; allow the installed build-machine .NET 8+ runtime.
+    env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
+    subprocess.run([dotnet, str(wix / 'tools/net6.0/any/wix.dll'), 'burn', 'extract',
+                    str(runtime.resolve()), '-o', str((work / 'bundle').resolve()),
+                    '-oba', str((work / 'bootstrapper').resolve())], check=True, env=env)
+    extracted = work / 'crt'
+    extracted.mkdir()
+    subprocess.run(['expand.exe', '-F:*', str(work / 'bundle' / inputs['vcrt']['cabinet']),
+                    str(extracted)], check=True, capture_output=True)
+    for item in inputs['vcrt']['files']:
+        name = item['name']
+        safe_member(name)
+        source = extracted / (name + '_amd64')
+        if sha256(source) != item['sha256']:
+            raise ValueError('VC runtime checksum mismatch: ' + name)
+        shutil.copyfile(source, destination / name)
+    license_file = work / 'bootstrapper/license.rtf'
+    if sha256(license_file) != inputs['vcrt']['license_sha256']:
+        raise ValueError('VC runtime license checksum mismatch')
+    shutil.copyfile(license_file, destination / 'Microsoft-Visual-Cpp-LICENSE.rtf')
 
 
 def main():
@@ -154,6 +195,15 @@ def main():
             safe_member(member.filename)
         archive.extractall(python_dir)
     unpack_wheels(wheels, python_dir / 'Lib/site-packages')
+    stage_vcrt(inputs, args.cache, python_dir)
+    sdk = HERE / 'runtime/desktop-sdk'
+    if not (sdk / 'VideoDescriptor.exe').is_file():
+        raise ValueError('Run windows-app/Prepare-Desktop.ps1 before building the desktop preview')
+    desktop_build = json.loads((sdk / 'desktop-build.json').read_text())
+    if (desktop_build['source_sha256'] != sha256(HERE / 'DesktopHost.cs')
+            or desktop_build['sdk_sha256'] != inputs['webview2']['sha256']):
+        raise ValueError('Desktop build is stale; run windows-app/Prepare-Desktop.ps1')
+    shutil.copytree(sdk, folder / 'windows-app/desktop-sdk')
     (python_dir / 'python312._pth').write_text('python312.zip\n.\nLib/site-packages\n..\n../windows-app\nimport site\n', encoding='ascii')
     # Keep packaged subprocesses on this runtime; ignore system PYTHONPATH/registry.
     (folder / 'Open Video Descriptor.cmd').write_text('@echo off\r\ncall "%~dp0windows-app\\Open-App.cmd"\r\n', encoding='ascii')
@@ -161,7 +211,8 @@ def main():
                for p in sorted(folder.rglob('*')) if p.is_file()]
     manifest = {'version': inputs['version'], 'architecture': 'windows-x64', 'whisper_weights_included': False,
                 'vad_asset_in_faster_whisper': True,
-                'python_source': inputs['python'], 'wheels': lock, 'files': entries}
+                'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
+                'wheels': lock, 'files': entries}
     (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     output = args.output / f'VideoDescriptor-{inputs["version"]}-windows-x64.zip'
     deterministic_zip(folder, output)

@@ -14,7 +14,7 @@ from .platform_support import lock_file
 from .speech import editable_result, subtitle_result
 
 
-def enqueue(root, name, task, model, base_url):
+def enqueue(root, name, task, model, base_url, *, notes_model=None):
     root = Path(root).resolve()
     if task not in {'translate', 'notes'}:
         raise ValueError('Выберите перевод или конспект с переводом')
@@ -53,7 +53,7 @@ def enqueue(root, name, task, model, base_url):
                'translation_model': model, 'translation_base_url': base_url.rstrip('/'),
                'status': 'queued', 'created': time.time(), 'stage': 'queued'}
         if task == 'notes':
-            job['construction'] = validate({'input': 'speech', 'provider': 'ollama', 'model': model,
+            job['construction'] = validate({'input': 'speech', 'provider': 'ollama', 'model': notes_model or model,
                                             'context_tokens': 8192, 'output_tokens': 2048})
         target = jobs_dir(root) / identity
         target.mkdir()

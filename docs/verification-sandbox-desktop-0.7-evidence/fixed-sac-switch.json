@@ -1,0 +1,8 @@
+{
+    "environment":  "Windows Sandbox",
+    "authorization":  "User explicitly authorized guest-only SAC change and guest reboot",
+    "after":  0,
+    "before":  1,
+    "host_changed":  false,
+    "defender_firewall_changed":  false
+}

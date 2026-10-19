@@ -115,3 +115,11 @@ def test_native_postprocess_api_checks_instance_and_origin_then_queues_snapshot(
         finally:
             server.shutdown()
             thread.join()
+
+
+def test_notes_and_translation_use_separately_selected_models(recording):
+    root, _ = recording
+    job = postprocess.enqueue(root, 'source', 'notes', 'translator:9b', 'http://127.0.0.1:11434',
+                              notes_model='writer:9b')
+    assert job['translation_model'] == 'translator:9b'
+    assert job['construction']['model'] == 'writer:9b'

@@ -13,6 +13,54 @@ Windows-приложение для локальной обработки вид
 - [Граница ближайшего выпуска и оставшаяся работа](docs/release-readiness.md).
 - [Что перенесено из WSL](windows-migration/START-HERE.md).
 
+## Для пользователя: Windows desktop preview
+
+19.10.2026, продолжение: в новой Sandbox подтверждены автоматическая подготовка
+WebView2, CPU inference короткого WAV и обработка MP4. Пользователь затем подтвердил
+успешный запуск новой сборки и разрешил merge. Проверки кода: 259 passed / 2 skipped;
+Windows и Container CI для `d0ff14f` прошли. Подробные доказательства, исторические
+результаты и оставшиеся ограничения — в [отчёте](docs/verification-sandbox-desktop-0.7.md).
+
+
+19.10.2026: в установщик и ZIP включены короткие синтетические WAV/MP4 для проверки
+после установки. В мастере кнопка по умолчанию распознаёт встроенный WAV без выбора
+файла; свой WAV можно выбрать отдельно. Несовместимая частота, число каналов,
+разрядность и длительность объясняются явно; конвертации и обрезки нет.
+
+19.10.2026, приёмка в настоящей Sandbox обнаружила отсутствие Microsoft C++ Runtime:
+Desktop открывался, но OpenVINO не импортировался (`DLL load failed`). В сборку добавлены
+app-local DLL Microsoft VC++ 14.44.35211 из закреплённого официального redistributable,
+с хешами и лицензией; системный redistributable не устанавливается. Повторная приёмка
+исправленной сборки описана в [отчёте Sandbox 0.7](docs/verification-sandbox-desktop-0.7.md):
+установка, WebView2, CPU inventory и настоящая загрузка модели (18 SHA256) прошли.
+CPU-транскрипция, редактор и экспорт в Sandbox ещё не проверены; полная приёмка не завершена.
+Windows и Container CI для исправления `30f5f71` прошли; проверки CI отделены от гостевых.
+Исходный профиль также блокирует неподписанный EXE через Smart App Control;
+функциональный тест после согласованного изменения защиты гостя отмечается отдельно.
+
+[Desktop 0.7](docs/desktop-windows.md): ярлык/ZIP открывает существующий интерфейс
+в отдельном окне WebView2 и подключает или запускает нативный backend без Docker.
+Крестик скрывает окно в трей; обработка продолжается. Выход — через меню значка в трее.
+Для обычного запуска не нужны браузер, терминал и системный Python.
+
+История 18.10.2026, мастер AI: [первоначальная настройка](docs/ai-setup-windows.md)
+в прежнем WebView2, раздельная диагностика PnP/runtime/model/worker, импорт и загрузка
+одного pinned Whisper small FP16 с SHA256/прогрессом/повтором, явный WAV probe,
+выбор Ollama для перевода/конспекта и Gemini с Windows DPAPI. Подтверждён изолированный
+CPU-сценарий от подключения модели до SRT и восстановления настроек, а также inference
+упакованным Python/OpenVINO. Проверки: 250 passed / 2 skipped, Ruff и pip check. 19.10.2026 дополнительно прошли packaged WebView2 smoke, проверка 4404 хешей,
+установка/переустановка/upgrade fixture/удаление с сохранением модели и настроек мастера.
+[Отчёт](docs/verification-setup-release.json). Новые NPU/GPU,
+полная сетевая загрузка модели и генерация облака в этой итерации не подтверждены.
+
+История 18.10.2026: добавлены WinForms/WebView2 host, безопасная проверка identity,
+одно окно на установку, readiness/error/retry, сохранение active queue при закрытии,
+Host/Origin защита native API, pinned SDK и desktop smoke в Windows CI.
+Реальный EXE/WebView2 проверен на хосте; чистая VM и аппаратная приёмка оболочки остаются.
+Итог: 227 passed / 2 skipped, Ruff/pip check, packaged WebView2 smoke, Compose smoke,
+4402 hashes, одинаковый ZIP SHA256 и install/reinstall/upgrade/uninstall прошли.
+[Машинный отчёт 0.7](docs/verification-desktop.json); hosted desktop CI пока не запускался.
+
 ## Для пользователя: установка через Docker Desktop
 
 Установите [Docker Desktop с WSL 2](https://docs.docker.com/desktop/setup/install/windows-install/),
@@ -104,6 +152,7 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 Личные данные, модели, секреты и журналы в Git не входят.
 
 | Дата | Изменение | Проверка |
+| 2026-10-19 | Установщик проверяет WebView2 и при отсутствии скачивает официальный Fixed Runtime с SHA256 и проверкой подписи Microsoft; окно использует app-local Runtime без изменения системного Edge | Повторная Sandbox-приёмка и точные границы — docs/verification-sandbox-desktop-0.7.md; успешный E2E до фактического прохождения не заявляется |
 |---|---|---|
 | 2026-10-18 | После обновления Docker Desktop выполнены настоящие локальные build, Compose lifecycle smoke и PowerShell Install; приложение запущено на localhost:8000/create | Docker Desktop 4.95.0 / Engine 29.8.2 / Compose 5.6.0: PASS, HTTP healthy/200, данные сохраняются; отдельная ошибка Ubuntu WSL integration не блокирует Windows CLI; модели не скачивались — docs/container-verification.md |
 | 2026-10-18 | GitHub Container CI и Windows lifecycle прошли после исправления идентичности workspace; GHCR auth сохраняется до smoke, повтор выпуска проверяет revision образа | dca7d9a: Container CI run 39149814516 и Windows run 39149814507 success; Windows runner 220 passed/1 skipped, 4391 hashes, deterministic ZIP, install/reinstall/upgrade/uninstall с сохранением данных; локально Windows 219 passed/2 skipped, WSL 221 passed; registry публикация не запускалась |

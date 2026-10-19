@@ -1,0 +1,28 @@
+{
+  "zip_sha256": "2e915ed9182231b5d2da32453271cf8eb60312c230fb90ea92b44c41594ddde1",
+  "zip_files_verified": 4404,
+  "portable": {
+    "imports": true,
+    "loopback_ui": true,
+    "no_system_python_path": true,
+    "no_model": true,
+    "graceful_stop": true,
+    "setup_wizard": true
+  },
+  "clean_vm": false,
+  "hardware_recognition": false,
+  "installer_sha256": "f86a379f38a2fff4dbe283c1e9abd2c52f00877c491ccf1e3ea5d8e599d305fa",
+  "installed": {
+    "imports": true,
+    "loopback_ui": true,
+    "no_system_python_path": true,
+    "no_model": true,
+    "graceful_stop": true,
+    "setup_wizard": true
+  },
+  "reinstall_preserves_data": true,
+  "running_upgrade_refused": true,
+  "upgrade_fixture": true,
+  "uninstall_preserves_data": true,
+  "setup_and_model_files_preserved": true
+}

@@ -1,0 +1,22 @@
+{
+    "host_changed":  false,
+    "operations":  [
+                       {
+                           "path":  "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy",
+                           "before":  1,
+                           "name":  "VerifiedAndReputablePolicyState",
+                           "status":  "written",
+                           "after":  0
+                       },
+                       {
+                           "path":  "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Protected",
+                           "before":  2,
+                           "name":  "VerifiedAndReputablePolicyStateMinValueSeen",
+                           "status":  "error",
+                           "error":  "Attempted to perform an unauthorized operation."
+                       }
+                   ],
+    "defender_firewall_changed":  false,
+    "environment":  "Windows Sandbox",
+    "timestamp":  "2026-10-19T00:56:38.4200399+03:00"
+}

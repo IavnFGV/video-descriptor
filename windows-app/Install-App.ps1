@@ -11,6 +11,8 @@ Write-Output 'Installing application packages into .venv-windows only; no AI mod
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed; NPU environment was not changed.' }
 & $pythonPath -X utf8 -m pip check
 if ($LASTEXITCODE -ne 0) { throw 'Dependency check failed.' }
+& (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -NoProfile -File (Join-Path $PSScriptRoot 'Prepare-Desktop.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Desktop preparation failed.' }
 if ($CreateShortcut) {
     $desktopDirectory = [Environment]::GetFolderPath('Desktop')
     $shortcutPath = Join-Path $desktopDirectory 'Video Descriptor.lnk'
@@ -24,6 +26,7 @@ if ($CreateShortcut) {
     $shortcut.Arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $PSScriptRoot 'Start-App.ps1') + '"'
     $shortcut.WorkingDirectory = $projectDirectory
     $shortcut.Description = 'Video Descriptor - local transcription'
+    $shortcut.IconLocation = Join-Path $PSScriptRoot 'app.ico'
     $shortcut.Save()
     Copy-Item -LiteralPath $stagedShortcutPath -Destination $shortcutPath -ErrorAction Stop
     Write-Output ('Created: ' + $shortcutPath)

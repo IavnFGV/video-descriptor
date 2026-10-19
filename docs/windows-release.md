@@ -1,9 +1,34 @@
 # Windows preview: ZIP, installer и CI
 
-Текущая версия исходников пакета 0.6.0, Windows x64 / Windows 10+. Это частная проверочная сборка,
+Текущая версия исходников пакета 0.7.0, Windows x64. Desktop целевой сценарий — Windows 11.
+Добавлены WinForms EXE, pinned WebView2 SDK и трей. Установщик проверяет WebView2 Runtime
+через официальный loader API и наличие файлов обнаруженной версии. При отсутствии
+Runtime скачивает официальный x64 Fixed Version CAB с Microsoft, проверяет закреплённый
+SHA256 и действительную подпись Microsoft Corporation, распаковывает в
+`windows-app/webview2-runtime` внутри выбранной папки приложения. Затем повторяет проверку;
+ошибка загрузки, подписи или установки останавливает установку приложения с указанием
+журнала `VideoDescriptor-WebView2.jsonl` в каталоге временных файлов setup.
+Запись в реестре без файлов нужной версии не считается установленным компонентом.
+Если Runtime уже доступен, загрузки и установки нет. Для ZIP Runtime нужен отдельно.
+Fixed Runtime не меняет системную установку, реестр или ACL; desktop host передаёт
+его папку в `CoreWebView2Environment.CreateAsync`. Версия 155.0.4283.62, загрузка
+310492238 байт (около 296 MiB); она обновляется с новыми поставками приложения,
+а не механизмом Evergreen. При обновлении пакета необходимо пересматривать закреплённую
+версию и SHA256 в `WebView2Runtime.iss`. Проверяемая целевая ОС — Windows 11.
+Подробности в [документации Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+Проверки нового поведения и их ограничения записываются в отчёте Sandbox 0.7.
+[Проверки desktop и ограничения](desktop-windows.md). Исторические результаты ниже
+относятся к указанным версиям 0.4–0.6. Это частная проверочная сборка,
 без цифровой подписи нашего EXE, выбранной лицензии проекта и готового публичного release.
 
 ## Состав и запуск
+
+Проверка 0.7 от 18.10.2026 на существующем Windows host: 4402 файла ZIP по manifest,
+встроенный Python без системного Python в PATH, реальный WebView2 EXE/close-to-tray/
+повторный запуск/error/retry; install/reinstall, отказ занятого upgrade, upgrade fixture
+0.7.1 и uninstall с сохранением данных/настроек. Повторная упаковка одинакового payload
+дала тот же ZIP SHA256. [Отчёт с SHA256 и границами проверки](verification-desktop.json).
+Это не чистая VM и не новый аппаратный ASR-прогон; публичный Release не создавался.
 
 - ZIP содержит приложение, CPython embeddable 3.12.10, закреплённые Python-библиотеки,
   OpenVINO/GenAI и FFmpeg. Python, Docker, WSL и pip на целевой машине для запуска не нужны.
@@ -88,8 +113,18 @@ Installer 0.6 собран; отдельный lifecycle-прогон для н�
 
 ## Сборка
 
+После проверки чистой Sandbox 19.10.2026 builder также поставляет Microsoft C++ Runtime
+app-local: Python embed не содержит MSVCP140.dll, необходимой OpenVINO. Точный Microsoft
+redistributable 14.44.35211.0, WiX 6.0.2 для извлечения, SHA256 каждой x64 DLL и лицензии
+закреплены в release-inputs.json. Извлечение использует существующий .NET 8+ на build host
+и системный expand.exe; установка VC++ на build host или целевую Windows не выполняется.
+Все включённые DLL/лицензия попадают в release manifest. Системный WebView2 остаётся
+отдельным требованием. Повторная проверка — в verification-sandbox-desktop-0.7.md;
+наличие исправления в исходниках само по себе не подтверждает успешный гостевой прогон.
+
 ```powershell
 $compiler = & ./windows-app/Prepare-BuildTools.ps1
+powershell -NoProfile -File windows-app/Prepare-Desktop.ps1
 ./.venv-windows/Scripts/python.exe -X utf8 windows-app/build_release.py --iscc $compiler
 ```
 

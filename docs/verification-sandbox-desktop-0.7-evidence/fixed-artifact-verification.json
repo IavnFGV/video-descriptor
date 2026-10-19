@@ -1,0 +1,20 @@
+{
+    "version":  "0.7.0",
+    "environment":  "Windows Sandbox",
+    "zip_files_verified":  4415,
+    "artifacts":  [
+                      {
+                          "sha256":  "73095e95fca5990d09b3d5433caece2f57a7d1949423a770100d7c27cb690d96",
+                          "file":  "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+                          "bytes":  223640342
+                      },
+                      {
+                          "sha256":  "414bb08d4f48cbae6e9c212a69a9b17d86779786a5a7cc5ddac9a22a07b13ada",
+                          "file":  "VideoDescriptor-0.7.0-windows-x64.zip",
+                          "bytes":  265451844
+                      }
+                  ],
+    "extra_entries":  false,
+    "status":  "PASS",
+    "application_executed":  false
+}

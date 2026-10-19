@@ -28,9 +28,22 @@ REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.6.0-prototype'
+VERSION = '0.7.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
+
+
+def installation_id():
+    return hashlib.sha256(str(HERE.resolve()).encode()).hexdigest()
+
+
+class NativeHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if os.name == 'nt':
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 def config():
@@ -121,7 +134,7 @@ def doctor(value):
             'npu': npu, 'ollama': ollama, 'npu_startup': startup,
             'can_start_npu': python.is_file() and (worker / 'whisper_npu_server.py').is_file() and (model / 'config.json').is_file(),
             'diarization': {'ready': False, 'message': 'Windows XPU/pyannote не проверены; доступен режим без разделения говорящих'},
-            'model_downloads': False}
+            'model_downloads': True}
 
 
 def environment(value):
@@ -213,11 +226,34 @@ def make_handler(value, instance):
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
+        def parse_request(self):
+            if not super().parse_request():
+                return False
+            # Reject DNS rebinding and cross-site requests before any native/inherited API.
+            port = self.server.server_port
+            hosts = {f'127.0.0.1:{port}', f'localhost:{port}'}
+            origin = self.headers.get('Origin')
+            if (self.headers.get('Host') not in hosts
+                    or (origin and origin not in {f'http://{host}' for host in hosts})
+                    or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
+                self.close_connection = True
+                try:
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if 0 < length <= 8192:
+                        self.connection.settimeout(2)
+                        self.rfile.read(length)
+                except (ValueError, OSError):
+                    pass
+                self.send_error(403, 'Only local application requests are allowed')
+                return False
+            return True
+
         def do_GET(self):
             path = urlsplit(self.path).path
             if path == '/health':
                 return self.json_response(200, {'app': APP, 'version': VERSION,
-                                               'instance': instance, 'workspace': value['workspace']})
+                                               'instance': instance, 'workspace': value['workspace'],
+                                               'installation': installation_id(), 'desktop_protocol': 1})
             if path == '/api/doctor':
                 result = doctor(value)
                 if manager is not None:
@@ -227,6 +263,8 @@ def make_handler(value, instance):
                 return self.json_response(200, manager.snapshot())
             if path == '/api/setup' and setup is not None:
                 return self.json_response(200, setup.snapshot())
+            if path == '/api/setup/diagnostics' and setup is not None:
+                return self.json_response(200, setup.diagnostics())
             if path == '/api/setup/ollama' and setup is not None:
                 return self.json_response(200, ollama_status(value))
             if path == '/api/native/events':
@@ -256,7 +294,7 @@ def make_handler(value, instance):
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/native/postprocess'}:
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
                     origin = self.headers.get('Origin')
@@ -264,6 +302,14 @@ def make_handler(value, instance):
                         if 0 < length <= 4096:
                             self.rfile.read(length)
                         return self.json_response(403, {'error': 'Откройте мастер из приложения'})
+                    if path == '/api/setup/probe':
+                        if self.headers.get_content_type() == 'application/json' and length == 2:
+                            if self.rfile.read(length) != b'{}':
+                                raise ValueError('Для встроенного теста ожидается {}')
+                            return self.json_response(202, setup.probe())
+                        if not 0 < length <= 500000:
+                            raise ValueError('Проверочный WAV должен быть не больше 500 КБ и до 15 секунд. Можно запустить встроенный тест.')
+                        return self.json_response(202, setup.probe(self.rfile.read(length)))
                     if path == '/api/setup/pick-model':
                         return self.json_response(200, {'path': choose_folder()})
                     if not 0 < length <= 4096 or self.headers.get_content_type() != 'application/json':
@@ -271,17 +317,34 @@ def make_handler(value, instance):
                     body = json.loads(self.rfile.read(length))
                     if not isinstance(body, dict):
                         raise TypeError('Ожидается объект настроек модели')
+                    if path == '/api/setup/refresh':
+                        with manager._lock:
+                            setup.guard()
+                            manager._inventory = None
+                            setup.hardware = None
+                            manager.failed.clear()
+                        return self.json_response(200, setup.diagnostics())
+                    if path == '/api/setup/download':
+                        return self.json_response(202, setup.download(body.get('confirmed')))
+                    if path == '/api/setup/complete':
+                        return self.json_response(200, setup.complete())
+                    if path == '/api/setup/gemini':
+                        return self.json_response(200, setup.gemini(body))
                     if path == '/api/native/postprocess':
                         from video_descriptor.postprocess import enqueue as enqueue_postprocess
                         status = ollama_status(value)
                         model = status['selected']
+                        notes_model = read_json(Path(value['workspace']) / '.devcontainer/notes-settings.json', {}).get('ollama_model') or model
                         validate_ollama_model(value, model)
+                        if body.get('task') == 'notes' and notes_model != model:
+                            validate_ollama_model(value, notes_model)
                         job = enqueue_postprocess(Path(value['workspace']), body.get('folder'),
-                                                  body.get('task'), model, value['ollama_url'])
+                                                  body.get('task'), model, value['ollama_url'], notes_model=notes_model)
                         start_worker(Path(value['workspace']))
                         return self.json_response(202, job)
                     if path == '/api/setup/ollama':
-                        return self.json_response(200, select_ollama(value, body.get('model')))
+                        with manager._lock:
+                            return self.json_response(200, select_ollama(value, body.get('model'), body.get('task', 'translation')))
                     result = inspect_model(body.get('path'), HERE) if path.endswith('/inspect') else setup.apply(body.get('path'))
                     return self.json_response(200, result)
                 except (ValueError, TypeError, OSError, subprocess.SubprocessError) as exc:
@@ -305,8 +368,11 @@ def make_handler(value, instance):
                         return self.json_response(202, manager.prepare())
                     params = parse_qs(urlsplit(self.path).query)
                     requested = params.get('device', [manager.settings()['speech_device']])[0]
-                    device_plan = manager.make_plan(requested)
-                    job = enqueue(Path(value['workspace']), self.rfile, int(self.headers.get('Content-Length', '0')),
+                    with manager._lock:
+                        if manager.operation:
+                            raise RuntimeError('Дождитесь завершения настройки')
+                        device_plan = manager.make_plan(requested)
+                        job = enqueue(Path(value['workspace']), self.rfile, int(self.headers.get('Content-Length', '0')),
                                   params.get('filename', [''])[0], params.get('title', [''])[0],
                                   mode='audio', engine='whisper-local', speech_only=True,
                                   language=params.get('language', ['auto'])[0], device_plan=device_plan)
@@ -393,7 +459,7 @@ def main():
         if args.start_npu:
             print(json.dumps(start_npu(value)))
         instance = uuid.uuid4().hex
-        with ThreadingHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance)) as server:
+        with NativeHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance)) as server:
             state.write_text(json.dumps({'instance': instance, 'pid': os.getpid(), 'workspace': value['workspace']}), encoding='utf-8')
             print('Готово: ' + url, flush=True)
             if not args.no_browser:

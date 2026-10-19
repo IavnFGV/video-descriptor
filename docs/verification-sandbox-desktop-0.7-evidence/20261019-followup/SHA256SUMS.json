@@ -1,0 +1,57 @@
+[
+  {
+    "file": ".gitattributes",
+    "sha256": "8b9c3028d6467ff3be7c793141927841d70f47f52d0590677438f488ca154992",
+    "bytes": 9
+  },
+  {
+    "file": "artifacts.json",
+    "sha256": "2468f4660de627724608fae6af690010790b3ad8a22a82cf22604802406df857",
+    "bytes": 355
+  },
+  {
+    "file": "cpu-worker-health.json",
+    "sha256": "329c3a2cb2d1e243d20622407c38f28ac9b2f5e1f29684bf2c5d2ef5e6cf1bb2",
+    "bytes": 324
+  },
+  {
+    "file": "jobs.json",
+    "sha256": "68005a2e6a968a4243aceb3f1f35678b8bbc54e9c5a78beceda17575ae04c745",
+    "bytes": 1583
+  },
+  {
+    "file": "model-cache-comparison.json",
+    "sha256": "753ff887dab0d0b7be9f5c16cb61b1d5b50d67e6f9ed0b2181ba768436c87732",
+    "bytes": 64
+  },
+  {
+    "file": "model-provenance.json",
+    "sha256": "89c38d0563d28c62ef84c90cbd2ea6f7ad9727131d75436a88026abd8e910521",
+    "bytes": 3213
+  },
+  {
+    "file": "probe-result.json",
+    "sha256": "4128fb3f740551c429b4a0138789f9d46aa902768c82c9321e7a37610782f296",
+    "bytes": 531
+  },
+  {
+    "file": "sac-switch.json",
+    "sha256": "a91be73603fa30a569c62f0563f7b689e354cc80b4fa2ded84b454b392fd531d",
+    "bytes": 368
+  },
+  {
+    "file": "short-mp4-done.png",
+    "sha256": "d06da449018cd992b7a22b140c26df4afe4e52025fbc522e1b142e84c6d6c73c",
+    "bytes": 86894
+  },
+  {
+    "file": "speech.json",
+    "sha256": "9b73fd44a983d700e378f6a7e0ac3cc2ae1a4feee3bd93bbdeca8687defe0933",
+    "bytes": 1041
+  },
+  {
+    "file": "webview-prerequisite.jsonl",
+    "sha256": "ea9b7ad2a23a78dac8aba73987f0f8180f0b918b361a1aea1beaa9fa8b5b3648",
+    "bytes": 754
+  }
+]

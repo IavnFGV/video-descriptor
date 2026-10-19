@@ -1,5 +1,30 @@
 # Windows: фактическая архитектура и решение
 
+## ADR-007: desktop preview 0.7, 18.10.2026
+
+Дополнение 19.10.2026: installer проверяет WebView2 через официальный loader API и
+наличие исполняемых файлов версии. При отсутствии рабочего Runtime скачивает
+закреплённый официальный Fixed Version CAB (SHA256 + Authenticode Microsoft),
+распаковывает в `windows-app/webview2-runtime` выбранной установки и повторяет проверку.
+WinForms host передаёт этот путь в CreateAsync; при отсутствии app-local Runtime
+использует обычное обнаружение Evergreen. Это позволяет поставить зависимость без
+системного Edge Updater и изменения ACL/реестра. Fixed Runtime обслуживается обновлениями
+нашего пакета; offline-повторный запуск не требует загрузки. Целевая проверка — Windows 11.
+Фактические результаты отражаются отдельно в отчёте Sandbox 0.7, а не выводятся из кода.
+
+Native launcher расширен WinForms/WebView2 окном и треем. Tauri 2 не введён:
+готовые app.py, Python payload, locks, очередь и per-user installer позволяют добавить
+только C# host без Rust и повторного управления сервисами. Ярлык → VideoDescriptor.exe →
+desktop.py → прежний app.py → прежний UI/API. По умолчанию native backend без Docker;
+Compose остаётся самостоятельным поддерживаемым путём.
+
+Health дополнен installation/desktop_protocol; сверяются workspace и instance из state.
+Mutex/activation event обеспечивают одно окно; прежний backend lock и exclusive Windows
+bind обеспечивают один listener. Крестик скрывает в трей без stop; явный выход использует
+прежний stop API с отказом при active queue. Внешние процессы не завершаются.
+Host/Origin/Fetch-Site guard защищает весь native handler; WebView ограничен origin
+приложения, native bridge отключён. Детали и границы проверки: [desktop](desktop-windows.md).
+
 Дополнение 18.10.2026: добавлен независимый [Compose CPU путь](container-install.md).
 Один Linux amd64 контейнер содержит HTTP и прежний subprocess-worker под supervisor.
 Постоянный `/workspace` хранит uploads, output/queue, настройки и HF cache; код установлен
@@ -343,3 +368,30 @@ finish/failure с типом этапа. API состояния речи теп�
 UI показывает этап очереди, отдельную версию, переведённые реплики, русский SRT и
 ссылку на конспект; при обработке прогресс неопределённый. Режим конспекта здесь
 speech-only. Конструктор слайдов/OCR остаётся расширенной возможностью.
+
+
+## Мастер AI, 18.10.2026
+
+Расширен прежний `SetupService`, новый supervisor не добавлен. `ComputeManager`
+сохраняет runtime inventory, health/profile проверки и запуск собственных workers.
+Его lock/reservation разделяют загрузку, probe, смену модели и постановку ASR в очередь.
+Windows PnP — отдельное read-only обнаружение: наличие устройства не даёт readiness.
+
+Защищённые instance/Host/Origin POST API `/api/setup/download`, `/probe`, `/complete`,
+`/refresh`, `/gemini` дополняют прежние import/inspect/Ollama API. Download требует
+`confirmed: true`; адреса и имена файлов берутся только из поставляемого манифеста.
+GET `/api/setup` возвращает прогресс без запуска inference; `/api/setup/diagnostics`
+возвращает отдельные возможности. Короткий probe принимает только WAV до 15 секунд.
+`POST /api/setup/probe` с JSON `{}` использует поставляемый
+`windows-app/samples/speech-check.wav`; бинарное тело сохраняет выбор собственного
+WAV. Частота, каналы, разрядность и длительность проверяются с отдельными пояснениями.
+Ни конвертации, ни обрезки нет. WAV и MP4 с синтетической речью включены в явный
+allowlist сборки, поэтому доступны и после установки, и в ZIP без скачивания.
+
+Один `model_download.py` реализует pinned Whisper, per-file SHA256, bounded streaming,
+повтор с проверенными файлами и атомарную публикацию. Настройки по-прежнему находятся
+в `config.local.json` и workspace `.devcontainer`; notes selection в `notes-settings.json`.
+Завершение мастера — `runtime/setup-state.json`. Installer сохраняет runtime и настройки.
+Сохранение Gemini через существующий translation_settings на Windows шифрует ключ DPAPI;
+public API возвращает только `has_key`. Модели не входят в installer. Подробности и
+границы проверок: [мастер](ai-setup-windows.md).

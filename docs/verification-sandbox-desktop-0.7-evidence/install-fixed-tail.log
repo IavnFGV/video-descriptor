@@ -1,0 +1,45 @@
+2026-10-19 01:12:36.989   -- File entry --
+2026-10-19 01:12:36.992   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\desktop-sdk\Microsoft.Web.WebView2.WinForms.dll
+2026-10-19 01:12:36.992   Time stamp of our file: 2024-11-10 09:57:38.000
+2026-10-19 01:12:36.992   Installing the file.
+2026-10-19 01:12:36.992   Successfully installed the file.
+2026-10-19 01:12:36.992   -- File entry --
+2026-10-19 01:12:36.992   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\desktop-sdk\VideoDescriptor.exe
+2026-10-19 01:12:36.992   Time stamp of our file: 2026-10-18 23:56:34.000
+2026-10-19 01:12:36.992   Installing the file.
+2026-10-19 01:12:36.992   Successfully installed the file.
+2026-10-19 01:12:36.992   -- File entry --
+2026-10-19 01:12:37.008   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\desktop-sdk\WebView2Loader.dll
+2026-10-19 01:12:37.009   Time stamp of our file: 2024-11-10 09:57:38.000
+2026-10-19 01:12:37.009   Installing the file.
+2026-10-19 01:12:37.009   Successfully installed the file.
+2026-10-19 01:12:37.009   -- File entry --
+2026-10-19 01:12:37.009   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\ui\app.css
+2026-10-19 01:12:37.009   Time stamp of our file: 2026-10-19 01:06:24.000
+2026-10-19 01:12:37.009   Installing the file.
+2026-10-19 01:12:37.009   Creating directory: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\ui
+2026-10-19 01:12:37.009   Successfully installed the file.
+2026-10-19 01:12:37.024   -- File entry --
+2026-10-19 01:12:37.024   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\ui\app.js
+2026-10-19 01:12:37.024   Time stamp of our file: 2026-10-19 01:06:24.000
+2026-10-19 01:12:37.024   Installing the file.
+2026-10-19 01:12:37.024   Successfully installed the file.
+2026-10-19 01:12:37.024   -- File entry --
+2026-10-19 01:12:37.024   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VideoDescriptor\windows-app\ui\index.html
+2026-10-19 01:12:37.024   Time stamp of our file: 2026-10-19 01:06:24.000
+2026-10-19 01:12:37.024   Installing the file.
+2026-10-19 01:12:37.024   Successfully installed the file.
+2026-10-19 01:12:37.024   -- Icon entry --
+2026-10-19 01:12:37.024   Dest filename: C:\Users\WDAGUtilityAccount\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Video Descriptor\Video Descriptor.lnk
+2026-10-19 01:12:37.024   Creating directory: C:\Users\WDAGUtilityAccount\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Video Descriptor
+2026-10-19 01:12:37.040   Creating the icon.
+2026-10-19 01:12:37.182   Successfully created the icon.
+2026-10-19 01:12:37.182   Saving uninstall information.
+2026-10-19 01:12:37.182   Creating new uninstall key: HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\{CA05C8BE-4CF2-4BCA-9B3C-597742FF04D1}_is1
+2026-10-19 01:12:37.182   Writing uninstall key values.
+2026-10-19 01:12:37.182   Detected previous administrative 64-bit install? No
+2026-10-19 01:12:37.182   Detected previous administrative 32-bit install? No
+2026-10-19 01:12:37.198   Installation process succeeded.
+2026-10-19 01:12:37.214   Need to restart Windows? No
+2026-10-19 01:13:13.004   Deinitializing Setup.
+2026-10-19 01:13:13.038   Log closed.

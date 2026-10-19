@@ -18,7 +18,7 @@ jobs:
           architecture: x64
       - name: Install development dependencies
         run: python -m pip install -r windows-app/requirements-lock.txt
-      - name: Unit and API checks including device availability matrix
+      - name: Unit and API checks including first-run wizard, downloads, secrets and device availability matrix
         env:
           PYTHONUTF8: '1'
           HF_HUB_OFFLINE: '1'
@@ -31,20 +31,26 @@ jobs:
           python -m pip check
       - name: Build verified runtime, ZIP and installer
         run: |
+          powershell -NoProfile -File windows-app/Prepare-Desktop.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -STA -File windows-app/Desktop.ps1 -Verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $compiler = & ./windows-app/Prepare-BuildTools.ps1
           python -X utf8 windows-app/build_release.py --iscc $compiler
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Real WebView2 window, UI document and close-to-tray smoke
+        run: python -X utf8 windows-app/verify_desktop.py --zip dist/VideoDescriptor-0.7.0-windows-x64.zip
       - name: Verify deterministic ZIP rebuild
         run: |
           python -X utf8 windows-app/build_release.py --output dist/rebuild
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $first = (Get-FileHash dist/VideoDescriptor-0.6.0-windows-x64.zip).Hash
-          $second = (Get-FileHash dist/rebuild/VideoDescriptor-0.6.0-windows-x64.zip).Hash
+          $first = (Get-FileHash dist/VideoDescriptor-0.7.0-windows-x64.zip).Hash
+          $second = (Get-FileHash dist/rebuild/VideoDescriptor-0.7.0-windows-x64.zip).Hash
           if ($first -ne $second) { throw 'ZIP is not reproducible from the same inputs' }
       - name: ZIP, install, running-update refusal, reinstall, upgrade fixture, uninstall
         run: |
           $compiler = Join-Path $PWD 'windows-app/runtime/build-cache/inno-6.7.3/ISCC.exe'
-          python -X utf8 windows-app/verify_release.py dist/VideoDescriptor-0.6.0-windows-x64.zip --installer dist/VideoDescriptor-0.6.0-windows-x64-setup.exe --iscc $compiler
+          python -X utf8 windows-app/verify_release.py dist/VideoDescriptor-0.7.0-windows-x64.zip --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --iscc $compiler
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain preview artifacts and verification report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -55,5 +61,6 @@ jobs:
             dist/*-setup.exe
             dist/SHA256SUMS.json
             dist/verification-release.json
+            dist/verification-desktop.json
           if-no-files-found: error
           retention-days: 14
