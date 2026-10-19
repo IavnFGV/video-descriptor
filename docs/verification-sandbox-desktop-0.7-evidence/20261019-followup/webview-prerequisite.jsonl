@@ -1,0 +1,4 @@
+﻿{"timestamp":"2026-10-19T03:34:27.8971734+03:00","details":{"version":null,"available":false},"event":"detect"}
+{"timestamp":"2026-10-19T03:34:37.8852692+03:00","details":{"version":null,"available":false},"event":"detect"}
+{"timestamp":"2026-10-19T03:34:39.3872593+03:00","details":{"publisher":"CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US","status":"Valid","sha256":"cf54aa717a0ebd05b40e87620724583cb6eb0a5b8b64764cc11e42822f68bf6c"},"event":"installer_verification"}
+{"timestamp":"2026-10-19T03:34:43.5808330+03:00","details":{"distribution":"fixed","path":"C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Programs\\VideoDescriptor\\windows-app\\webview2-runtime","version":"155.0.4283.62"},"event":"ready"}

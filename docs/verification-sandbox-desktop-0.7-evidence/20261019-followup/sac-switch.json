@@ -1,0 +1,10 @@
+﻿{
+    "authorization":  "User standing authorization for disposable Sandbox SAC Off, notified before change",
+    "timestamp":  "2026-10-19T03:33:02.1307590+03:00",
+    "after":  0,
+    "before":  1,
+    "environment":  "Windows Sandbox",
+    "host_changed":  false,
+    "instance":  "fresh-fixed-webview-guest",
+    "defender_firewall_changed":  false
+}

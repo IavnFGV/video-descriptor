@@ -889,5 +889,51 @@
       "sha256": "be8b72db514559781599690aaf709e73617fbc5a3b2e9c196accb470e8451186"
     }
   ],
-  "evidence_text_encoding": "UTF-8, normalized line endings/whitespace; original full logs retained in ignored runtime. Evidence .gitattributes preserves committed bytes for SHA256."
+  "evidence_text_encoding": "UTF-8, normalized line endings/whitespace; original full logs retained in ignored runtime. Evidence .gitattributes preserves committed bytes for SHA256.",
+  "latest_followup": {
+    "checked_on": "2026-10-19",
+    "code_commit": "d0ff14fd9d46ecfd152cb88aa730fdeef4ea7bc3",
+    "status": "USER_ACCEPTED_FOR_MERGE",
+    "user_confirmation": "ну все взлетело  комит пуш ммердж лили что там надо біло",
+    "agent_verified": [
+      "automatic app-local WebView2 provisioning in real Sandbox",
+      "CPU worker model load",
+      "WAV inference: 3 segments",
+      "short MP4 UI job completed on CPU"
+    ],
+    "user_verified": "User reported success after instructions for a new Sandbox and latest installer; individual checklist outcomes were not supplied.",
+    "not_independently_verified": [
+      "latest bundled-sample button in guest",
+      "editor/save and SRT/TXT",
+      "long running task in tray",
+      "offline/relaunch persistence"
+    ],
+    "known_issue": "Model folder picker timed out in agent guest; entering the model path worked. This picker was not fixed in these commits.",
+    "evidence": "verification-sandbox-desktop-0.7-evidence/20261019-followup",
+    "artifacts": [
+      {
+        "file": "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+        "bytes": 223908092,
+        "sha256": "1464b6a04c2c53a0155950dfd68c15a522218a1b9eac46e333ff0b2eaaaceb9f"
+      },
+      {
+        "file": "VideoDescriptor-0.7.0-windows-x64.zip",
+        "bytes": 265726681,
+        "sha256": "4c87bb9fc17c40eb3933be66ab7371d601d6fc09489a32680541d16c362090ae"
+      }
+    ],
+    "host_tests": {
+      "passed": 259,
+      "skipped": 2,
+      "ruff": "PASS",
+      "javascript_syntax": "PASS"
+    },
+    "ci": {
+      "Windows": "https://github.com/IavnFGV/video-descriptor/actions/runs/39183172794",
+      "Container": "https://github.com/IavnFGV/video-descriptor/actions/runs/39183172847",
+      "conclusion": "success"
+    },
+    "historical_fields_preserved": true,
+    "detailed_acceptance_complete": false
+  }
 }

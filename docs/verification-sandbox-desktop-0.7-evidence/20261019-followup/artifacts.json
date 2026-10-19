@@ -1,0 +1,12 @@
+[
+  {
+    "file": "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+    "bytes": 223908092,
+    "sha256": "1464b6a04c2c53a0155950dfd68c15a522218a1b9eac46e333ff0b2eaaaceb9f"
+  },
+  {
+    "file": "VideoDescriptor-0.7.0-windows-x64.zip",
+    "bytes": 265726681,
+    "sha256": "4c87bb9fc17c40eb3933be66ab7371d601d6fc09489a32680541d16c362090ae"
+  }
+]
