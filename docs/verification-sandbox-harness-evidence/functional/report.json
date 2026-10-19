@@ -1,0 +1,336 @@
+﻿{
+    "schema":  1,
+    "run_id":  "20261019-120602-241-functional",
+    "profile":  "Functional",
+    "git_sha":  "a21147344dee2666d1b87cc3c38784fa78cdbb5b",
+    "git_dirty":  true,
+    "fingerprint":  "80adc7bbc0e6ef21ec4644a382269967ebecc42372418695e16f7a034105304d",
+    "artifacts":  [
+                      {
+                          "file":  "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+                          "bytes":  223908092,
+                          "sha256":  "1464b6a04c2c53a0155950dfd68c15a522218a1b9eac46e333ff0b2eaaaceb9f"
+                      },
+                      {
+                          "file":  "VideoDescriptor-0.7.0-windows-x64.zip",
+                          "bytes":  265726681,
+                          "sha256":  "4c87bb9fc17c40eb3933be66ab7371d601d6fc09489a32680541d16c362090ae"
+                      }
+                  ],
+    "cache":  [
+
+              ],
+    "guest_id":  "78c57d390a4b42df86233d5b102c1e2e",
+    "artifact_versions":  [
+                              "0.7.0"
+                          ],
+    "dependency_versions":  {
+
+                            },
+    "environment":  "Windows Sandbox",
+    "contracts":  {
+                      "version":  1,
+                      "stages":  [
+                                     {
+                                         "name":  "preflight",
+                                         "dependencies":  [
+
+                                                          ],
+                                         "inputs":  [
+                                                        "WSB profile",
+                                                        "artifact SHA256",
+                                                        "cache manifests",
+                                                        "guest identity",
+                                                        "OS",
+                                                        "SAC policy"
+                                                    ],
+                                         "pass":  "Verified disposable Sandbox, supported profile, artifact and selected cache integrity",
+                                         "method":  "guest diagnostics"
+                                     },
+                                     {
+                                         "name":  "installer",
+                                         "dependencies":  [
+                                                              "preflight"
+                                                          ],
+                                         "inputs":  [
+                                                        "installer SHA256",
+                                                        "ZIP SHA256",
+                                                        "OS",
+                                                        "SAC profile",
+                                                        "lifecycle contract"
+                                                    ],
+                                         "pass":  "Security: unchanged enforcement rejects unsigned EXE with correlated Code Integrity event. Functional: fresh install and binary presence; full lifecycle when explicitly requested",
+                                         "method":  "native installer; lifecycle verifier"
+                                     },
+                                     {
+                                         "name":  "desktop",
+                                         "dependencies":  [
+                                                              "installer"
+                                                          ],
+                                         "inputs":  [
+                                                        "installed application",
+                                                        "WebView2 runtime"
+                                                    ],
+                                         "pass":  "Installed Start Menu shortcut opens actual WinForms/WebView2; setup wizard and component diagnostics render",
+                                         "method":  "WebView2 CDP pointer/DOM"
+                                     },
+                                     {
+                                         "name":  "whisper",
+                                         "dependencies":  [
+                                                              "desktop"
+                                                          ],
+                                         "inputs":  [
+                                                        "pinned official Whisper revision and hashes or explicit network download",
+                                                        "CPU runtime",
+                                                        "synthetic bundled MP4/WAV"
+                                                    ],
+                                         "pass":  "UI model setup, fresh CPU readiness, actual MP4 transcription with nonempty timestamped segments; short WAV probe unless exact prior proof applies",
+                                         "method":  "WebView2 CDP pointer/DOM; read-only API evidence"
+                                     },
+                                     {
+                                         "name":  "ollama-install",
+                                         "dependencies":  [
+                                                              "desktop"
+                                                          ],
+                                         "inputs":  [
+                                                        "pinned signed official installer cache object"
+                                                    ],
+                                         "pass":  "Valid Ollama signature, unattended install, local service version, UI status",
+                                         "method":  "guest preparation CLI plus actual application UI"
+                                     },
+                                     {
+                                         "name":  "ollama-model",
+                                         "dependencies":  [
+                                                              "ollama-install"
+                                                          ],
+                                         "inputs":  [
+                                                        "model tag",
+                                                        "verified model cache or explicit network pull"
+                                                    ],
+                                         "pass":  "Model physically present with digest; selected and connected through application UI",
+                                         "method":  "guest preparation CLI plus actual application UI"
+                                     },
+                                     {
+                                         "name":  "ollama-inference",
+                                         "dependencies":  [
+                                                              "ollama-model"
+                                                          ],
+                                         "inputs":  [
+                                                        "installed model digest",
+                                                        "Ollama version",
+                                                        "fixed synthetic prompt"
+                                                    ],
+                                         "pass":  "Real completed nonempty generation; records device-independent timing and raw response",
+                                         "method":  "diagnostic HTTP API; does not claim UI generation"
+                                     },
+                                     {
+                                         "name":  "translation",
+                                         "dependencies":  [
+                                                              "whisper",
+                                                              "ollama-inference"
+                                                          ],
+                                         "inputs":  [
+                                                        "UI-transcribed synthetic video",
+                                                        "selected model digest",
+                                                        "translation contract"
+                                                    ],
+                                         "pass":  "UI action completes separate translation job; saved nonempty Russian text, no translation errors, exported SRT with timestamps",
+                                         "method":  "WebView2 CDP pointer/DOM; read-only saved-file evidence"
+                                     },
+                                     {
+                                         "name":  "notes",
+                                         "dependencies":  [
+                                                              "translation"
+                                                          ],
+                                         "inputs":  [
+                                                        "source transcript",
+                                                        "notes model selection",
+                                                        "notes contract"
+                                                    ],
+                                         "pass":  "UI notes action completes; nonempty saved notes and translation; report HTML persists",
+                                         "method":  "WebView2 CDP pointer/DOM; read-only saved-file evidence"
+                                     },
+                                     {
+                                         "name":  "cleanup",
+                                         "dependencies":  [
+                                                              "preflight"
+                                                          ],
+                                         "inputs":  [
+                                                        "guest installation root",
+                                                        "host report directory"
+                                                    ],
+                                         "pass":  "Application processes confined to this guest installation disposed; reports preserved",
+                                         "method":  "guest process cleanup"
+                                     }
+                                 ]
+                  },
+    "status":  "BLOCKED",
+    "started_at":  "2026-10-19T09:06:34.1420696Z",
+    "finished_at":  "2026-10-19T09:06:43.1887480Z",
+    "elapsed_seconds":  8.823,
+    "os":  {
+               "caption":  "Microsoft Windows 11 Enterprise",
+               "memory_mb":  8191,
+               "architecture":  "64-bit",
+               "build":  "26100",
+               "version":  "10.0.26100"
+           },
+    "policy":  [
+
+               ],
+    "compatibility":  "4c0bd4034d7acbd07af3dd1fe02078db82a91d1d39a41df8f2c5cee8d595407a",
+    "error":  null,
+    "stages":  [
+                   {
+                       "name":  "preflight",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: Owner authorized Evaluation/Audit. No active supported SAC Evaluation/Audit policy. Microsoft documented transitions need recovery, ACL/ownership or EFI changes excluded by this task. No policy was changed.",
+                       "started_at":  "2026-10-19T09:06:35.0344762Z",
+                       "finished_at":  "2026-10-19T09:06:40.3205740Z",
+                       "seconds":  5.177,
+                       "evidence":  [
+                                        "initial-citool.json",
+                                        "initial-sac.json"
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "installer",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency preflight",
+                       "started_at":  "2026-10-19T09:06:40.4272814Z",
+                       "finished_at":  "2026-10-19T09:06:40.5106330Z",
+                       "seconds":  0.009,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "desktop",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency installer",
+                       "started_at":  "2026-10-19T09:06:40.6253865Z",
+                       "finished_at":  "2026-10-19T09:06:40.7398558Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "whisper",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency desktop",
+                       "started_at":  "2026-10-19T09:06:40.8121373Z",
+                       "finished_at":  "2026-10-19T09:06:40.8916184Z",
+                       "seconds":  0.002,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-install",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency desktop",
+                       "started_at":  "2026-10-19T09:06:41.0028813Z",
+                       "finished_at":  "2026-10-19T09:06:41.1294132Z",
+                       "seconds":  0.002,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-model",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency ollama-install",
+                       "started_at":  "2026-10-19T09:06:41.2729551Z",
+                       "finished_at":  "2026-10-19T09:06:41.3680663Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-inference",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency ollama-model",
+                       "started_at":  "2026-10-19T09:06:41.4791835Z",
+                       "finished_at":  "2026-10-19T09:06:41.5422350Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "translation",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency whisper, ollama-inference",
+                       "started_at":  "2026-10-19T09:06:41.9966503Z",
+                       "finished_at":  "2026-10-19T09:06:42.1216361Z",
+                       "seconds":  0.002,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "notes",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency translation",
+                       "started_at":  "2026-10-19T09:06:42.1691753Z",
+                       "finished_at":  "2026-10-19T09:06:42.2181906Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "cleanup",
+                       "status":  "PASS",
+                       "reason":  "Disposed application processes in this guest; cache and host reports preserved",
+                       "started_at":  "2026-10-19T09:06:42.3133881Z",
+                       "finished_at":  "2026-10-19T09:06:42.6745596Z",
+                       "seconds":  0.273,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   }
+               ]
+}

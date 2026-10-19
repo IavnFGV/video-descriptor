@@ -1,5 +1,33 @@
 # Windows: фактическая архитектура и решение
 
+## Sandbox harness, 19.10.2026
+
+Последующее уточнение: Functional поддерживает явно разрешённый владельцем guest-only
+SAC Off с единственным reboot и RunOnce/CLI resume; Security сохраняет стандартную
+политику. Выбранные SAC mode и interaction входят в fingerprint. `Api` использует
+реальные локальные API установленного приложения, отдельные порты в CI, настоящий
+CPU worker и сохранённые результаты. Он не выдаётся за UI-проверку; `UI` остаётся
+отдельным адаптером WinForms/WebView2. `verify_installed.py` проверяет версию/critical
+hashes после EXE-install, запускается установленным Python и завершает собственные
+процессы перед uninstall тестовой копии. Обычный Windows CI использует этот путь
+без Sandbox и без изменения SAC на runner. Политики и состояние хоста не меняются.
+
+`windows-app/sandbox/Run-Acceptance.ps1` создаёт frozen input, plan и `.wsb`
+с официальным LogonCommand → guest bootstrap → DAG стадий → host reports.
+Read-only input и отдельный проверенный read-only test cache не дают гостю доступа
+к checkout/ключам; writable mapping ограничен каталогом отчётов данного запуска.
+WebView2 уже готовит существующий installer. UI driver работает с установленным
+WinForms/WebView2 через guest-only loopback CDP, с реальными pointer/form действиями;
+API generation помечен отдельно как diagnostic. Формальные контракты стадий —
+`stage-contracts.json`; применимость прежнего результата связывается с hashes
+артефактов, harness, cache, Git SHA, ОС и профилем политики. Новый гость всегда
+получает физическую подготовку, независимо от прежнего PASS.
+Checkpoint идентифицирует экземпляр гостя, ограничивает resume двумя попытками
+и не восстанавливает выдуманное состояние после уничтожения Sandbox.
+Реальный Security профиль прошёл; Functional и UI/Ollama остаются BLOCKED
+при недоступном подтверждённом SAC Evaluation/Audit. Подробнее:
+[команды, кэш и границы проверки](../windows-app/sandbox/README.md).
+
 ## ADR-007: desktop preview 0.7, 18.10.2026
 
 Дополнение 19.10.2026: installer проверяет WebView2 через официальный loader API и

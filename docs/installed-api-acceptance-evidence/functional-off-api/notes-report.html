@@ -1,0 +1,148 @@
+<!doctype html><html lang="ru"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="assets/easymde.min.css">
+<title>Video Descriptor</title><style>
+body{font:16px/1.6 system-ui;max-width:1100px;margin:24px auto;padding:0 20px;background:#f7f8fa}
+video{width:100%;max-height:55vh;background:#111;position:sticky;top:0;z-index:1}
+.lecture-note{scroll-margin-top:20px}.lecture-note.current-note{outline:2px solid #2563eb}
+section{background:white;padding:20px;margin:20px 0;border-radius:12px}
+button{cursor:pointer;color:#1557aa;background:#eef4ff;border:0;padding:8px;border-radius:6px}
+img{max-width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere}h2{font-size:21px}
+nav{background:white;padding:20px;border-radius:12px}nav ul{list-style:none;padding:0}
+nav li{margin:12px 0}.kind{font-size:13px;color:#555;margin:0 8px}
+.correct{background:#e7f6ea;font-weight:bold;padding:6px}
+.player{position:sticky;top:0;z-index:2;background:#f7f8fa;padding-bottom:8px}
+.player video{position:static;max-height:48vh}
+#caption{padding:8px 12px;background:#fff;border-radius:8px;min-height:1.6em}
+.subtitle-ru{color:#28532f}.transcript{max-height:360px;overflow:auto;border:1px solid #dde2ea}
+.utterance{padding:8px 12px;border-bottom:1px solid #eee}
+.utterance.active,nav li.active{background:#e7efff}
+.utterance p{margin:3px 0}.subtitle-tools{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0}
+body[data-subtitles="original"] .subtitle-ru{display:none}
+body[data-subtitles="ru"] .subtitle-original{display:none}
+</style><link rel="stylesheet" href="assets/editor.css"><a href="/output/">← Материалы</a><h1 id="lecture-title">speech-check.mp4</h1><button id="rename-lecture">Изменить название</button><form id="title-form" hidden><label>Название записи <input id="title-input" maxlength="200" placeholder="Например: Лекция AWS"></label> <button type="submit">Сохранить название</button> <button type="button" id="cancel-title">Отмена</button></form><p id="title-status" role="status" hidden></p><p>Конспект создан моделью. Проверяйте существенные детали по источникам.</p><div class="workspace"><aside class="watch-pane"><div class="player"><video id="video" controls preload="metadata" src="../../data/uploads/7d2ac65ee2d64cf88b3c73677585c097/speech-check.mp4"><track kind="subtitles" src="original.vtt" srclang="en" label="Оригинал"><track kind="subtitles" src="ru.vtt" srclang="ru" label="Русский"></video><div id="caption" aria-live="off"></div><p id="playback-status" role="status" hidden></p></div><section data-subtitle-folder="processed-b3b157d7728543d2ae9668af067e3b45"><h2>Речь и перевод</h2><div class="subtitle-tools"><label>Показать <select id="subtitle-mode"><option value="original">Оригинал</option><option value="ru">Русский</option><option value="both" selected>Оба</option></select></label><label><input id="follow" type="checkbox" checked>Следить за видео</label><a href="original.vtt" download>Субтитры</a><a href="ru.vtt" download>Перевод</a></div><p>Нажмите на время реплики, чтобы перейти к ней.</p><div class="transcript" id="transcript"><div class="utterance" data-start="0.0" data-end="8.279999732971191"><button data-time="0.0">00:00:00</button><button class="edit-reply" data-edit-subtitle="s00001" title="Редактировать реплику" aria-label="Редактировать реплику 00:00:00">✎</button><strong> · Без разметки</strong><p class="subtitle-original">This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.</p><p class="subtitle-ru">Это локальная транскрипция тест. Синий поезд arrives в станцию на 9. Сохрани предложение как субтитры.</p></div></div></section></aside><main class="read-pane"><section id="personal-notes" data-editing="false"><div class="notes-toolbar"><button data-notes-view="read">Конспект</button><button data-notes-view="edit">Редактировать</button><button data-notes-view="model">Материал модели</button></div><div class="notes-actions"><button id="save-notes" disabled>Сохранить</button><button id="add-section">+ Раздел в этом месте</button><button id="download-notes">↓ Markdown</button><button id="download-draft" hidden>Скачать старый черновик</button></div><p id="editor-status" role="status">Открываем конспект…</p><details id="outline-group" class="notes-fold"><summary>Оглавление</summary><div id="personal-outline" aria-label="Оглавление конспекта"></div></details><div id="personal-preview"></div><div id="editor-pane" hidden><p>Заголовки с временем, например <code>## [00:05:30] Тема</code>, связываются с видео.</p><textarea id="notes-editor" aria-label="Редактор конспекта"></textarea></div><textarea id="editor-seed" hidden>## Оглавление
+### [00:00:00] Без разметки: This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.
+
+---
+
+## Конспект
+### [00:00:00] Без разметки: This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.
+
+**Тема:** Трансформация текста в формат субтитров.
+
+**Объяснение:**
+В данном случае требуется преобразование исходного текстового сообщения в структурированный формат, содержащий временные метки и заголовки слайдов. Цель — обеспечить удобство чтения и воспроизведения информации для аудитории.
+
+**Примеры действий:**
+1.  **Запись текста:** Перевести исходный текст на русский язык.
+2.  **Создание заголовков:** Определить временные метки (ЧЧ:ММ:СС) для каждого слайда.
+3.  **Формирование структуры:** Разбить материал на логические блоки, соответствующие тематическим вопросам.
+
+**Практическое действие:**
+1.  Записать исходный текст в формате «Без разметки».
+2.  Перевести его в формат «С субтитрами», используя запрошенные временные метки и заголовки.
+3.  Сохранить результат как файл с расширением `.txt` или `.srt`.
+
+**Ограничения:**
+*   Не использовать внешние источники информации.
+*   Ограничить количество слов на один слайд, если это не требуется.
+*   Убедиться, что временные метки соответствуют реальному времени события.</textarea></section><div id="model-material" hidden><details class="notes-fold"><summary>Разделы видео</summary><nav aria-label="Разделы видео"><h2>Разделы видео</h2><p>Нажмите на время, чтобы перейти к разделу. Границы приблизительные.</p><ul><li data-start="0.0" data-end="8.279999732971191"><button data-time="0.0">00:00:00–00:00:08</button> <span class="kind">тема</span> Без разметки: This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.</li></ul></nav><section><h3><button data-time="0.0">00:00:00</button> Без разметки: This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.</h3><details><summary>Источники</summary><p><button data-time="0.0">00:00:00 s00001</button></p><pre>This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.</pre></details></section></details><h2>Конспект</h2><section class="lecture-note" data-note-time="0.0"><h2><button data-time="0.0">00:00:00</button> Без разметки: This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.</h2><p>**Тема:** Трансформация текста в формат субтитров.
+
+**Объяснение:**
+В данном случае требуется преобразование исходного текстового сообщения в структурированный формат, содержащий временные метки и заголовки слайдов. Цель — обеспечить удобство чтения и воспроизведения информации для аудитории.
+
+**Примеры действий:**
+1.  **Запись текста:** Перевести исходный текст на русский язык.
+2.  **Создание заголовков:** Определить временные метки (ЧЧ:ММ:СС) для каждого слайда.
+3.  **Формирование структуры:** Разбить материал на логические блоки, соответствующие тематическим вопросам.
+
+**Практическое действие:**
+1.  Записать исходный текст в формате «Без разметки».
+2.  Перевести его в формат «С субтитрами», используя запрошенные временные метки и заголовки.
+3.  Сохранить результат как файл с расширением `.txt` или `.srt`.
+
+**Ограничения:**
+*   Не использовать внешние источники информации.
+*   Ограничить количество слов на один слайд, если это не требуется.
+*   Убедиться, что временные метки соответствуют реальному времени события.</p><details><summary>Источники</summary><p><button data-time="0.0">00:00:00 s00001</button></p><pre>This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.</pre></details></section></div></main></div><script>
+const video=document.getElementById('video');
+const rows=Array.from(document.querySelectorAll('.utterance'));
+const caption=document.getElementById('caption');
+const transcript=document.getElementById('transcript');
+const mode=document.getElementById('subtitle-mode');
+let active=null;
+function sync(){
+  const time=video.currentTime;
+  let low=0,high=rows.length-1,index=-1;
+  while(low<=high){const mid=(low+high)>>1;
+    if(Number(rows[mid].dataset.start)<=time){index=mid;low=mid+1;}else high=mid-1;
+  }
+  const next=index>=0&&time<Number(rows[index].dataset.end)?rows[index]:null;
+  if(next!==active){
+    if(active)active.classList.remove('active');
+    active=next;caption.replaceChildren();
+    if(active){
+      active.classList.add('active');
+      active.querySelectorAll('p').forEach(line=>caption.append(line.cloneNode(true)));
+      if(document.getElementById('follow').checked){
+        transcript.scrollTop=active.offsetTop-transcript.offsetTop-transcript.clientHeight/2;
+      }
+    }
+  }
+  document.querySelectorAll('nav li[data-start]').forEach(row=>{
+    row.classList.toggle('active',time>=Number(row.dataset.start)&&time<Number(row.dataset.end));
+  });
+}
+if(mode){document.body.dataset.subtitles=mode.value;
+mode.addEventListener('change',()=>{document.body.dataset.subtitles=mode.value;});}
+function followNotes(){
+  const preview=document.getElementById('personal-preview');
+  const material=document.getElementById('model-material');
+  const container=preview&&!preview.hidden?preview:material&&!material.hidden?material:null;
+  if(!container)return;
+  const notes=Array.from(container.querySelectorAll('[data-note-time]'));
+  if(!notes.length)return;
+  const time=video.currentTime;
+  let target=null;
+  for(const note of notes){
+    const start=Number(note.dataset.noteTime);
+    if(start<=time&&(!target||start>Number(target.dataset.noteTime)))target=note;
+  }
+  if(!target)target=notes.reduce((first,note)=>Number(note.dataset.noteTime)<Number(first.dataset.noteTime)?note:first);
+  notes.forEach(note=>note.classList.toggle('current-note',note===target));
+  for(let parent=target.parentElement;parent&&parent!==container;parent=parent.parentElement){
+    if(parent.tagName==='DETAILS')parent.open=true;
+  }
+  target.scrollIntoView({behavior:'smooth',block:'start'});
+}
+video.addEventListener('timeupdate',sync);
+video.addEventListener('seeked',()=>{sync();followNotes();});
+const status=document.getElementById('playback-status');
+let pendingTime=null;
+function seekTo(time){
+  pendingTime=time;
+  if(video.readyState===0){
+    status.hidden=false;status.textContent='Загружаем видео для перехода…';
+    video.preload='auto';video.load();return;
+  }
+  pendingTime=null;
+  video.currentTime=Math.min(time,Number.isFinite(video.duration)?video.duration:time);
+  status.hidden=true;
+  sync();
+  video.play().catch(()=>{
+    status.hidden=false;status.textContent='Нажмите ▶ в плеере, чтобы начать воспроизведение.';
+  });
+}
+video.addEventListener('loadedmetadata',()=>{if(pendingTime!==null)seekTo(pendingTime);});
+video.addEventListener('error',()=>{
+  status.hidden=false;status.textContent='Не удалось загрузить видео. Откройте отчёт через локальный сервер.';
+});
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-time]');
+  if(button){const time=Number(button.dataset.time);if(Number.isFinite(time)&&time>=0)seekTo(time);}
+});</script>
+<script src="assets/easymde.min.js"></script>
+<script src="assets/purify.min.js"></script>
+<script src="assets/editor.js"></script>
+<script src="assets/speech-edit.js?v=d480d0d766ef"></script>
+<script src="assets/subtitle-report.js?v=25f71efe39a1"></script></html>

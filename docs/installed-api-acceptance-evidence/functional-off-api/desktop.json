@@ -1,0 +1,77 @@
+{
+  "stage": "desktop",
+  "status": "PASS",
+  "method": "real installed application HTTP API; no UI claim",
+  "installation": {
+    "app": "video-descriptor-windows",
+    "version": "0.7.0-prototype",
+    "workspace": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Programs\\VideoDescriptor\\windows-app\\runtime\\workspace",
+    "installation": "772c9d8d1add1db97336962d085e5d34f6dbbfd036360380ade1a001ae797efc",
+    "desktop_protocol": 1
+  },
+  "diagnostics": {
+    "hardware": {
+      "cpu": "Intel64 Family 6 Model 189 Stepping 1, GenuineIntel",
+      "intel_gpu": [
+        "Intel(R) Arc(TM) 140V GPU (16GB)"
+      ],
+      "intel_npu": [
+        "Intel(R) AI Boost"
+      ]
+    },
+    "inventory": {
+      "devices": [
+        "CPU"
+      ],
+      "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+      "genai": "2026.4.1.0-3408-ab01d1771e4",
+      "model_present": false
+    },
+    "runtime_python": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Programs\\VideoDescriptor\\python\\python.exe",
+    "runtime_present": true,
+    "gemini": {
+      "provider": "ollama",
+      "model": "gemini-3.5-flash-lite",
+      "ollama_model": "",
+      "billing_mode": "paid",
+      "free_ack": false,
+      "has_key": false
+    },
+    "ocr": {
+      "detected": false,
+      "ready": false,
+      "message": "Tesseract не найден; необязательный компонент"
+    },
+    "translation": {
+      "state": "setup_required",
+      "message": "Модель/ключ настроены; генерация выполняется по запросу"
+    },
+    "notes": {
+      "state": "setup_required",
+      "selected": "",
+      "message": "Выберите модель Ollama для конспекта"
+    },
+    "diarization": {
+      "state": "unavailable",
+      "message": "Windows диаризация не проверена; можно пропустить"
+    }
+  },
+  "setup": {
+    "model_path": "C:\\Users\\WDAGUtilityAccount\\Downloads\\windows-benchmark\\OpenVINO-whisper-small-fp16-ov",
+    "model_present": false,
+    "verified": false,
+    "model_name": "Whisper small FP16",
+    "downloads": true,
+    "download": {
+      "source": "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+      "revision": "2410d022171ca8a97343182f88eec8807a324db9",
+      "download_bytes": 493208911
+    },
+    "operation": {
+      "status": "idle",
+      "message": ""
+    },
+    "completed": false
+  },
+  "elapsed_seconds": 7.562
+}

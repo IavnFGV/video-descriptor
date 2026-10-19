@@ -1,0 +1,183 @@
+{
+  "stage": "whisper",
+  "status": "PASS",
+  "method": "real installed application HTTP API; no UI claim",
+  "installation": {
+    "app": "video-descriptor-windows",
+    "version": "0.7.0-prototype",
+    "workspace": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\workspace",
+    "installation": "2bda3e6bcfb6f7d586ae8ceac03f44a05ce04ccd8f470c772b9770de570e4757",
+    "desktop_protocol": 1
+  },
+  "model": {
+    "path": "C:\\VD-Cache\\whisper-model-f121c757daf83d8f808b05c1\\payload",
+    "model": "Whisper small FP16",
+    "sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+    "bytes": 491790028,
+    "verified": true
+  },
+  "compute": {
+    "settings": {
+      "speech_device": "CPU"
+    },
+    "capabilities": {
+      "NPU": {
+        "available": false,
+        "ready": false,
+        "detected": false,
+        "runtime_ready": true,
+        "model_present": true,
+        "service_ready": false,
+        "reason": "Устройство не обнаружено OpenVINO"
+      },
+      "GPU": {
+        "available": false,
+        "ready": false,
+        "detected": false,
+        "runtime_ready": true,
+        "model_present": true,
+        "service_ready": false,
+        "reason": "Устройство не обнаружено OpenVINO"
+      },
+      "CPU": {
+        "available": true,
+        "ready": true,
+        "detected": true,
+        "runtime_ready": true,
+        "model_present": true,
+        "service_ready": true,
+        "engine": {
+          "protocol": 1,
+          "device": "CPU",
+          "model": "small",
+          "pipeline": "dynamic",
+          "multilingual": true,
+          "word_timestamps": false,
+          "num_beams": 1,
+          "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+          "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+          "genai": "2026.4.1.0-3408-ab01d1771e4"
+        },
+        "reason": "Готово"
+      }
+    },
+    "selected": "CPU",
+    "preparing": false,
+    "operation": null,
+    "error": ""
+  },
+  "worker_health": {
+    "protocol": 1,
+    "device": "CPU",
+    "model": "small",
+    "pipeline": "dynamic",
+    "multilingual": true,
+    "word_timestamps": false,
+    "num_beams": 1,
+    "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+    "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+    "genai": "2026.4.1.0-3408-ab01d1771e4"
+  },
+  "asr": {
+    "device": "CPU",
+    "segments": 1,
+    "duration": 9.138005,
+    "text": "This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.",
+    "timestamps_valid": true
+  },
+  "result": {
+    "job": {
+      "id": "3b636388cf6d40fba57b869f58b9c08e",
+      "video": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\workspace\\data\\uploads\\3b636388cf6d40fba57b869f58b9c08e\\speech-check.mp4",
+      "filename": "speech-check.mp4",
+      "title": "",
+      "thinking": false,
+      "mode": "audio",
+      "engine": "whisper-local",
+      "status": "done",
+      "created": 1792404209.7318385,
+      "folder": "speech-3b636388cf6d40fba57b869f58b9c08e",
+      "language": "en",
+      "speech_only": true,
+      "device_plan": {
+        "version": 1,
+        "requested": "CPU",
+        "selected": "CPU",
+        "engine": {
+          "protocol": 1,
+          "device": "CPU",
+          "model": "small",
+          "pipeline": "dynamic",
+          "multilingual": true,
+          "word_timestamps": false,
+          "num_beams": 1,
+          "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+          "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+          "genai": "2026.4.1.0-3408-ab01d1771e4"
+        },
+        "backends": [
+          {
+            "device": "CPU",
+            "url": "http://127.0.0.1:49896",
+            "command": [
+              "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\python\\python.exe",
+              "-X",
+              "utf8",
+              "-u",
+              "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\whisper_worker.py",
+              "--model",
+              "C:\\VD-Cache\\whisper-model-f121c757daf83d8f808b05c1\\payload",
+              "--device",
+              "CPU",
+              "--port",
+              "49896"
+            ],
+            "expected_model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809"
+          }
+        ],
+        "runtime": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\backends",
+        "selection_reasons": []
+      },
+      "started": 1792404210.8779507,
+      "error": null,
+      "finished": 1792404217.0142486
+    },
+    "result": {
+      "folder": "speech-3b636388cf6d40fba57b869f58b9c08e",
+      "video": "data\\uploads\\3b636388cf6d40fba57b869f58b9c08e\\speech-check.mp4",
+      "title": "speech-check.mp4",
+      "engine": "whisper-local",
+      "duration": 9.138005,
+      "created": 1792404211.171662,
+      "status": "done",
+      "message": "Распознавание завершено",
+      "processed": 9.138005,
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 8.279999732971191,
+          "text": "This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.",
+          "speaker": "Без разметки",
+          "id": "s00001"
+        }
+      ],
+      "speaker_names": {},
+      "stage": "done",
+      "job_id": "3b636388cf6d40fba57b869f58b9c08e",
+      "device": "CPU",
+      "device_switches": [],
+      "requested_device": "CPU",
+      "timing": "segment",
+      "speaker_notice": "Whisper возвращает таймкоды целых реплик; границы слов пока не определяются.",
+      "no_speech": false,
+      "speaker_options": [
+        "unknown",
+        "Без разметки"
+      ],
+      "translations": {},
+      "has_translation": false,
+      "edit_revision": "1bf031194d2c3f00067704b8d27903a42bd39592824d995416001dc09623e126"
+    }
+  },
+  "elapsed_seconds": 19.703
+}

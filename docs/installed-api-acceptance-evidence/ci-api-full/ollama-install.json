@@ -1,0 +1,31 @@
+{
+  "stage": "ollama-install",
+  "status": "PASS",
+  "method": "real installed application HTTP API; no UI claim",
+  "installation": {
+    "app": "video-descriptor-windows",
+    "version": "0.7.0-prototype",
+    "workspace": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\workspace",
+    "installation": "2bda3e6bcfb6f7d586ae8ceac03f44a05ce04ccd8f470c772b9770de570e4757",
+    "desktop_protocol": 1
+  },
+  "ollama_version": {
+    "version": "0.40.6"
+  },
+  "app_status": {
+    "ready": false,
+    "model_present": false,
+    "compatible": false,
+    "detected": false,
+    "service_ready": true,
+    "selected": "qwen3.5:9b",
+    "models": [
+      {
+        "name": "qwen3.5:0.8b",
+        "bytes": 1322069277
+      }
+    ],
+    "message": "Выберите установленную модель для перевода"
+  },
+  "elapsed_seconds": 0.093
+}

@@ -1,0 +1,2 @@
+# Preserve original diagnostic bytes.
+* -text -whitespace

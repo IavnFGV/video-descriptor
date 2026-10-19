@@ -1,0 +1,38 @@
+[
+  {
+    "file": "Acceptance.Common.ps1",
+    "sha256": "d546f0e51fcf1c1e2bd567be78485079ca9f6135d7b204248004a0e39d4f885e"
+  },
+  {
+    "file": "acceptance_ui.py",
+    "sha256": "5b37a673538c6ab9d77625d8f0ec874a2890f723c877876c2e357f68aacffd93"
+  },
+  {
+    "file": "Bootstrap-Acceptance.ps1",
+    "sha256": "dcc6b1f719eda330a8f80f70afdc439551964c283004eda702ae170a8194a6e1"
+  },
+  {
+    "file": "Enable-Sandbox.ps1",
+    "sha256": "c6591cb33cd583058c8886dbdfb8e88d794c99a0ae2a53794e9621255249e098"
+  },
+  {
+    "file": "Register-TestCache.ps1",
+    "sha256": "582b39d11cddd5b2d145ffa6aa2d4b69b0e3c2a77c0f4245aa4c38e9fb2615f5"
+  },
+  {
+    "file": "Run-Acceptance.ps1",
+    "sha256": "4b308895129e7c17b5dcbf4fd5ad941f1cba31966a576b241cdf9293ba579cc9"
+  },
+  {
+    "file": "Run-GuestChecks.ps1",
+    "sha256": "99286af7ea102f3da0319dae3f7ddf574b69e254561ba313e74b5ecea93d8c13"
+  },
+  {
+    "file": "stage-contracts.json",
+    "sha256": "f6a03c646f73cfabe2ce3d9e3666cb80004ff984b48dc45406d142f231553a5f"
+  },
+  {
+    "file": "verify_release.py",
+    "sha256": "36e00e23a46ad720786bfbbdf83465f6a42e4ed36d4176d193103de5ebf5f9c5"
+  }
+]

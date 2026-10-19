@@ -1,0 +1,8 @@
+﻿{
+    "attempts":  1,
+    "timestamp":  "2026-10-19T09:02:36.7228780Z",
+    "guest_id":  "611e458d89814c34abfcb419faf2cab7",
+    "phase":  "cleanup",
+    "state":  "PASS",
+    "run_id":  "20261019-120136-110-security"
+}

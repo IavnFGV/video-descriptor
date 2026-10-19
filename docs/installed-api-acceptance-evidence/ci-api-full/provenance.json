@@ -1,0 +1,13 @@
+{
+  "quality_scope": "Functional result presence, persistence and export; no linguistic quality threshold or UI claim",
+  "exit_code": 0,
+  "method": "Supplemental invocation of exact installed verifier with corrected sources; parent run FAIL is preserved",
+  "parent_run": "20261019-125347-739-functional",
+  "source_hashes": {
+    "Run-CiInstalledCheck.ps1": "6c91470e53e4652abb2b7d2210582ff43cb8f3af51c4b75375ea9a2cac45acf6",
+    "verify_installed.py": "7a0e41b92fe3fe6c524c2765ac4e08a83e2697699e445dd4f535897714b60a70",
+    "acceptance_api.py": "59837b772feada2ac91f63e01e58e052956b5dc6d2b3c67a4f932a859bfe8d99"
+  },
+  "remote_github_ci_run": false,
+  "run": "ci-api-full"
+}

@@ -1,0 +1,7 @@
+{
+  "model": "qwen3.5:0.8b",
+  "source": "https://registry.ollama.ai/v2/library/qwen3.5/manifests/0.8b",
+  "manifest_sha256": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+  "model_directory": "E:\\LocalAI\\video desriptor\\windows-app\\runtime\\public-test-ollama-models\\qwen3.5",
+  "blobs_verified": 7
+}

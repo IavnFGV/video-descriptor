@@ -1,0 +1,2 @@
+﻿System.InvalidOperationException: This command cannot be run due to the error: An Application Control policy has blocked this file.
+   at System.Management.Automation.MshCommandRuntime.ThrowTerminatingError(ErrorRecord errorRecord)
