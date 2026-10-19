@@ -26,7 +26,8 @@
     "video_descriptor/jobs.py": "19.10.2026: surface saved speech failure reason instead of hiding it behind a generic log reference; queue and persisted statuses unchanged.",
     "video_descriptor/postprocess.py": "User-requested native diarization task dispatches independent worker without invoking ASR or Ollama; existing tasks unchanged.",
     "windows-app/app.py": "User-requested diarization extends existing authenticated postprocess action with task=diarize and local capability status; no new endpoint or security-policy change.",
-    "windows-app/setup_service.py": "Expose configured native diarization environment separately from recognition hardware readiness."
+    "windows-app/setup_service.py": "Expose configured native diarization environment separately from recognition hardware readiness.",
+    "windows-app/build_release.py": "Include the native diarization worker, optional setup script, pinned dependency requirements and guide in the existing explicit release source allowlist; no models or extra runtime dependencies bundled."
   },
   "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required. Subsequent explicitly requested backend fixes are listed individually above; immutable UI baseline and handler/API checks remain in force."
 }

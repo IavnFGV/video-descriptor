@@ -96,16 +96,17 @@ def source_paths():
     paths += [p for name in ('assets', 'prompts') for p in (ROOT / 'video_descriptor' / name).rglob('*') if p.is_file()]
     paths += [HERE / name for name in (
         'app.py', 'compute.py', 'setup_service.py', 'model_download.py', 'whisper_worker.py', 'release_lifecycle.py',
+        'diarization_worker.py', 'Prepare-Diarization.ps1',
         'desktop.py', 'Desktop.ps1', 'DesktopHost.cs', 'app.ico',
         'Start-App.ps1', 'Ensure-WebView2.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
     paths += [p for p in (HERE / 'ui').iterdir() if p.is_file()]
     paths += [HERE / 'samples' / name for name in ('speech-check.wav', 'speech-check.mp4', 'README.md')]
-    paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md']
+    paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md', ROOT / 'requirements-diarization.txt']
     paths += [ROOT / 'docs' / name for name in ('architecture-windows.md', 'device-policy-and-release.md',
                                                'competitive-analysis.md', 'verification-devices.md',
                                                'verification-devices.json', 'windows-release.md',
-                                               'desktop-windows.md', 'ai-setup-windows.md')]
+                                               'desktop-windows.md', 'ai-setup-windows.md', 'native-diarization.md')]
     return sorted({p for p in paths if '__pycache__' not in p.parts})
 
 
