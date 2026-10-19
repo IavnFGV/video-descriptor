@@ -89,6 +89,9 @@ def test_fast_and_smoke_have_no_models_or_full_lifecycle():
     assert all(word not in str(smoke) for word in ['prepare_test_model.py', 'Prepare-TestOllama', '--with-ollama'])
     assert all('--installer' not in s.get('run', '') for s in smoke if 'verify_release.py' in s.get('run', ''))
     assert 'inputs.installer' == next(s['if'] for s in smoke if 'check-installer-smoke.py' in s.get('run', ''))
+    # Add-Type -OutputType WindowsApplication is unsupported in PowerShell Core.
+    sdk = next(s for s in smoke if s.get('name') == 'Desktop SDK')
+    assert sdk['run'].startswith('powershell -NoProfile -File ')
 
 
 def test_pr_routing_uses_merge_base_and_accounts_for_renames(monkeypatch):

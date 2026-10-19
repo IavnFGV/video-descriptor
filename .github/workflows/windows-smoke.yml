@@ -40,7 +40,7 @@ jobs:
         key: windows-build-v1-${{ hashFiles('windows-app/release-inputs.json', 'windows-app/requirements-release.txt',
           'windows-app/release-wheels.json') }}
     - name: Desktop SDK
-      run: ./windows-app/Prepare-Desktop.ps1
+      run: powershell -NoProfile -File windows-app/Prepare-Desktop.ps1
     - name: Build ZIP once; installer only for packaging changes
       run: |-
         $arguments = @()
