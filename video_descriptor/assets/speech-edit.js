@@ -66,7 +66,28 @@
       }catch(e){select.value=row.speaker;feedback.textContent=e.message;}
       finally{editing=false;select.disabled=false;select.removeAttribute('aria-busy');}
     };
-    holder.append(select,feedback);return holder;
+    const add=document.createElement('button'), name=document.createElement('input');
+    add.type='button';add.className='vd-button vd-button--compact';add.title='Добавить нового говорящего в эту запись';
+    add.setAttribute('aria-label','Добавить говорящего');
+    add.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z M2 10v1a6 6 0 0 0 12 0v-1 M8 17v4 M5 21h6 M19 5v8 M15 9h8"/></svg>';
+    name.className='vd-input speaker-name-input';name.maxLength=100;name.hidden=true;name.placeholder='Имя нового говорящего';name.setAttribute('aria-label','Имя нового говорящего');
+    let adding=false,publishing=false;
+    const cancel=()=>{adding=false;editing=false;name.hidden=true;add.hidden=false;feedback.textContent='';add.focus();};
+    add.onclick=()=>{if(editing)return;editing=true;adding=true;name.value='';name.hidden=false;add.hidden=true;name.focus();};
+    const create=async()=>{
+      if(!adding||publishing)return;
+      const label=name.value.trim();if(!label){feedback.textContent='Введите имя нового говорящего.';return;}
+      publishing=true;name.disabled=true;feedback.textContent='Добавляем…';
+      try{
+        const id='speaker_'+crypto.randomUUID().replaceAll('-',''),names={...original.speaker_names,[id]:label};
+        await post('/api/speech-names',{folder:original.folder,speaker_names:names});
+        adding=false;editing=false;onSave({...original,speaker_names:names,speaker_options:[...speakers,id]});
+      }catch(e){feedback.textContent=e.message;}
+      finally{publishing=false;name.disabled=false;}
+    };
+    name.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();create();}if(e.key==='Escape'&&!publishing){e.preventDefault();cancel();}};
+    name.onblur=()=>{if(adding&&!publishing){if(name.value.trim())create();else cancel();}};
+    holder.append(select,add,name,feedback);return holder;
   };
   window.editSpeechReply = function(original, index, video, onSave){
     if(editing)return;

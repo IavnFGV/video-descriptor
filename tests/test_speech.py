@@ -232,3 +232,20 @@ def test_npu_and_gpu_actually_overlap_and_merge_after_both_finish(tmp_path, monk
     assert result['status'] == 'done'
     assert result['segments'][0]['speaker'] == 'SPEAKER_00'
     assert result['parallel']['diarization'] == 'готово'
+
+
+def test_named_new_speaker_can_be_assigned_and_survives_reload(tmp_path):
+    folder = tmp_path / 'output/speech-test'
+    folder.mkdir(parents=True)
+    original = {'status': 'done', 'speaker_names': {'speaker_new': 'Анна'}, 'segments': [
+        {'start': 0, 'end': 2, 'text': 'Hello', 'speaker': 'SPEAKER_00'}]}
+    speech.write_json(folder / 'speech.json', original)
+    state = speech.editable_result(folder, original)
+    assert 'speaker_new' in state['speaker_options']
+    saved = speech.edit_utterance(tmp_path, {'folder': folder.name, 'revision': state['edit_revision'],
+            'action': 'edit', 'index': 0, 'text': 'Hello', 'speaker': 'speaker_new'})
+    assert saved['segments'][0]['speaker'] == 'speaker_new'
+    loaded = speech.state(tmp_path, {'folder': [folder.name]})['result']
+    assert loaded['speaker_names']['speaker_new'] == 'Анна'
+    assert loaded['segments'][0]['speaker'] == 'speaker_new'
+    assert speech.read_json(folder / 'speech.json')['segments'] == original['segments']

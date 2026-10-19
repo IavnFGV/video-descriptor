@@ -30,7 +30,7 @@ def editable_result(folder, result):
     if transcript:
         result['segments'] = [{**row, 'id': transcript[index]['id']}
                               for index, row in enumerate(result['segments']) if index < len(transcript)]
-    result['speaker_options'] = sorted({s['speaker'] for s in result['segments']} | {'unknown'})
+    result['speaker_options'] = sorted({s['speaker'] for s in result['segments']} | set(result.get('speaker_names', {})) | {'unknown'})
     edits = read_json(folder / 'transcript-edits.json')
     if edits:
         result['segments'] = edits['segments']
@@ -72,7 +72,7 @@ def edit_utterance(root, value):
         if type(index) is not int or not 0 <= index < len(result['segments']):
             raise ValueError('Реплика не найдена')
         old = result['segments'][index]
-        known = {s['speaker'] for s in original['segments']} | {'unknown'}
+        known = {s['speaker'] for s in original['segments']} | set(original.get('speaker_names', {})) | {'unknown'}
 
         def part(text, speaker, start, end):
             if not isinstance(text, str) or not text.strip() or len(text) > 100_000:
