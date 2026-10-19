@@ -8,20 +8,22 @@
   let polling = false, lastSnapshot = null, uploadBusy = false, polls = 0;
   const rendered = {};
   let promptData = null, promptTask = null;
-  const promptDrafts = {};
+  const promptDrafts = window.studioDraft.prompts();
   function selectPrompt() {
     if (!promptData) return;
-    if (promptTask) promptDrafts[promptTask] = $('model-prompt').value;
     promptTask = $('prompt-task').value;
     $('model-prompt').value = promptDrafts[promptTask] ?? promptData.prompts[promptTask];
+    window.studioDraft.savePrompts(promptDrafts,promptTask);
   }
   $('prompt-task').onchange = selectPrompt;
+  $('model-prompt').addEventListener('input',()=>{if(promptTask){promptDrafts[promptTask]=$('model-prompt').value;window.studioDraft.savePrompts(promptDrafts,promptTask);}});
   $('open-prompt-settings').onclick = () => { window.studioUI.openStage('notes'); $('prompt-settings-panel').open = true; };
   if (location.hash === '#translation-settings-panel') {
     window.studioUI.openStage('speech'); $('translation-settings-panel').open = true;
   }
   $('reset-prompt').onclick = () => {
     $('model-prompt').value = promptData.defaults[promptTask];
+    $('model-prompt').dispatchEvent(new Event('input',{bubbles:true}));
     $('prompt-status').textContent = 'Стандартный промпт восстановлен в редакторе. Нажмите «Сохранить промпт».';
   };
   $('prompt-settings-form').onsubmit = async event => {
@@ -30,7 +32,8 @@
     const task = promptTask, content = $('model-prompt').value;
     try {
       promptData = await json('/api/prompts', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({task, text: content})});
-      promptDrafts[task] = content;
+      delete promptDrafts[task];window.studioDraft.savePrompts(promptDrafts,promptTask);
+      window.studioDraft.clear($('prompt-settings-form'));
       $('prompt-status').textContent = 'Сохранено. Промпт будет использован в следующих блоках обработки.';
     } catch (error) { $('prompt-status').textContent = error.message; }
     finally { $('save-prompt').disabled = false; }
@@ -38,6 +41,8 @@
   json('/api/prompts').then(data => {
     promptData = data;
     $('prompt-task').replaceChildren(...Object.entries(data.titles).map(([task, title]) => { const option = text('option', title); option.value = task; return option; }));
+    const rememberedTask=window.studioDraft.promptTask();
+    if([...$('prompt-task').options].some(option=>option.value===rememberedTask))$('prompt-task').value=rememberedTask;
     selectPrompt(); $('save-prompt').disabled = false; $('reset-prompt').disabled = false;
     $('prompt-status').textContent = 'Редактируйте инструкцию и сохраните изменения.';
   }).catch(error => { $('prompt-status').textContent = error.message; });
@@ -162,6 +167,7 @@
         const option = document.createElement('option'); option.value = value.model; option.textContent = value.model; $('gemini-model').append(option);
       }
       $('gemini-model').value = value.model;
+      window.studioDraft.restore($('translation-settings-form'));updateTranslationProvider();
     } catch (error) { $('translation-settings-status').textContent = error.message; }
   }
   $('gemini-billing').addEventListener('change', () => { $('gemini-free-label').hidden = $('gemini-billing').value !== 'free'; });
@@ -183,7 +189,8 @@
       await json('/api/translation-settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(changes)});
       if (connection) $('gemini-key').value = '';
       status.textContent = 'Настройки сохранены.';
-      if (connection) await loadTranslationSettings();
+      if(!connection)window.studioDraft.clear($('translation-settings-form'));
+      if (connection) {await loadTranslationSettings();$('connections-form').dispatchEvent(new Event('connections-saved'));}
     } catch (error) { status.textContent = error.message; }
   }
   $('translation-settings-form').addEventListener('submit', saveTranslationSettings);
@@ -285,7 +292,7 @@
     if (!response.ok) throw new Error(result.error || 'Не удалось получить данные');
     return result;
   }
-  function select(value) {
+  function select(value, updateUrl=true) {
     if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; return; }
     selected = value; lastSnapshot = null; namesFolder = null;
     input.value = ''; $('source-file').value = ''; fileLabel();
@@ -311,10 +318,12 @@
     $('notes-feed').replaceChildren(text('p', 'Ожидаем конспект.', 'empty'));
     $('frame-feed').replaceChildren();
     $('retry-job').hidden = true;
-    const query = new URLSearchParams(value);
+    const query = new URLSearchParams(location.search);
+    for(const key of ['job','folder','report'])query.delete(key);
+    for(const [key,item] of Object.entries(value))query.set(key,item);
     query.set('stage', document.querySelector('[role=tab][aria-selected=true]').dataset.stage);
     if (value.folder === params.get('folder') && params.has('report')) query.set('report', params.get('report'));
-    history.replaceState(null, '', '/create?' + query);
+    if(updateUrl)history.replaceState(null, '', '/create?' + query);
     poll();
   }
   let activeReply = null;
@@ -347,6 +356,7 @@
     lastSnapshot = snapshot;
     renderVersions();
     window.constructionUI?.select({...snapshot, job});
+    window.studioDraft.restore($('construction-settings-form'));
     updateMediaOptions();
     $('workspace').hidden = false;
     $('frames-card').hidden = Boolean(snapshot.skip_images);
@@ -408,6 +418,10 @@
       $('video-clock').textContent = clock(snapshot.position);
     }
     for (const [id, url] of [['download-transcript', snapshot.subtitle_url ? '/api/transcript-text?' + new URLSearchParams({folder: snapshot.folder}) : null], ['download-subtitles', snapshot.subtitle_url], ['download-translation', snapshot.translation_url]]) { $(id).hidden = !url; if (url) $(id).href = url; }
+    for(const [id,language,available] of [['download-srt','original',snapshot.subtitle_url],['download-ru-srt','ru',snapshot.translation_url]]){
+      $(id).hidden=!available;
+      if(available)$(id).href='/api/subtitles?'+new URLSearchParams({folder:snapshot.folder,language,format:'srt'});
+    }
     $('subtitle-mode-label').hidden = !snapshot.translation_url;
     document.body.dataset.subtitles = snapshot.translation_url ? $('subtitle-mode').value : 'original';
     $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик';
@@ -554,6 +568,7 @@
     for (const result of inventory.results) {
       if (result.folder && !variants.has(result.folder)) variants.set(result.folder, {folder: result.folder, video_url:result.video_url, label: (result.title || result.video) + ' · ' + result.engine});
     }
+    window.studioDraft.restore($('upload-form'));
     versionInventory = [...variants.values()];
     renderVersions();
     if (results.every(result => result.status === 'rejected')) {
@@ -650,6 +665,7 @@
     const query = new URLSearchParams({filename: file.name, title: $('lecture-name').value, thinking: 'false', mode: $('construction-input').value === 'slides' ? 'lecture' : 'audio', engine: $('speech-engine').value});
     try { query.set('construction', (await window.constructionUI.snapshot()).settings_id); }
     catch (error) { $('upload-status').textContent = error.message; uploadBusy = false; $('start').disabled = false; $('upload-progress').hidden = true; return; }
+    $('start').setAttribute('aria-busy','true');$('upload-progress').removeAttribute('value');
     xhr.open('POST', '/api/upload?' + query);
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
     xhr.upload.addEventListener('progress', event => { if (event.lengthComputable) { $('upload-progress').value = event.loaded / event.total * 100; $('upload-status').textContent = 'Загрузка: ' + Math.round(event.loaded / event.total * 100) + '%'; } });
@@ -662,7 +678,7 @@
       } catch (error) { $('upload-status').textContent = error.message; }
     });
     xhr.addEventListener('error', () => { $('upload-status').textContent = 'Соединение оборвалось. Попробуйте загрузить видео ещё раз.'; });
-    xhr.addEventListener('loadend', () => { uploadBusy = false; $('start').disabled = false; });
+    xhr.addEventListener('loadend', () => { uploadBusy = false; $('start').disabled = false; $('start').setAttribute('aria-busy','false');$('upload-progress').hidden=true; });
     xhr.send(file);
   });
   $('retry-job').addEventListener('click', async () => {
@@ -676,6 +692,11 @@
   video.addEventListener('pointerdown', () => { follow.checked = false; });
   video.addEventListener('timeupdate', () => { if (!follow.checked) { $('video-clock').textContent = clock(video.currentTime); syncPlayback(); } });
   follow.addEventListener('change', () => { if (follow.checked && lastSnapshot) show(lastSnapshot); });
+  window.addEventListener('popstate',()=>{
+    const query=new URLSearchParams(location.search);
+    const value=query.has('job')?{job:query.get('job')}:query.has('folder')?{folder:query.get('folder')}:null;
+    if(value&&JSON.stringify(value)!==JSON.stringify(selected))select(value,false);
+  });
   loadInventory();
   listJobs(); if (selected) select(selected);
   setInterval(poll, 2000);

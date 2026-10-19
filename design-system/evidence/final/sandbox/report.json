@@ -1,0 +1,598 @@
+﻿{
+    "schema":  1,
+    "run_id":  "20261019-174427-177-functional",
+    "profile":  "Functional",
+    "git_sha":  "16953cf60bc0b3067258568ae6b99131cef5e462",
+    "git_dirty":  true,
+    "fingerprint":  "15cb91e39d926ad9f261834e65764a67f82e0f0e51dcd04f3650de30b15e6fa3",
+    "harness":  [
+                    {
+                        "sha256":  "0c5ba22689d0dd850d289f82db0c6acebda4a2a131602534ac2f1dd7ba5cc99b",
+                        "file":  "acceptance_api.py"
+                    },
+                    {
+                        "sha256":  "ba2c1e0cb269edad62a51ebdad3ee6d33c27aa20d67b3f1628e383d405c0ded6",
+                        "file":  "acceptance_ui.py"
+                    },
+                    {
+                        "sha256":  "d7b8c7b77321c51dc3cd58305bc57ee9f3e2460439916b7670cf93518ec41b82",
+                        "file":  "Acceptance.Common.ps1"
+                    },
+                    {
+                        "sha256":  "3b2d3cea6aeaaf0aac552b9a27330e5344bcf3caa31efe24bbbe02bb5df607a1",
+                        "file":  "Acceptance.template.wsb"
+                    },
+                    {
+                        "sha256":  "6c6df02d300e4d95f6baf75e4f3757ad454d3304306bb3b7dcfafcadb5415d72",
+                        "file":  "Bootstrap-Acceptance.ps1"
+                    },
+                    {
+                        "sha256":  "cadc977e0945b9bef608d747fca72aef627290f54c079046ded20855c3ea3830",
+                        "file":  "Collect-TestState.ps1"
+                    },
+                    {
+                        "sha256":  "4cf91fdd72fe0940a59bfe0619423fc3ba0cfc5409b8cfac00181a5772c687c8",
+                        "file":  "download_test_ollama_model.py"
+                    },
+                    {
+                        "sha256":  "d194e88263961781b3267447e809e0d212d3d230fb3c792ede169142ff4b22a4",
+                        "file":  "Enable-Sandbox.ps1"
+                    },
+                    {
+                        "sha256":  "9899c536c420cb938e598d7ff7e2d11cc1e7ec6321425b2c5496a23a4f7f9b4d",
+                        "file":  "ollama-test-input.json"
+                    },
+                    {
+                        "sha256":  "81a542e0fb9a0e83ad8a905c92e17bdcfc026c8e69425c9161e9a3bb4a15a6e5",
+                        "file":  "prepare_test_model.py"
+                    },
+                    {
+                        "sha256":  "58242cba62adb51426522e504e70083121246991f245758e7602835ba3246f6a",
+                        "file":  "Prepare-TestOllama.ps1"
+                    },
+                    {
+                        "sha256":  "d0a3ac4db314b5a7971037c712a7fee944ecb5438e6d7a4d9a6fbf37da1f7d39",
+                        "file":  "Register-TestCache.ps1"
+                    },
+                    {
+                        "sha256":  "2d20fd635d20cba754f2efe4cf6d9091dd40960669610b1cef1cf795da4c9b85",
+                        "file":  "Resume-Acceptance.ps1"
+                    },
+                    {
+                        "sha256":  "0dbd7359dadcdaffa561dc98688758b1d131fea3eefaa82be022638992a88989",
+                        "file":  "Run-Acceptance.ps1"
+                    },
+                    {
+                        "sha256":  "1956abbfece2f2adf9bce524b55f5fa4ec0ce94a0e358d9c6297c7242ea59e8c",
+                        "file":  "Run-CiInstalledCheck.ps1"
+                    },
+                    {
+                        "sha256":  "23d653e2548052e20e1e306ef398e02bf253bfa79d972ab4e658c109404007ae",
+                        "file":  "Run-GuestChecks.ps1"
+                    },
+                    {
+                        "sha256":  "6acd6f4a55680d420018d9071f5daef4461d999b5fc1a6d3408ddb0e3f8c6044",
+                        "file":  "stage-contracts.json"
+                    },
+                    {
+                        "sha256":  "1fae85762ebdad71fc3ccc6df0a019b161ef928088dc771d1bd3aad2de873ffd",
+                        "file":  "verify_installed.py"
+                    },
+                    {
+                        "sha256":  "36e00e23a46ad720786bfbbdf83465f6a42e4ed36d4176d193103de5ebf5f9c5",
+                        "file":  "verify_release.py"
+                    },
+                    {
+                        "sha256":  "8b3f59648356e61fc3a145a57f7d73618f7914efd5e8528e426e11cd773226bf",
+                        "file":  "verify_workspace_ui.py"
+                    }
+                ],
+    "artifacts":  [
+                      {
+                          "file":  "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+                          "bytes":  223921400,
+                          "sha256":  "62342e30a3e3f366ab37d7d559516b7d736b68bdd73e23b2d08856dc7523c526"
+                      },
+                      {
+                          "file":  "VideoDescriptor-0.7.0-windows-x64.zip",
+                          "bytes":  265741743,
+                          "sha256":  "6aa896a9a09a51882fe8395904516e0ed80ecce29c5d663ae32e9478a29b9811"
+                      }
+                  ],
+    "cache":  [
+                  {
+                      "source":  "https://github.com/ollama/ollama/releases/download/v0.40.6/OllamaSetup.exe",
+                      "id":  "ollama-installer-c01cb8ad90e781e89a266b38",
+                      "payload":  "payload",
+                      "acquired_at":  "2026-10-19T09:48:40.2169522Z",
+                      "version":  "0.40.6",
+                      "component":  "ollama-installer",
+                      "files":  [
+                                    {
+                                        "sha256":  "933794ee1d670137f5116c9de7fc7db092fa97c6b823aba848ddb8a7ea030828",
+                                        "file":  "OllamaSetup-0.40.6.exe",
+                                        "bytes":  1584629376
+                                    }
+                                ],
+                      "bytes":  1584629376,
+                      "schema":  1
+                  },
+                  {
+                      "source":  "https://ollama.com/library/qwen3.5",
+                      "id":  "ollama-model-e5de0212bf8e7b8ee3534944",
+                      "payload":  "payload",
+                      "acquired_at":  "2026-10-19T09:48:52.7277379Z",
+                      "version":  "qwen3.5:0.8b",
+                      "component":  "ollama-model",
+                      "files":  [
+                                    {
+                                        "sha256":  "1226d1a5284ac9844d3cac42321227d361d4417af63515132495e5afaf9c2462",
+                                        "file":  "blobs\\sha256-1226d1a5284ac9844d3cac42321227d361d4417af63515132495e5afaf9c2462",
+                                        "bytes":  234
+                                    },
+                                    {
+                                        "sha256":  "3cfce0087eaaa51070eb51ea44b80e6ccfb89d08ce58f4aeb0e48261aa9da329",
+                                        "file":  "blobs\\sha256-3cfce0087eaaa51070eb51ea44b80e6ccfb89d08ce58f4aeb0e48261aa9da329",
+                                        "bytes":  87
+                                    },
+                                    {
+                                        "sha256":  "50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32",
+                                        "file":  "blobs\\sha256-50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32",
+                                        "bytes":  11343
+                                    },
+                                    {
+                                        "sha256":  "5ba2eb9bf28c5b5ff7a705f07bd9269f0f2dbd6cb2b4c46d5f98ed8d15d18883",
+                                        "file":  "blobs\\sha256-5ba2eb9bf28c5b5ff7a705f07bd9269f0f2dbd6cb2b4c46d5f98ed8d15d18883",
+                                        "bytes":  207346304
+                                    },
+                                    {
+                                        "sha256":  "889ea3b9143cdc32146c7d530ce5f3d452ec18069086f6f4167ce9ae72a9691f",
+                                        "file":  "blobs\\sha256-889ea3b9143cdc32146c7d530ce5f3d452ec18069086f6f4167ce9ae72a9691f",
+                                        "bytes":  811843520
+                                    },
+                                    {
+                                        "sha256":  "b0108ebdcf5adea94899909c0cd6c12565f079f819991e68e464cb2e69a5d93d",
+                                        "file":  "blobs\\sha256-b0108ebdcf5adea94899909c0cd6c12565f079f819991e68e464cb2e69a5d93d",
+                                        "bytes":  302867776
+                                    },
+                                    {
+                                        "sha256":  "b507b9c2f6ca642bffcd06665ea7c91f235fd32daeefdf875a0f938db05fb315",
+                                        "file":  "blobs\\sha256-b507b9c2f6ca642bffcd06665ea7c91f235fd32daeefdf875a0f938db05fb315",
+                                        "bytes":  13
+                                    },
+                                    {
+                                        "sha256":  "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+                                        "file":  "manifests\\registry.ollama.ai\\library\\qwen3.5\\0.8b",
+                                        "bytes":  1563
+                                    }
+                                ],
+                      "bytes":  1322070840,
+                      "schema":  1
+                  },
+                  {
+                      "source":  "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+                      "id":  "whisper-model-f121c757daf83d8f808b05c1",
+                      "payload":  "payload",
+                      "acquired_at":  "2026-10-19T09:32:16.5880057Z",
+                      "version":  "2410d022171ca8a97343182f88eec8807a324db9",
+                      "component":  "whisper-model",
+                      "files":  [
+                                    {
+                                        "sha256":  "9715fd2243b6f06a5858b5e32950d2853f73dd5bc201aafcf76f5082a2d8acd1",
+                                        "file":  "added_tokens.json",
+                                        "bytes":  34604
+                                    },
+                                    {
+                                        "sha256":  "2d1cf9f56daeb3c1afabb7fbd9df05e9d9e00d4aca728be033097cd9ab8ebf1f",
+                                        "file":  "config.json",
+                                        "bytes":  1325
+                                    },
+                                    {
+                                        "sha256":  "bf619a40ae65e028b089124d04b294b0e8aabfbc0f9f8c5b93b584652d15ec5e",
+                                        "file":  "generation_config.json",
+                                        "bytes":  3841
+                                    },
+                                    {
+                                        "sha256":  "2df2990a395e35e8dfbc7511e08c12d56018d8d04691e0133e5d63b21e154dc6",
+                                        "file":  "merges.txt",
+                                        "bytes":  493869
+                                    },
+                                    {
+                                        "sha256":  "bf1c507dc8724ca9cf9903640dacfb69dae2f00edee4f21ceba106a7392f26dd",
+                                        "file":  "normalizer.json",
+                                        "bytes":  52666
+                                    },
+                                    {
+                                        "sha256":  "31ce50290e94bf7d59e9011514cc62fc8d24621026a1aba9982c02a8ba217e29",
+                                        "file":  "openvino_decoder_model.bin",
+                                        "bytes":  307161756
+                                    },
+                                    {
+                                        "sha256":  "703dd97dbb9a175990b0498099c2fa15a686f2442d66057266006f8e5fd02c27",
+                                        "file":  "openvino_decoder_model.xml",
+                                        "bytes":  960207
+                                    },
+                                    {
+                                        "sha256":  "2542d1fe6c4c5d838e7b7c61b24996b94ae0cb54e64ff6dbaab2b9dd5ddd7ca0",
+                                        "file":  "openvino_detokenizer.bin",
+                                        "bytes":  736181
+                                    },
+                                    {
+                                        "sha256":  "abce72395c3a9d54fba270bae4464e79b13721b051158b04010c0dc187764484",
+                                        "file":  "openvino_detokenizer.xml",
+                                        "bytes":  9699
+                                    },
+                                    {
+                                        "sha256":  "771c2f08bc68f51d19d0c1e5ce13111ed9828a7e475df98eddb4043dd756f3f2",
+                                        "file":  "openvino_encoder_model.bin",
+                                        "bytes":  176308330
+                                    },
+                                    {
+                                        "sha256":  "6be017fe6d700dbcac71dbc888068afa9dcfaf0aaac17382314f96d87f965a02",
+                                        "file":  "openvino_encoder_model.xml",
+                                        "bytes":  469182
+                                    },
+                                    {
+                                        "sha256":  "846f3c65f7a71f120fce7aaaf41b342f0767eb13e3c4e7c2a54f1d49b5c38fda",
+                                        "file":  "openvino_tokenizer.bin",
+                                        "bytes":  1898933
+                                    },
+                                    {
+                                        "sha256":  "7bc0e5c42c380282f065b53d6597860df3ac51c5becc145d48bcef9b6dd4238b",
+                                        "file":  "openvino_tokenizer.xml",
+                                        "bytes":  27011
+                                    },
+                                    {
+                                        "sha256":  "994838f1fa6462c8b9b3c90edada831f11f3dd8b4664634e18f4694d005c9dbf",
+                                        "file":  "preprocessor_config.json",
+                                        "bytes":  356
+                                    },
+                                    {
+                                        "sha256":  "e67ae3a0aaa99abcd9f187138e12db1f65c16a14761c50ef10eef2c174a7a691",
+                                        "file":  "special_tokens_map.json",
+                                        "bytes":  2194
+                                    },
+                                    {
+                                        "sha256":  "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+                                        "file":  "tokenizer.json",
+                                        "bytes":  3930494
+                                    },
+                                    {
+                                        "sha256":  "21a4fc0483c14b87f4e0bbc177a9a357479bfa7c95aaf21ad53d71e9c5afafb9",
+                                        "file":  "tokenizer_config.json",
+                                        "bytes":  282713
+                                    },
+                                    {
+                                        "sha256":  "8f680bba319e01a653d2e8a5dbc17a9157179e0576e6ce74ce0c06356c6e24f9",
+                                        "file":  "vocab.json",
+                                        "bytes":  835550
+                                    }
+                                ],
+                      "bytes":  493208911,
+                      "schema":  1
+                  }
+              ],
+    "guest_id":  "932ade1468dc4ee0927c5c23eb365a35",
+    "artifact_versions":  [
+                              "0.7.0"
+                          ],
+    "dependency_versions":  {
+
+                            },
+    "interaction":  "UI",
+    "sac_mode":  "Off",
+    "restart":  {
+                    "attempt":  1,
+                    "guest_id":  "932ade1468dc4ee0927c5c23eb365a35",
+                    "before_boot":  "2026-10-19T14:43:41.9926060Z",
+                    "requested":  true,
+                    "after_boot":  "2026-10-19T14:45:12.7264750Z",
+                    "resumed_same_guest":  true
+                },
+    "environment":  "Windows Sandbox",
+    "contracts":  {
+                      "version":  2,
+                      "stages":  [
+                                     {
+                                         "name":  "preflight",
+                                         "dependencies":  [
+
+                                                          ],
+                                         "inputs":  [
+                                                        "WSB profile",
+                                                        "artifact SHA256",
+                                                        "cache manifests",
+                                                        "guest identity",
+                                                        "OS",
+                                                        "SAC policy"
+                                                    ],
+                                         "pass":  "Verified disposable Sandbox, selected default/Evaluation/authorized guest-Off profile, artifact and cache integrity",
+                                         "method":  "guest diagnostics and bounded guest-only SAC preparation"
+                                     },
+                                     {
+                                         "name":  "installer",
+                                         "dependencies":  [
+                                                              "preflight"
+                                                          ],
+                                         "inputs":  [
+                                                        "installer SHA256",
+                                                        "ZIP SHA256",
+                                                        "OS",
+                                                        "SAC profile",
+                                                        "lifecycle contract"
+                                                    ],
+                                         "pass":  "Security: unchanged enforcement rejects unsigned EXE with correlated Code Integrity event. Functional: fresh install and binary presence; full lifecycle when explicitly requested",
+                                         "method":  "native installer; lifecycle verifier"
+                                     },
+                                     {
+                                         "name":  "desktop",
+                                         "dependencies":  [
+                                                              "installer"
+                                                          ],
+                                         "inputs":  [
+                                                        "installed application",
+                                                        "WebView2 runtime"
+                                                    ],
+                                         "pass":  "UI mode: actual installed desktop wizard renders; Api mode: installed backend identity and setup diagnostics respond",
+                                         "method":  "explicit UI WebView2 CDP or installed backend HTTP API; recorded per run"
+                                     },
+                                     {
+                                         "name":  "whisper",
+                                         "dependencies":  [
+                                                              "desktop"
+                                                          ],
+                                         "inputs":  [
+                                                        "pinned official Whisper revision and hashes or explicit network download",
+                                                        "CPU runtime",
+                                                        "synthetic bundled MP4/WAV"
+                                                    ],
+                                         "pass":  "Fresh CPU readiness and actual MP4 transcription with nonempty bounded segments; UI mode also performs the short WAV probe unless an exact proof applies",
+                                         "method":  "explicit UI controls or installed application API; real worker in both modes"
+                                     },
+                                     {
+                                         "name":  "ollama-install",
+                                         "dependencies":  [
+                                                              "desktop"
+                                                          ],
+                                         "inputs":  [
+                                                        "pinned signed official installer cache object"
+                                                    ],
+                                         "pass":  "Verified official installer, local service version and application component status",
+                                         "method":  "guest preparation CLI and explicit UI/API component checks"
+                                     },
+                                     {
+                                         "name":  "ollama-model",
+                                         "dependencies":  [
+                                                              "ollama-install"
+                                                          ],
+                                         "inputs":  [
+                                                        "model tag",
+                                                        "verified model cache or explicit network pull"
+                                                    ],
+                                         "pass":  "Model physically present with digest and connected through the selected UI/API adapter",
+                                         "method":  "guest preparation CLI and explicit UI/API model selection"
+                                     },
+                                     {
+                                         "name":  "ollama-inference",
+                                         "dependencies":  [
+                                                              "ollama-model"
+                                                          ],
+                                         "inputs":  [
+                                                        "installed model digest",
+                                                        "Ollama version",
+                                                        "fixed synthetic prompt"
+                                                    ],
+                                         "pass":  "Real completed nonempty generation; records device-independent timing and raw response",
+                                         "method":  "diagnostic HTTP API; does not claim UI generation"
+                                     },
+                                     {
+                                         "name":  "translation",
+                                         "dependencies":  [
+                                                              "whisper",
+                                                              "ollama-inference"
+                                                          ],
+                                         "inputs":  [
+                                                        "UI-transcribed synthetic video",
+                                                        "selected model digest",
+                                                        "translation contract"
+                                                    ],
+                                         "pass":  "Selected UI/API action completes a separate job; saved Russian translation covers every segment and SRT contains timestamps",
+                                         "method":  "explicit UI or API acceptance, never relabelled as the other"
+                                     },
+                                     {
+                                         "name":  "notes",
+                                         "dependencies":  [
+                                                              "translation"
+                                                          ],
+                                         "inputs":  [
+                                                        "source transcript",
+                                                        "notes model selection",
+                                                        "notes contract"
+                                                    ],
+                                         "pass":  "Selected UI/API notes action completes; saved notes, chapters, translation and report persist",
+                                         "method":  "explicit UI or API acceptance, never relabelled as the other"
+                                     },
+                                     {
+                                         "name":  "cleanup",
+                                         "dependencies":  [
+                                                              "preflight"
+                                                          ],
+                                         "inputs":  [
+                                                        "guest installation root",
+                                                        "host report directory"
+                                                    ],
+                                         "pass":  "Application processes confined to this guest installation disposed; reports preserved",
+                                         "method":  "guest process cleanup"
+                                     }
+                                 ]
+                  },
+    "status":  "FAIL",
+    "started_at":  "2026-10-19T14:45:00.3681529Z",
+    "finished_at":  "2026-10-19T14:50:19.0013609Z",
+    "elapsed_seconds":  318.633,
+    "os":  {
+               "caption":  "Microsoft Windows 11 Enterprise",
+               "memory_mb":  8191,
+               "architecture":  "64-bit",
+               "build":  "26100",
+               "version":  "10.0.26100"
+           },
+    "policy":  [
+
+               ],
+    "compatibility":  "7936673c2999841895cea1c5f0f1fc1fea08f36c2945fc3b68ece47986693721",
+    "error":  null,
+    "stages":  [
+                   {
+                       "name":  "preflight",
+                       "status":  "PASS",
+                       "reason":  "",
+                       "started_at":  "2026-10-19T14:45:43.0852540Z",
+                       "finished_at":  "2026-10-19T14:45:56.7698886Z",
+                       "seconds":  13.604,
+                       "evidence":  [
+                                        "initial-citool.json",
+                                        "initial-sac.json"
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "installer",
+                       "status":  "PASS",
+                       "reason":  "Fresh guest silent install and file presence; full lifecycle not requested",
+                       "started_at":  "2026-10-19T14:45:56.8685491Z",
+                       "finished_at":  "2026-10-19T14:47:46.8367930Z",
+                       "seconds":  109.877,
+                       "evidence":  [
+                                        "installer.log"
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "desktop",
+                       "status":  "FAIL",
+                       "reason":  "Acceptance stage failed: desktop; ",
+                       "started_at":  "2026-10-19T14:47:46.9304844Z",
+                       "finished_at":  "2026-10-19T14:50:17.7623163Z",
+                       "seconds":  150.781,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "whisper",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency desktop",
+                       "started_at":  "2026-10-19T14:50:17.8415537Z",
+                       "finished_at":  "2026-10-19T14:50:17.9271899Z",
+                       "seconds":  0.008,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-install",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency desktop",
+                       "started_at":  "2026-10-19T14:50:17.9999521Z",
+                       "finished_at":  "2026-10-19T14:50:18.1112955Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-model",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency ollama-install",
+                       "started_at":  "2026-10-19T14:50:18.1770833Z",
+                       "finished_at":  "2026-10-19T14:50:18.2376549Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-inference",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency ollama-model",
+                       "started_at":  "2026-10-19T14:50:18.2891232Z",
+                       "finished_at":  "2026-10-19T14:50:18.3345660Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "translation",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency whisper, ollama-inference",
+                       "started_at":  "2026-10-19T14:50:18.3820984Z",
+                       "finished_at":  "2026-10-19T14:50:18.4468173Z",
+                       "seconds":  0.001,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "notes",
+                       "status":  "BLOCKED",
+                       "reason":  "BLOCKED: dependency translation",
+                       "started_at":  "2026-10-19T14:50:18.4942991Z",
+                       "finished_at":  "2026-10-19T14:50:18.5975200Z",
+                       "seconds":  0.002,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "cleanup",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   }
+               ]
+}

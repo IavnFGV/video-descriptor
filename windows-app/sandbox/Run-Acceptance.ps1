@@ -64,6 +64,7 @@ foreach ($artifact in $artifacts) { Copy-Item -LiteralPath (Join-Path $project (
 Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in @('.ps1','.py','.json','.wsb') } | Copy-Item -Destination $inputDirectory
 Copy-Item -LiteralPath (Join-Path $project 'windows-app\verify_release.py') -Destination $inputDirectory
 Copy-Item -LiteralPath (Join-Path $project 'windows-app\verify_installed.py') -Destination $inputDirectory
+Copy-Item -LiteralPath (Join-Path $project 'windows-app\verify_workspace_ui.py') -Destination $inputDirectory
 $objects=@()
 $neededComponents=@()
 if ($selected -contains 'whisper' -and !$NetworkDownload) { $neededComponents+='whisper-model' }

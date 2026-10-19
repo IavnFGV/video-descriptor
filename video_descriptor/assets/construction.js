@@ -60,7 +60,7 @@
     for (const [id,value] of Object.entries(values)) $(id).value = value;
     $('models').replaceChildren(); preview();
   };
-  $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; preview(); };
+  $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; $('prompt').dispatchEvent(new Event('input',{bubbles:true})); preview(); };
   $('load-models').onclick = async () => {
     const provider = $('provider').value; $('load-models').disabled = true;
     try {
@@ -75,7 +75,7 @@
   form.addEventListener('change', event => { if (!['material','provider'].some(id => event.target === $(id))) preview(); });
   form.onsubmit = async event => {
     event.preventDefault(); busy = true; buttons();
-    try { await snapshot(); $('status').textContent = 'Настройки сохранены для новых запусков. Текущая обработка сохраняет свои настройки.'; }
+    try { await snapshot(); window.studioDraft?.clear(form); $('status').textContent = 'Настройки сохранены для новых запусков. Текущая обработка сохраняет свои настройки.'; }
     catch (error) { $('status').textContent = error.message; }
     finally { busy = false; buttons(); }
   };
@@ -103,6 +103,7 @@
         const config = value.construction_settings;
         fill({...config, input:config.input || (value.frame_count ? 'slides' : 'speech')});
         lastMaterial = config.material; lastProvider = config.provider;
+        window.studioDraft?.restore(form,true);
       }
       $('download').hidden = !value?.construction_result_url;
       if (value?.construction_result_url) $('download').href = value.construction_result_url;
@@ -112,6 +113,7 @@
   };
   api('/api/construction-settings').then(data => {
     prompts = data.prompts; fill(data.settings); lastMaterial = data.settings.material; lastProvider = data.settings.provider;
+    window.studioDraft?.restore(form);lastMaterial=$('material').value;lastProvider=$('provider').value;
     ready = true; document.dispatchEvent(new Event('construction-ready')); buttons(); $('status').textContent = 'Эти настройки применяются к новым запускам конспекта.'; preview();
   }).catch(error => { $('status').textContent = error.message; });
 })();

@@ -1,0 +1,9 @@
+{
+  "reason": "Dispose verified completed acceptance guest before UI-worktree acceptance",
+  "instance": {
+    "id": "3cb63bf3-1a62-4f50-83cf-fce7fc155104",
+    "project": "E:\\LocalAI\\video desriptor",
+    "run_id": "20261019-130555-850-functional"
+  },
+  "status": "PASS"
+}

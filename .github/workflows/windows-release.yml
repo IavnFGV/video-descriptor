@@ -13,6 +13,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  release:
+    types: [published]
 permissions:
   contents: read
 jobs:
@@ -21,6 +23,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12.10'
@@ -38,6 +42,24 @@ jobs:
           ruff check video_descriptor tests windows-app scripts/whisper_npu_server.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pip check
+      - name: Production UI bundles, DOM handlers and JavaScript syntax
+        run: |
+          python scripts/build-ui-css.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-ui-audit.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check windows-app/ui/app.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/create.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/studio.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/studio-drafts.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/speech-edit.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/editor.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build verified runtime, ZIP and installer
         run: |
           powershell -NoProfile -File windows-app/Prepare-Desktop.ps1
@@ -70,36 +92,36 @@ jobs:
         run: |
           python -X utf8 windows-app/sandbox/prepare_test_model.py --destination "$env:RUNNER_TEMP/vd-public-whisper" --output dist/installed-acceptance/model-provenance.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Real installed build, model detection, CPU recognition and saved results through API
+      - name: "Real installed build: API, WebView2 upload, CPU recognition, editing and exports"
         run: |
           $fixture = Get-Content dist/installed-acceptance/model-provenance.json -Raw | ConvertFrom-Json
-          python -X utf8 windows-app/verify_installed.py --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/installed-acceptance/report.json
+          python -X utf8 windows-app/verify_installed.py --ui --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/installed-acceptance/report.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Cache public Ollama dependency and test model for optional acceptance
-        if: github.event_name == 'workflow_dispatch' && inputs.test_ollama
+        if: (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.test_ollama))
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ${{ runner.temp }}/vd-ollama-downloads
             ${{ runner.temp }}/vd-public-ollama-models
-          key: windows-public-ollama-${{ hashFiles('windows-app/sandbox/ollama-test-input.json') }}-${{ inputs.ollama_model }}
+          key: windows-public-ollama-${{ hashFiles('windows-app/sandbox/ollama-test-input.json') }}-${{ inputs.ollama_model || 'qwen3.5:0.8b' }}
       - name: Prepare isolated real Ollama and the requested public model
-        if: github.event_name == 'workflow_dispatch' && inputs.test_ollama
+        if: (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.test_ollama))
         env:
-          TEST_OLLAMA_MODEL: ${{ inputs.ollama_model }}
+          TEST_OLLAMA_MODEL: ${{ inputs.ollama_model || 'qwen3.5:0.8b' }}
         run: |
           ./windows-app/sandbox/Prepare-TestOllama.ps1 -CacheDirectory "$env:RUNNER_TEMP/vd-ollama-downloads" -TargetDirectory "$env:RUNNER_TEMP/vd-ollama-install" -ModelDirectory "$env:RUNNER_TEMP/vd-public-ollama-models" -Model $env:TEST_OLLAMA_MODEL -HostAddress 127.0.0.1:11439 -ReportPath dist/ollama-acceptance/dependency.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Real installed-app Ollama generation, translation, notes and exports through API
-        if: github.event_name == 'workflow_dispatch' && inputs.test_ollama
+        if: (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.test_ollama))
         env:
-          TEST_OLLAMA_MODEL: ${{ inputs.ollama_model }}
+          TEST_OLLAMA_MODEL: ${{ inputs.ollama_model || 'qwen3.5:0.8b' }}
         run: |
           $fixture = Get-Content dist/installed-acceptance/model-provenance.json -Raw | ConvertFrom-Json
-          python -X utf8 windows-app/verify_installed.py --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/ollama-acceptance/report.json --with-ollama --ollama-url http://127.0.0.1:11439 --ollama-model $env:TEST_OLLAMA_MODEL
+          python -X utf8 windows-app/verify_installed.py --ui --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/ollama-acceptance/report.json --with-ollama --ollama-url http://127.0.0.1:11439 --ollama-model $env:TEST_OLLAMA_MODEL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Stop only the optional acceptance Ollama process
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.test_ollama
+        if: always() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.test_ollama))
         run: |
           if (Test-Path dist/ollama-acceptance/dependency.json) {
             $dependency = Get-Content dist/ollama-acceptance/dependency.json -Raw | ConvertFrom-Json

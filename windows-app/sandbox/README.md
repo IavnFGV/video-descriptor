@@ -200,3 +200,35 @@ not required there. CI changes still need push/dispatch before a remote run exis
 generated run configurations. The repository root [`sandbox.wsb`](../../sandbox.wsb)
 is also committed as the owner's historical manual configuration, with its original
 machine-specific read-only mappings; it is not the automatic harness entry point.
+
+
+## Automatic production workspace UI acceptance
+
+Windows CI now calls verify_installed.py --ui after building the exact installer.
+A fresh marked installation runs real CPU inference via its embedded Python,
+then launches its real WebView2 and uploads the bundled MP4 through the file input.
+The driver edits and saves a reply, checks revision/timestamps/dirty Escape,
+Back/Forward and AI round trips, independent prompt drafts, keyboard stage focus,
+actual SRT/VTT/TXT downloads, four viewports and a labelled visual stress fixture.
+Optional --with-ollama adds real UI translation/notes and Markdown/HTML export.
+Reports and screenshots are included in the normal CI artifact. No manual clicks
+or public GitHub Release are needed. Existing scheduled dispatch options remain.
+The same verifier is included in Sandbox UI whisper/notes stages. API and UI
+results remain separate, and transport failures are not counted as application PASS.
+
+PnP visibility is not inference capability: in the 19 October UI guest Windows
+listed Intel AI Boost and Arc 140V, while OpenVINO exposed only CPU. That guest
+does not establish NPU/GPU support; diagnostics explicitly distinguish the layers.
+
+The Windows workflow also runs on a published release event. On that event the
+cached public qwen3.5:0.8b Ollama scenario is enabled automatically, including API
+and actual installed UI generation, translation, notes and exports. PR/main runs
+always perform CPU/UI acceptance; manual dispatch can request the same full AI
+suite. This configures verification, and does not create or publish a release.
+
+Elevated WebView2 ignores WEBVIEW2_* environment overrides (Microsoft security
+behavior). The driver therefore uses --ui-test-port=9222 with the installed host;
+a .acceptance-installation.json marker is required. The host validates the port
+and passes loopback-only flags through SDK environment options. Normal launches
+leave this disabled. The fresh-guest bootstrap creates the marker only after
+installation. No HKCU/HKLM policy or host setting is changed.

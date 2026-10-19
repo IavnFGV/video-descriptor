@@ -1,5 +1,16 @@
 # Video Descriptor
 
+19.10.2026: production UI перенесён на общие токены и компоненты: библиотека,
+источник, расшифровка/перевод, редактор реплик, версии, конспекты и экспорт.
+Сохранены DOM/API и WebView2; добавлены защита несохранённых диалогов,
+Back/Forward этапов, возврат из AI-настроек и session drafts без ключей/файлов.
+SRT/VTT/TXT и Markdown дополнены HTML-выгрузкой текущего конспекта.
+Быстрые CSS/DOM/JS guards и установленная WebView2 UI-приёмка включены в CI;
+опубликованный release запускает полный Ollama-прогон. Тестовый loopback-port
+передаётся через SDK только в помеченной disposable установке: elevated WebView2
+игнорирует environment overrides. Реальная приёмка и её границы:
+[финальная UI verification](design-system/FINAL-VERIFICATION.md).
+
 19.10.2026: добавлен [Sandbox acceptance harness](windows-app/sandbox/README.md)
 с запуском одной командой, отдельными Security/Functional профилями, стадиями,
 проверенным read-only кэшем, checkpoint и отчётами на хосте. Реальная стандартная
@@ -166,6 +177,8 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 | Дата | Изменение | Проверка |
 | 2026-10-19 | Установщик проверяет WebView2 и при отсутствии скачивает официальный Fixed Runtime с SHA256 и проверкой подписи Microsoft; окно использует app-local Runtime без изменения системного Edge | Повторная Sandbox-приёмка и точные границы — docs/verification-sandbox-desktop-0.7.md; успешный E2E до фактического прохождения не заявляется |
 |---|---|---|
+| 2026-10-19 | Согласованный UI: общие токены/компоненты, новая главная, AI-настройки и диагностика; сохранены обработчики и API | 85 desktop/setup/device/postprocess тестов; browser fixture сценарии — design-system/IMPLEMENTATION.md |
+| 2026-10-19 | UI/UX: аудит Windows/WebView2, единая дизайн-система, контракты компонентов и отдельный прототип новой записи для согласования; production UI/API не менялись | design-system/AUDIT.md, MASTER.md, CONTRACTS.md, PLAN.md и VERIFICATION.md; scripts/check-ui-audit.py |
 | 2026-10-18 | После обновления Docker Desktop выполнены настоящие локальные build, Compose lifecycle smoke и PowerShell Install; приложение запущено на localhost:8000/create | Docker Desktop 4.95.0 / Engine 29.8.2 / Compose 5.6.0: PASS, HTTP healthy/200, данные сохраняются; отдельная ошибка Ubuntu WSL integration не блокирует Windows CLI; модели не скачивались — docs/container-verification.md |
 | 2026-10-18 | GitHub Container CI и Windows lifecycle прошли после исправления идентичности workspace; GHCR auth сохраняется до smoke, повтор выпуска проверяет revision образа | dca7d9a: Container CI run 39149814516 и Windows run 39149814507 success; Windows runner 220 passed/1 skipped, 4391 hashes, deterministic ZIP, install/reinstall/upgrade/uninstall с сохранением данных; локально Windows 219 passed/2 skipped, WSL 221 passed; registry публикация не запускалась |
 | 2026-10-18 | Добавлен самостоятельный Compose CPU путь: persistent workspace, supervisor HTTP/worker, health/connection diagnostics, PowerShell lifecycle, Linux CI и GHCR/Release по тегу | Windows: 217 passed/2 skipped; Linux WSL: 219 passed, реальный supervisor/SIGTERM/worker failure; Ruff/pip check/Compose config проходят; Docker Desktop падает до Engine, build/container smoke не выполнены — docs/container-verification.md |

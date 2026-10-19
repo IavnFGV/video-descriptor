@@ -1,0 +1,21 @@
+{
+    "scope":  "patched isolated guest SDK diagnostic only",
+    "elevated":  true,
+    "targets":  {
+                    "value":  [
+                                  {
+                                      "description":  "",
+                                      "devtoolsFrontendUrl":  "https://aka.ms/docs-landing-page/serve_rev/@aa3a7406ba8c53a83536df539f07124d73c899bd/inspector.html?ws=127.0.0.1:9222/devtools/page/2F132CE372164F863FD04E84724527B8",
+                                      "id":  "2F132CE372164F863FD04E84724527B8",
+                                      "title":  "Video Descriptor — ??????",
+                                      "type":  "page",
+                                      "url":  "http://127.0.0.1:8780/#settings",
+                                      "webSocketDebuggerUrl":  "ws://127.0.0.1:9222/devtools/page/2F132CE372164F863FD04E84724527B8"
+                                  }
+                              ],
+                    "Count":  1
+                },
+    "method":  "supported SDK options, explicit guarded test flag; no registry changes",
+    "status":  "PASS",
+    "pid":  5040
+}

@@ -1,0 +1,26 @@
+{
+  "baseline_commit": "9ffa842",
+  "approved": "Владелец согласовал направление и поручил реализацию в этом чате 19.10.2026",
+  "allowed_changes": {
+    "windows-app/ui/index.html": "Перенос существующих форм и всех 75 ids в согласованную оболочку; aria, shared classes и подписи. setup-open: button -> navigation anchor.",
+    "windows-app/ui/app.css": "Детерминированный bundle общих tokens/components и scoped layout; backend asset route и packaging неизменны.",
+    "windows-app/ui/app.js": "Hash navigation, accessible generated controls, validation, progress, focus stability и безопасное завершение upload; прежние API/payloads и persisted job enums сохраняются.",
+    "video_descriptor/assets/create.html": "Production workspace shared shell, named progress, existing IDs retained; additive SRT links.",
+    "video_descriptor/assets/create.css": "Generated shared tokens/components/surfaces/workspace bundle; obsolete CSS removed.",
+    "video_descriptor/assets/editor.css": "Generated shared report/editor bundle replaces independent palette and controls.",
+    "video_descriptor/assets/speech.html": "Legacy source uses shared CSS; existing /speech redirect remains.",
+    "video_descriptor/assets/speech-edit.js": "Inline styles moved to shared components; unsaved/cancel/busy/focus guards; payload unchanged.",
+    "video_descriptor/assets/studio.js": "History entries for stage/report navigation and guarded connection dialog; endpoints unchanged.",
+    "video_descriptor/assets/create.js": "Preserve unrelated query parameters, additive existing SRT exports, saved connection draft notification.",
+    "video_descriptor/assets/report-embed.js": "Hide global report chrome within iframe; shared tokens replace raw surface.",
+    "video_descriptor/assets/editor.js": "Add sanitized standalone HTML download of current notes; existing save/revision/Markdown unchanged.",
+    "video_descriptor/library.py": "HTML presentation only; grouping/title/record links and readiness unchanged.",
+    "video_descriptor/report.py": "Report HTML presentation and HTML export button only; files/formats/revisions unchanged.",
+    "video_descriptor/serve.py": "Static allowlist adds studio-drafts.js only; no API, payload, path or security behavior changes.",
+    "video_descriptor/assets/construction.js": "Restore per-record session drafts after asynchronous settings load; clear after successful save; API unchanged.",
+    "windows-app/sandbox/acceptance_ui.py": "Add installed real workspace/editor/export/viewport acceptance to existing whisper/notes UI stages; production unchanged.",
+    "windows-app/verify_installed.py": "Optional --ui runs real installed WebView2 acceptance against the fresh installer test root; enabled by Windows CI. No product change.",
+    "windows-app/DesktopHost.cs": "Explicit validated loopback --ui-test-port in marked disposable installations passes AdditionalBrowserArguments through the supported SDK. Required because elevated CI/Sandbox ignore environment overrides. Normal host navigation, security settings and lifetime unchanged."
+  },
+  "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required."
+}

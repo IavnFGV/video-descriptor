@@ -1,0 +1,6 @@
+{
+  "stage": "desktop",
+  "status": "FAIL",
+  "reason": "TimeoutError: Condition timed out after 150s; last error: <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>",
+  "elapsed_seconds": 150.204
+}

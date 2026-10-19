@@ -1,0 +1,72 @@
+{
+  "body/surface": {
+    "colors": [
+      "#202e29",
+      "#ffffff"
+    ],
+    "ratio": 14.15
+  },
+  "muted/surface": {
+    "colors": [
+      "#53665c",
+      "#ffffff"
+    ],
+    "ratio": 6.14
+  },
+  "muted/canvas": {
+    "colors": [
+      "#53665c",
+      "#f4f6f5"
+    ],
+    "ratio": 5.65
+  },
+  "primary label": {
+    "colors": [
+      "#ffffff",
+      "#17644d"
+    ],
+    "ratio": 7.08
+  },
+  "success": {
+    "colors": [
+      "#17644d",
+      "#e6f2ec"
+    ],
+    "ratio": 6.16
+  },
+  "warning": {
+    "colors": [
+      "#795000",
+      "#fff4d6"
+    ],
+    "ratio": 6.47
+  },
+  "danger": {
+    "colors": [
+      "#a32929",
+      "#fcecec"
+    ],
+    "ratio": 6.31
+  },
+  "info": {
+    "colors": [
+      "#245ea8",
+      "#eaf1fc"
+    ],
+    "ratio": 5.7
+  },
+  "control/surface": {
+    "colors": [
+      "#81958a",
+      "#ffffff"
+    ],
+    "ratio": 3.18
+  },
+  "focus/surface": {
+    "colors": [
+      "#245ea8",
+      "#ffffff"
+    ],
+    "ratio": 6.48
+  }
+}

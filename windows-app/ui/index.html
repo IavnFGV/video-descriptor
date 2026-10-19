@@ -1,26 +1,289 @@
 <!doctype html>
 <html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Descriptor — расшифровать запись</title><link rel="stylesheet" href="/native.css"></head>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f4f6f5">
+<title>Video Descriptor — Записи</title>
+<link rel="stylesheet" href="/native.css">
+</head>
 <body>
-<header><a href="/" class="brand"><span class="mark">vd</span> Video Descriptor</a><span class="local">● На вашем компьютере</span><button id="setup-open" class="quiet">Настройка AI</button><button id="stop" class="quiet">Завершить приложение</button></header>
-<main>
-<div id="setup-wizard"><section class="card"><h2>Первоначальная настройка AI</h2><p class="footnote">1. Проверьте компоненты → 2. Подключите Whisper → 3. Подготовьте распознавание. Перевод, облако, OCR и диаризацию можно пропустить.</p><button id="diagnostics-refresh" type="button">Обновить диагностику</button><div id="setup-diagnostics" aria-live="polite"></div></section><section class="card" id="setup-card" aria-label="Настройка распознавания"><div class="card-title"><h2>Подготовим приложение к работе</h2><button id="setup-toggle" class="quiet" type="button">Настроить модель</button></div><p id="setup-summary" class="footnote">Проверяем установленную модель…</p><form id="setup-form" hidden><p class="footnote">Подключите имеющуюся Whisper small FP16 в формате OpenVINO. Файлы останутся на месте. Проверка ничего не скачивает и не меняет модели.</p><label>Папка модели<input id="model-path" placeholder="Например: D:\AI\models\whisper-small" maxlength="1024" autocomplete="off" required></label><div class="setup-actions"><button type="button" id="pick-model" class="quiet">Выбрать папку…</button><button type="button" id="inspect-model">Проверить файлы</button><button type="submit" id="apply-model">Подключить модель</button></div><p id="setup-feedback" class="footnote" role="status" aria-live="polite"></p></form><details><summary>Скачать проверенную модель Whisper</summary><p id="download-info" class="footnote"></p><p class="footnote">Требуются OpenVINO/GenAI 2026.4.1 (включены в установщик), около 550 МиБ на диске и CPU либо совместимый Intel GPU/NPU с драйвером. Существующие модели сохраняются.</p><label><input id="download-consent" type="checkbox"> Разрешаю скачать эту модель с Hugging Face</label><button type="button" id="download-model">Скачать Whisper small FP16</button></details><p class="footnote">После подключения нажмите «Подготовить распознавание» в панели готовности. Дополнительная короткая проверка выполняется только по вашей команде.</p><p class="footnote">После подготовки модели проверьте распознавание на короткой записи из установщика. Выбор файла не требуется.</p><button id="probe-model" type="button">Проверить на встроенной записи</button><details><summary>Выбрать свой файл для проверки</summary><label>WAV mono PCM16, 16 кГц, до 15 секунд и 500 КБ<input id="probe-audio" type="file" accept=".wav,audio/wav"></label><button id="probe-custom" type="button">Проверить выбранный файл</button><p class="footnote">Файл не конвертируется и не обрезается. Если формат не подходит, мы покажем причину.</p></details><progress id="setup-progress" max="100" hidden></progress><p id="operation-feedback" role="status" aria-live="polite"></p></section>
-<section class="card" aria-label="Настройка перевода"><div class="card-title"><h2>Перевод через Ollama</h2><button type="button" id="ollama-refresh" class="quiet">Обновить список</button></div><p class="footnote">Если Ollama отсутствует: официальная инструкция https://ollama.com/download/windows (откройте в браузере). Установите Ollama и нужную модель, затем обновите список. Выберите уже установленную языковую модель. Ничего не скачивается. Ollama самостоятельно управляет устройством для перевода.</p><form id="ollama-form"><label>Модель перевода<select id="ollama-model"><option value="">Проверяем Ollama…</option></select></label><label>Назначение<select id="ollama-task"><option value="translation">Перевод</option><option value="notes">Конспект</option></select></label><button type="submit" id="ollama-connect" disabled>Подключить перевод</button><p id="ollama-feedback" class="footnote" role="status" aria-live="polite"></p></form></section>
-<section class="card"><h2>Gemini · необязательно</h2><p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p><form id="gemini-form"><label>API-ключ (пустое поле сохраняет прежний)<input id="gemini-key" type="password" autocomplete="off" maxlength="512"></label><label>Модель<input id="gemini-model" list="gemini-models" value="gemini-3.5-flash-lite" required></label><datalist id="gemini-models"></datalist><label>Оплата<select id="gemini-billing"><option value="paid">Платный проект · расходы по тарифу Google</option><option value="free">Бесплатный проект · ограничения и условия Google</option></select></label><label><input id="gemini-ack" type="checkbox"> При бесплатном проекте принимаю условия обработки данных Google</label><div class="setup-actions"><button type="submit">Сохранить Gemini</button><button id="gemini-check" type="button">Проверить доступ / получить модели</button></div><p id="gemini-feedback" role="status" class="footnote"></p></form></section><section class="card"><button id="setup-finish" type="button">К обработке записи / пропустить необязательные компоненты →</button><p class="footnote">Вернуться можно кнопкой «Настройка AI». Для локального распознавания достаточно Whisper, CPU и FFmpeg.</p></section></div>
-<section class="intro"><p class="eyebrow">ИЗ ЗАПИСИ — В ПОНЯТНЫЙ ТЕКСТ</p><h1>Слушайте смысл.<br><span>Остальное запишем.</span></h1><p>Добавьте видео или аудио, проверьте текст и сохраните субтитры.<br>Локально на NPU, GPU или CPU — устройство выбираете вы.</p></section>
-<div class="layout"><div>
-<section class="card" aria-label="Новая запись"><div class="card-title"><h2>Новая запись</h2><span class="step">01 / ДОБАВИТЬ</span></div>
-<form id="upload"><label class="drop" id="drop"><span class="plus">＋</span><strong id="filename">Перетащите запись сюда</strong><span>или нажмите, чтобы выбрать файл</span><small>MP4, MKV, MOV, WebM · WAV, MP3, M4A, FLAC, OGG · до 4 ГБ</small><input type="file" id="file" accept=".mp4,.mkv,.mov,.webm,.wav,.mp3,.m4a,.flac,.ogg" required></label>
-<div class="form-row"><label>Название<input id="title" maxlength="200" placeholder="Например: интервью с Анной"></label><label>Язык записи<select id="language"><option value="auto">Определить автоматически</option><option value="ru">Русский</option><option value="uk">Українська</option><option value="en">English</option></select></label></div>
-<label>Устройство распознавания<select id="speech-device"><option value="AUTO">Авто · NPU → GPU → CPU</option><option value="NPU">NPU</option><option value="GPU">GPU · Intel OpenVINO</option><option value="CPU">CPU</option></select></label><p id="device-status" class="footnote" role="status">Проверяем поддержку устройств…</p>
-<div class="start-row"><button type="submit" id="start" disabled>Расшифровать запись <span>→</span></button><small>Оригинал останется без изменений</small></div></form>
-<progress id="upload-progress" max="100" hidden></progress><p id="message" role="status" aria-live="polite"></p></section>
-<section class="card result" id="result-panel" hidden><div class="card-title"><h2 id="result-title">Результат</h2><span class="step" id="status">В ОЧЕРЕДИ</span></div><progress id="progress" max="100" value="0"></progress><p id="progress-text" role="status"></p><video id="video" controls preload="metadata"></video><div class="tools" id="exports" hidden><a id="srt" class="download" download>Скачать SRT ↓</a><a id="vtt" download>VTT ↓</a><a id="txt" download>Текст ↓</a><a id="ru-srt" class="download" download hidden>Русский SRT ↓</a><a id="open-report" hidden>Открыть конспект ↗</a><a id="editor">Расширенный редактор ↗</a></div><div id="postprocess-actions" hidden><div class="setup-actions"><button id="translate-run" type="button">Перевести на русский</button><button id="notes-run" type="button">Конспект и перевод</button></div><p class="footnote">Создаётся отдельная версия из исправленных реплик. Используется выбранная модель Ollama; устройство перевода определяется Ollama.</p></div><button id="retry" hidden>Продолжить с сохранённого места</button><div id="transcript"></div><p class="footnote" id="timing-note"></p></section>
-</div><aside>
-<section class="card readiness"><div class="card-title"><h2>Готовность</h2><span class="dot" id="ready-dot"></span></div><div id="readiness" aria-live="polite">Проверяем компоненты…</div><button id="start-npu" hidden>Подготовить распознавание</button><p class="footnote" id="npu-notice">Первая загрузка модели может занять около минуты.</p><details><summary>Диагностика</summary><pre id="doctor"></pre></details><details><summary>История действий</summary><pre id="events">Событий пока нет</pre></details></section>
-<section class="card"><div class="card-title"><h2>Ваши записи</h2><button class="quiet" id="refresh">↻</button></div><div id="jobs"><p class="empty">Здесь появятся добавленные записи</p></div></section>
-<div class="aside-note"><strong>Начните с расшифровки</strong><p>Текст и таймкоды можно исправить вручную. После распознавания доступны кнопки перевода и конспекта через установленную Ollama.</p><p>Автоматическое разделение голосов на Windows пока не подготовлено.</p></div>
-</aside></div>
-<footer><span>Video Descriptor · Windows prototype 0.7</span><span>Текст, который можно проверить по записи.</span></footer>
-</main><script src="/studio-assets/speech-edit.js"></script><script src="/native.js"></script>
-</body></html>
+<a class="skip vd-link" id="skip-link" href="#main">К содержимому</a>
+<div class="app-shell">
+<aside class="sidebar">
+<a href="#records" class="brand">
+<span class="mark" aria-hidden="true">vd</span>
+<span>Video<br>Descriptor</span>
+</a>
+<nav aria-label="Основная навигация">
+<a class="nav-item" id="records-open" href="#records" aria-current="page">Записи</a>
+<a class="nav-item" id="setup-open" href="#settings">Настройки AI</a>
+<a class="nav-item" id="diagnostics-open" href="#diagnostics">Диагностика</a>
+</nav>
+<div class="sidebar-bottom">
+<span class="vd-status">Windows · WebView2</span>
+<p class="footnote">Видео и аудио → текст</p>
+</div>
+</aside>
+<div class="app-content">
+<header class="topbar">
+<p>Video Descriptor · <span id="view-label">Записи</span>
+</p>
+<details class="app-menu">
+<summary>Приложение</summary>
+<div class="menu-content">
+<button id="stop" type="button" class="vd-button vd-button--quiet">Завершить приложение</button>
+</div>
+</details>
+</header>
+<main id="main" tabindex="-1">
+<div class="page-heading">
+<h1 id="main-heading" tabindex="-1">Новая запись</h1>
+<p id="view-description">Добавьте файл, получите расшифровку и проверьте её по записи.</p>
+</div>
+<p id="message" class="feedback" role="status" aria-live="polite"></p>
+<div class="workspace">
+<div>
+<section id="records-view">
+<section class="card" aria-labelledby="upload-heading">
+<div class="card-title">
+<h2 id="upload-heading">Добавить файл</h2>
+<span class="step">01</span>
+</div>
+<form id="upload" novalidate>
+<label class="vd-file" id="drop" for="file">
+<svg class="upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+<path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/>
+</svg>
+<strong id="filename">Выберите файл или перетащите его сюда</strong>
+<span class="file-action">Выбрать файл…</span>
+<span id="file-help" class="vd-help">MP4, MKV, MOV, WebM · WAV, MP3, M4A, FLAC, OGG · до 4 ГБ</span>
+<input type="file" id="file" name="file" accept=".mp4,.mkv,.mov,.webm,.wav,.mp3,.m4a,.flac,.ogg" aria-describedby="file-help file-error" required>
+</label>
+<p id="file-error" class="vd-error" role="alert" hidden>
+</p>
+<div class="form-row">
+<label for="title" class="vd-field">Название записи<input id="title" name="title" maxlength="200" autocomplete="off" placeholder="Например: интервью с Анной…" class="vd-input">
+</label>
+<label for="language" class="vd-field">Язык записи<select id="language" name="language" class="vd-select">
+<option value="auto">Определить автоматически</option>
+<option value="ru">Русский</option>
+<option value="uk">Українська</option>
+<option value="en">English</option>
+</select>
+</label>
+</div>
+<details class="recognition-settings">
+<summary>Параметры распознавания</summary>
+<label for="speech-device" class="vd-field">Устройство распознавания<select id="speech-device" name="device" aria-describedby="device-status" class="vd-select">
+<option value="AUTO">Авто · NPU → GPU → CPU</option>
+<option value="NPU">NPU</option>
+<option value="GPU">GPU · Intel OpenVINO</option>
+<option value="CPU">CPU</option>
+</select>
+</label>
+</details>
+<p id="device-status" class="footnote" role="status">Проверяем поддержку устройств…</p>
+<div class="start-row">
+<button type="submit" id="start" class="vd-button vd-button--primary" aria-describedby="device-status" disabled><span id="start-label">Расшифровать запись</span> <span aria-hidden="true">→</span>
+</button>
+<small>Оригинал останется без изменений</small>
+</div>
+</form>
+<progress id="upload-progress" class="vd-progress" max="100" aria-label="Загрузка записи" hidden>
+</progress>
+</section>
+<section class="card result" id="result-panel" hidden aria-labelledby="result-title">
+<div class="card-title">
+<h2 id="result-title">Результат</h2>
+<span class="vd-status" id="status">В очереди</span>
+</div>
+<progress id="progress" class="vd-progress" max="100" aria-labelledby="progress-text">
+</progress>
+<p id="progress-text" role="status">
+</p>
+<video id="video" controls preload="metadata" aria-label="Исходная запись" hidden>
+</video>
+<nav class="tools" id="exports" aria-label="Экспорт и редактор" hidden>
+<a id="srt" download class="vd-link">SRT ↓</a>
+<a id="vtt" download class="vd-link">VTT ↓</a>
+<a id="txt" download class="vd-link">Текст ↓</a>
+<a id="ru-srt" download hidden class="vd-link">Русский SRT ↓</a>
+<a id="open-report" hidden class="vd-link">Открыть конспект ↗</a>
+<a id="editor" class="vd-link">Расширенный редактор ↗</a>
+</nav>
+<div id="postprocess-actions" hidden>
+<div class="setup-actions">
+<button id="translate-run" type="button" class="vd-button">Перевести на русский</button>
+<button id="notes-run" type="button" class="vd-button">Конспект и перевод</button>
+</div>
+<p class="footnote">Создаётся отдельная версия из исправленных реплик. Используется выбранная модель Ollama; устройство перевода определяется Ollama.</p>
+</div>
+<button id="retry" type="button" hidden class="vd-button">Продолжить из кэша</button>
+<div id="transcript">
+</div>
+<p class="footnote" id="timing-note">
+</p>
+</section>
+<section class="card" aria-labelledby="jobs-heading">
+<div class="card-title">
+<h2 id="jobs-heading">Ваши записи</h2>
+<button id="refresh" type="button" class="vd-button vd-button--quiet">Обновить записи</button>
+</div>
+<div id="jobs" class="jobs">
+<p class="empty">Здесь появятся добавленные записи</p>
+</div>
+</section>
+</section>
+<div id="setup-wizard" hidden>
+<section class="card">
+<h2>Распознавание · обязательные шаги</h2>
+<p class="footnote">1. Проверьте компоненты → 2. Подключите Whisper → 3. Подготовьте распознавание. Перевод, облако, OCR и диаризацию можно пропустить.</p>
+<a class="vd-link" href="#diagnostics">Проверить компоненты в диагностике →</a>
+</section>
+<section class="card" id="setup-card" aria-label="Настройка распознавания">
+<div class="card-title">
+<h2>Подготовим приложение к работе</h2>
+<button id="setup-toggle" class="vd-button vd-button--quiet" type="button" aria-controls="setup-form" aria-expanded="false">Настроить модель</button>
+</div>
+<p id="setup-summary" class="footnote">Проверяем установленную модель…</p>
+<form id="setup-form" hidden>
+<p class="footnote">Подключите имеющуюся Whisper small FP16 в формате OpenVINO. Файлы останутся на месте. Проверка ничего не скачивает и не меняет модели.</p>
+<label class="vd-field">Папка модели<input id="model-path" placeholder="Например: D:\AI\models\whisper-small" maxlength="1024" autocomplete="off" required class="vd-input" name="model-path">
+</label>
+<div class="setup-actions">
+<button type="button" id="pick-model" class="vd-button">Выбрать папку…</button>
+<button type="button" id="inspect-model" class="vd-button">Проверить файлы</button>
+<button type="submit" id="apply-model" class="vd-button vd-button--primary">Подключить модель</button>
+</div>
+<p id="setup-feedback" class="footnote" role="status" aria-live="polite">
+</p>
+</form>
+<details>
+<summary>Скачать проверенную модель Whisper</summary>
+<p id="download-info" class="footnote">
+</p>
+<p class="footnote">Требуются OpenVINO/GenAI 2026.4.1 (включены в установщик), около 550 МиБ на диске и CPU либо совместимый Intel GPU/NPU с драйвером. Существующие модели сохраняются.</p>
+<label class="check-label">
+<input id="download-consent" type="checkbox" name="download-consent"> Разрешаю скачать эту модель с Hugging Face</label>
+<button type="button" id="download-model" class="vd-button">Скачать Whisper small FP16</button>
+</details>
+<p class="footnote">После подключения нажмите «Подготовить распознавание» в этом разделе. Дополнительная короткая проверка выполняется только по вашей команде.</p>
+<p class="footnote">После подготовки модели проверьте распознавание на короткой записи из установщика. Выбор файла не требуется.</p>
+<div class="setup-actions">
+<button id="start-npu" type="button" hidden class="vd-button">Подготовить распознавание</button>
+<button id="probe-model" type="button" class="vd-button">Проверить на встроенной записи</button>
+</div>
+<details>
+<summary>Выбрать свой файл для проверки</summary>
+<label class="vd-file"><strong id="probe-filename">Выберите WAV для проверки</strong><span class="vd-help">Mono PCM16, 16 кГц, до 15 секунд и 500 КБ</span>
+<input id="probe-audio" type="file" accept=".wav,audio/wav" name="probe-audio" aria-describedby="operation-feedback">
+</label>
+<button id="probe-custom" type="button" class="vd-button">Проверить выбранный файл</button>
+<p class="footnote">Файл не конвертируется и не обрезается. Если формат не подходит, мы покажем причину.</p>
+</details>
+<progress class="vd-progress" aria-label="Подготовка модели" id="setup-progress" max="100" hidden>
+</progress>
+<p id="operation-feedback" role="status" aria-live="polite">
+</p>
+</section>
+<h2 class="optional-heading">Необязательные возможности</h2>
+<p class="footnote">Перевод и конспект можно подключить позже.</p>
+<section class="card" aria-label="Настройка перевода">
+<div class="card-title">
+<h2>Перевод через Ollama</h2>
+<button type="button" id="ollama-refresh" class="vd-button vd-button--quiet">Обновить список</button>
+</div>
+<p class="footnote">Если Ollama отсутствует: официальная инструкция https://ollama.com/download/windows (откройте в браузере). Установите Ollama и нужную модель, затем обновите список. Выберите уже установленную языковую модель. Ничего не скачивается. Ollama самостоятельно управляет устройством для перевода.</p>
+<form id="ollama-form">
+<label class="vd-field">Модель перевода<select id="ollama-model" class="vd-select" name="ollama-model">
+<option value="">Проверяем Ollama…</option>
+</select>
+</label>
+<label class="vd-field">Назначение<select id="ollama-task" class="vd-select" name="ollama-task">
+<option value="translation">Перевод</option>
+<option value="notes">Конспект</option>
+</select>
+</label>
+<button type="submit" id="ollama-connect" disabled class="vd-button">Подключить перевод</button>
+<p id="ollama-feedback" class="footnote" role="status" aria-live="polite">
+</p>
+</form>
+</section>
+<section class="card">
+<h2>Gemini · необязательно</h2>
+<p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p>
+<form id="gemini-form">
+<label class="vd-field">API-ключ (пустое поле сохраняет прежний)<input id="gemini-key" type="password" autocomplete="off" maxlength="512" class="vd-input" name="gemini-key">
+</label>
+<label class="vd-field">Модель<input id="gemini-model" list="gemini-models" value="gemini-3.5-flash-lite" required class="vd-input" name="gemini-model" autocomplete="off">
+</label>
+<datalist id="gemini-models">
+</datalist>
+<label class="vd-field">Оплата<select id="gemini-billing" class="vd-select" name="gemini-billing">
+<option value="paid">Платный проект · расходы по тарифу Google</option>
+<option value="free">Бесплатный проект · ограничения и условия Google</option>
+</select>
+</label>
+<label class="check-label">
+<input id="gemini-ack" type="checkbox" name="gemini-ack"> При бесплатном проекте принимаю условия обработки данных Google</label>
+<div class="setup-actions">
+<button type="submit" class="vd-button">Сохранить Gemini</button>
+<button id="gemini-check" type="button" class="vd-button">Проверить доступ / получить модели</button>
+</div>
+<p id="gemini-feedback" role="status" class="footnote">
+</p>
+</form>
+</section>
+<section class="card">
+<button id="setup-finish" type="button" class="vd-button vd-button--primary">К записям →</button>
+<p class="footnote">Вернуться можно через «Настройки AI». Для локального распознавания достаточно Whisper, CPU и FFmpeg.</p>
+</section>
+</div>
+
+<section id="diagnostics-view" hidden>
+<section class="card">
+<div class="card-title">
+<h2>Компоненты и устройства</h2>
+<button id="diagnostics-refresh" type="button" class="vd-button">Обновить диагностику</button>
+</div>
+<div id="setup-diagnostics">
+</div>
+<p class="footnote">Обнаружение устройства и готовность модели проверяются отдельно. Настроенное подключение не означает проверенную генерацию.</p>
+</section>
+<section class="card">
+<details>
+<summary>Техническая диагностика</summary>
+<pre id="doctor">
+</pre>
+</details>
+<details>
+<summary>История действий</summary>
+<pre id="events">Событий пока нет</pre>
+</details>
+</section>
+</section>
+</div>
+<aside class="card readiness" aria-labelledby="readiness-heading">
+<div class="card-title">
+<h2 id="readiness-heading">Готовность AI</h2>
+<span class="dot" id="ready-dot" aria-hidden="true">
+</span>
+</div>
+<div id="readiness">Проверяем компоненты…</div>
+<p class="footnote" id="npu-notice">Первая загрузка модели может занять около минуты.</p>
+<a class="vd-link" href="#settings">Настроить компоненты →</a>
+<p class="footnote">Начните с расшифровки. После проверки текста доступны перевод, конспект и экспорт.</p>
+<p class="footnote">Автоматическое разделение голосов на Windows пока не подготовлено.</p>
+</aside>
+</div>
+<footer>Video Descriptor · Windows · Локальное рабочее пространство</footer>
+</main>
+</div>
+</div>
+<script src="/studio-assets/speech-edit.js">
+</script>
+<script src="/native.js">
+</script>
+</body>
+</html>

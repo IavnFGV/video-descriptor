@@ -24,7 +24,15 @@ namespace VideoDescriptor {
                 string python = args.Length > 1 ? args[1] : Path.Combine(root, "python", "python.exe");
                 if (!File.Exists(python)) python = Path.Combine(root, ".venv-windows", "Scripts", "python.exe");
                 if (!File.Exists(python)) throw new Exception("Application Python runtime is missing. Reinstall the preview.");
-                Run(python, directory, args.Length > 2 && args[2] == "--smoke");
+                int testPort = 0;
+                foreach (string argument in args) {
+                    if (!argument.StartsWith("--ui-test-port=", StringComparison.Ordinal)) continue;
+                    if (!Int32.TryParse(argument.Substring(15), out testPort) || testPort < 1024 || testPort > 65535)
+                        throw new Exception("Invalid acceptance test port");
+                    if (!File.Exists(Path.Combine(root, ".acceptance-installation.json")))
+                        throw new Exception("UI acceptance requires a marked disposable test installation");
+                }
+                Run(python, directory, args.Length > 2 && args[2] == "--smoke", testPort);
                 return 0;
             } catch (Exception ex) {
                 if (args.Length > 2 && args[2] == "--smoke") {
@@ -48,10 +56,11 @@ namespace VideoDescriptor {
         bool busy, monitoring, quitting, initialized;
         string failure;
         readonly bool smoke;
+        readonly int uiTestPort;
         bool smokeRunning;
 
-        public DesktopHost(string py, string dir, bool test) {
-            python = py; directory = dir; smoke = test;
+        public DesktopHost(string py, string dir, bool test, int testPort) {
+            python = py; directory = dir; smoke = test; uiTestPort = testPort;
             Text = "Video Descriptor"; Size = new Size(1200, 820); MinimumSize = new Size(760, 560);
             StartPosition = FormStartPosition.CenterScreen;
             Icon = new Icon(Path.Combine(dir, "app.ico"));
@@ -140,7 +149,10 @@ namespace VideoDescriptor {
                 if (!initialized) {
                     string fixedRuntime = Path.Combine(directory, "webview2-runtime");
                     if (!File.Exists(Path.Combine(fixedRuntime, "msedgewebview2.exe"))) fixedRuntime = null;
-                    var env = await CoreWebView2Environment.CreateAsync(fixedRuntime, Path.Combine(directory, "runtime", "webview"));
+                    var options = new CoreWebView2EnvironmentOptions();
+                    if (uiTestPort > 0) options.AdditionalBrowserArguments =
+                        "--remote-debugging-address=127.0.0.1 --remote-debugging-port=" + uiTestPort;
+                    var env = await CoreWebView2Environment.CreateAsync(fixedRuntime, Path.Combine(directory, "runtime", "webview"), options);
                     await web.EnsureCoreWebView2Async(env);
                     var core = web.CoreWebView2;
                     core.Settings.AreHostObjectsAllowed = false;
@@ -249,7 +261,7 @@ namespace VideoDescriptor {
                 throw new Exception("Navigation policy failed");
         }
         public static void Run(string python, string directory) { Run(python, directory, false); }
-        public static void Run(string python, string directory, bool smoke) {
+        public static void Run(string python, string directory, bool smoke, int testPort = 0) {
             Application.EnableVisualStyles();
             string key;
             using (var hash = SHA256.Create()) key = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(directory.ToLowerInvariant()))).Replace("-", "");
@@ -259,7 +271,7 @@ namespace VideoDescriptor {
                 try { owned = mutex.WaitOne(0); } catch (AbandonedMutexException) { owned = true; }
                 if (!owned) { signal.Set(); return; }
                 try {
-                    using (var window = new DesktopHost(python, directory, smoke)) {
+                    using (var window = new DesktopHost(python, directory, smoke, testPort)) {
                         window.activate = signal;
                         Application.Run(window);
                         if (window.failure != null) throw new Exception(window.failure);

@@ -84,11 +84,13 @@ def library_page(output):
                      f'{report_link}</article>')
     return ('<!doctype html><html lang="ru"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>Материалы</title><style>body{font:16px/1.6 system-ui;max-width:1000px;'
-            'margin:32px auto;padding:0 20px;background:#f7f8fa;color:#202b3b}'
-            'article{background:white;border:1px solid #e2e7ef;border-radius:12px;'
-            'padding:20px;margin:16px 0}a{color:#1557aa;overflow-wrap:anywhere}'
-            'article>a{font-size:20px;font-weight:600}p{color:#596579;margin-bottom:0}</style>'
-            '<h1>Материалы</h1><p><a href="/create">＋ Новая запись</a></p>'
-            '<p>Откройте запись для просмотра речи и обработки и конспекта.</p>'
-            + ("".join(cards) or '<p>Готовых материалов пока нет.</p>') + '</html>')
+            '<title>Записи · Video Descriptor</title>'
+            '<link rel="stylesheet" href="/studio-assets/create.css">'
+            '<a class="vd-skip" href="#records">К записям</a>'
+            '<nav class="vd-global-nav" aria-label="Основная навигация">'
+            '<a href="/output/" aria-current="page">Записи</a>'
+            '<a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
+            '<main id="records" tabindex="-1"><div class="library-heading"><h1>Записи</h1>'
+            '<a class="vd-button vd-button--primary" href="/">Новая запись</a></div>'
+            '<p>Откройте запись для просмотра расшифровки, перевода и конспекта.</p>'
+            + ("".join(cards) or '<p>Готовых материалов пока нет.</p>') + '</main></html>')

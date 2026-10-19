@@ -48,7 +48,7 @@ def check_installed(args):
     expected_python = root / 'python/python.exe'
     if not expected_python.samefile(sys.executable):
         raise ValueError('Verification must run with this installation\'s embedded Python')
-    report = {'status': 'FAIL', 'method': 'real installed application API; no UI claim',
+    report = {'status': 'FAIL', 'method': 'real installed application API and WebView2 UI' if args.ui else 'real installed application API; no UI claim',
               'environment': 'Windows Sandbox' if os.environ.get('USERNAME', '').lower() == 'wdagutilityaccount'
               else 'GitHub Actions Windows' if os.environ.get('GITHUB_ACTIONS') == 'true' else 'isolated Windows test',
               'installed_root': str(root), 'embedded_python': sys.version, 'models_downloaded': False,
@@ -80,6 +80,11 @@ def check_installed(args):
             report['stages'].append(result)
             if result['status'] != 'PASS':
                 raise RuntimeError(result.get('error', stage + ' failed'))
+        if args.ui:
+            from verify_workspace_ui import installed_workflow
+
+            ui_output = args.output.parent / 'webview2-ui'
+            report['ui'] = installed_workflow(root, port, ui_output, with_ollama=args.with_ollama)
         report['status'] = 'PASS'
     except Exception as exc:  # noqa: BLE001 -- acceptance runner persists every failure
         report['error'] = f'{type(exc).__name__}: {exc}'
@@ -93,7 +98,9 @@ def check_installed(args):
                     process.wait(timeout=20)
                 for child in psutil.process_iter(['exe']):
                     try:
-                        if child.pid != os.getpid() and child.info['exe'] and Path(child.info['exe']).resolve() == expected_python:
+                        executable = Path(child.info['exe']).resolve() if child.info['exe'] else None
+                        owned = executable == expected_python or (args.ui and executable and executable.is_relative_to(root))
+                        if child.pid != os.getpid() and owned:
                             child.terminate()
                             child.wait(timeout=20)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -115,6 +122,7 @@ def main():
     parser.add_argument('--model', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--with-ollama', action='store_true')
+    parser.add_argument('--ui', action='store_true', help='Run real installed WebView2 input/editor/export acceptance')
     parser.add_argument('--ollama-url', default='http://127.0.0.1:11434')
     parser.add_argument('--ollama-model', default='qwen3.5:9b')
     args = parser.parse_args()
@@ -139,6 +147,8 @@ def main():
                  '--ollama-model', args.ollama_model]
         if args.with_ollama:
             child.append('--with-ollama')
+        if args.ui:
+            child.append('--ui')
         result_code = subprocess.run(child, check=False, timeout=1800).returncode
         if not args.output.is_file():
             args.output.write_text(json.dumps({'status': 'FAIL', 'error': 'Embedded verifier exited without a result',

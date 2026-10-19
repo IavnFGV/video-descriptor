@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f4f6f5"><title>Новая запись · Video Descriptor — прототип</title>
+  <link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../components.css"><link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<a class="skip vd-link" href="#main">К содержимому</a>
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="#records"><span class="brand-mark" aria-hidden="true">vd</span><span>Video<br>Descriptor</span></a>
+    <p class="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</p>
+    <nav aria-label="Основная навигация">
+      <a class="nav-item" href="#records" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>Записи</a>
+      <a class="nav-item" href="#settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg>Настройки AI</a>
+      <a class="nav-item" href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>Диагностика</a>
+    </nav>
+    <div class="sidebar-bottom"><span class="vd-status" data-tone="success">Локальная обработка</span><p>Windows · WebView2<br>Дизайн-прототип 0.1</p></div>
+  </aside>
+  <div class="content">
+    <header class="topbar"><span>Записи <span class="slash">/</span> <strong id="breadcrumb">Новая запись</strong></span><span class="prototype-tag">ПРОТОТИП · ДАННЫЕ-ПРИМЕРЫ</span></header>
+    <main id="main" tabindex="-1">
+      <section id="records-view">
+        <div class="page-heading"><div><p class="eyebrow">ВИДЕО И АУДИО → ТЕКСТ</p><h1>Новая запись</h1><p class="muted">Добавьте файл, получите расшифровку и проверьте её по записи.</p></div><span class="vd-status" data-tone="success">✓ Пример готовой системы</span></div>
+        <div class="workspace">
+          <section class="panel upload-panel" aria-labelledby="upload-heading">
+            <div class="panel-heading"><h2 id="upload-heading">Добавить файл</h2><span class="section-number">01</span></div>
+            <form id="demo-upload" novalidate>
+              <label class="vd-file" id="demo-drop" for="demo-file">
+                <svg class="upload-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/></svg>
+                <strong id="demo-filename">Выберите файл или перетащите его сюда</strong>
+                <span class="picker-action">Выбрать файл…</span>
+                <span class="vd-help" id="file-help">MP4, MKV, MOV, WebM · WAV, MP3, M4A, FLAC, OGG · до 4 ГБ</span>
+                <input id="demo-file" name="file" type="file" accept=".mp4,.mkv,.mov,.webm,.wav,.mp3,.m4a,.flac,.ogg" aria-describedby="file-help file-error">
+              </label>
+              <p id="file-error" class="vd-error" role="alert"></p>
+              <div class="fields">
+                <label class="vd-field" for="demo-title">Название записи<input class="vd-input" id="demo-title" name="title" maxlength="200" autocomplete="off" placeholder="Например: интервью с Анной…"></label>
+                <label class="vd-field" for="demo-language">Язык записи<select class="vd-select" id="demo-language" name="language"><option value="auto">Определить автоматически</option><option value="ru">Русский</option><option value="uk">Українська</option><option value="en">English</option></select></label>
+              </div>
+              <details class="recognition-settings"><summary>Параметры распознавания <span>Авто · NPU → GPU → CPU</span></summary><div class="settings-body"><label class="vd-field" for="demo-device">Устройство распознавания<select class="vd-select" id="demo-device" name="device" aria-describedby="device-help"><option value="AUTO">Авто · NPU → GPU → CPU</option><option value="NPU">NPU</option><option value="GPU">GPU · Intel OpenVINO</option><option value="CPU">CPU</option></select></label><p id="device-help" class="vd-help">Пример настройки для новых заданий. Явный выбор устройства сохраняется.</p></div></details>
+              <div class="form-footer"><button class="vd-button vd-button--primary" id="demo-start" type="submit">Расшифровать запись <span aria-hidden="true">→</span></button><span class="vd-help">Оригинал останется без изменений</span></div>
+              <p class="vd-help demo-notice">Демонстрация интерфейса: файл не отправляется, распознавание не запускается.</p>
+            </form>
+            <section id="demo-result" class="demo-result" hidden aria-labelledby="demo-result-title"><div class="panel-heading"><h3 id="demo-result-title">Пример состояния задания</h3><span class="vd-status" id="demo-job-status">В очереди</span></div><label for="demo-progress" id="demo-stage">Ожидаем обработчик</label><progress class="vd-progress" id="demo-progress" max="100"></progress><p id="demo-feedback" role="status" aria-live="polite"></p><div class="vd-actions" id="demo-result-actions" hidden><button type="button" class="vd-button" id="demo-retry">Продолжить из кэша</button><button type="button" class="vd-button" id="demo-export">Экспорт…</button></div></section>
+          </section>
+          <aside class="panel readiness" aria-labelledby="ready-heading"><div class="panel-heading"><h2 id="ready-heading">Готовность AI</h2><span class="small-check" aria-hidden="true">✓</span></div><p>Всё для расшифровки готово</p><dl><div><dt>Распознавание</dt><dd><span class="vd-status" data-tone="success">Whisper · NPU</span></dd></div><div><dt>Видео и аудио</dt><dd><span class="vd-status" data-tone="success">FFmpeg · готов</span></dd></div><div><dt>Перевод и конспект</dt><dd><span class="vd-status">Необязательно</span></dd></div></dl><a class="vd-link" href="#settings">Настроить компоненты →</a><div class="side-hint"><h3>Сначала — расшифровка</h3><p>Исправьте текст и таймкоды. Затем создайте перевод или конспект и сохраните результат.</p></div><p class="vd-help">Показано примерное состояние.<br>Проверка оборудования не выполнялась.</p></aside>
+        </div>
+        <section class="panel recent" aria-labelledby="recent-heading"><div class="panel-heading"><h2 id="recent-heading">Последние записи</h2><button type="button" class="vd-button vd-button--quiet" id="demo-refresh">Обновить</button></div><div class="record-row"><span class="file-glyph" aria-hidden="true">01</span><div class="record-name"><button class="record-open" type="button">Интервью о новом проекте</button><p>Пример · MP4 · Русский</p></div><span class="vd-status" data-tone="success">Готово</span><span class="record-arrow" aria-hidden="true">→</span></div><p class="vd-help">В рабочем приложении здесь будут ваши записи. Сейчас используются демонстрационные данные.</p></section>
+        <details class="review-controls"><summary>Для согласования: состояния и компоненты</summary><div class="review-body"><label class="vd-field" for="demo-state">Показать состояние<select class="vd-select" id="demo-state"><option value="empty">Пустая форма</option><option value="queued">В очереди</option><option value="running">Обработка</option><option value="done">Готово</option><option value="error">Ошибка</option><option value="no-speech">Речь не обнаружена</option></select></label><div class="vd-actions"><button type="button" class="vd-button" id="demo-sample">Добавить пример файла</button><button type="button" class="vd-button" id="demo-components">Компоненты…</button></div></div></details>
+      </section>
+      <section id="settings-view" hidden><p class="eyebrow">НАСТРОЙКИ ПРИЛОЖЕНИЯ</p><h1>Настройки AI</h1><p class="muted">Структура будущего мастера. Все значения — примеры.</p><section class="panel"><h2>Распознавание · обязательные шаги</h2><ol class="setup-list"><li><strong>Компоненты</strong><span>CPU / GPU / NPU, OpenVINO и FFmpeg</span></li><li><strong>Модель Whisper</strong><span>Папка → проверить файлы → подключить. Скачивание — только с согласием.</span></li><li><strong>Подготовка и короткая проверка</strong><span>Загрузить модель на выбранное устройство, затем проверить запись.</span></li></ol><p class="vd-help">Это схема, команды настройки в прототипе не выполняются.</p></section><section class="panel"><h2>Необязательные возможности</h2><p>Ollama · перевод и конспект</p><p>Gemini · облачная обработка</p><p class="vd-help">Подключения и условия отправки данных находятся здесь, отдельно от загрузки записи.</p></section><a class="vd-link" href="#records">Вернуться к новой записи</a></section>
+      <section id="diagnostics-view" hidden><p class="eyebrow">СОСТОЯНИЕ КОМПОНЕНТОВ</p><h1>Диагностика</h1><section class="panel"><h2>Отдельная область технических подробностей</h2><p>Обнаружение устройства → доступность backend → готовность модели → проверка генерации.</p><p class="vd-help">В прототипе нет запросов к сервисам. Здесь в рабочем интерфейсе будут реальные статусы, причины ошибок и журнал событий.</p></section><a class="vd-link" href="#records">Вернуться к новой записи</a></section>
+      <p id="demo-announcement" class="vd-help" role="status" aria-live="polite"></p>
+    </main>
+  </div>
+</div>
+<dialog class="vd-dialog" id="export-dialog" aria-labelledby="export-title"><h2 id="export-title">Экспорт результата</h2><p>В рабочем интерфейсе здесь будут ссылки на SRT, VTT и TXT с выбором языка. В прототипе результаты не создаются.</p><p class="vd-help">Перевод и новый конспект — отдельные действия, сохраняющие исходную версию.</p><form method="dialog"><button class="vd-button vd-button--primary" autofocus>Закрыть</button></form></dialog>
+<dialog class="vd-dialog" id="components-dialog" aria-labelledby="components-title"><h2 id="components-title">Единые компоненты</h2><p class="vd-help">Те же tokens.css и components.css используются на главном экране.</p><div class="vd-actions"><button class="vd-button vd-button--primary" type="button">Основная</button><button class="vd-button" type="button">Вторичная</button><button class="vd-button vd-button--quiet" type="button">Текстовая</button><button class="vd-button" disabled>Недоступно</button><button class="vd-button" aria-busy="true" disabled>Сохраняем…</button><button class="vd-button vd-button--danger" type="button">Опасное действие</button></div><div class="status-gallery"><span class="vd-status">В очереди</span><span class="vd-status" data-tone="info">Обрабатываем</span><span class="vd-status" data-tone="success">Готово</span><span class="vd-status" data-tone="warning">Нужна настройка</span><span class="vd-status" data-tone="danger">Ошибка</span></div><label class="vd-field">Название<input class="vd-input" value="Пример поля" autocomplete="off" name="component-title"></label><p><a class="vd-link" href="../MASTER.md" target="_blank" rel="noopener">Описание дизайн-системы</a></p><form method="dialog"><button class="vd-button" autofocus>Закрыть</button></form></dialog>
+<script src="prototype.js"></script>
+</body></html>

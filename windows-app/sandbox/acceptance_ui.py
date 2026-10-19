@@ -13,10 +13,15 @@ import json
 import os
 import socket
 import struct
+import sys
 import time
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
+
+# The packaged Python uses an isolated _pth and omits the script directory.
+# Include the staged driver directory so shared workspace checks load in Sandbox.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 class Blocked(RuntimeError):
@@ -345,6 +350,25 @@ def run(args, evidence):
                 (args.reports / 'notes-report.html').write_bytes((folder / 'report.html').read_bytes())
         else:
             raise ValueError(f'Unknown UI stage: {stage}')
+        if stage in {'whisper', 'notes'}:
+            from verify_workspace_ui import run as verify_workspace
+
+            source_folder = speech['job']['folder'] if stage == 'whisper' else api(
+                '/api/speech?job=' + state['source_job'])['job']['folder']
+            workspace_reports = args.reports / ('workspace-' + stage)
+            workspace_reports.mkdir(exist_ok=True)
+            workspace_result = {'status': 'FAIL', 'checks': [], 'screens': []}
+            try:
+                verify_workspace(argparse.Namespace(base=origin, debug_port=9222, target_id=None,
+                    folder=source_folder, notes_folder=speech['job']['folder'] if stage == 'notes' else None,
+                    output=workspace_reports, edit_reply=stage == 'whisper'), workspace_result)
+                workspace_result['status'] = 'PASS'
+            finally:
+                (workspace_reports / 'workspace-ui.json').write_text(
+                    json.dumps(workspace_result, ensure_ascii=False, indent=2), encoding='utf-8')
+            evidence['workspace_ui'] = workspace_result['checks']
+            cdp.call('Page.navigate', url=origin + '/?job=' + (source_job if stage == 'whisper' else job))
+            wait_for(lambda: cdp.evaluate('!!document.querySelector("#setup-open")'))
         cdp.screenshot(args.reports / (stage + '.png'))
     except Exception:
         try:

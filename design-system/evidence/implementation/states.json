@@ -1,0 +1,66 @@
+[
+  {
+    "exports": false,
+    "postprocess": false,
+    "progress": null,
+    "retry": false,
+    "seekLabels": [],
+    "segments": 0,
+    "status": "В очереди",
+    "timing": "",
+    "url": "?preview=queued&job=fixture-job"
+  },
+  {
+    "exports": false,
+    "postprocess": false,
+    "progress": "40",
+    "retry": false,
+    "seekLabels": [
+      "00:00:00 — 00:00:01",
+      "00:00:01 — метка не определена"
+    ],
+    "segments": 2,
+    "status": "Обрабатываем",
+    "timing": "Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.",
+    "url": "?preview=running&job=fixture-job"
+  },
+  {
+    "exports": false,
+    "postprocess": false,
+    "progress": "40",
+    "retry": true,
+    "seekLabels": [
+      "00:00:00 — 00:00:01",
+      "00:00:01 — метка не определена"
+    ],
+    "segments": 2,
+    "status": "Нужна проверка",
+    "timing": "Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.",
+    "url": "?preview=error&job=fixture-job"
+  },
+  {
+    "exports": true,
+    "postprocess": true,
+    "progress": "100",
+    "retry": false,
+    "seekLabels": [
+      "00:00:00 — 00:00:01",
+      "00:00:01 — метка не определена"
+    ],
+    "segments": 2,
+    "status": "Готово",
+    "timing": "Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.",
+    "url": "?preview=done&job=fixture-job"
+  },
+  {
+    "exports": true,
+    "postprocess": false,
+    "progress": "100",
+    "retry": false,
+    "seekLabels": [],
+    "segments": 0,
+    "status": "Готово",
+    "timing": "Речь не обнаружена. Это решение VAD, а не ручная проверка записи.",
+    "url": "?preview=no-speech&job=fixture-job"
+  }
+]

@@ -177,6 +177,7 @@ try {
                         else { $stage.reason='Fresh guest silent install and file presence; full lifecycle not requested' }
                         Invoke-OwnedProcess (Join-Path 'C:\VD-Acceptance' $exe) '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG=C:\VD-Results\installer.log' 'install'
                         if (!(Test-Path (Join-Path $install 'python\python.exe')) -or !(Test-Path (Join-Path $install 'windows-app\desktop-sdk\VideoDescriptor.exe'))) { throw 'Installation files missing' }
+                        Write-Json (Join-Path $install '.acceptance-installation.json') @{purpose='disposable Sandbox acceptance';run_id=$plan.run_id}
                         $stage.evidence=@('installer.log')
                     }
                 }
@@ -197,6 +198,8 @@ try {
                         if ($target -ne (Join-Path $install 'windows-app\desktop-sdk\VideoDescriptor.exe')) { throw 'Unexpected installed shortcut target' }
                         $start=[Diagnostics.ProcessStartInfo]::new($target)
                         $start.UseShellExecute=$false;$start.WorkingDirectory=$install
+                        $start.Arguments='"'+(Join-Path $install 'windows-app')+'" "'+(Join-Path $install 'python\python.exe')+'" --ui-test-port=9222'
+                        $start.EnvironmentVariables['WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS']=$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
                         [Diagnostics.Process]::Start($start) | Out-Null
                     }
                     Invoke-UI 'desktop' | Out-Null; $stage.evidence=@('desktop.json')
