@@ -79,14 +79,15 @@
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
       if(d.compute){
         const c=d.compute, chosen=c.selected, ready=chosen&&c.capabilities[chosen].ready;
+        const deviceReason=(name)=>{const cap=c.capabilities[name];return c.preparing&&name===chosen?'Запускаем распознавание…':cap.available&&!cap.ready&&cap.model_present&&cap.reason==='Модель не загружена'?'Распознавание не запущено':cap.reason;};
         $('speech-device').value=c.settings.speech_device;
-        for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+cap.reason;}
-        $('device-status').textContent=c.preparing?'Подготавливаем модель…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
-        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,c.capabilities[name].reason)),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
+        for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+deviceReason(option.value);}
+        $('device-status').textContent=c.preparing?'Запускаем распознавание с моделью на диске…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
+        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
         $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
-        $('npu-notice').textContent=ready?'Модель готова. Можно добавлять запись.':'Подготовка использует установленную модель, без скачивания весов.';
+        $('npu-notice').textContent=ready?'Модель готова. Можно добавлять запись.':'Если модель уже подключена, нажмите «Подготовить распознавание»: она загрузится с диска в память устройства. Скачивание не требуется.';
         try{const events=await api('/api/native/events');$('events').textContent=events.slice(-20).map(e=>`${new Date(e.time_utc).toLocaleTimeString()} · ${actionNames[e.action]||e.action}${e.device||e.requested?' · '+(e.device||e.requested):''}${e.previous_device?' ← '+e.previous_device:''}${e.job_id?' · запись '+e.job_id.slice(0,8):''}`).join('\n')||'Событий пока нет';}catch(e){$('events').textContent='Не удалось обновить историю: '+e.message;}
         return;
       }
@@ -191,7 +192,7 @@
     xhr.onloadend=()=>{uploading=false;$('start').setAttribute('aria-busy','false');$('start-label').textContent='Расшифровать запись';$('upload-progress').hidden=true;readiness();};xhr.send(file);
   };
   $('retry').onclick=async()=>{try{await api('/api/retry?id='+selected,{method:'POST'});poll();}catch(e){message(e.message,true);}};
-  $('start-npu').onclick=async()=>{message('Загружаем выбранную модель. Ничего не скачиваем.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
+  $('start-npu').onclick=async()=>{message('Запускаем распознавание: загружаем модель с диска в память устройства. Скачивание не требуется.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
   $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await readiness();}catch(e){message(e.message,true);}};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
