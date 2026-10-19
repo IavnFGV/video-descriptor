@@ -16,6 +16,7 @@
 <span>Video<br>Descriptor</span>
 </a>
 <nav aria-label="Основная навигация">
+<a class="nav-item" id="new-record-open" href="#new">＋ Новая запись</a>
 <a class="nav-item" id="records-open" href="#records" aria-current="page">Записи</a>
 <a class="nav-item" id="setup-open" href="#settings">Настройки AI</a>
 <a class="nav-item" id="diagnostics-open" href="#diagnostics">Диагностика</a>
@@ -38,13 +39,13 @@
 </header>
 <main id="main" tabindex="-1">
 <div class="page-heading">
-<h1 id="main-heading" tabindex="-1">Новая запись</h1>
-<p id="view-description">Добавьте файл, получите расшифровку и проверьте её по записи.</p>
+<h1 id="main-heading" tabindex="-1">Записи</h1>
+<p id="view-description">Откройте запись, чтобы продолжить работу с её текстом и результатами.</p>
 </div>
 <p id="message" class="feedback" role="status" aria-live="polite"></p>
 <div class="workspace">
 <div>
-<section id="records-view">
+<section id="new-record-view" hidden>
 <section class="card" aria-labelledby="upload-heading">
 <div class="card-title">
 <h2 id="upload-heading">Добавить файл</h2>
@@ -93,6 +94,8 @@
 <progress id="upload-progress" class="vd-progress" max="100" aria-label="Загрузка записи" hidden>
 </progress>
 </section>
+</section>
+<section id="records-view">
 <section class="card result" id="result-panel" hidden aria-labelledby="result-title">
 <div class="card-title">
 <h2 id="result-title">Результат</h2>
@@ -127,7 +130,7 @@
 <p class="footnote" id="timing-note">
 </p>
 </section>
-<section class="card" aria-labelledby="jobs-heading">
+<section class="card" id="jobs-panel" aria-labelledby="jobs-heading">
 <div class="card-title">
 <h2 id="jobs-heading">Ваши записи</h2>
 <button id="refresh" type="button" class="vd-button vd-button--quiet">Обновить записи</button>

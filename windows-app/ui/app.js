@@ -16,14 +16,17 @@
       context.delete('workspace');$('records-open').href='/create?'+context;
     }
 
-    const view=['settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
+    const view=['new','settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
+    $('new-record-view').hidden=view!=='new';
+    $('jobs-panel').hidden=!!selected;
+    $('result-panel').hidden=!selected;
     $('records-view').hidden=view!=='records';$('setup-wizard').hidden=view!=='settings';$('diagnostics-view').hidden=view!=='diagnostics';
-    for(const [id,name] of [['records-open','records'],['setup-open','settings'],['diagnostics-open','diagnostics']]){
+    for(const [id,name] of [['new-record-open','new'],['records-open','records'],['setup-open','settings'],['diagnostics-open','diagnostics']]){
       if(name===view)$(id).setAttribute('aria-current','page');else $(id).removeAttribute('aria-current');
     }
-    $('view-label').textContent={records:'Записи',settings:'Настройки AI',diagnostics:'Диагностика'}[view];
-    $('main-heading').textContent={records:'Новая запись',settings:'Настройки AI',diagnostics:'Диагностика'}[view];
-    $('view-description').textContent={records:'Добавьте файл, получите расшифровку и проверьте её по записи.',settings:'Сначала подготовьте распознавание. Перевод и конспект можно подключить позже.',diagnostics:'Проверьте компоненты, доступность устройств и историю действий.'}[view];
+    $('view-label').textContent={new:'Новая запись',records:'Записи',settings:'Настройки AI',diagnostics:'Диагностика'}[view];
+    $('main-heading').textContent={new:'Новая запись',records:selected?(currentJob?.title||currentJob?.filename||'Запись'):'Записи',settings:'Настройки AI',diagnostics:'Диагностика'}[view];
+    $('view-description').textContent={new:'Добавьте файл и выберите параметры распознавания.',records:selected?'Проверьте расшифровку по записи. Здесь доступны обработка и результаты.':'Откройте запись, чтобы продолжить работу с её текстом и результатами.',settings:'Сначала подготовьте распознавание. Перевод и конспект можно подключить позже.',diagnostics:'Проверьте компоненты, доступность устройств и историю действий.'}[view];
     if(focus)$('main-heading').focus();
   }
   window.addEventListener('hashchange',()=>showView(true));
@@ -33,6 +36,7 @@
     showView();
   });
   showView();
+  $('records-open').onclick=e=>{if($('records-open').getAttribute('href').startsWith('/create'))return;if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();const url=new URL(location.href);url.searchParams.delete('job');url.hash='records';history.pushState(null,'',url);clearTimeout(timer);selected=null;resetResult();showView(true);};
   $('skip-link').onclick=e=>{e.preventDefault();$('main').focus();};
   async function api(url, options) {
     const response = await fetch(url, options);
@@ -119,9 +123,10 @@
     $('result-title').textContent='Загружаем запись…';$('transcript').replaceChildren();$('transcript').dataset.content='';
     $('video').pause();$('video').hidden=true;$('timing-note').textContent='';
   }
-  function select(id) { if(id!==selected)resetResult();selected=id;const url=new URL(location.href);url.searchParams.set('job',id);url.hash='records';history.replaceState(null,'',url);showView();$('result-panel').hidden=false;clearTimeout(timer);poll(); }
+  function select(id) { if(id!==selected)resetResult();selected=id;const url=new URL(location.href);url.searchParams.set('job',id);url.hash='records';history.pushState(null,'',url);showView(true);$('result-panel').hidden=false;clearTimeout(timer);poll(); }
   function render(result,job) {
     currentJob=job;
+    if(!['new','settings','diagnostics'].includes(location.hash.slice(1)))$('main-heading').textContent=job.title||job.filename||'Запись';
     $('result-panel').hidden=false;$('result-title').textContent=job.title||job.filename;
     $('status').textContent=job.cancelled?'Остановлено':statusNames[job.status]||job.status;
     $('stop-job').hidden=!['queued','running'].includes(job.status);
