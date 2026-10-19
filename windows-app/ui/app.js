@@ -2,7 +2,7 @@
   const $ = id => document.getElementById(id);
   let wizardLoaded=false, setupPolling=false;
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
-  const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Нужна проверка'};
+  const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Ошибка обработки'};
   const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
   const stamp = s => {
     if (!Number.isFinite(s) || s < 0) return 'метка не определена';
@@ -124,7 +124,8 @@
     $('status').textContent=statusNames[job.status]||job.status;
     $('status').dataset.tone={running:'info',done:'success',error:'danger'}[job.status]||'neutral';
     const device=result?.device||job.device_plan?.selected;
-    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+(job.error||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&result?.message?result.message:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    $('progress').hidden=job.status==='error';
     if(job.status==='done'&&result?.status==='done')$('progress').value=100;
     else if(result?.duration>0&&Number.isFinite(result.processed))$('progress').value=Math.max(0,Math.min(100,100*result.processed/result.duration));
     else $('progress').removeAttribute('value');
@@ -134,6 +135,7 @@
       if(['queued','running'].includes(job.status))$('progress').removeAttribute('value');
     }
     $('retry').hidden=job.status!=='error';
+    $('retry').textContent=result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
     const done=job.status==='done'&&result?.status==='done';$('exports').hidden=!done;
     $('postprocess-actions').hidden=!done||!result?.segments?.length;
     $('translate-run').disabled=processing;$('notes-run').disabled=processing;
@@ -158,7 +160,7 @@
       if(done){const edit=document.createElement('button');edit.type='button';edit.className='vd-button vd-button--compact row-edit';edit.textContent='Исправить';edit.onclick=()=>window.editSpeechReply(result,index,$('video'),saved=>render(saved,job));row.append(edit);}
       const p=document.createElement('p');p.textContent=segment.text;row.append(time,p);const translated=result.translations?.[segment.id];if(translated){const ru=document.createElement('p');ru.className='translation';ru.textContent=translated;row.append(ru);}return row;
     });
-    if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent=result.no_speech?'Речевых фрагментов не найдено.':'Текст появится после первого сохранённого фрагмента.';rows.push(p);}
+    if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent=result.no_speech?'Речевых фрагментов не найдено.':job.status==='error'?'Распознавание остановилось до сохранения текста. Причина указана выше. Повторный запуск может завершиться той же ошибкой.':'Текст появится после первого сохранённого фрагмента.';rows.push(p);}
     $('transcript').replaceChildren(...rows);
   }
   async function poll() {
