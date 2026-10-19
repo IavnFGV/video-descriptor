@@ -1,5 +1,13 @@
 # Video Descriptor
 
+19.10.2026: GitHub Actions разделены на Fast CI, условные Windows/Docker Build &
+Smoke и отдельный Full Acceptance. Feature push больше не дублирует PR; PR runs
+отменяются при новой ревизии. Обычный CI не скачивает Whisper/Ollama, не выполняет
+полный installer lifecycle и не публикует большие бинарники. Перед push:
+`python scripts/check-fast.py`. Релизная приёмка проверяет точные ZIP/EXE и
+provenance вместо подмены uploaded assets пересборкой. Актуальные события,
+required check, кэши и ручной запуск: [политика CI](docs/ci-policy.md).
+
 19.10.2026: production UI перенесён на общие токены и компоненты: библиотека,
 источник, расшифровка/перевод, редактор реплик, версии, конспекты и экспорт.
 Сохранены DOM/API и WebView2; добавлены защита несохранённых диалогов,
