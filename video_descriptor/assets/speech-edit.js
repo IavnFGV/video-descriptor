@@ -17,12 +17,19 @@
     });
   };
   let editing=false;
+  function speakerActionIcon(path){
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','16');svg.setAttribute('height','16');
+    svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');
+    svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');svg.setAttribute('aria-hidden','true');
+    const shape=document.createElementNS('http://www.w3.org/2000/svg','path');shape.setAttribute('d',path);svg.append(shape);return svg;
+  }
   window.createSpeakerName = function(original, speaker, onSave){
     const holder=document.createElement('span'), button=document.createElement('button');
     const input=document.createElement('input'), feedback=document.createElement('span');
     const label=original.speaker_names?.[speaker]||(speaker==='unknown'?'Не определён':speaker);
     button.type='button';button.className='vd-button vd-button--quiet vd-button--compact speaker-name';
-    button.textContent=label;button.title='Переименовать во всех репликах этого говорящего';
+    button.textContent=label;button.append(speakerActionIcon('M16 3a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4L16 3Z M14 5l3 3'));button.title='Переименовать говорящего во всех его репликах';button.setAttribute('aria-label','Переименовать говорящего '+label+' во всех его репликах');
     input.className='vd-input speaker-name-input';input.maxLength=100;input.hidden=true;
     input.setAttribute('aria-label','Имя говорящего '+label);feedback.className='vd-help';feedback.setAttribute('role','status');
     let active=false,saving=false;
@@ -49,8 +56,8 @@
     const row=original.segments[index], holder=document.createElement('span');holder.className='speaker-controls';
     const select=document.createElement('select'), feedback=document.createElement('span');
     select.className='vd-select speaker-select';
-    select.setAttribute('aria-label','Говорящий реплики '+stamp(row.start));
-    select.title='Изменить говорящего';
+    select.setAttribute('aria-label','Назначить говорящего только этой реплике '+stamp(row.start));
+    select.title='Назначить говорящего только этой реплике';
     const speakers=[...new Set([...(original.speaker_options||[]),...original.segments.map(s=>s.speaker),'unknown'])];
     select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||(s==='unknown'?'Не определён':s))));
     select.value=row.speaker;
@@ -87,7 +94,9 @@
     };
     name.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();create();}if(e.key==='Escape'&&!publishing){e.preventDefault();cancel();}};
     name.onblur=()=>{if(adding&&!publishing){if(name.value.trim())create();else cancel();}};
-    holder.append(select,add,name,feedback);return holder;
+    const assignment=document.createElement('label');assignment.className='speaker-assignment';assignment.title='Назначить говорящего только этой реплике';
+    assignment.append(speakerActionIcon('M8 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6 M2 20v-2a6 6 0 0 1 12 0v2 M15 11h7 M19 8l3 3-3 3'),select);
+    holder.append(assignment,add,name,feedback);return holder;
   };
   window.editSpeechReply = function(original, index, video, onSave){
     if(editing)return;
