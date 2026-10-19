@@ -1,0 +1,10 @@
+{
+  "baseline_commit": "9ffa842",
+  "approved": "Владелец согласовал направление и поручил реализацию в этом чате 19.10.2026",
+  "allowed_changes": {
+    "windows-app/ui/index.html": "Перенос существующих форм и всех 75 ids в согласованную оболочку; aria, shared classes и подписи. setup-open: button -> navigation anchor.",
+    "windows-app/ui/app.css": "Детерминированный bundle общих tokens/components и scoped layout; backend asset route и packaging неизменны.",
+    "windows-app/ui/app.js": "Hash navigation, accessible generated controls, validation, progress, focus stability и безопасное завершение upload; прежние API/payloads и persisted job enums сохраняются."
+  },
+  "validation": "Исходный baseline.json не заменяется. Проверять прежние ids, обработчики и API literals; все backend/host/assets редактора должны совпадать с baseline; browser fixture scenarios и существующие backend tests отдельно."
+}

@@ -1,5 +1,7 @@
 # Сохранение поведения и контрактов
 
+Обновление 19.10.2026: согласованная главная внедрена. Номера строк ниже относятся к исходному baseline. `migrations/main.json` явно разрешает три UI-пути; guard проверяет сохранение ids/handlers/API literals и неизменность backend/host/assets редактора. Baseline SHA не обновлялись. Runtime-проверки: IMPLEMENTATION.md.
+
 Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников, все статические DOM ids и прямые `$('<id>')` ссылки desktop app.js, все строковые API endpoints в JS. Динамические пути и generated controls дополнены ниже. `python scripts/check-ui-audit.py` сверяет baseline с рабочим деревом. На первом этапе рабочие HTML/CSS/JS, Python API и host неизменны (нормализация только CRLF → LF). Это доказательство отсутствия регрессии от текущих изменений, **не** E2E-проверка существующего продукта.
 
 ## Desktop обработчики

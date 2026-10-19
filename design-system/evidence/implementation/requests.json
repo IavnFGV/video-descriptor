@@ -1,0 +1,135 @@
+[
+  {
+    "path": "/api/upload",
+    "query": {
+      "filename": [
+        "example.wav"
+      ],
+      "title": [
+        "Проверка контракта загрузки"
+      ],
+      "mode": [
+        "audio"
+      ],
+      "engine": [
+        "whisper-local"
+      ],
+      "device": [
+        "AUTO"
+      ],
+      "speech_only": [
+        "true"
+      ],
+      "language": [
+        "uk"
+      ]
+    },
+    "instance": null,
+    "content_type": "audio/wav",
+    "bytes": 3244,
+    "json": null
+  },
+  {
+    "path": "/api/upload",
+    "query": {
+      "filename": [
+        "example.wav"
+      ],
+      "mode": [
+        "audio"
+      ],
+      "engine": [
+        "whisper-local"
+      ],
+      "device": [
+        "AUTO"
+      ],
+      "speech_only": [
+        "true"
+      ],
+      "language": [
+        "auto"
+      ]
+    },
+    "instance": null,
+    "content_type": "audio/wav",
+    "bytes": 3244,
+    "json": null
+  },
+  {
+    "path": "/api/setup/pick-model",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": null,
+    "bytes": 0,
+    "json": null
+  },
+  {
+    "path": "/api/setup/inspect",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": "application/json",
+    "bytes": 40,
+    "json": {
+      "path": "D:\\AI\\models\\whisper-small"
+    }
+  },
+  {
+    "path": "/api/setup/refresh",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": "application/json",
+    "bytes": 2,
+    "json": {}
+  },
+  {
+    "path": "/api/setup/complete",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": "application/json",
+    "bytes": 2,
+    "json": {}
+  },
+  {
+    "path": "/api/setup/probe",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": "audio/wav",
+    "bytes": 3244,
+    "json": null
+  },
+  {
+    "path": "/api/retry",
+    "query": {
+      "id": [
+        "fixture-job"
+      ]
+    },
+    "instance": null,
+    "content_type": null,
+    "bytes": 0,
+    "json": null
+  },
+  {
+    "path": "/api/native/postprocess",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": "application/json",
+    "bytes": 39,
+    "json": {
+      "folder": "fixture",
+      "task": "translate"
+    }
+  },
+  {
+    "path": "/api/native/postprocess",
+    "query": {},
+    "instance": "preview-instance",
+    "content_type": "application/json",
+    "bytes": 35,
+    "json": {
+      "folder": "fixture",
+      "task": "notes"
+    }
+  }
+]

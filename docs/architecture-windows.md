@@ -1,5 +1,16 @@
 # Windows: фактическая архитектура и решение
 
+## UI-система, 19.10.2026
+
+Согласованная главная сохраняет HTML/CSS/JS и WebView2. Клиентские области
+`#records`, `#settings`, `#diagnostics` сохраняют `?job=`; API и persisted job states
+прежние. `scripts/build-ui-css.py` собирает общие design-system tokens/components
+и `windows-app/ui/layout.css` в существующий `app.css`, обслуживаемый `/native.css`.
+Новых маршрутов и runtime-зависимостей нет. `--check` предотвращает рассогласование
+bundle. Общие assets `/create` и редактор отчёта пока не мигрировали.
+Контракты и проверки: `design-system/IMPLEMENTATION.md`, `migrations/main.json`.
+`scripts/preview-ui.py` — отдельный localhost fixture server, не production backend.
+
 ## Sandbox harness, 19.10.2026
 
 Последующее уточнение: Functional поддерживает явно разрешённый владельцем guest-only

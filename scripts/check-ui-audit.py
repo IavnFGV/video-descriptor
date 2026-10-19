@@ -1,4 +1,4 @@
-"""Stage-0 guard: production source identity and desktop DOM hook inventory.
+"""Production preservation guard with explicitly reviewed UI migrations.
 
 Run with Python standard library. --record creates baseline once from git HEAD;
 never silently refresh the snapshot during a later UI migration.
@@ -52,23 +52,43 @@ def main():
         BASELINE.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     baseline = json.loads(BASELINE.read_text(encoding='utf-8'))
     failures = []
+    migrations = {} if '--stage-zero' in sys.argv else json.loads(
+        (ROOT / 'design-system/migrations/main.json').read_text(encoding='utf-8'))['allowed_changes']
+    unchanged = 0
     for name, expected in baseline['sha256'].items():
         path = ROOT / name
         if not path.is_file() or digest(path.read_bytes()) != expected:
-            failures.append('Production file changed: ' + name)
+            if name not in migrations:
+                failures.append('Unreviewed production file changed: ' + name)
+        else:
+            unchanged += 1
     html = (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
     js = (ROOT / 'windows-app/ui/app.js').read_text(encoding='utf-8')
     ids = re.findall(r'\bid="([^"]+)"', html)
     refs = set(re.findall(r"\$\(['\"]([^'\"]+)['\"]\)", js))
     failures.extend('Missing desktop handler target: ' + name for name in sorted(refs - set(ids)))
+    original = baseline['inventory']
+    previous_ids = set(original['windows-app/ui/index.html']['ids'])
+    failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids)))
+    previous_apis = set(original['windows-app/ui/app.js']['api_literals'])
+    current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js))
+    if previous_apis != current_apis:
+        failures.append('Desktop API literals changed; explicit API contract review required')
+    original_js = git('show', baseline['commit'] + ':windows-app/ui/app.js').decode('utf-8')
+    pattern = r"\$\(['\"]([^'\"]+)['\"]\)\.(on\w+)\s*="
+    before, after = set(re.findall(pattern, original_js)), set(re.findall(pattern, js))
+    failures.extend('Original handler removed: ' + '.'.join(pair) for pair in sorted(before - after))
     if len(ids) != len(set(ids)):
         failures.append('Duplicate desktop ids')
     if failures:
         print('\n'.join(failures))
         return 1
-    print(f"PASS: {len(baseline['sha256'])} production files unchanged; "
+    if migrations:
+        subprocess.run([sys.executable, str(ROOT / 'scripts/build-ui-css.py'), '--check'], check=True)
+    print(f"PASS: {unchanged} production files unchanged; {len(migrations)} reviewed UI paths; "
           f'{len(ids)} unique desktop ids; {len(refs)} direct handler targets resolved.')
-    print('Static preservation check only; not a backend or WebView2 E2E test.')
+    print(f'{len(previous_ids)} original ids, {len(before)} handler assignments and API literals preserved.')
+    print('Static contract checks only; browser scenarios and backend tests are separate.')
     return 0
 
 
