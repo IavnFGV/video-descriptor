@@ -107,6 +107,8 @@ def ffmpeg_path():
 def doctor(value):
     import psutil
     from setup_service import ollama_status
+
+    from video_descriptor.diarization_postprocess import status as diarization_status
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         npu = pool.submit(service, value['npu_url'], 'npu')
         ollama = pool.submit(ollama_status, value)
@@ -133,7 +135,7 @@ def doctor(value):
             'cpu': os.environ.get('PROCESSOR_IDENTIFIER', 'unknown'),
             'npu': npu, 'ollama': ollama, 'npu_startup': startup,
             'can_start_npu': python.is_file() and (worker / 'whisper_npu_server.py').is_file() and (model / 'config.json').is_file(),
-            'diarization': {'ready': False, 'message': 'Windows XPU/pyannote не проверены; доступен режим без разделения говорящих'},
+            'diarization': diarization_status(value),
             'model_downloads': True}
 
 
@@ -331,6 +333,13 @@ def make_handler(value, instance):
                     if path == '/api/setup/gemini':
                         return self.json_response(200, setup.gemini(body))
                     if path == '/api/native/postprocess':
+                        if body.get('task') == 'diarize':
+                            from video_descriptor.diarization_postprocess import (
+                                enqueue as enqueue_diarization,
+                            )
+                            job = enqueue_diarization(Path(value['workspace']), body.get('folder'), value)
+                            start_worker(Path(value['workspace']))
+                            return self.json_response(202, job)
                         from video_descriptor.postprocess import enqueue as enqueue_postprocess
                         status = ollama_status(value)
                         model = status['selected']

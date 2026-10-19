@@ -114,10 +114,11 @@
 </nav>
 <div id="postprocess-actions" hidden>
 <div class="setup-actions">
+<button id="diarize-run" type="button" class="vd-button" disabled>Определить говорящих</button>
 <button id="translate-run" type="button" class="vd-button">Перевести на русский</button>
 <button id="notes-run" type="button" class="vd-button">Конспект и перевод</button>
 </div>
-<p class="footnote">Создаётся отдельная версия из исправленных реплик. Используется выбранная модель Ollama; устройство перевода определяется Ollama.</p>
+<p class="footnote">Говорящие определяются локально, без повторного распознавания речи. Создаётся отдельная версия из исправленных реплик. Для перевода и конспекта используется выбранная модель Ollama.</p>
 </div>
 <button id="retry" type="button" hidden class="vd-button">Продолжить из кэша</button>
 <div id="transcript">

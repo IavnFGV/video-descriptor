@@ -267,6 +267,7 @@ class SetupService:
 
     def diagnostics(self):
         from video_descriptor import translation_settings
+        from video_descriptor.diarization_postprocess import status as diarization_status
         inventory = self.manager.inventory()
         settings = translation_settings.public(translation_settings.load(self.manager.value['workspace']))
         ollama = ollama_status(self.manager.value)
@@ -283,7 +284,7 @@ class SetupService:
                                 'message': 'Модель/ключ настроены; генерация выполняется по запросу'},
                 'notes': {'state': 'configured' if notes and notes in {m['name'] for m in ollama['models']} and ollama_completion(self.manager.value, notes) else 'setup_required', 'selected': notes,
                           'message': 'Выберите модель Ollama для конспекта'},
-                'diarization': {'state': 'unavailable', 'message': 'Windows диаризация не проверена; можно пропустить'}}
+                'diarization': diarization_status(self.manager.value)}
 
     def gemini(self, changes):
         from video_descriptor import gemini

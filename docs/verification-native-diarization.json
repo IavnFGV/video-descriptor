@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-19",
+  "platform": "native Windows",
+  "runtime": "separate .venv-diarization, CPU",
+  "model": "local community-1, copied from existing cache without download",
+  "torch": "2.14.1+cpu",
+  "pyannote": "4.0.7",
+  "multiple_speakers_probe": {
+    "audio_seconds": 60.0,
+    "inference_seconds": 27.984000000004016,
+    "turns": 17,
+    "speakers": 3
+  },
+  "live_api": {
+    "job": "9c9ca36857194982aa208957303e612f",
+    "status": "done",
+    "original_unchanged": true,
+    "segments": 1,
+    "speakers": 1,
+    "exports": {
+      "srt": {
+        "http_status": 200,
+        "bytes": 378
+      },
+      "vtt": {
+        "http_status": 200,
+        "bytes": 391
+      }
+    }
+  },
+  "limitations": [
+    "Native Intel GPU/XPU pyannote has not been tested.",
+    "Real live API acceptance uses the existing short recording; full-length native diarization has not been benchmarked.",
+    "Speaker labels are assigned to existing utterances by greatest overlap, not word-level alignment."
+  ],
+  "checks": {
+    "application_tests_passed": 294,
+    "application_skipped": 2,
+    "ci_policy_tests_passed": 20,
+    "ruff": "passed",
+    "javascript_syntax": "passed",
+    "ui_contracts": "passed",
+    "native_pip_check": "passed"
+  }
+}

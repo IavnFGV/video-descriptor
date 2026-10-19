@@ -63,6 +63,10 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None):
 
 
 def run(root, folder, job, log):
+    if job['task'] == 'diarize':
+        from .diarization_postprocess import run as diarize
+        diarize(root, folder, job, log)
+        return
     result = root / 'output' / job['folder']
     if job['task'] == 'notes':
         job['stage'] = 'notes'

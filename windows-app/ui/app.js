@@ -1,6 +1,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   let wizardLoaded=false, setupPolling=false;
+  let diarizationConfigured=false;
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Ошибка обработки'};
   const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
@@ -77,6 +78,7 @@
   async function readiness() {
     try {
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
+      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Определить говорящих'+(d.diarization?.device?' · '+d.diarization.device.toUpperCase():'');$('diarize-run').disabled=processing||!diarizationConfigured;$('diarize-run').title=d.diarization?.message||'Подготовьте диаризацию в настройках AI';
       if(d.compute){
         const c=d.compute, chosen=c.selected, ready=chosen&&c.capabilities[chosen].ready;
         const deviceReason=(name)=>{const cap=c.capabilities[name];return c.preparing&&name===chosen?'Запускаем распознавание…':cap.available&&!cap.ready&&cap.model_present&&cap.reason==='Модель не загружена'?'Распознавание не запущено':cap.reason;};
@@ -125,7 +127,7 @@
     $('status').dataset.tone={running:'info',done:'success',error:'danger'}[job.status]||'neutral';
     const device=result?.device||job.device_plan?.selected;
     const failureMessage=result?.message==='Не удалось получить достоверные таймкоды; см. диагностику фрагмента'?'Модель вернула некорректные временные метки реплик. Этот фрагмент не удалось сохранить. Это ошибка распознавания; повторный запуск может её повторить.':result?.message;
-    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&result?.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
     if(job.status==='running'&&result?.duration>0){
       const clock=(seconds)=>{const value=Math.max(0,Math.floor(seconds));return `${Math.floor(value/3600)}:${String(Math.floor(value/60)%60).padStart(2,'0')}:${String(value%60).padStart(2,'0')}`;};
       $('progress-text').textContent+=` · Сохранено ${clock(result.processed||0)} из ${clock(result.duration)} записи`;
@@ -136,14 +138,14 @@
     else $('progress').removeAttribute('value');
     if(['postprocess','notes'].includes(job.mode)){
       const phases={queued:'В очереди',notes:'Создаём конспект',translation:'Переводим реплики',done:'Готово'};
-      $('progress-text').textContent=job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.translation_model||job.construction?.model||'Ollama'}`;
+      $('progress-text').textContent=job.task==='diarize'?(job.error||result?.message||'Определяем говорящих'):(job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.translation_model||job.construction?.model||'Ollama'}`);
       if(['queued','running'].includes(job.status))$('progress').removeAttribute('value');
     }
     $('retry').hidden=job.status!=='error';
-    $('retry').textContent=result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
+    $('retry').textContent=job.task==='diarize'?'Повторить определение говорящих':result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
     const done=job.status==='done'&&result?.status==='done';$('exports').hidden=!done;
     $('postprocess-actions').hidden=!done||!result?.segments?.length;
-    $('translate-run').disabled=processing;$('notes-run').disabled=processing;
+    $('translate-run').disabled=processing;$('notes-run').disabled=processing;$('diarize-run').disabled=processing||!diarizationConfigured;
     $('ru-srt').hidden=!done||!result?.has_translation;
     $('open-report').hidden=!done||(job.mode!=='notes'&&job.task!=='notes');
     if(!result){$('video').pause();$('video').hidden=true;$('transcript').replaceChildren();$('transcript').dataset.content='';$('timing-note').textContent='';return;}
@@ -156,14 +158,14 @@
       $('ru-srt').href='/api/subtitles?'+new URLSearchParams({folder:job.folder,language:'ru',format:'srt'});
       $('open-report').href='/output/'+encodeURIComponent(job.folder)+'/report.html';
     }
-    $('timing-note').textContent=job.status==='error'?'':result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.';
+    $('timing-note').textContent=job.status==='error'?'':result.speaker_notice|| (result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.');
     const content=JSON.stringify([job.id,result.segments,result.translations,result.edit_revision,done,result.no_speech]);
     if($('transcript').dataset.content===content)return;
     $('transcript').dataset.content=content;
     const rows=result.segments.map((segment,index)=>{
       const row=document.createElement('div');row.className='row';const time=document.createElement('button');time.type='button';time.className='vd-button vd-button--quiet vd-button--compact seek';time.textContent=stamp(segment.start)+' — '+stamp(segment.end);time.setAttribute('aria-label','Воспроизвести с '+stamp(segment.start));time.disabled=!Number.isFinite(segment.start)||segment.start<0||!result.video;time.onclick=()=>{$('video').currentTime=segment.start;$('video').play().catch(()=>{});};
       if(done){const edit=document.createElement('button');edit.type='button';edit.className='vd-button vd-button--compact row-edit';edit.title='Исправить реплику';edit.setAttribute('aria-label','Исправить реплику');const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('width','18');icon.setAttribute('height','18');icon.setAttribute('fill','none');icon.setAttribute('stroke','currentColor');icon.setAttribute('stroke-width','2');icon.setAttribute('stroke-linecap','round');icon.setAttribute('stroke-linejoin','round');icon.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M16 3a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4L16 3Z M14 5l3 3');icon.append(path);edit.append(icon);edit.onclick=()=>window.editSpeechReply(result,index,$('video'),saved=>render(saved,job));row.append(edit);}
-      const p=document.createElement('p');p.textContent=segment.text;row.append(time,p);const translated=result.translations?.[segment.id];if(translated){const ru=document.createElement('p');ru.className='translation';ru.textContent=translated;row.append(ru);}return row;
+      const p=document.createElement('p');p.textContent=segment.text;row.append(time);if(result.diarization_device){const speaker=document.createElement('span');speaker.className='vd-status';speaker.textContent=result.speaker_names?.[segment.speaker]||(segment.speaker==='unknown'?'Говорящий не определён':segment.speaker);row.append(speaker);}row.append(p);const translated=result.translations?.[segment.id];if(translated){const ru=document.createElement('p');ru.className='translation';ru.textContent=translated;row.append(ru);}return row;
     });
     if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent=result.no_speech?'Речевых фрагментов не найдено.':job.status==='error'?'Распознавание остановилось до сохранения текста. Причина указана выше. Повторный запуск может завершиться той же ошибкой.':'Текст появится после первого сохранённого фрагмента.';rows.push(p);}
     $('transcript').replaceChildren(...rows);
@@ -208,6 +210,7 @@
     processing=true;$('translate-run').disabled=true;$('notes-run').disabled=true;
     try{const job=await api('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({folder:currentJob.folder,task})});message('Создана отдельная версия. Исходная расшифровка сохранена.');select(job.id);await jobs();}catch(e){message(e.message,true);}finally{processing=false;$('translate-run').disabled=false;$('notes-run').disabled=false;}
   }
+  $('diarize-run').onclick=()=>postprocess('diarize');
   $('translate-run').onclick=()=>postprocess('translate');
   $('notes-run').onclick=()=>postprocess('notes');
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;$('setup-toggle').setAttribute('aria-expanded',String(!$('setup-form').hidden));};
@@ -226,7 +229,7 @@
       const text=available?'Доступен в OpenVINO; готовность модели — в панели AI':listed.length?'Виден в Windows, но недоступен в OpenVINO':'Не обнаружен Windows и OpenVINO';
       return check('Intel '+name+' · распознавание',available,text+(listed.length?' · '+listed.join(', '):''));
     };
-    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),deviceStatus('GPU',d.hardware.intel_gpu),deviceStatus('NPU',d.hardware.intel_npu),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Перевод',d.translation.state==='configured',d.translation.state==='configured'?'Настроено · генерация не проверена':'Требуется настройка'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',false,d.diarization.message));
+    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),deviceStatus('GPU',d.hardware.intel_gpu),deviceStatus('NPU',d.hardware.intel_npu),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Перевод',d.translation.state==='configured',d.translation.state==='configured'?'Настроено · генерация не проверена':'Требуется настройка'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',d.diarization.state==='configured',d.diarization.message));
     if(!document.activeElement.closest('#gemini-form')){$('gemini-model').value=d.gemini.model;$('gemini-billing').value=d.gemini.billing_mode;$('gemini-ack').checked=d.gemini.free_ack;}
     $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
   }
