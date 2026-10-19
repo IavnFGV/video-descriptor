@@ -71,6 +71,8 @@
 .reply-editor :focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
 .reply-editor .actions{display:flex;gap:var(--vd-space-2);flex-wrap:wrap}.reply-editor .error{color:var(--vd-danger);white-space:pre-wrap}
 
+.dialog-speaker-controls{display:flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.dialog-speaker-controls select{flex:1;min-width:160px}.dialog-speaker-controls button{flex-shrink:0}.dialog-speaker-controls input{flex-basis:100%;min-width:0}
+
 /* Source: windows-app/ui/layout.css */
 /* Desktop layout. Components and colors come from design-system/*.css. */
 *{box-sizing:border-box}
@@ -136,3 +138,5 @@ summary:focus-visible,.nav-item:focus-visible,.brand:focus-visible,.job:focus-vi
 .speaker-select{display:inline-block;width:auto;max-width:100%;min-height:var(--vd-compact-height);font-size:var(--vd-caption);padding:var(--vd-space-1) var(--vd-space-2)}
 
 .reply-heading{display:flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.reply-tools{display:flex;align-items:center;gap:var(--vd-space-2);margin-left:auto}.reply-tools .row-edit{float:none}.speaker-name-input{width:180px;max-width:100%;min-height:var(--vd-compact-height);font-size:var(--vd-caption)}
+
+.speaker-controls{display:inline-flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.speaker-controls>.vd-help:empty{display:none}.reply-heading>.seek{flex-shrink:0}.reply-tools{flex-wrap:wrap;max-width:100%}.reply-heading{margin-bottom:var(--vd-space-2)}.row p{clear:both}

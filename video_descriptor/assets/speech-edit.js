@@ -46,7 +46,7 @@
     holder.append(button,input,feedback);return holder;
   };
   window.createSpeakerSelect = function(original, index, onSave){
-    const row=original.segments[index], holder=document.createElement('span');
+    const row=original.segments[index], holder=document.createElement('span');holder.className='speaker-controls';
     const select=document.createElement('select'), feedback=document.createElement('span');
     select.className='vd-select speaker-select';
     select.setAttribute('aria-label','Говорящий реплики '+stamp(row.start));
@@ -102,6 +102,17 @@
     dialog.querySelector('.bounds').after(times);form.elements.startTime.value=Number(row.start.toFixed(3));form.elements.endTime.value=Number(row.end.toFixed(3));
     const speakers=original.speaker_options||[...new Set(original.segments.map(s=>s.speaker))];
     for(const select of [firstSpeaker,secondSpeaker]){select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||s)));select.value=row.speaker;}
+    const addedNames={};
+    for(const target of [firstSpeaker,secondSpeaker]){
+      const controls=document.createElement('div'),add=document.createElement('button'),input=document.createElement('input');
+      controls.className='dialog-speaker-controls';target.after(controls);controls.append(target);
+      add.type='button';add.className='vd-button vd-button--compact';add.textContent='+ Говорящий';add.setAttribute('aria-label','Добавить говорящего');
+      input.className='vd-input';input.name='newSpeaker_'+target.name;input.maxLength=100;input.placeholder='Имя нового говорящего';input.setAttribute('aria-label','Имя нового говорящего');input.hidden=true;
+      const create=()=>{const name=input.value.trim();if(!name){error.textContent='Введите имя нового говорящего.';return;}const id='speaker_'+crypto.randomUUID().replaceAll('-','');addedNames[id]=name;for(const select of [firstSpeaker,secondSpeaker])select.append(option(id,name));target.value=id;input.value='';input.hidden=true;add.hidden=false;error.textContent='';target.focus();};
+      add.onclick=()=>{if(input.hidden){input.hidden=false;input.focus();add.textContent='Добавить';}else{create();add.textContent='+ Говорящий';}};
+      input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();create();add.textContent='+ Говорящий';}if(e.key==='Escape'){e.preventDefault();e.stopPropagation();input.value='';input.hidden=true;add.textContent='+ Говорящий';target.focus();}};
+      controls.append(add,input);
+    }
     left.value=row.text;
     form.elements.translation.value=original.translations?.[row.id || `s${index+1}`] || '';
     form.elements.translation.parentElement.hidden=!original.has_translation;
@@ -119,14 +130,14 @@
     dialog.querySelector('.preview').onclick=()=>{video.currentTime=Math.max(row.start,Number(range.value)-2);video.play().catch(e=>error.textContent=e.message);};
     const initial=new URLSearchParams(new FormData(form)).toString();
     const opener=document.activeElement;
-    const dirty=()=>splitting||new URLSearchParams(new FormData(form)).toString()!==initial;
+    const dirty=()=>splitting||Object.keys(addedNames).length>0||new URLSearchParams(new FormData(form)).toString()!==initial;
     const mayClose=async()=>!saving&&(!dirty()||await window.confirmDiscard('Правки реплики ещё не сохранены. Их можно сохранить, вернувшись к редактированию.'));
     dialog.querySelector('.cancel').onclick=async()=>{if(await mayClose())dialog.close();};
     dialog.addEventListener('cancel',async e=>{e.preventDefault();if(await mayClose())dialog.close();});
     const beforeUnload=e=>{if(dirty()){e.preventDefault();e.returnValue='';}};
     window.addEventListener('beforeunload',beforeUnload);
     dialog.addEventListener('close',()=>{editing=false;window.removeEventListener('beforeunload',beforeUnload);dialog.remove();opener?.focus();});
-    form.onsubmit=async e=>{e.preventDefault();if(saving)return;const payload={folder:original.folder,revision:original.edit_revision,index,action:splitting?'split':'edit',text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value};if(!splitting){payload.start=Number(form.elements.startTime.value);payload.end=Number(form.elements.endTime.value);}if(splitting){boundary.onchange();if(error.textContent)return;payload.at=Number(range.value);payload.right_text=right.value;payload.right_speaker=secondSpeaker.value;payload.right_translation=form.elements.rightTranslation.value;}saving=true;dialog.setAttribute('aria-busy','true');form.querySelector('[type=submit]').disabled=true;error.textContent='Сохраняем…';try{const saved=await post('/api/speech-edit',payload);onSave(saved);dialog.close();}catch(e){error.textContent=e.message;}finally{saving=false;dialog.setAttribute('aria-busy','false');form.querySelector('[type=submit]').disabled=false;}};
+    form.onsubmit=async e=>{e.preventDefault();if(saving)return;const payload={folder:original.folder,revision:original.edit_revision,index,action:splitting?'split':'edit',text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value};if(!splitting){payload.start=Number(form.elements.startTime.value);payload.end=Number(form.elements.endTime.value);}if(splitting){boundary.onchange();if(error.textContent)return;payload.at=Number(range.value);payload.right_text=right.value;payload.right_speaker=secondSpeaker.value;payload.right_translation=form.elements.rightTranslation.value;}saving=true;dialog.setAttribute('aria-busy','true');form.querySelector('[type=submit]').disabled=true;error.textContent='Сохраняем…';try{if(Object.keys(addedNames).length)await post('/api/speech-names',{folder:original.folder,speaker_names:{...original.speaker_names,...addedNames}});const saved=await post('/api/speech-edit',payload);onSave(saved);dialog.close();}catch(e){error.textContent=e.message;}finally{saving=false;dialog.setAttribute('aria-busy','false');form.querySelector('[type=submit]').disabled=false;}};
     editing=true;document.body.append(dialog);dialog.showModal();left.focus();
   }
   function option(value,label){const o=document.createElement('option');o.value=value;o.textContent=label;return o;}

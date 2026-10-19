@@ -71,6 +71,8 @@
 .reply-editor :focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
 .reply-editor .actions{display:flex;gap:var(--vd-space-2);flex-wrap:wrap}.reply-editor .error{color:var(--vd-danger);white-space:pre-wrap}
 
+.dialog-speaker-controls{display:flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.dialog-speaker-controls select{flex:1;min-width:160px}.dialog-speaker-controls button{flex-shrink:0}.dialog-speaker-controls input{flex-basis:100%;min-width:0}
+
 /* Source: design-system/surfaces.css */
 /* Shared production foundations, including dynamically created controls. */
 *{box-sizing:border-box}
