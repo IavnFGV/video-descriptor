@@ -10,6 +10,11 @@
     return [Math.floor(total/3600),Math.floor(total/60)%60,total%60].map(n=>String(n).padStart(2,'0')).join(':');
   };
   function showView(focus=false) {
+    const context=new URLSearchParams(location.search);
+    if(context.get('workspace')==='1'){
+      context.delete('workspace');$('records-open').href='/create?'+context;
+    }
+
     const view=['settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
     $('records-view').hidden=view!=='records';$('setup-wizard').hidden=view!=='settings';$('diagnostics-view').hidden=view!=='diagnostics';
     for(const [id,name] of [['records-open','records'],['setup-open','settings'],['diagnostics-open','diagnostics']]){

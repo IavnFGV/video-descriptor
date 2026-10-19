@@ -80,6 +80,25 @@ def main():
     failures.extend('Original handler removed: ' + '.'.join(pair) for pair in sorted(before - after))
     if len(ids) != len(set(ids)):
         failures.append('Duplicate desktop ids')
+    # Review each migrated module against the immutable manifest, including workspace.
+    for name in migrations:
+        if not name.endswith(('.html', '.js')) or name.startswith('windows-app/'):
+            continue
+        current = (ROOT / name).read_text(encoding='utf-8')
+        previous = original.get(name, {})
+        if name.endswith('.html'):
+            current_ids = re.findall(r'\bid="([^"]+)"', current)
+            failures.extend(name + ': original id removed: ' + item
+                            for item in set(previous.get('ids', [])) - set(current_ids))
+            if len(current_ids) != len(set(current_ids)):
+                failures.append(name + ': duplicate ids')
+        else:
+            apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", current))
+            failures.extend(name + ': original API literal removed: ' + item
+                            for item in set(previous.get('api_literals', [])) - apis)
+            old_source = git('show', baseline['commit'] + ':' + name).decode('utf-8')
+            failures.extend(name + ': original handler removed: ' + '.'.join(pair)
+                            for pair in set(re.findall(pattern, old_source)) - set(re.findall(pattern, current)))
     if failures:
         print('\n'.join(failures))
         return 1

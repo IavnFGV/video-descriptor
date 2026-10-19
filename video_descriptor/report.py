@@ -150,32 +150,13 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     page = """<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="assets/easymde.min.css">
-<title>Video Descriptor</title><style>
-body{font:16px/1.6 system-ui;max-width:1100px;margin:24px auto;padding:0 20px;background:#f7f8fa}
-video{width:100%;max-height:55vh;background:#111;position:sticky;top:0;z-index:1}
-.lecture-note{scroll-margin-top:20px}.lecture-note.current-note{outline:2px solid #2563eb}
-section{background:white;padding:20px;margin:20px 0;border-radius:12px}
-button{cursor:pointer;color:#1557aa;background:#eef4ff;border:0;padding:8px;border-radius:6px}
-img{max-width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere}h2{font-size:21px}
-nav{background:white;padding:20px;border-radius:12px}nav ul{list-style:none;padding:0}
-nav li{margin:12px 0}.kind{font-size:13px;color:#555;margin:0 8px}
-.correct{background:#e7f6ea;font-weight:bold;padding:6px}
-.player{position:sticky;top:0;z-index:2;background:#f7f8fa;padding-bottom:8px}
-.player video{position:static;max-height:48vh}
-#caption{padding:8px 12px;background:#fff;border-radius:8px;min-height:1.6em}
-.subtitle-ru{color:#28532f}.transcript{max-height:360px;overflow:auto;border:1px solid #dde2ea}
-.utterance{padding:8px 12px;border-bottom:1px solid #eee}
-.utterance.active,nav li.active{background:#e7efff}
-.utterance p{margin:3px 0}.subtitle-tools{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0}
-body[data-subtitles="original"] .subtitle-ru{display:none}
-body[data-subtitles="ru"] .subtitle-original{display:none}
-</style>"""
+<title>Video Descriptor</title>"""
     page += '<link rel="stylesheet" href="assets/editor.css">'
     try:
         display_title = lecture_info(folder)["display"]
     except (OSError, ValueError, KeyError):
         display_title = video.name
-    page += '<a href="/output/">← Материалы</a>'
+    page += '<nav class="vd-global-nav" aria-label="Основная навигация"><a href="/output/">Записи</a><a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
     page += f'<h1 id="lecture-title">{html.escape(display_title)}</h1>'
     page += '<button id="rename-lecture">Изменить название</button>'
     page += '<form id="title-form" hidden><label>Название записи '
@@ -187,7 +168,7 @@ body[data-subtitles="ru"] .subtitle-original{display:none}
     error_path = folder / "analysis-errors.json"
     errors = json.loads(error_path.read_text()) if error_path.exists() else []
     if errors:
-        page += '<section role="alert" style="border:2px solid #d99a21;background:#fff5dc">'
+        page += '<section role="alert">'
         page += '<strong>Конспект неполный: есть необработанные фрагменты.</strong><ul>'
         for error in errors:
             page += (f'<li>Блок {error["block"]}/{error["total_blocks"]}: '
@@ -234,7 +215,7 @@ body[data-subtitles="ru"] .subtitle-original{display:none}
     page += '<button data-notes-view="model">Материал модели</button></div>'
     page += '<div class="notes-actions"><button id="save-notes" disabled>Сохранить</button>'
     page += '<button id="add-section">+ Раздел в этом месте</button>'
-    page += '<button id="download-notes">↓ Markdown</button>'
+    page += '<span>Экспорт:</span><button id="download-notes">Markdown</button><button id="download-html">HTML</button>'
     page += '<button id="download-draft" hidden>Скачать старый черновик</button></div>'
     page += '<p id="editor-status" role="status">Открываем конспект…</p>'
     page += '<details id="outline-group" class="notes-fold"><summary>Оглавление</summary>'

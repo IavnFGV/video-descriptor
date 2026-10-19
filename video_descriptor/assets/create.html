@@ -4,30 +4,32 @@
 <title>Запись · Video Descriptor</title>
 <link rel="stylesheet" href="/studio-assets/create.css">
 <body>
-<header class="studio-header"><a href="/output/">← Материалы</a><button id="open-connections" type="button">Подключения</button><h1>Запись</h1><p>Источник, речь и конспект — в одном месте. Нажмите на этап, чтобы открыть результат и его настройки.</p></header>
+<a class="vd-skip" href="#stage-source">К содержимому</a>
+<nav class="vd-global-nav" aria-label="Основная навигация"><a href="/output/">Записи</a><a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>
+<header class="studio-header"><button id="open-connections" type="button">Подключения</button><h1>Запись</h1><p>Источник, речь и конспект — в одном месте. Нажмите на этап, чтобы открыть результат и его настройки.</p></header>
 <div class="record-toolbar"><label id="record-versions" hidden>Версии этого видео<select id="existing-runs"><option value="">Выберите версию</option></select></label><details id="record-menu" class="record-menu" hidden><summary aria-label="Действия с версией">⋯</summary><button id="delete-version" class="danger" type="button" hidden>Удалить версию целиком</button></details><button id="toggle-upload" hidden>＋ Новая запись</button></div>
 <nav id="steps" class="stage-tabs" role="tablist" aria-label="Этапы записи">
 <button id="tab-source" type="button" role="tab" data-stage="source" aria-controls="stage-source" aria-selected="true">Источник <span id="state-source">Выберите файл</span></button>
-<button id="tab-speech" type="button" role="tab" data-stage="speech" aria-controls="stage-speech" aria-selected="false" tabindex="-1">Речь <span id="state-speech">Настройки и расшифровка</span></button>
+<button id="tab-speech" type="button" role="tab" data-stage="speech" aria-controls="stage-speech" aria-selected="false" tabindex="-1">Расшифровка <span id="state-speech">Настройки и расшифровка</span></button>
 <button id="tab-notes" type="button" role="tab" data-stage="notes" aria-controls="stage-notes" aria-selected="false" tabindex="-1">Конспект <span id="state-notes">Стратегия и редактор</span></button>
 </nav>
-<main id="workspace" hidden><div class="run-heading"><h2 id="run-title"></h2><span id="run-state" class="badge">Подготовка</span></div>
+<main id="workspace" hidden><div class="run-heading"><h1 id="run-title"></h1><span id="run-state" class="badge">Подготовка</span></div>
 <div class="progress-line"><span id="stage-label">Ожидание запуска</span><span id="position-label"></span></div>
-<progress id="stage-progress" max="100" value="0"></progress>
+<progress aria-label="Обработка записи" id="stage-progress" max="100" value="0"></progress>
 <p id="run-message" role="status"></p>
 <p id="translation-summary" hidden></p>
-<div id="translation-blocks-panel" hidden><div id="translation-blocks" class="block-dots" aria-label="Состояние блоков перевода"></div><p class="block-legend">🟢 Готово · ⚪ Ожидает · 🟠 Повтор после сбоя · 🔵 Сейчас в работе · 🔴 Ошибка</p></div>
+<div id="translation-blocks-panel" hidden><div id="translation-blocks" class="block-dots" aria-label="Состояние блоков перевода"></div><p class="block-legend">Готово · Ожидает · Повтор после сбоя · Сейчас в работе · Ошибка</p></div>
 </main>
 <div class="studio-layout"><aside id="shared-player" hidden><section class="player-card"><video id="process-video" controls preload="metadata"></video>
 <div class="follow"><label id="follow-control"><input id="follow" type="checkbox" checked> Следовать обработке</label><span id="video-clock">00:00</span></div>
 <p id="follow-hint" class="hint">Указатель следует за реально обработанным фрагментом. Снимите галочку, чтобы смотреть видео самостоятельно.</p></section><section><h3>Источник</h3><dl id="source-info"></dl><form id="source-title-form" class="stage-settings"><label>Название записи<input id="source-title" maxlength="200"></label><button type="submit">Сохранить название</button><p id="source-title-status" class="hint" role="status"></p></form></section></aside><div class="stage-content">
-<div id="stage-source" role="tabpanel" aria-labelledby="tab-source" data-stage-panel="source">
+<div id="stage-source" tabindex="-1" role="tabpanel" aria-labelledby="tab-source" data-stage-panel="source">
 <section id="setup" class="setup" aria-label="Новая запись">
 <form id="upload-form">
 <label class="file-drop" id="drop-zone"><span class="upload-icon">↑</span><strong id="file-label">Выберите или перетащите запись</strong><span>Видео или аудио · до 4 ГБ</span><input id="video-file" type="file" accept=".mp4,.mkv,.mov,.webm,.wav,.mp3,.m4a,.flac,.ogg"></label>
 <div class="upload-options"><label>Или файл из data<select id="source-file"><option value="">Выберите запись</option></select></label><label>Название записи<input id="lecture-name" maxlength="200" placeholder="Например: Основы AWS"></label>
 <button id="start" class="primary" type="submit">Обработать запись →</button></div>
-</form><progress id="upload-progress" max="100" value="0" hidden></progress>
+</form><progress aria-label="Загрузка записи" id="upload-progress" max="100" value="0" hidden></progress>
 <p id="upload-status" role="status" hidden></p>
 </section>
 <p class="hint">Проверка файла выполняется автоматически. Настройки речи и конспекта доступны на соседних этапах до запуска.</p>
@@ -35,7 +37,7 @@
 </div>
 <div id="stage-speech" role="tabpanel" aria-labelledby="tab-speech" data-stage-panel="speech" hidden>
 <section><details id="speech-settings" open><summary>Настройки речи</summary><div class="stage-settings"><label id="speech-engine-label">Обработчик речи<select id="speech-engine"><option value="whisper-npu-diarization-xpu">Whisper small NPU → Intel GPU: голоса</option><option value="whisper-npu">Whisper small NPU · текст</option><option value="gemini-diarization-xpu">Gemini: текст → Intel GPU: голоса</option><option value="whisper-diarization-xpu">Whisper small CPU → Intel GPU: голоса</option><option value="gemini">Gemini · текст и голоса</option><option value="whisper-diarization">Whisper + pyannote · CPU</option><option value="whisper" selected>Whisper small · CPU</option></select><small>Gemini отправляет аудио в Google и использует сохранённый ключ из «Подключений». Локальные обработчики с голосами требуют pyannote; Intel GPU — подготовленного XPU-окружения, NPU — Windows-сервиса Whisper.</small></label><button id="rerun-speech" type="button" disabled>Создать новую версию речи</button><p id="speech-settings-status" class="hint" role="status">Выберите обработчик для новой записи. Повторный запуск сохраняет предыдущий результат.</p></div></details></section>
-<section><p id="speaker-notice" class="hint" hidden></p><div class="card-heading"><h3 id="speech-heading">Речь в текущем фрагменте</h3><span id="speech-count" class="counter">0 реплик</span></div><div class="subtitle-tools"><label id="subtitle-mode-label" hidden>Показать <select id="subtitle-mode"><option value="both">Оригинал и перевод</option><option value="original">Оригинал</option><option value="ru">Перевод</option></select></label><button id="toggle-speaker-names" type="button" aria-expanded="false" aria-controls="speaker-settings" hidden>Назвать голоса</button><a id="download-transcript" hidden download>Транскрипт TXT ↓</a><a id="download-subtitles" hidden download>Субтитры ↓</a><a id="download-translation" hidden download>Перевод ↓</a></div><div id="speaker-settings" hidden><form id="speaker-names-form"><div id="speaker-names"></div><button type="submit">Сохранить имена</button><p id="speaker-names-status" class="hint" role="status"></p></form></div><div id="speech-feed" class="feed"><p class="empty">Здесь будут появляться реплики с таймкодами.</p></div></section><section><details id="translation-settings-panel"><summary>Перевод</summary><form id="translation-settings-form" class="translation-settings">
+<section><p id="speaker-notice" class="hint" hidden></p><div class="card-heading"><h3 id="speech-heading">Речь в текущем фрагменте</h3><span id="speech-count" class="counter">0 реплик</span></div><div class="subtitle-tools"><label id="subtitle-mode-label" hidden>Показать <select id="subtitle-mode"><option value="both">Оригинал и перевод</option><option value="original">Оригинал</option><option value="ru">Перевод</option></select></label><button id="toggle-speaker-names" type="button" aria-expanded="false" aria-controls="speaker-settings" hidden>Назвать голоса</button><span class="export-label">Экспорт:</span><a id="download-srt" hidden download>SRT</a><a id="download-ru-srt" hidden download>Перевод SRT</a><a id="download-transcript" hidden download>Транскрипт TXT ↓</a><a id="download-subtitles" hidden download>VTT</a><a id="download-translation" hidden download>Перевод VTT</a></div><div id="speaker-settings" hidden><form id="speaker-names-form"><div id="speaker-names"></div><button type="submit">Сохранить имена</button><p id="speaker-names-status" class="hint" role="status"></p></form></div><div id="speech-feed" class="feed"><p class="empty">Здесь будут появляться реплики с таймкодами.</p></div></section><section><details id="translation-settings-panel"><summary>Перевод</summary><form id="translation-settings-form" class="translation-settings">
 <label>Переводчик<select id="translation-provider"><option value="ollama">Локально · Ollama</option><option value="gemini">Google · Gemini API</option></select></label>
 <label id="translation-local-label">Локальная модель<input id="translation-local-model" value="qwen3.5:9b" maxlength="150"></label><label id="translation-gemini-label">Модель Gemini<select id="gemini-model"><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option></select></label>
 <button type="button" id="load-gemini-models">Обновить доступные модели</button>
@@ -93,6 +95,7 @@
 <button type="submit">Сохранить подключение</button><p id="connections-status" role="status"></p><p class="hint">Общий ключ для речи, перевода и конспекта. Хранится на сервере и не возвращается браузеру.</p></form></dialog>
 <dialog id="delete-version-dialog" aria-labelledby="delete-version-heading"><h2 id="delete-version-heading">Удалить эту версию?</h2><p id="delete-version-name"></p><p id="delete-version-description">Будут удалены расшифровка, конспект и сохранённые правки этой версии. Исходный видеофайл и другие версии сохранятся. Отменить удаление нельзя.</p><div class="construction-actions"><button id="cancel-delete-version" type="button">Отмена</button><button id="confirm-delete-version" class="danger" type="button">Удалить версию</button></div><p id="delete-version-status" role="status"></p></dialog>
 <dialog id="image-viewer" aria-label="Увеличенное изображение"><button id="close-image" type="button" aria-label="Закрыть изображение">✕</button><img id="large-image" alt=""><p id="image-caption"></p></dialog>
+<script src="/studio-assets/studio-drafts.js"></script>
 <script src="/studio-assets/speech-edit.js"></script>
 <script src="/studio-assets/construction.js"></script>
 <script src="/studio-assets/studio.js"></script>

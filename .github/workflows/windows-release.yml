@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12.10'
@@ -38,6 +40,23 @@ jobs:
           ruff check video_descriptor tests windows-app scripts/whisper_npu_server.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pip check
+      - name: Production UI bundles, DOM handlers and JavaScript syntax
+        run: |
+          python scripts/build-ui-css.py --check
+          python scripts/check-ui-audit.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check windows-app/ui/app.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/create.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/studio.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/studio-drafts.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/speech-edit.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check video_descriptor/assets/editor.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build verified runtime, ZIP and installer
         run: |
           powershell -NoProfile -File windows-app/Prepare-Desktop.ps1

@@ -196,6 +196,14 @@
   }
   saveButton.addEventListener('click', save);
   document.getElementById('download-notes').addEventListener('click', () => download(editor.value()));
+  document.getElementById('download-html')?.addEventListener('click',()=>{
+    const exported=document.implementation.createHTMLDocument(document.getElementById('lecture-title')?.textContent||'Конспект');
+    exported.documentElement.lang='ru';
+    const charset=exported.createElement('meta');charset.setAttribute('charset','utf-8');exported.head.prepend(charset);
+    exported.body.innerHTML=DOMPurify.sanitize(editor.markdown(editor.value()));
+    const blob=new Blob(['<!doctype html>\n'+exported.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='notes.html';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
   document.getElementById('add-section').addEventListener('click', () => {
     const time = Math.floor((window.reportPlayer || document.getElementById('video')).currentTime || 0);
     const stamp = [Math.floor(time / 3600), Math.floor(time / 60) % 60, time % 60]

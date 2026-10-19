@@ -1,7 +1,7 @@
 /* Reuse the saved Markdown editor inside the recording workspace. */
 (() => {
   const style = document.createElement('style');
-  style.textContent = `body{margin:0!important;padding:0!important;background:white;max-width:none}.watch-pane,body>a,body>h1,body>p,#rename-lecture,#title-form,#title-status{display:none!important}.workspace{display:block!important}.read-pane{margin:0!important}#personal-notes{border:0;box-shadow:none;padding:0 4px}`;
+  style.textContent = `body{margin:0!important;padding:0!important;background:var(--vd-surface);max-width:none}.vd-global-nav,.watch-pane,body>a,body>h1,body>p,#rename-lecture,#title-form,#title-status{display:none!important}.workspace{display:block!important}.read-pane{margin:0!important}#personal-notes{border:0;box-shadow:none;padding:0 var(--vd-space-1)}`;
   document.head.append(style);
   const player = parent.document.getElementById('process-video');
   window.reportPlayer = player;

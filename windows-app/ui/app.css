@@ -15,12 +15,13 @@
   --vd-space-1:4px; --vd-space-2:8px; --vd-space-3:12px; --vd-space-4:16px; --vd-space-6:24px; --vd-space-8:32px; --vd-space-12:48px;
   --vd-radius-control:8px; --vd-radius-card:12px; --vd-radius-dialog:16px; --vd-radius-pill:999px;
   --vd-control-height:40px; --vd-compact-height:32px; --vd-nav-width:208px; --vd-content-width:1200px;
+  --vd-backdrop:#122a2466;
   --vd-dialog-width:560px; --vd-editor-width:760px; --vd-reading-width:76ch;
   --vd-motion:150ms; --vd-dialog-shadow:0 16px 48px #122a2426; --vd-layer-sticky:10;
 }
 
 /* Source: design-system/components.css */
-/* Reference components; opt in with vd-* classes. Not imported by production. */
+/* Shared production components, also used by the isolated reference. */
 .vd-button,.vd-input,.vd-select,.vd-textarea{font:inherit;color:var(--vd-text);border:1px solid var(--vd-control);border-radius:var(--vd-radius-control);background:var(--vd-surface)}
 .vd-button{min-height:var(--vd-control-height);padding:var(--vd-space-2) var(--vd-space-4);font-weight:var(--vd-medium);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:var(--vd-space-2);text-decoration:none;touch-action:manipulation;transition:background-color var(--vd-motion),border-color var(--vd-motion),color var(--vd-motion)}
 .vd-button:hover:not(:disabled){background:var(--vd-subtle);border-color:var(--vd-accent)}
@@ -59,6 +60,16 @@
 @media(forced-colors:active){.vd-button:focus-visible,.vd-link:focus-visible,.vd-input:focus-visible,.vd-select:focus-visible,.vd-textarea:focus-visible,.vd-file:focus-within{outline-color:Highlight}.vd-status{border:1px solid CanvasText}}
 
 .vd-input::placeholder,.vd-textarea::placeholder{color:var(--vd-muted);opacity:1}
+
+.reply-editor{width:min(var(--vd-editor-width),calc(100% - 32px))}
+.reply-editor label{display:grid;gap:var(--vd-space-2);margin:var(--vd-space-3) 0}
+.reply-editor textarea,.reply-editor select,.reply-editor input:not([type=range]){width:100%;font:inherit;box-sizing:border-box;padding:var(--vd-space-2);color:var(--vd-text);background:var(--vd-surface);border:1px solid var(--vd-control);border-radius:var(--vd-radius-control);min-height:var(--vd-control-height)}
+.reply-editor textarea{min-height:112px;resize:vertical}.reply-editor input[type=range]{width:100%}
+.reply-editor button{min-height:var(--vd-control-height);padding:var(--vd-space-2) var(--vd-space-4);border:1px solid var(--vd-control);border-radius:var(--vd-radius-control);font:inherit;color:var(--vd-text);background:var(--vd-surface);cursor:pointer}
+.reply-editor button[type=submit]{background:var(--vd-accent);border-color:var(--vd-accent);color:var(--vd-inverse)}
+.reply-editor button:hover:not(:disabled){border-color:var(--vd-accent);filter:brightness(.96)}.reply-editor button:disabled{background:var(--vd-subtle);color:var(--vd-muted);cursor:progress}
+.reply-editor :focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
+.reply-editor .actions{display:flex;gap:var(--vd-space-2);flex-wrap:wrap}.reply-editor .error{color:var(--vd-danger);white-space:pre-wrap}
 
 /* Source: windows-app/ui/layout.css */
 /* Desktop layout. Components and colors come from design-system/*.css. */

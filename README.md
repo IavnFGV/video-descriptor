@@ -1,5 +1,13 @@
 # Video Descriptor
 
+19.10.2026: production UI перенесён на общие токены и компоненты: библиотека,
+источник, расшифровка/перевод, редактор реплик, версии, конспекты и экспорт.
+Сохранены DOM/API и WebView2; добавлены защита несохранённых диалогов,
+Back/Forward этапов, возврат из AI-настроек и session drafts без ключей/файлов.
+SRT/VTT/TXT и Markdown дополнены HTML-выгрузкой текущего конспекта.
+Быстрые CSS/DOM/JS guards включены в CI. Реальная приёмка и её границы:
+[финальная UI verification](design-system/FINAL-VERIFICATION.md).
+
 19.10.2026: добавлен [Sandbox acceptance harness](windows-app/sandbox/README.md)
 с запуском одной командой, отдельными Security/Functional профилями, стадиями,
 проверенным read-only кэшем, checkpoint и отчётами на хосте. Реальная стандартная

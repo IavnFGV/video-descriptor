@@ -12,6 +12,7 @@
   --vd-space-1:4px; --vd-space-2:8px; --vd-space-3:12px; --vd-space-4:16px; --vd-space-6:24px; --vd-space-8:32px; --vd-space-12:48px;
   --vd-radius-control:8px; --vd-radius-card:12px; --vd-radius-dialog:16px; --vd-radius-pill:999px;
   --vd-control-height:40px; --vd-compact-height:32px; --vd-nav-width:208px; --vd-content-width:1200px;
+  --vd-backdrop:#122a2466;
   --vd-dialog-width:560px; --vd-editor-width:760px; --vd-reading-width:76ch;
   --vd-motion:150ms; --vd-dialog-shadow:0 16px 48px #122a2426; --vd-layer-sticky:10;
 }

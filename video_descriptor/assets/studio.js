@@ -9,10 +9,16 @@
     variant = $('notes-variant').value;
     const params = new URLSearchParams(location.search);
     if (variant) params.set('report', variant); else params.delete('report');
-    history.replaceState(null, '', '/create?' + params);
+    history.pushState(null, '', '/create?' + params);
     loadReport();
   };
   const stages = ['source', 'speech', 'notes'];
+  for(const link of document.querySelectorAll('.vd-global-nav a[href^="/#"]')){
+    link.addEventListener('click',()=>{
+      const target=new URL(link.href),params=new URLSearchParams(location.search);
+      params.set('workspace','1');target.search=params.toString();link.href=target.href;
+    });
+  }
   if (!stages.includes(stage)) stage = 'source';
   function openStage(value, updateUrl = true) {
     stage = value;
@@ -24,7 +30,7 @@
     }
     if (updateUrl) {
       const params = new URLSearchParams(location.search); params.set('stage', stage);
-      history.replaceState(null, '', '/create?' + params);
+      history.pushState(null, '', '/create?' + params);
     }
     if (stage === 'notes') loadReport();
   }
@@ -63,8 +69,28 @@
     frame.src = url + '?embedded=1';
   }
   $('new-notes').onclick = () => { $('notes-settings').open = true; $('construction-model').focus(); };
-  $('open-connections').onclick = () => $('connections-dialog').showModal();
-  $('close-connections').onclick = () => $('connections-dialog').close();
+  let connectionDraft='';
+  const connectionValue=()=>new URLSearchParams(new FormData($('connections-form'))).toString()+JSON.stringify([...$('connections-form').querySelectorAll('input,select')].map(el=>[el.id,el.value,el.checked]));
+  $('open-connections').onclick = () => {connectionDraft=connectionValue();$('connections-dialog').showModal();};
+  const closeConnections=async()=>connectionValue()===connectionDraft||await window.confirmDiscard('Настройки подключения ещё не сохранены.');
+  $('close-connections').onclick = async () => {if(await closeConnections())$('connections-dialog').close();};
+  $('connections-form').addEventListener('connections-saved',()=>{connectionDraft=connectionValue();});
+  $('connections-dialog').addEventListener('cancel',async event=>{event.preventDefault();if(await closeConnections())$('connections-dialog').close();});
+  window.addEventListener('popstate',()=>{
+    const params=new URLSearchParams(location.search);
+    const next=params.get('stage')||'source';
+    if(stages.includes(next))openStage(next,false);
+    const nextVariant=params.get('report')||'';
+    if(nextVariant!==variant){
+      if($('report-editor').contentWindow?.notesEditorDirty?.()){
+        const restored=new URLSearchParams(location.search);
+        if(variant)restored.set('report',variant);else restored.delete('report');
+        history.replaceState(null,'','/create?'+restored);
+        $('report-version-notice').hidden=false;
+        $('report-version-notice').textContent='Сохраните правки перед выбором другого варианта.';
+      }else{variant=nextVariant;$('notes-variant').value=variant;loadReport();}
+    }
+  });
   async function post(url, value) {
     const response = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(value)});
     const data = await response.json();
@@ -77,6 +103,7 @@
     try {
       const info = await post('/output/' + encodeURIComponent(snapshot.folder) + '/title.json', {title:$('source-title').value});
       snapshot.title = info.title; snapshot.display_title = info.display;
+      window.studioDraft.clear($('source-title-form'));
       $('run-title').textContent = info.display; $('source-title-status').textContent = 'Название сохранено.';
     } catch (error) { $('source-title-status').textContent = error.message; }
   };
@@ -148,6 +175,7 @@
       if (currentFolder !== null) variant = '';
       currentFolder = snapshot.folder;
       $('source-title').value = snapshot.title || '';
+      window.studioDraft.restore($('source-title-form'));
       $('source-title-status').textContent = '';
       $('notes-settings').open = !snapshot.report_url;
       $('speech-settings').open = !snapshot.has_ready_transcript;
