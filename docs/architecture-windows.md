@@ -2,6 +2,16 @@
 
 ## Sandbox harness, 19.10.2026
 
+Последующее уточнение: Functional поддерживает явно разрешённый владельцем guest-only
+SAC Off с единственным reboot и RunOnce/CLI resume; Security сохраняет стандартную
+политику. Выбранные SAC mode и interaction входят в fingerprint. `Api` использует
+реальные локальные API установленного приложения, отдельные порты в CI, настоящий
+CPU worker и сохранённые результаты. Он не выдаётся за UI-проверку; `UI` остаётся
+отдельным адаптером WinForms/WebView2. `verify_installed.py` проверяет версию/critical
+hashes после EXE-install, запускается установленным Python и завершает собственные
+процессы перед uninstall тестовой копии. Обычный Windows CI использует этот путь
+без Sandbox и без изменения SAC на runner. Политики и состояние хоста не меняются.
+
 `windows-app/sandbox/Run-Acceptance.ps1` создаёт frozen input, plan и `.wsb`
 с официальным LogonCommand → guest bootstrap → DAG стадий → host reports.
 Read-only input и отдельный проверенный read-only test cache не дают гостю доступа

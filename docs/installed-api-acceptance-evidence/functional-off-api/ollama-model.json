@@ -1,0 +1,39 @@
+{
+  "stage": "ollama-model",
+  "status": "PASS",
+  "method": "real installed application HTTP API; no UI claim",
+  "installation": {
+    "app": "video-descriptor-windows",
+    "version": "0.7.0-prototype",
+    "workspace": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Programs\\VideoDescriptor\\windows-app\\runtime\\workspace",
+    "installation": "772c9d8d1add1db97336962d085e5d34f6dbbfd036360380ade1a001ae797efc",
+    "desktop_protocol": 1
+  },
+  "installed_model": {
+    "name": "qwen3.5:0.8b",
+    "model": "qwen3.5:0.8b",
+    "modified_at": "2026-10-19T12:45:46.0781914+03:00",
+    "size": 1322069277,
+    "digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+    "details": {
+      "parent_model": "qwen35-validation-20260930:0.8b-stock-q8_0-q8draft2",
+      "format": "gguf",
+      "family": "qwen35",
+      "families": [
+        "qwen35"
+      ],
+      "parameter_size": "752.39M",
+      "quantization_level": "Q8_0",
+      "context_length": 262144,
+      "embedding_length": 1024,
+      "runner": "llamacpp"
+    },
+    "capabilities": [
+      "completion",
+      "vision",
+      "tools",
+      "thinking"
+    ]
+  },
+  "elapsed_seconds": 0.156
+}

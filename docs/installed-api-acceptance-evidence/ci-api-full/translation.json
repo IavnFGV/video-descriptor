@@ -1,0 +1,37 @@
+{
+  "stage": "translation",
+  "status": "PASS",
+  "method": "real installed application HTTP API; no UI claim",
+  "installation": {
+    "app": "video-descriptor-windows",
+    "version": "0.7.0-prototype",
+    "workspace": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\workspace",
+    "installation": "2bda3e6bcfb6f7d586ae8ceac03f44a05ce04ccd8f470c772b9770de570e4757",
+    "desktop_protocol": 1
+  },
+  "saved": {
+    "translated_segments": 1,
+    "translations": {
+      "s00001": "Это локальная транскрипция тест. Синий поезд arrives в станцию на 9. Сохрани предложение как субтитры."
+    }
+  },
+  "job": {
+    "id": "26a541d5182e4eb0ac4edc0a8e7a8b92",
+    "video": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\workspace\\data\\uploads\\3b636388cf6d40fba57b869f58b9c08e\\speech-check.mp4",
+    "filename": "speech-check.mp4",
+    "title": "Перевод · speech-check.mp4",
+    "mode": "postprocess",
+    "task": "translate",
+    "folder": "processed-26a541d5182e4eb0ac4edc0a8e7a8b92",
+    "source_folder": "speech-3b636388cf6d40fba57b869f58b9c08e",
+    "translation_model": "qwen3.5:0.8b",
+    "translation_base_url": "http://127.0.0.1:11434",
+    "status": "done",
+    "created": 1792404218.8007174,
+    "stage": "done",
+    "started": 1792404220.0573409,
+    "error": null,
+    "finished": 1792404228.7083998
+  },
+  "elapsed_seconds": 10.141
+}

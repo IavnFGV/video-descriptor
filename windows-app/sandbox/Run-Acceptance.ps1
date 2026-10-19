@@ -6,13 +6,15 @@ param(
     [switch]$FailedOnly, [switch]$Force, [switch]$PrepareOnly,
     [ValidateSet('Verified','None')][string]$Cache='Verified', [switch]$NetworkDownload,
     [switch]$AllowGuestEvaluation,
+    [ValidateSet('Off','Evaluation')][string]$GuestSacMode='Off',
+    [ValidateSet('UI','Api')][string]$Interaction='Api',
     [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9_.:/-]{0,150}$')][string]$OllamaModel='qwen3.5:9b',
     [string]$CacheDirectory,
     [string]$RunsDirectory,
     [ValidateRange(60,14400)][int]$TimeoutSeconds=1800
 )
 . "$PSScriptRoot\Acceptance.Common.ps1"
-if (!$CacheDirectory) { $CacheDirectory=Join-Path $PSScriptRoot '..\runtime\acceptance-cache' }
+if (!$CacheDirectory) { $CacheDirectory=Join-Path $PSScriptRoot '..\runtime\acceptance-cache-v2' }
 if (!$RunsDirectory) { $RunsDirectory=Join-Path $PSScriptRoot '..\runtime\acceptance' }
 $project = Split-Path (Split-Path $PSScriptRoot)
 New-Item -ItemType Directory -Force -Path $RunsDirectory | Out-Null
@@ -59,8 +61,9 @@ New-Item -ItemType Directory -Path $inputDirectory,$reports -Force | Out-Null
 $artifacts=@(Read-Json (Join-Path $project 'dist\SHA256SUMS.json'))
 Test-ObjectFiles (Join-Path $project 'dist') $artifacts
 foreach ($artifact in $artifacts) { Copy-Item -LiteralPath (Join-Path $project ('dist\'+$artifact.file)) -Destination $inputDirectory }
-Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in @('.ps1','.py','.json') } | Copy-Item -Destination $inputDirectory
+Get-ChildItem -LiteralPath $PSScriptRoot -File | Where-Object { $_.Extension -in @('.ps1','.py','.json','.wsb') } | Copy-Item -Destination $inputDirectory
 Copy-Item -LiteralPath (Join-Path $project 'windows-app\verify_release.py') -Destination $inputDirectory
+Copy-Item -LiteralPath (Join-Path $project 'windows-app\verify_installed.py') -Destination $inputDirectory
 $objects=@()
 $neededComponents=@()
 if ($selected -contains 'whisper' -and !$NetworkDownload) { $neededComponents+='whisper-model' }
@@ -79,12 +82,12 @@ if ($Cache -eq 'Verified' -and (Test-Path -LiteralPath $CacheDirectory)) {
     }
     if (@($objects | Group-Object component | Where-Object Count -gt 1).Count) { throw 'Keep exactly one version per cache component in the selected cache directory' }
 }
-$harness=@(Get-ChildItem -LiteralPath $inputDirectory -File | Where-Object Extension -in @('.ps1','.py','.json') | Sort-Object Name | ForEach-Object {
+$harness=@(Get-ChildItem -LiteralPath $inputDirectory -File | Where-Object Extension -in @('.ps1','.py','.json','.wsb') | Sort-Object Name | ForEach-Object {
     @{file=$_.Name;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
 })
 $sha=(& git -C $project rev-parse HEAD).Trim()
 $dirty=(& git -C $project status --porcelain | Out-String).Trim()
-$fingerprint=Get-TextHash (ConvertTo-CanonicalJson @{artifacts=$artifacts;harness=$harness;cache=$objects;profile=$Profile;model=$OllamaModel;network_download=[bool]$NetworkDownload;git_sha=$sha})
+$fingerprint=Get-TextHash (ConvertTo-CanonicalJson @{artifacts=$artifacts;harness=$harness;cache=$objects;profile=$Profile;model=$OllamaModel;network_download=[bool]$NetworkDownload;git_sha=$sha;sac_mode=$GuestSacMode;interaction=$Interaction})
 $history=@()
 if (!$Force -and !$NetworkDownload) {
     foreach ($dir in $previous) {
@@ -98,6 +101,8 @@ Write-Json (Join-Path $inputDirectory 'plan.json') @{
     cache=$objects; network_download=[bool]$NetworkDownload; allow_guest_evaluation=[bool]$AllowGuestEvaluation
     ollama_model=$OllamaModel; history=$history; max_resume_attempts=2; timeout_seconds=$TimeoutSeconds
     contracts=(Read-Json (Join-Path $PSScriptRoot 'stage-contracts.json')); harness=$harness
+    guest_sac_mode=$GuestSacMode;interaction=$Interaction
+    guest_sac_off_authorization='Ivan explicitly authorized guest-only SAC Off and guest restart for disposable application testing on 2026-10-19'
 }
 Write-Json (Join-Path $reports 'report.json') @{
     run_id=$runId;profile=$Profile;git_sha=$sha;fingerprint=$fingerprint;status='PREPARED'
@@ -108,14 +113,12 @@ $esc={ param($v) [Security.SecurityElement]::Escape($v) }
 $mappings="<MappedFolder><HostFolder>$(& $esc $inputDirectory)</HostFolder><SandboxFolder>C:\VD-Acceptance</SandboxFolder><ReadOnly>true</ReadOnly></MappedFolder><MappedFolder><HostFolder>$(& $esc $reports)</HostFolder><SandboxFolder>C:\VD-Results</SandboxFolder><ReadOnly>false</ReadOnly></MappedFolder>"
 if ($objects.Count) { $mappings+="<MappedFolder><HostFolder>$(& $esc $CacheDirectory)</HostFolder><SandboxFolder>C:\VD-Cache</SandboxFolder><ReadOnly>true</ReadOnly></MappedFolder>" }
 $wsb=Join-Path $run 'Acceptance.wsb'
-@"
-<Configuration>
-<MemoryInMB>8192</MemoryInMB><Networking>Enable</Networking>
-<MappedFolders>$mappings</MappedFolders>
-<LogonCommand><Command>powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\VD-Acceptance\Bootstrap-Acceptance.ps1</Command></LogonCommand>
-</Configuration>
-"@ | Set-Content -LiteralPath $wsb -Encoding UTF8
+$template=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Acceptance.template.wsb') -Raw
+$template.Replace('@@MAPPED_FOLDERS@@',$mappings) | Set-Content -LiteralPath $wsb -Encoding UTF8
 Write-Output "Run: $runId`nReports: $reports`nConfiguration: $wsb"
+if ($Profile -eq 'Functional' -and $GuestSacMode -eq 'Off') {
+    Write-Output 'Functional test: SAC Off is confined to the disposable guest; one guest restart may be performed. Host security and host reboot are excluded.'
+}
 if ($PrepareOnly) { return }
 $sandbox=Join-Path $env:WINDIR 'System32\WindowsSandbox.exe'
 if (!(Test-Path -LiteralPath $sandbox)) { throw 'Windows Sandbox unavailable; no host components were changed' }
@@ -162,6 +165,7 @@ try {
 }
 $deadline=(Get-Date).AddSeconds($TimeoutSeconds)
 $recorded=$false
+$resumeProbe=Get-Date
 do {
     Start-Sleep -Seconds 2
     $r=Read-Json (Join-Path $reports 'report.json')
@@ -174,6 +178,13 @@ do {
                 $recorded=$true
             }
         } catch { Write-Warning 'Could not record Sandbox ID yet; bootstrap reports remain authoritative.' }
+    }
+    if ($cli -and $recorded -and $r.restart -and !$r.restart.after_boot -and (Get-Date) -ge $resumeProbe) {
+        try {
+            $identity=Read-Json (Join-Path $run 'sandbox-instance.json')
+            Invoke-SandboxCli ('exec --id '+$identity.id+' --run-as ExistingLogin --command "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\VD-Acceptance\Resume-Acceptance.ps1"') 'wsb-resume' | Out-Null
+        } catch { Write-Warning 'Guest reboot/login is still pending; no additional reboot was requested.' }
+        $resumeProbe=(Get-Date).AddSeconds(15)
     }
     if ($r.status -notin @('PREPARED','RUNNING')) { $r.stages | Format-Table name,status,reason; Write-Output "Result: $($r.status)"; if ($r.status -ne 'PASS') { exit 2 }; return }
 } while ((Get-Date) -lt $deadline)

@@ -1,0 +1,8 @@
+﻿{
+    "timestamp":  "2026-10-19T10:06:26.9318788Z",
+    "authorization":  "Ivan explicitly authorized guest-only SAC Off and guest restart for disposable application testing on 2026-10-19",
+    "guest_id":  "8d375f5e8b5144739b4fa8483c1419b2",
+    "after":  0,
+    "before":  1,
+    "host_changed":  false
+}

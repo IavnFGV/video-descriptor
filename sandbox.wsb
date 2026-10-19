@@ -1,0 +1,16 @@
+<Configuration>
+  <MemoryInMB>8192</MemoryInMB>
+  <Networking>Enable</Networking>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>E:\LocalAI\video desriptor\dist</HostFolder>
+      <SandboxFolder>C:\VD-Installer</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>E:\LocalAI\video desriptor\windows-app\runtime\sandbox\e2e-fixed-webview-20261019\input\verified-model</HostFolder>
+      <SandboxFolder>C:\VD-Model</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+</Configuration>

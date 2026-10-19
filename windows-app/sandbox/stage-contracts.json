@@ -1,15 +1,134 @@
 {
-  "version": 1,
+  "version": 2,
   "stages": [
-    {"name":"preflight","dependencies":[],"inputs":["WSB profile","artifact SHA256","cache manifests","guest identity","OS","SAC policy"],"pass":"Verified disposable Sandbox, supported profile, artifact and selected cache integrity","method":"guest diagnostics"},
-    {"name":"installer","dependencies":["preflight"],"inputs":["installer SHA256","ZIP SHA256","OS","SAC profile","lifecycle contract"],"pass":"Security: unchanged enforcement rejects unsigned EXE with correlated Code Integrity event. Functional: fresh install and binary presence; full lifecycle when explicitly requested","method":"native installer; lifecycle verifier"},
-    {"name":"desktop","dependencies":["installer"],"inputs":["installed application","WebView2 runtime"],"pass":"Installed Start Menu shortcut opens actual WinForms/WebView2; setup wizard and component diagnostics render","method":"WebView2 CDP pointer/DOM"},
-    {"name":"whisper","dependencies":["desktop"],"inputs":["pinned official Whisper revision and hashes or explicit network download","CPU runtime","synthetic bundled MP4/WAV"],"pass":"UI model setup, fresh CPU readiness, actual MP4 transcription with nonempty timestamped segments; short WAV probe unless exact prior proof applies","method":"WebView2 CDP pointer/DOM; read-only API evidence"},
-    {"name":"ollama-install","dependencies":["desktop"],"inputs":["pinned signed official installer cache object"],"pass":"Valid Ollama signature, unattended install, local service version, UI status","method":"guest preparation CLI plus actual application UI"},
-    {"name":"ollama-model","dependencies":["ollama-install"],"inputs":["model tag","verified model cache or explicit network pull"],"pass":"Model physically present with digest; selected and connected through application UI","method":"guest preparation CLI plus actual application UI"},
-    {"name":"ollama-inference","dependencies":["ollama-model"],"inputs":["installed model digest","Ollama version","fixed synthetic prompt"],"pass":"Real completed nonempty generation; records device-independent timing and raw response","method":"diagnostic HTTP API; does not claim UI generation"},
-    {"name":"translation","dependencies":["whisper","ollama-inference"],"inputs":["UI-transcribed synthetic video","selected model digest","translation contract"],"pass":"UI action completes separate translation job; saved nonempty Russian text, no translation errors, exported SRT with timestamps","method":"WebView2 CDP pointer/DOM; read-only saved-file evidence"},
-    {"name":"notes","dependencies":["translation"],"inputs":["source transcript","notes model selection","notes contract"],"pass":"UI notes action completes; nonempty saved notes and translation; report HTML persists","method":"WebView2 CDP pointer/DOM; read-only saved-file evidence"},
-    {"name":"cleanup","dependencies":["preflight"],"inputs":["guest installation root","host report directory"],"pass":"Application processes confined to this guest installation disposed; reports preserved","method":"guest process cleanup"}
+    {
+      "name": "preflight",
+      "dependencies": [],
+      "inputs": [
+        "WSB profile",
+        "artifact SHA256",
+        "cache manifests",
+        "guest identity",
+        "OS",
+        "SAC policy"
+      ],
+      "pass": "Verified disposable Sandbox, selected default/Evaluation/authorized guest-Off profile, artifact and cache integrity",
+      "method": "guest diagnostics and bounded guest-only SAC preparation"
+    },
+    {
+      "name": "installer",
+      "dependencies": [
+        "preflight"
+      ],
+      "inputs": [
+        "installer SHA256",
+        "ZIP SHA256",
+        "OS",
+        "SAC profile",
+        "lifecycle contract"
+      ],
+      "pass": "Security: unchanged enforcement rejects unsigned EXE with correlated Code Integrity event. Functional: fresh install and binary presence; full lifecycle when explicitly requested",
+      "method": "native installer; lifecycle verifier"
+    },
+    {
+      "name": "desktop",
+      "dependencies": [
+        "installer"
+      ],
+      "inputs": [
+        "installed application",
+        "WebView2 runtime"
+      ],
+      "pass": "UI mode: actual installed desktop wizard renders; Api mode: installed backend identity and setup diagnostics respond",
+      "method": "explicit UI WebView2 CDP or installed backend HTTP API; recorded per run"
+    },
+    {
+      "name": "whisper",
+      "dependencies": [
+        "desktop"
+      ],
+      "inputs": [
+        "pinned official Whisper revision and hashes or explicit network download",
+        "CPU runtime",
+        "synthetic bundled MP4/WAV"
+      ],
+      "pass": "Fresh CPU readiness and actual MP4 transcription with nonempty bounded segments; UI mode also performs the short WAV probe unless an exact proof applies",
+      "method": "explicit UI controls or installed application API; real worker in both modes"
+    },
+    {
+      "name": "ollama-install",
+      "dependencies": [
+        "desktop"
+      ],
+      "inputs": [
+        "pinned signed official installer cache object"
+      ],
+      "pass": "Verified official installer, local service version and application component status",
+      "method": "guest preparation CLI and explicit UI/API component checks"
+    },
+    {
+      "name": "ollama-model",
+      "dependencies": [
+        "ollama-install"
+      ],
+      "inputs": [
+        "model tag",
+        "verified model cache or explicit network pull"
+      ],
+      "pass": "Model physically present with digest and connected through the selected UI/API adapter",
+      "method": "guest preparation CLI and explicit UI/API model selection"
+    },
+    {
+      "name": "ollama-inference",
+      "dependencies": [
+        "ollama-model"
+      ],
+      "inputs": [
+        "installed model digest",
+        "Ollama version",
+        "fixed synthetic prompt"
+      ],
+      "pass": "Real completed nonempty generation; records device-independent timing and raw response",
+      "method": "diagnostic HTTP API; does not claim UI generation"
+    },
+    {
+      "name": "translation",
+      "dependencies": [
+        "whisper",
+        "ollama-inference"
+      ],
+      "inputs": [
+        "UI-transcribed synthetic video",
+        "selected model digest",
+        "translation contract"
+      ],
+      "pass": "Selected UI/API action completes a separate job; saved Russian translation covers every segment and SRT contains timestamps",
+      "method": "explicit UI or API acceptance, never relabelled as the other"
+    },
+    {
+      "name": "notes",
+      "dependencies": [
+        "translation"
+      ],
+      "inputs": [
+        "source transcript",
+        "notes model selection",
+        "notes contract"
+      ],
+      "pass": "Selected UI/API notes action completes; saved notes, chapters, translation and report persist",
+      "method": "explicit UI or API acceptance, never relabelled as the other"
+    },
+    {
+      "name": "cleanup",
+      "dependencies": [
+        "preflight"
+      ],
+      "inputs": [
+        "guest installation root",
+        "host report directory"
+      ],
+      "pass": "Application processes confined to this guest installation disposed; reports preserved",
+      "method": "guest process cleanup"
+    }
   ]
 }

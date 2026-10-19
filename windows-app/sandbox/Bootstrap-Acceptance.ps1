@@ -1,4 +1,4 @@
-# Guest only. No host-side policy commands, registry writes, ACL changes or reboot commands.
+# Guest only. SAC preparation/restart is confined to the verified disposable guest.
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\Acceptance.Common.ps1"
 $machine=Get-CimInstance Win32_ComputerSystem
@@ -12,6 +12,7 @@ $out='C:\VD-Results'; $work='C:\VD-Work'; $checkpoint=Join-Path $out 'checkpoint
 $mutex=[Threading.Mutex]::new($false,'Local\VD-Acceptance')
 if (!$mutex.WaitOne(0)) { $mutex.Dispose(); exit 0 }
 $report=$null
+$restartPending=$false
 function Save-Report {
     if (Test-Path -LiteralPath (Join-Path $out 'host-timeout.json')) {
         $script:report.status='BLOCKED'
@@ -39,12 +40,13 @@ function Invoke-OwnedProcess($Exe, $Arguments, $Name, [int]$Seconds=600) {
     if ($p.ExitCode -ne 0) { throw "$Name failed (exit $($p.ExitCode)); see $Name.stderr.log" }
 }
 function Invoke-UI($Name, [switch]$Cached) {
-    $arguments='-X utf8 C:\VD-Acceptance\acceptance_ui.py --stage '+$Name+' --root "'+$script:install+'" --reports C:\VD-Results --model '+$plan.ollama_model
-    if ($Cached) { $arguments+=' --reuse-expensive-proof' }
+    $driver=if ($plan.interaction -eq 'Api') {'acceptance_api.py'} else {'acceptance_ui.py'}
+    $arguments='-X utf8 C:\VD-Acceptance\'+$driver+' --stage '+$Name+' --root "'+$script:install+'" --reports C:\VD-Results --model '+$plan.ollama_model
+    if ($Cached -and $plan.interaction -ne 'Api') { $arguments+=' --reuse-expensive-proof' }
     Invoke-OwnedProcess (Join-Path $script:install 'python\python.exe') $arguments $Name 900
     $result=Read-Json (Join-Path $out ($Name+'.json'))
     if ($result.status -eq 'BLOCKED') { throw ('BLOCKED: '+$result.reason) }
-    if ($result.status -ne 'PASS') { throw ('UI stage failed: '+$Name) }
+    if ($result.status -ne 'PASS') { throw ('Acceptance stage failed: '+$Name+'; '+$result.error) }
     if ($Name -eq 'desktop') {
         $script:report.dependency_versions=@{openvino=$result.diagnostics.inventory.openvino;genai=$result.diagnostics.inventory.genai}
     }
@@ -72,7 +74,7 @@ try {
             schema=1;run_id=$plan.run_id;profile=$plan.profile;git_sha=$plan.git_sha;git_dirty=$plan.git_dirty
             fingerprint=$plan.fingerprint;harness=$plan.harness;artifacts=$plan.artifacts;cache=$plan.cache;guest_id=$guestId
             artifact_versions=@($plan.artifacts | ForEach-Object { if ($_.file -match '^VideoDescriptor-(.+)-windows-x64') { $Matches[1] } } | Select-Object -Unique)
-            dependency_versions=@{}
+            dependency_versions=@{};interaction=$plan.interaction;sac_mode=$(if ($plan.profile -eq 'Security') {'Default'} else {$plan.guest_sac_mode});restart=$null
             environment='Windows Sandbox';contracts=$plan.contracts;status='RUNNING';started_at=(Get-Date).ToUniversalTime().ToString('o')
             finished_at=$null;elapsed_seconds=0;os=$null;policy=$null;compatibility=$null;error=$null
             stages=@($StageOrder | ForEach-Object { [pscustomobject]@{name=$_;status='NOT_TESTED';reason='Not selected';started_at=$null;finished_at=$null;seconds=0;evidence=@();checks=@();previous_run=$null} })
@@ -80,10 +82,38 @@ try {
     }
     $report.status='RUNNING'; Save-Report
     $clock=[Diagnostics.Stopwatch]::StartNew()
-    $policies=@(Snapshot-Policy 'initial')
+    $snapshotName=if ($attempts -eq 1) {'initial'} else {'resumed'}
+    $policies=@(Snapshot-Policy $snapshotName)
     $os=Get-CimInstance Win32_OperatingSystem
     $report.os=@{caption=$os.Caption;version=$os.Version;build=$os.BuildNumber;architecture=$os.OSArchitecture;memory_mb=[math]::Round($machine.TotalPhysicalMemory/1MB)}
     $report.policy=$policies
+    if ($plan.profile -eq 'Functional' -and $plan.guest_sac_mode -eq 'Off') {
+        if (!$plan.guest_sac_off_authorization) { throw 'Guest SAC Off authorization missing' }
+        if ($sacState -ne 0) {
+            if ($attempts -ne 1) { throw 'SAC did not remain Off after one guest restart; no further policy attempts' }
+            $policyPath='HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy'
+            $before=$sacState
+            Set-ItemProperty -LiteralPath $policyPath -Name VerifiedAndReputablePolicyState -Type DWord -Value 0
+            $refresh=& "$env:WINDIR\System32\CiTool.exe" --refresh --json 2>&1 | Out-String
+            $refresh | Set-Content -LiteralPath (Join-Path $out 'sac-refresh.json') -Encoding UTF8
+            $after=(Get-ItemProperty -LiteralPath $policyPath -Name VerifiedAndReputablePolicyState).VerifiedAndReputablePolicyState
+            Write-Json (Join-Path $out 'sac-change.json') @{guest_id=$guestId;authorization=$plan.guest_sac_off_authorization;before=$before;after=$after;host_changed=$false;timestamp=(Get-Date).ToUniversalTime().ToString('o')}
+            if ($after -ne 0) { throw 'SAC registry setting was not accepted; no ACL/ownership/boot-policy changes will be attempted' }
+            $runOnce='HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+            New-Item -Path $runOnce -Force | Out-Null
+            New-ItemProperty -LiteralPath $runOnce -Name 'VD-Acceptance-Resume' -PropertyType String -Value 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\VD-Acceptance\Resume-Acceptance.ps1' -Force | Out-Null
+            $report.restart=@{requested=$true;before_boot=$os.LastBootUpTime.ToUniversalTime().ToString('o');attempt=1;guest_id=$guestId}
+            Write-Json $checkpoint @{run_id=$plan.run_id;guest_id=$guestId;attempts=$attempts;phase='policy-restart';state='RESTART_PENDING'}
+            $restartPending=$true
+            return
+        }
+        if ($attempts -gt 1 -and $report.restart) {
+            $currentBoot=$os.LastBootUpTime.ToUniversalTime().ToString('o')
+            if ($currentBoot -eq $report.restart.before_boot) { throw 'Resume ran before the requested guest reboot completed' }
+            $report.restart | Add-Member -Force -NotePropertyName after_boot -NotePropertyValue $currentBoot
+            $report.restart | Add-Member -Force -NotePropertyName resumed_same_guest -NotePropertyValue $true
+        }
+    }
     $report.compatibility=Get-TextHash (ConvertTo-CanonicalJson @{os=$report.os;policy=$policies;sac_registry=$sacState})
     Save-Report
     $install=Join-Path $env:LOCALAPPDATA 'Programs\VideoDescriptor'
@@ -111,10 +141,11 @@ try {
                     Test-ObjectFiles 'C:\VD-Acceptance' $plan.artifacts
                     foreach ($obj in $plan.cache) {
                         if ($plan.network_download -and $obj.component -in @('whisper-model','ollama-model')) { throw 'Network test must not mount model cache' }
-                        Test-ObjectFiles (Get-ContainedPath 'C:\VD-Cache' $obj.id) $obj.files
+                        Test-ObjectFiles (Get-CachePayload $obj) $obj.files
                     }
                     $stage.evidence=@('initial-citool.json','initial-sac.json')
-                    if ($plan.profile -eq 'Functional' -and !(Active-Policy $policies '^VerifiedAndReputableDesktopEvaluation(Audit|AuditNoISG)?$')) {
+                    if ($plan.profile -eq 'Functional' -and $plan.guest_sac_mode -eq 'Off' -and $sacState -ne 0) { throw 'BLOCKED: guest SAC Off was not verified' }
+                    if ($plan.profile -eq 'Functional' -and $plan.guest_sac_mode -ne 'Off' -and !(Active-Policy $policies '^VerifiedAndReputableDesktopEvaluation(Audit|AuditNoISG)?$')) {
                         $permission=if ($plan.allow_guest_evaluation) { 'Owner authorized Evaluation/Audit. ' } else { 'Evaluation/Audit authorization not supplied. ' }
                         throw ('BLOCKED: '+$permission+'No active supported SAC Evaluation/Audit policy. Microsoft documented transitions need recovery, ACL/ownership or EFI changes excluded by this task. No policy was changed.')
                     }
@@ -152,23 +183,35 @@ try {
                 'desktop' {
                     if ($plan.profile -eq 'Security') { throw 'BLOCKED: Security profile never relaxes policy or continues functional tests' }
                     # Environment variable applies only to this guest process tree; debugger stays on loopback.
-                    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-address=127.0.0.1 --remote-debugging-port=9222'
                     $shortcut=Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Video Descriptor\Video Descriptor.lnk'
                     if (!(Test-Path -LiteralPath $shortcut)) { throw 'Installed Start Menu shortcut missing' }
-                    if (!(Get-Process VideoDescriptor -ErrorAction SilentlyContinue)) { Start-Process -FilePath $shortcut }
-                    Invoke-UI 'desktop' | Out-Null; $stage.evidence=@('desktop.json','desktop.png')
+                    if ($plan.interaction -eq 'Api') {
+                        Start-Process -FilePath (Join-Path $install 'python\python.exe') -ArgumentList ('-X utf8 "'+(Join-Path $install 'windows-app\app.py')+'" --no-browser') -WorkingDirectory $install -WindowStyle Hidden -RedirectStandardOutput (Join-Path $out 'backend.stdout.log') -RedirectStandardError (Join-Path $out 'backend.stderr.log')
+                        $stage.reason='Installed backend API and component detection; no desktop/UI assertion'
+                    } else {
+                        $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-address=127.0.0.1 --remote-debugging-port=9222'
+                        # Launch the installed shortcut target directly so this test process's
+                        # DevTools environment is inherited instead of Explorer's old environment.
+                        $shell=New-Object -ComObject WScript.Shell
+                        $target=$shell.CreateShortcut($shortcut).TargetPath
+                        if ($target -ne (Join-Path $install 'windows-app\desktop-sdk\VideoDescriptor.exe')) { throw 'Unexpected installed shortcut target' }
+                        $start=[Diagnostics.ProcessStartInfo]::new($target)
+                        $start.UseShellExecute=$false;$start.WorkingDirectory=$install
+                        [Diagnostics.Process]::Start($start) | Out-Null
+                    }
+                    Invoke-UI 'desktop' | Out-Null; $stage.evidence=@('desktop.json')
                 }
                 'whisper' {
                     Invoke-UI 'whisper' -Cached:($cached.Count -gt 0) | Out-Null
                     if ($cached.Count) { $stage.reason='Reused prior short probe proof; fresh CPU preparation and real MP4 UI inference passed';$stage.previous_run=$previous.run_id }
-                    $stage.checks=@('cpu-ready','real-video-ui');$stage.evidence=@('whisper.json','whisper.png')
+                    $stage.checks=@('cpu-ready',('real-video-'+$plan.interaction.ToLowerInvariant()));$stage.evidence=@('whisper.json')
                 }
                 'ollama-install' {
                     $obj=@($plan.cache | Where-Object component -eq 'ollama-installer')
                     if (!$obj.Count) { throw 'BLOCKED: register a pinned official ollama-installer cache object; no unpinned latest download is allowed' }
                     $installers=@($obj[0].files | Where-Object { $_.file -like '*.exe' })
                     if ($installers.Count -ne 1) { throw 'BLOCKED: ollama-installer object must contain exactly one installer EXE' }
-                    $source=Get-ContainedPath (Get-ContainedPath 'C:\VD-Cache' $obj[0].id) $installers[0].file
+                    $source=Get-ContainedPath (Get-CachePayload $obj[0]) $installers[0].file
                     $signature=Get-AuthenticodeSignature -LiteralPath $source
                     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Ollama') { throw 'Installer must have a valid Ollama Authenticode signature' }
                     $env:OLLAMA_MODELS=Join-Path $work 'ollama-models'
@@ -184,7 +227,7 @@ try {
                     $obj=@($plan.cache | Where-Object component -eq 'ollama-model')
                     if ($obj.Count) {
                         if ($obj[0].version -ne $plan.ollama_model) { throw 'BLOCKED: cached Ollama model version does not match plan' }
-                        $source=Get-ContainedPath 'C:\VD-Cache' $obj[0].id
+                        $source=Get-CachePayload $obj[0]
                         New-Item -ItemType Directory -Path $env:OLLAMA_MODELS -Force | Out-Null
                         foreach ($entry in $obj[0].files) {
                             $target=Get-ContainedPath $env:OLLAMA_MODELS $entry.file
@@ -213,6 +256,7 @@ try {
             $stage.reason=$_.Exception.Message
             $stage.status=if ($stage.reason.StartsWith('BLOCKED:')) {'BLOCKED'} else {'FAIL'}
         } finally {
+            if ($plan.interaction -eq 'Api') { $stage.evidence=@($stage.evidence | Where-Object { $_ -notlike '*.png' }) }
             $stage.seconds=[math]::Round($stageClock.Elapsed.TotalSeconds,3);$stage.finished_at=(Get-Date).ToUniversalTime().ToString('o')
             Write-Json $checkpoint @{run_id=$plan.run_id;guest_id=$guestId;attempts=$attempts;phase=$stage.name;state=$stage.status;timestamp=$stage.finished_at}
             Save-Report
@@ -229,9 +273,10 @@ try {
     } catch { $_.Exception.Message | Set-Content (Join-Path $out 'diagnostic-error.txt') }
     Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
     if ($report) {
-        $report.finished_at=(Get-Date).ToUniversalTime().ToString('o')
-        if ($clock) { $report.elapsed_seconds=[math]::Round($clock.Elapsed.TotalSeconds,3) }
+        if (!$restartPending) { $report.finished_at=(Get-Date).ToUniversalTime().ToString('o') }
+        $report.elapsed_seconds=[math]::Round(((Get-Date).ToUniversalTime()-[DateTime]::Parse($report.started_at).ToUniversalTime()).TotalSeconds,3)
         Save-Report
     }
     $mutex.ReleaseMutex();$mutex.Dispose()
+    if ($restartPending) { & "$env:WINDIR\System32\shutdown.exe" /r /t 5 }
 }

@@ -1,5 +1,10 @@
 # Sandbox harness: фактическая проверка 19.10.2026
 
+Последующее разрешение SAC Off только внутри Sandbox, автоматическая перезагрузка
+и настоящие installed-app API-проверки описаны в
+[отдельном дополнении](installed-api-acceptance.md). Приведённые ниже результаты
+относятся к исходному Evaluation-only профилю и сохранены как история.
+
 Реализованы `Run-Acceptance.ps1`, официальный WSB LogonCommand, guest bootstrap,
 стадийный DAG, проверенный read-only cache, host reports/checkpoint, статус,
 повтор неуспешных стадий и очистка временных input. Поставка WebView2 используется

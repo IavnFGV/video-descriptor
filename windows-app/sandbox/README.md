@@ -10,16 +10,16 @@ Docker, model installation, security changes, or a host reboot. Existing
 powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Security
 
 # Complete functional plan in a separate disposable guest.
-powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -AllowGuestEvaluation
+powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -GuestSacMode Off -Interaction Api -OllamaModel qwen3.5:0.8b
 
 # Ollama alone does not depend on Whisper or download its 470 MiB model.
-powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -Stage ollama-inference -AllowGuestEvaluation
+powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -Stage ollama-inference -OllamaModel qwen3.5:0.8b
 
 # A translation test adds only its actual dependencies.
-powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -Stage translation -AllowGuestEvaluation
+powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -Stage translation -OllamaModel qwen3.5:0.8b
 
 # Retry failed/BLOCKED stages with required clean-guest provisioning.
-powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -FailedOnly -AllowGuestEvaluation
+powershell -NoProfile -ExecutionPolicy Bypass -File windows-app/sandbox/Run-Acceptance.ps1 -Profile Functional -FailedOnly -OllamaModel qwen3.5:0.8b
 
 powershell -NoProfile -File windows-app/sandbox/Run-Acceptance.ps1 -Action Status -Profile Functional
 powershell -NoProfile -File windows-app/sandbox/Run-Acceptance.ps1 -Action Report -Profile Functional
@@ -40,42 +40,46 @@ must first be closed. `Clean` removes only input snapshots of completed runs for
 selected profile; it preserves reports, cache, and PREPARED/RUNNING inputs and
 refuses links/junctions.
 
-## SAC profiles and the actual environment limit
+## SAC profiles and guest restart
 
 Security keeps the guest's standard protection policy. PASS requires the rejected
 installer and a matching Code Integrity 3033/3077 event, not merely a nonzero exit.
 Only `preflight`, `installer`, and `cleanup` run by default in this profile.
 The Windows refusal message and raw event XML are retained.
 
-Functional requires a currently enforced Microsoft
-`VerifiedAndReputableDesktopEvaluation`, `...EvaluationAudit`, or
-`...EvaluationAuditNoISG` policy reported by CiTool. `-AllowGuestEvaluation` records
-owner authorization; it does **not** assert that this mode is available or turn off
-SAC. The harness does not change protected file owners/ACLs, replace EFI policies,
-disable Defender/Firewall, alter boot settings, or reboot Windows.
+Functional defaults to `-GuestSacMode Off` under Ivan's explicit authorization.
+The bootstrap verifies WDAGUtilityAccount, Hyper-V VM and CExecSvc. It records the
+initial state, sets only guest SAC to Off, saves a host checkpoint and registers a
+guest RunOnce continuation. It reboots that Sandbox at most once. The host also
+has an idempotent CLI resume fallback. Guest identity and boot times must survive;
+a lost guest or failed setting becomes BLOCKED, with no repeated reboot loop.
+Actual installer execution and inference verify functionality; registry state alone
+is not a functional PASS. Host Windows, Defender, firewall, ACL/ownership and boot
+policies are not changed. The host is never rebooted.
 
 Microsoft's current [SAC testing procedure](https://learn.microsoft.com/en-us/windows/apps/develop/smart-app-control/test-your-app-with-smart-app-control)
 requires recovery for forced mode switching; its audit setup requires ownership/ACL
 or EFI changes. Those procedures are outside the constraints of this task. If the
-guest does not already expose a supported Evaluation/Audit mode, Functional returns
-BLOCKED with the policy snapshots and Code Integrity log. It never substitutes the
-historical guest SAC-Off tests for this profile.
+guest does not already expose a supported Evaluation/Audit mode, the separately
+selected `-GuestSacMode Evaluation` still returns BLOCKED. Mode and fingerprints
+distinguish this stricter profile from authorized guest SAC Off and default Security.
 
 Observed 19 October 2026: stock guest build 26100 reports registry SAC state 1 and
 blocks this unsigned preview (event 3033). `CiTool --list-policies --json` returns
 `OperationResult: -2147009597` / `0x80073BC3`, including a separate System-context
-diagnostic. Consequently Security PASS is based on correlated actual enforcement;
-Functional is BLOCKED and its UI/Ollama stages have not been executed by this harness.
+diagnostic. The historical Evaluation-only run was BLOCKED. The later guest-Off API
+run passed automatic SAC preparation, same-guest reboot/resume, installation, model
+detection and real CPU transcription. Historical reports are preserved separately.
 
 ## Stages, evidence, and reuse
 
 [`stage-contracts.json`](stage-contracts.json) defines each stage's inputs,
 dependencies, method and PASS criteria; a copy is embedded in every guest report.
-The stage DAG selects prerequisites automatically. No HTTP write substitutes for a
-UI action: the UI driver uses the installed Start Menu shortcut, real WebView2,
-pointer events, form fields and a native file input. API reads and saved files
-collect evidence. `ollama-inference` is explicitly a diagnostic API generation;
-translation/notes exercise the actual application UI. Ollama installation and model
+The stage DAG selects prerequisites automatically. `-Interaction Api` is the default
+for scripts: it uses the installed application's real API, worker and saved files
+and does not claim UI coverage. `-Interaction UI` uses real WinForms/WebView2
+pointer/form actions, the installed shortcut target and a native file input.
+`ollama-inference` is explicitly an API generation diagnostic. Ollama installation and model
 provisioning use CLI preparation, not an assertion that the product has installer
 or model-download buttons (the current product has only model selection controls).
 
@@ -99,7 +103,7 @@ checks still run before use.
 
 ## Verified external cache
 
-Default: `windows-app/runtime/acceptance-cache`, outside the guest and ignored by
+Default: `windows-app/runtime/acceptance-cache-v2`, outside the guest and ignored by
 Git. `-CacheDirectory` selects a different dedicated test cache. `-Cache None`
 omits it. `-NetworkDownload` explicitly exercises real model download/pull, omits
 model cache objects and disables result reuse; a pinned installer may still be
@@ -125,6 +129,9 @@ powershell -NoProfile -File windows-app/sandbox/Register-TestCache.ps1 `
   -Source https://ollama.com/library/qwen3.5
 ```
 
+Object bytes live in `payload/`, separately from their metadata JSON. This prevents
+cache metadata from contaminating Whisper's model digest. Re-register old flat
+cache objects into v2; do not put their metadata inside a model directory.
 Each object records component, version, HTTPS upstream, acquisition time, total
 size and each file's SHA256/size. Registration copies and verifies the chosen
 assets; it records provenance, not independent proof of upstream authenticity.
@@ -149,22 +156,47 @@ Default runs: `windows-app/runtime/acceptance/<run-id>/`. Only the frozen input
 snapshot (read-only), optional cache (read-only), and run-specific reports
 (writable) are mapped. The checkout, `.env` files and private model stores are not
 shared. The report records Git SHA/dirty flag, exact artifact identity, contracts,
-profile, OS, stages, reasons, elapsed times and linked evidence. Screenshots and UI
-JSON are written after each executed stage, including failures. Code Integrity
+profile, OS, stages, reasons, elapsed times and linked evidence. The UI driver writes
+screenshots and UI JSON; the API driver writes JSON and exported results. Code Integrity
 EVTX and initial/final SAC/CiTool snapshots are written before final completion.
 
 Checkpoint is saved before and after each stage. Re-running bootstrap in a
 surviving guest is bounded to two attempts and reprovisions dependencies; a mutex
 prevents concurrent guest runners. A guest-local identity is compared with the
 host checkpoint. If that identity disappears, a reopened `.wsb` returns BLOCKED
-instead of pretending the old installation survived. No automatic reboot is
-currently needed or issued: the unsupported SAC transition stops before mutation.
-No claim of reboot recovery is made without an actual surviving guest.
+instead of pretending the old installation survived. Guest SAC Off requests at most
+one guest reboot; successful resume records the same guest ID and different boot
+times. Closing the Sandbox still destroys its local state.
 
 The WebView2 driver requires loopback DevTools port 9222, enabled only in this
-disposable guest's application process tree. It has protocol/unit coverage but
-its real functional execution is blocked by the policy condition above. Functional
-acceptance and the requested Ollama → generation → translation → notes outcome
-remain unverified until a permitted test environment is available. Unit tests do
-not count as those acceptance results. This harness does not prove GPU/NPU support,
-editor/export lifecycle, tray persistence or readiness for a public release.
+disposable guest's application process tree. The initial UI attempt found a shortcut
+environment-inheritance problem; the launcher now starts the shortcut target with
+the explicit test environment. API PASS does not establish that this UI path works.
+Unit tests are not acceptance evidence. This harness does not prove GPU/NPU support,
+editor/tray persistence, language-model quality or readiness for a public release.
+
+## Installed API checks and CI
+
+`windows-app/verify_installed.py --installer <setup.exe> --zip <matching.zip>
+--model <public-Whisper-fixture> --output <report.json>` installs into a fresh test
+directory, verifies the release manifest and critical file hashes, starts the
+installed Python/backend on isolated loopback ports, detects the model and performs
+real CPU transcription of the bundled MP4. It validates text/timestamps and stops
+only that test copy's processes, then uninstalls the test copy. It refuses an
+existing registered application so it cannot overwrite a developer installation.
+`--with-ollama --ollama-url <loopback> --ollama-model <tag>` adds real generation,
+translation, saved notes/chapters/report and API subtitle export checks.
+
+Windows CI already had unit/API tests, WebView2 smoke, reproducible ZIP and installer
+lifecycle. It now also caches/verifies the pinned public Whisper fixture and runs
+the installed-build CPU API check on every normal Windows job. Real Ollama checks
+are opt-in via workflow_dispatch `test_ollama=true`; they download a SHA256-pinned,
+signed public Ollama installer and the explicitly selected public model into CI-only
+directories. Reports and failure evidence are uploaded with `if: always()`.
+No SAC changes are made on hosted CI runners, and Sandbox/nested virtualization is
+not required there. CI changes still need push/dispatch before a remote run exists.
+
+[`Acceptance.template.wsb`](Acceptance.template.wsb) is the committed source of
+generated run configurations. The repository root [`sandbox.wsb`](../../sandbox.wsb)
+is also committed as the owner's historical manual configuration, with its original
+machine-specific read-only mappings; it is not the automatic harness entry point.

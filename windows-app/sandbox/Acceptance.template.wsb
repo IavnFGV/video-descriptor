@@ -1,0 +1,9 @@
+<!-- Source template. Run-Acceptance.ps1 substitutes the run-specific mappings. -->
+<Configuration>
+  <MemoryInMB>8192</MemoryInMB>
+  <Networking>Enable</Networking>
+  <MappedFolders>@@MAPPED_FOLDERS@@</MappedFolders>
+  <LogonCommand>
+    <Command>powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\VD-Acceptance\Bootstrap-Acceptance.ps1</Command>
+  </LogonCommand>
+</Configuration>

@@ -1,0 +1,74 @@
+{
+  "stage": "desktop",
+  "status": "PASS",
+  "method": "real installed application HTTP API; no UI claim",
+  "installation": {
+    "app": "video-descriptor-windows",
+    "version": "0.7.0-prototype",
+    "workspace": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\windows-app\\runtime\\workspace",
+    "installation": "2bda3e6bcfb6f7d586ae8ceac03f44a05ce04ccd8f470c772b9770de570e4757",
+    "desktop_protocol": 1
+  },
+  "diagnostics": {
+    "hardware": {
+      "cpu": "Intel64 Family 6 Model 189 Stepping 1, GenuineIntel",
+      "intel_gpu": [],
+      "intel_npu": [],
+      "message": "Системный список устройств недоступен; см. устройства OpenVINO"
+    },
+    "inventory": {
+      "devices": [
+        "CPU"
+      ],
+      "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+      "genai": "2026.4.1.0-3408-ab01d1771e4",
+      "model_present": false
+    },
+    "runtime_python": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\python\\python.exe",
+    "runtime_present": true,
+    "gemini": {
+      "provider": "ollama",
+      "model": "gemini-3.5-flash-lite",
+      "ollama_model": "",
+      "billing_mode": "paid",
+      "free_ack": false,
+      "has_key": false
+    },
+    "ocr": {
+      "detected": false,
+      "ready": false,
+      "message": "Tesseract не найден; необязательный компонент"
+    },
+    "translation": {
+      "state": "setup_required",
+      "message": "Модель/ключ настроены; генерация выполняется по запросу"
+    },
+    "notes": {
+      "state": "setup_required",
+      "selected": "",
+      "message": "Выберите модель Ollama для конспекта"
+    },
+    "diarization": {
+      "state": "unavailable",
+      "message": "Windows диаризация не проверена; можно пропустить"
+    }
+  },
+  "setup": {
+    "model_path": "C:\\Users\\WDAGUtilityAccount\\AppData\\Local\\Temp\\vd-installed-acceptance-6_nz7eu6\\Installed preview\\no-model",
+    "model_present": false,
+    "verified": false,
+    "model_name": "Whisper small FP16",
+    "downloads": true,
+    "download": {
+      "source": "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+      "revision": "2410d022171ca8a97343182f88eec8807a324db9",
+      "download_bytes": 493208911
+    },
+    "operation": {
+      "status": "idle",
+      "message": ""
+    },
+    "completed": false
+  },
+  "elapsed_seconds": 2.5
+}

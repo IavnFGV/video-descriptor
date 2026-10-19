@@ -229,6 +229,8 @@ def run(args, evidence):
                 if not objects:
                     raise Blocked('No verified whisper-model cache. Register official test assets or use -NetworkDownload.')
                 model_path = 'C:\\VD-Cache\\' + objects[0]['id']
+                if objects[0].get('payload'):
+                    model_path += '\\' + objects[0]['payload']
                 if cdp.evaluate('document.querySelector("#setup-form").hidden'):
                     cdp.click('#setup-toggle')
                 cdp.fill('#model-path', model_path)

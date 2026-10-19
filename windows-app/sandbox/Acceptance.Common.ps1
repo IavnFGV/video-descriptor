@@ -93,3 +93,8 @@ function Test-ObjectFiles($Root, $Files) {
         }
     }
 }
+function Get-CachePayload($Object) {
+    $root=Get-ContainedPath 'C:\VD-Cache' $Object.id
+    if ($Object.payload) { return Get-ContainedPath $root $Object.payload }
+    return $root
+}

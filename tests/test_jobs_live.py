@@ -100,6 +100,11 @@ def test_snapshot_reads_actual_checkpoints_and_stream_without_accepting_draft(tm
 def test_worker_continues_next_job_after_a_failure(tmp_path, monkeypatch):
     first = jobs.enqueue(tmp_path, io.BytesIO(b"a"), 1, "a.mp4")
     second = jobs.enqueue(tmp_path, io.BytesIO(b"b"), 1, "b.mp4")
+    # This test checks continuation after failure, not the OS wall clock's
+    # resolution (two Windows time.time() calls can produce identical values).
+    for created, job in enumerate((first, second), 1):
+        job['created'] = created
+        jobs.write_json(jobs.jobs_dir(tmp_path) / job['id'] / 'job.json', job)
     order = []
     def process(root, folder, job):
         order.append(job["id"])
