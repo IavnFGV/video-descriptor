@@ -355,6 +355,74 @@ def test_probe_rejects_invalid_audio_without_starting_work(configured):
     assert manager.operation is None
 
 
+def test_probe_uses_packaged_sample_without_file_selection(configured, monkeypatch):
+    import shutil
+
+    here, _, _, service = configured
+    shutil.copytree(ROOT / 'windows-app/samples', here / 'samples')
+    calls = []
+    monkeypatch.setattr(service, 'start', lambda kind, work, message: calls.append((kind, message)))
+    service.probe()
+    assert calls[0][0] == 'probe'
+    assert 'Распознаём' in calls[0][1]
+
+
+@pytest.mark.parametrize(('channels', 'width', 'rate', 'seconds', 'reason'), [
+    (2, 2, 16000, 1, 'каналов: 2'),
+    (1, 1, 16000, 1, 'разрядность: 8'),
+    (1, 2, 22050, 1, 'частота: 22050'),
+    (1, 2, 16000, 16, 'длительность: 16.0'),
+])
+def test_probe_explains_incompatible_audio_without_changing_it(configured, channels, width, rate, seconds, reason):
+    import io
+    import wave
+
+    _, _, manager, service = configured
+    output = io.BytesIO()
+    with wave.open(output, 'wb') as audio:
+        audio.setparams((channels, width, rate, 0, 'NONE', 'not compressed'))
+        audio.writeframes(b'\0' * (channels * width * rate * seconds))
+    data = output.getvalue()
+    with pytest.raises(ValueError, match=reason):
+        service.probe(data)
+    assert manager.operation is None
+    assert output.getvalue() == data
+
+
+def test_release_includes_only_named_sample_files():
+    spec = importlib.util.spec_from_file_location('sample_release', ROOT / 'windows-app/build_release.py')
+    build = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(build)
+    samples = {path.name for path in build.source_paths() if path.parent.name == 'samples'}
+    assert samples == {'speech-check.wav', 'speech-check.mp4', 'README.md'}
+
+
+def test_builtin_probe_http_uses_server_sample(configured, monkeypatch):
+    here, _, manager, _ = configured
+    spec = importlib.util.spec_from_file_location('builtin_probe_app', ROOT / 'windows-app/app.py')
+    app = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(app)
+    monkeypatch.setattr(app, 'HERE', here)
+    calls = []
+
+    def probe(self, audio=None):
+        calls.append(audio)
+        return {'status': 'running'}
+
+    monkeypatch.setattr(setup_api.SetupService, 'probe', probe)
+    with ThreadingHTTPServer(('127.0.0.1', 0), app.make_handler(manager.value, 'instance')) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            response = requests.post(f'http://127.0.0.1:{server.server_port}/api/setup/probe',
+                                     json={}, headers={'X-App-Instance': 'instance'}, timeout=5)
+            assert response.status_code == 202
+            assert calls == [None]
+        finally:
+            server.shutdown()
+            thread.join()
+
+
 def test_windows_key_encryption_at_rest_roundtrip(tmp_path):
     import os
 

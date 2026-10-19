@@ -173,11 +173,11 @@ class SetupService:
                 read_json(p, {}).get('status') in {'queued', 'running'} for p in active.glob('*/job.json')):
             raise RuntimeError('Дождитесь завершения обработки или настройки')
 
-    def start(self, kind, work):
+    def start(self, kind, work, message='Выполняем…'):
         with self.manager._lock:
             self.guard()
             self.manager.operation = kind
-            self.state = {'status': 'running', 'kind': kind, 'message': 'Выполняем…'}
+            self.state = {'status': 'running', 'kind': kind, 'message': message}
 
         def run():
             try:
@@ -216,16 +216,30 @@ class SetupService:
             return self.apply(str(target), downloading=True)
         return self.start('download', work)
 
-    def probe(self, audio):
+    def probe(self, audio=None):
+        if audio is None:
+            audio = (self.here / 'samples' / 'speech-check.wav').read_bytes()
         try:
             with wave.open(io.BytesIO(audio), 'rb') as stream:
-                if (stream.getnchannels(), stream.getsampwidth(), stream.getframerate()) != (1, 2, 16000):
-                    raise ValueError('Нужен WAV mono PCM16, 16000 Гц, до 15 секунд')
+                problems = []
+                if stream.getnchannels() != 1:
+                    problems.append(f'каналов: {stream.getnchannels()} (нужен 1 — mono)')
+                if stream.getsampwidth() != 2:
+                    problems.append(f'разрядность: {stream.getsampwidth() * 8} бит (нужен PCM16)')
+                if stream.getframerate() != 16000:
+                    problems.append(f'частота: {stream.getframerate()} Гц (нужно 16000 Гц)')
                 frames = stream.getnframes()
-                if not 0 < frames <= 15 * 16000 or len(stream.readframes(frames)) != frames * 2:
-                    raise ValueError('Выберите неповреждённый WAV до 15 секунд')
+                seconds = frames / stream.getframerate()
+                if seconds > 15:
+                    problems.append(f'длительность: {seconds:.1f} с (максимум 15 с)')
+                if problems:
+                    raise ValueError('Файл не подходит для проверки: ' + '; '.join(problems) +
+                                     '. Выберите другой WAV или запустите встроенный тест. Файл не изменён.')
+                if frames <= 0 or len(stream.readframes(frames)) != frames * 2:
+                    raise ValueError('WAV пуст или повреждён. Выберите другой файл или встроенный тест.')
         except (wave.Error, EOFError) as exc:
-            raise ValueError('Нужен WAV mono PCM16, 16000 Гц, до 15 секунд') from exc
+            raise ValueError('Не удалось прочитать WAV PCM. Выберите WAV mono PCM16, 16000 Гц, '
+                             'до 15 секунд или запустите встроенный тест. Файл не изменён.') from exc
 
         def work():
             plan = self.manager.make_plan(self.manager.settings()['speech_device'])
@@ -241,7 +255,7 @@ class SetupService:
             return {'device': plan['selected'], 'segments': len(data['segments']),
                     'message': 'Проверка распознавания выполнена' if data['segments'] else
                                'Обработчик ответил, речь не обнаружена. Выберите фрагмент с речью.'}
-        return self.start('probe', work)
+        return self.start('probe', work, 'Распознаём тестовую запись на выбранном устройстве. Дождитесь результата…')
 
     def complete(self):
         with self.manager._lock:

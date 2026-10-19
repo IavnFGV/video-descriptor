@@ -303,8 +303,12 @@ def make_handler(value, instance):
                             self.rfile.read(length)
                         return self.json_response(403, {'error': 'Откройте мастер из приложения'})
                     if path == '/api/setup/probe':
+                        if self.headers.get_content_type() == 'application/json' and length == 2:
+                            if self.rfile.read(length) != b'{}':
+                                raise ValueError('Для встроенного теста ожидается {}')
+                            return self.json_response(202, setup.probe())
                         if not 0 < length <= 500000:
-                            raise ValueError('Выберите WAV до 15 секунд')
+                            raise ValueError('Проверочный WAV должен быть не больше 500 КБ и до 15 секунд. Можно запустить встроенный тест.')
                         return self.json_response(202, setup.probe(self.rfile.read(length)))
                     if path == '/api/setup/pick-model':
                         return self.json_response(200, {'path': choose_folder()})

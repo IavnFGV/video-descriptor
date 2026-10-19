@@ -20,7 +20,7 @@
     $('setup-progress').hidden=op.status!=='running';
     if(op.total)$('setup-progress').value=100*op.bytes/op.total;else $('setup-progress').removeAttribute('value');
     $('operation-feedback').textContent=(op.status==='error'?'Ошибка: ':op.status==='done'?'Готово: ':'')+(op.result?.message||op.message||'')+(op.result?.device?' · '+op.result.device+' · реплик: '+op.result.segments:'');
-    $('download-model').disabled=op.status==='running';$('probe-model').disabled=op.status==='running';
+    $('download-model').disabled=op.status==='running';$('probe-model').disabled=op.status==='running';$('probe-custom').disabled=op.status==='running';
     if(op.status==='running'&&!setupPolling){setupPolling=true;setTimeout(()=>{setupPolling=false;setupStatus().catch(e=>message(e.message,true));readiness();},1000);}
     $('setup-summary').textContent=s.verified?'Модель подключена и проверена. Можно подготовить распознавание.':s.model_present?'Найдена существующая модель. Проверьте и подключите её в мастере.':'Для распознавания нужно подключить модель. Начните с выбора папки.';
     if(!$('model-path').value)$('model-path').value=s.model_present?s.model_path:'';
@@ -161,7 +161,18 @@
   $('setup-finish').onclick=async()=>{try{await setupPost('complete');$('setup-wizard').hidden=true;$('upload').scrollIntoView({behavior:'smooth'});}catch(e){message(e.message,true);}};
   $('diagnostics-refresh').onclick=async()=>{try{await setupPost('refresh');await diagnostics();await readiness();}catch(e){message(e.message,true);}};
   $('download-model').onclick=async()=>{try{await setupPost('download',{confirmed:$('download-consent').checked});await setupStatus();}catch(e){$('operation-feedback').textContent=e.message;}};
-  $('probe-model').onclick=async()=>{const file=$('probe-audio').files[0];if(!file||file.size>500000){$('operation-feedback').textContent='Выберите WAV до 15 секунд (до 500 КБ)';return;}try{await api('/api/setup/probe',{method:'POST',headers:{'X-App-Instance':instance,'Content-Type':'audio/wav'},body:file});await setupStatus();}catch(e){$('operation-feedback').textContent=e.message;}};
+  async function runProbe(custom=false) {
+    const feedback=$('operation-feedback'), buttons=[$('probe-model'),$('probe-custom')];
+    const file=custom?$('probe-audio').files[0]:null;
+    feedback.scrollIntoView({block:'center',behavior:'smooth'});
+    if(custom&&(!file||file.size>500000)){feedback.textContent=!file?'Сначала выберите свой WAV или нажмите «Проверить на встроенной записи».':'Файл слишком большой: '+(file.size/1024).toFixed(0)+' КБ. Для проверки нужен WAV до 500 КБ и до 15 секунд. Можно использовать встроенную запись.';return;}
+    buttons.forEach(b=>b.disabled=true);
+    feedback.textContent=custom?'Отправляем выбранный WAV на проверку…':'Запускаем распознавание встроенной тестовой записи…';
+    try{if(custom){await api('/api/setup/probe',{method:'POST',headers:{'X-App-Instance':instance,'Content-Type':'audio/wav'},body:file});}else{await setupPost('probe');}await setupStatus();}
+    catch(e){feedback.textContent='Не удалось выполнить проверку: '+e.message;buttons.forEach(b=>b.disabled=false);}
+  }
+  $('probe-model').onclick=()=>runProbe();
+  $('probe-custom').onclick=()=>runProbe(true);
   $('gemini-form').onsubmit=async e=>{e.preventDefault();try{await setupPost('gemini',{api_key:$('gemini-key').value,model:$('gemini-model').value,billing_mode:$('gemini-billing').value,free_ack:$('gemini-ack').checked});$('gemini-key').value='';$('gemini-feedback').textContent='Настройки сохранены. Перевод через Gemini доступен в расширенном редакторе.';await diagnostics();}catch(error){$('gemini-feedback').textContent=error.message;}};
   $('gemini-check').onclick=async()=>{const b=$('gemini-check');b.disabled=true;try{const r=await setupPost('gemini',{check:true});$('gemini-models').replaceChildren(...r.models.map(m=>{const o=document.createElement('option');o.value=m.id;return o;}));$('gemini-feedback').textContent=r.message+(r.available?' Выбранная модель доступна.':' Выберите доступную модель из списка.');}catch(e){$('gemini-feedback').textContent=e.message;}finally{b.disabled=false;}};
   api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus(),diagnostics()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
