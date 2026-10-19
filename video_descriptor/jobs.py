@@ -170,7 +170,10 @@ def run_job(root, folder, job):
                     updated = read_json(folder / "job.json", {})
                     job["folder"] = updated.get("folder")
                 if code:
-                    raise RuntimeError("Распознавание остановлено; готовые блоки сохранены. См. журнал.")
+                    failure = read_json(root / "output" / job["folder"] / "speech.json", {}) if job.get("folder") else {}
+                    raise RuntimeError(failure.get("message") or
+                                       "Распознавание прервано из-за ошибки обработчика. "
+                                       "Уже сохранённый текст доступен; повторите запуск после подготовки распознавания.")
             if job.get('speech_only'):
                 job.update(status='done', finished=time.time())
                 write_json(folder / 'job.json', job)

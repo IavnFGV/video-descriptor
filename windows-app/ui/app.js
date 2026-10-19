@@ -126,6 +126,10 @@
     const device=result?.device||job.device_plan?.selected;
     const failureMessage=result?.message==='Не удалось получить достоверные таймкоды; см. диагностику фрагмента'?'Модель вернула некорректные временные метки реплик. Этот фрагмент не удалось сохранить. Это ошибка распознавания; повторный запуск может её повторить.':result?.message;
     $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    if(job.status==='running'&&result?.duration>0){
+      const clock=(seconds)=>{const value=Math.max(0,Math.floor(seconds));return `${Math.floor(value/3600)}:${String(Math.floor(value/60)%60).padStart(2,'0')}:${String(value%60).padStart(2,'0')}`;};
+      $('progress-text').textContent+=` · Сохранено ${clock(result.processed||0)} из ${clock(result.duration)} записи`;
+    }
     $('progress').hidden=job.status==='error';
     if(job.status==='done'&&result?.status==='done')$('progress').value=100;
     else if(result?.duration>0&&Number.isFinite(result.processed))$('progress').value=Math.max(0,Math.min(100,100*result.processed/result.duration));

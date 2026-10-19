@@ -20,7 +20,10 @@
     "video_descriptor/assets/construction.js": "Restore per-record session drafts after asynchronous settings load; clear after successful save; API unchanged.",
     "windows-app/sandbox/acceptance_ui.py": "Add installed real workspace/editor/export/viewport acceptance to existing whisper/notes UI stages; production unchanged.",
     "windows-app/verify_installed.py": "Optional --ui runs real installed WebView2 acceptance against the fresh installer test root; enabled by Windows CI. No product change.",
-    "windows-app/DesktopHost.cs": "Explicit validated loopback --ui-test-port in marked disposable installations passes AdditionalBrowserArguments through the supported SDK. Required because elevated CI/Sandbox ignore environment overrides. Normal host navigation, security settings and lifetime unchanged."
+    "windows-app/DesktopHost.cs": "Explicit validated loopback --ui-test-port in marked disposable installations passes AdditionalBrowserArguments through the supported SDK. Required because elevated CI/Sandbox ignore environment overrides. Normal host navigation, security settings and lifetime unchanged.",
+    "video_descriptor/speech_devices.py": "19.10.2026: user-requested speech regression fix restores legacy timestamp retry on the same device, completed block checkpoints and actionable error classification; verified against real NPU recording and regression tests.",
+    "video_descriptor/speech_npu.py": "19.10.2026: clarify invalid/unclosed timestamp errors; retain genuine timing validation and never fabricate end_ts=-1.",
+    "video_descriptor/jobs.py": "19.10.2026: surface saved speech failure reason instead of hiding it behind a generic log reference; queue and persisted statuses unchanged."
   },
-  "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required."
+  "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required. Subsequent explicitly requested backend fixes are listed individually above; immutable UI baseline and handler/API checks remain in force."
 }

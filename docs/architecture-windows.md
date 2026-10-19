@@ -451,3 +451,16 @@ Full installer lifecycle/reproducibility/Whisper/Ollama/API/UI remain in explici
 invoked or release acceptance. Release assets require checksum + source provenance;
 published binaries are downloaded and tested, never replaced by a new build.
 No product runtime/API/device policy changed. See [CI policy](ci-policy.md).
+
+
+### Восстановление NPU после ошибки временных меток (19.10.2026)
+
+Путь whisper-local сохраняет поведение прежнего whisper-npu: HTTP-ошибка
+временных меток повторяет незавершённый блок с той же позиции, уменьшая
+его границу вдвое (300 → 150 → 75 → 37.5 → 30 секунд) и заново определяя VAD.
+Это восстановление ответа модели, а не отказ устройства: Auto не переключается.
+Исходная длина блока остаётся 300 секунд. После успешного блока она восстанавливается.
+complete.json фиксирует завершённые границы для возобновления; response.json сохраняет
+подлинные ответы и профиль устройства. Текст от разных границ не смешивается.
+end_ts=-1 не заменяется выдуманным концом; некорректный успешный ответ сохраняется
+отдельно и отклоняется. Ошибки HTTP 4xx больше не маскируются под ошибки таймкодов.

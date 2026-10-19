@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-19",
+  "regression": "whisper-local device routing omitted the existing whisper-npu timestamp recovery loop",
+  "unchanged": [
+    "external NPU environment and service",
+    "model weights",
+    "device fallback policy",
+    "genuine timestamp validation"
+  ],
+  "reproduction": [
+    {
+      "duration": 243.264,
+      "status": 500,
+      "error": "NPU returned invalid timestamps",
+      "segments": 0
+    },
+    {
+      "duration": 30,
+      "status": 200,
+      "error": null,
+      "segments": 3
+    },
+    {
+      "duration": 15,
+      "status": 200,
+      "error": null,
+      "segments": 2
+    }
+  ],
+  "legacy_same_audio": {
+    "valid": true,
+    "segments": 44,
+    "seconds": 22.93800000000192
+  },
+  "fixed_same_audio": {
+    "valid": true,
+    "segments": 44,
+    "processed_seconds": 300,
+    "elapsed_seconds": 23.031000000002678
+  },
+  "validation": {
+    "fast_policy_passed": 20,
+    "application_passed": 285,
+    "application_skipped": 2,
+    "ruff": "passed",
+    "javascript_syntax": "passed",
+    "ui_contracts": "passed"
+  },
+  "limits": [
+    "Real comparison covers first 300 seconds of the failing source, not completed acceptance of the whole 9174.6-second recording.",
+    "Model may still return unclosed timestamps after bounded recovery; no times are fabricated."
+  ]
+}

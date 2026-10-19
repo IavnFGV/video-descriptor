@@ -39,9 +39,10 @@ def timed_items(response, offset, seconds):
         start = float(item.get('start', item.get('start_ts')))
         end = float(item.get('end', item.get('end_ts')))
         if end == -1:
-            raise ValueError('Whisper: end_ts=-1, конечная граница не предсказана; нужна проверка фрагмента')
+            raise ValueError('Whisper: модель не определила конец реплики (end_ts=-1). '
+                             'Фрагмент не сохранён: точные таймкоды недоступны.')
         if not (math.isfinite(start) and math.isfinite(end) and 0 <= start <= end <= seconds + .01):
-            raise ValueError('Whisper: неверные таймкоды в ответе')
+            raise ValueError('Whisper: модель вернула неверные таймкоды (время начала или конца реплики). Фрагмент не сохранён.')
         text = item['text'].strip()
         if text:
             result.append({'start': offset + start, 'end': offset + end,

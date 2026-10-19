@@ -130,3 +130,35 @@ def test_events_exclude_transcript_tokens_and_arbitrary_payload(tmp_path):
     event = json.loads(target.read_text(encoding='utf-8'))
     assert event['device'] == 'CPU'
     assert not {'text', 'api_key', 'request'}.intersection(event)
+
+
+def test_rejected_request_is_not_misreported_as_timestamps(tmp_path, monkeypatch):
+    audio, _, plan = fixture(tmp_path, monkeypatch)
+    transport = Mock()
+    transport.post.return_value = Mock(ok=False, status_code=400, text='Unsupported language')
+    monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
+    with pytest.raises(ValueError, match='сервис отклонил аудиофрагмент'):
+        speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
+    assert transport.post.call_count == 1
+
+
+def test_timestamp_failure_restores_legacy_retry_and_resume_on_same_device(tmp_path, monkeypatch):
+    audio, engines, plan = fixture(tmp_path, monkeypatch, 'NPU')
+    with wave.open(str(audio), 'wb') as stream:
+        stream.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
+        stream.writeframes(b'\x01\0' * (60 * 16000))
+    monkeypatch.setattr(speech_devices, 'speech_regions', lambda raw: [(0, len(raw) // 2)])
+    valid = {'engine': engines['NPU'], 'audio_seconds': 30,
+             'segments': [{'start': 1, 'end': 29, 'text': 'Speech'}]}
+    transport = Mock()
+    transport.post.side_effect = [Mock(ok=False, status_code=500, text='NPU returned invalid timestamps'),
+                                  Mock(ok=True, json=lambda: valid), Mock(ok=True, json=lambda: valid)]
+    monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
+    items, _ = speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
+    assert [(r['start'], r['end']) for r in items] == [(1, 29), (31, 59)]
+    assert read_json(tmp_path / 'device-state.json')['switches'] == []
+    assert transport.post.call_count == 3
+    transport.post.side_effect = AssertionError('Completed retries must be reused')
+    resumed, _ = speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
+    assert resumed == items
+    assert transport.post.call_count == 3
