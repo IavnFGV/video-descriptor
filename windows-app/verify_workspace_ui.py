@@ -28,7 +28,8 @@ def installed_workflow(root, port, output, *, with_ollama=False):
     environment = dict(os.environ, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=
                        f'--remote-debugging-port={debug_port} --remote-debugging-address=127.0.0.1')
     process = subprocess.Popen([str(root / 'windows-app/desktop-sdk/VideoDescriptor.exe'),
-                                str(root / 'windows-app'), str(root / 'python/python.exe')],
+                                str(root / 'windows-app'), str(root / 'python/python.exe'),
+                                '--ui-test-port=' + str(debug_port)],
                                env=environment, creationflags=0x08000000)
     evidence = {'status': 'FAIL', 'checks': [], 'screens': [], 'installed_root': str(root)}
     cdp = None

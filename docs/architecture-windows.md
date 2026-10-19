@@ -434,3 +434,11 @@ allowlist сборки, поэтому доступны и после устан
 Сохранение Gemini через существующий translation_settings на Windows шифрует ключ DPAPI;
 public API возвращает только `has_key`. Модели не входят в installer. Подробности и
 границы проверок: [мастер](ai-setup-windows.md).
+
+
+UI acceptance uses the installed EXE with an explicit --ui-test-port=1024..65535.
+The native host requires .acceptance-installation.json in that installation root
+and passes only a loopback remote-debugging port through CoreWebView2EnvironmentOptions.
+Normal launches keep the test port disabled and retain existing WebView2 settings.
+This supports elevated CI/Sandbox without environment overrides, registry/policy
+changes, browser security changes or a generic command bridge.

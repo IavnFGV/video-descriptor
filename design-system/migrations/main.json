@@ -19,7 +19,8 @@
     "video_descriptor/serve.py": "Static allowlist adds studio-drafts.js only; no API, payload, path or security behavior changes.",
     "video_descriptor/assets/construction.js": "Restore per-record session drafts after asynchronous settings load; clear after successful save; API unchanged.",
     "windows-app/sandbox/acceptance_ui.py": "Add installed real workspace/editor/export/viewport acceptance to existing whisper/notes UI stages; production unchanged.",
-    "windows-app/verify_installed.py": "Optional --ui runs real installed WebView2 acceptance against the fresh installer test root; enabled by Windows CI. No product change."
+    "windows-app/verify_installed.py": "Optional --ui runs real installed WebView2 acceptance against the fresh installer test root; enabled by Windows CI. No product change.",
+    "windows-app/DesktopHost.cs": "Explicit validated loopback --ui-test-port in marked disposable installations passes AdditionalBrowserArguments through the supported SDK. Required because elevated CI/Sandbox ignore environment overrides. Normal host navigation, security settings and lifetime unchanged."
   },
   "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required."
 }

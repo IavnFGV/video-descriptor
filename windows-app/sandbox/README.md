@@ -225,3 +225,10 @@ cached public qwen3.5:0.8b Ollama scenario is enabled automatically, including A
 and actual installed UI generation, translation, notes and exports. PR/main runs
 always perform CPU/UI acceptance; manual dispatch can request the same full AI
 suite. This configures verification, and does not create or publish a release.
+
+Elevated WebView2 ignores WEBVIEW2_* environment overrides (Microsoft security
+behavior). The driver therefore uses --ui-test-port=9222 with the installed host;
+a .acceptance-installation.json marker is required. The host validates the port
+and passes loopback-only flags through SDK environment options. Normal launches
+leave this disabled. The fresh-guest bootstrap creates the marker only after
+installation. No HKCU/HKLM policy or host setting is changed.

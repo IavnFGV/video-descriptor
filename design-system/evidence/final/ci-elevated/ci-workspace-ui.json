@@ -1,0 +1,8 @@
+{
+  "status": "FAIL",
+  "checks": [],
+  "screens": [],
+  "installed_root": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview",
+  "error": "TimeoutError: Condition timed out after 150s; last error: <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>",
+  "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\video-descriptor\\video-descriptor\\windows-app\\verify_workspace_ui.py\", line 41, in installed_workflow\n    target = wait_for(attach, timeout=150)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\a\\video-descriptor\\video-descriptor\\windows-app\\sandbox\\acceptance_ui.py\", line 45, in wait_for\n    raise TimeoutError(f'Condition timed out after {timeout}s; last error: {last_error}')\nTimeoutError: Condition timed out after 150s; last error: <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>\n"
+}

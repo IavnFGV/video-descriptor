@@ -1,0 +1,274 @@
+{
+  "status": "FAIL",
+  "method": "real installed application API and WebView2 UI",
+  "environment": "GitHub Actions Windows",
+  "installed_root": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview",
+  "embedded_python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "models_downloaded": false,
+  "stages": [
+    {
+      "stage": "desktop",
+      "status": "PASS",
+      "method": "real installed application HTTP API; no UI claim",
+      "installation": {
+        "app": "video-descriptor-windows",
+        "version": "0.7.0-prototype",
+        "workspace": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\windows-app\\runtime\\workspace",
+        "installation": "91ec88c2d90d5bb54f975a09e5150aa72a3983c51b6122e3cd5a4f851e5ba348",
+        "desktop_protocol": 1
+      },
+      "diagnostics": {
+        "hardware": {
+          "cpu": "AMD64 Family 26 Model 2 Stepping 1, AuthenticAMD",
+          "intel_gpu": [],
+          "intel_npu": [],
+          "message": "Системный список устройств недоступен; см. устройства OpenVINO"
+        },
+        "inventory": {
+          "devices": [
+            "CPU"
+          ],
+          "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+          "genai": "2026.4.1.0-3408-ab01d1771e4",
+          "model_present": false
+        },
+        "runtime_python": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\python\\python.exe",
+        "runtime_present": true,
+        "gemini": {
+          "provider": "ollama",
+          "model": "gemini-3.5-flash-lite",
+          "ollama_model": "",
+          "billing_mode": "paid",
+          "free_ack": false,
+          "has_key": false
+        },
+        "ocr": {
+          "detected": false,
+          "ready": false,
+          "message": "Tesseract не найден; необязательный компонент"
+        },
+        "translation": {
+          "state": "setup_required",
+          "message": "Модель/ключ настроены; генерация выполняется по запросу"
+        },
+        "notes": {
+          "state": "setup_required",
+          "selected": "",
+          "message": "Выберите модель Ollama для конспекта"
+        },
+        "diarization": {
+          "state": "unavailable",
+          "message": "Windows диаризация не проверена; можно пропустить"
+        }
+      },
+      "setup": {
+        "model_path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\no-model",
+        "model_present": false,
+        "verified": false,
+        "model_name": "Whisper small FP16",
+        "downloads": true,
+        "download": {
+          "source": "https://huggingface.co/OpenVINO/whisper-small-fp16-ov",
+          "revision": "2410d022171ca8a97343182f88eec8807a324db9",
+          "download_bytes": 493208911
+        },
+        "operation": {
+          "status": "idle",
+          "message": ""
+        },
+        "completed": false
+      },
+      "elapsed_seconds": 6.64
+    },
+    {
+      "stage": "whisper",
+      "status": "PASS",
+      "method": "real installed application HTTP API; no UI claim",
+      "installation": {
+        "app": "video-descriptor-windows",
+        "version": "0.7.0-prototype",
+        "workspace": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\windows-app\\runtime\\workspace",
+        "installation": "91ec88c2d90d5bb54f975a09e5150aa72a3983c51b6122e3cd5a4f851e5ba348",
+        "desktop_protocol": 1
+      },
+      "model": {
+        "path": "D:\\a\\_temp\\vd-public-whisper\\whisper-small-2410d022171ca8a97343182f88eec8807a324db9",
+        "model": "Whisper small FP16",
+        "sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "bytes": 491790028,
+        "verified": true
+      },
+      "compute": {
+        "settings": {
+          "speech_device": "CPU"
+        },
+        "capabilities": {
+          "NPU": {
+            "available": false,
+            "ready": false,
+            "detected": false,
+            "runtime_ready": true,
+            "model_present": true,
+            "service_ready": false,
+            "reason": "Устройство не обнаружено OpenVINO"
+          },
+          "GPU": {
+            "available": false,
+            "ready": false,
+            "detected": false,
+            "runtime_ready": true,
+            "model_present": true,
+            "service_ready": false,
+            "reason": "Устройство не обнаружено OpenVINO"
+          },
+          "CPU": {
+            "available": true,
+            "ready": true,
+            "detected": true,
+            "runtime_ready": true,
+            "model_present": true,
+            "service_ready": true,
+            "engine": {
+              "protocol": 1,
+              "device": "CPU",
+              "model": "small",
+              "pipeline": "dynamic",
+              "multilingual": true,
+              "word_timestamps": false,
+              "num_beams": 1,
+              "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+              "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+              "genai": "2026.4.1.0-3408-ab01d1771e4"
+            },
+            "reason": "Готово"
+          }
+        },
+        "selected": "CPU",
+        "preparing": false,
+        "operation": null,
+        "error": ""
+      },
+      "worker_health": {
+        "protocol": 1,
+        "device": "CPU",
+        "model": "small",
+        "pipeline": "dynamic",
+        "multilingual": true,
+        "word_timestamps": false,
+        "num_beams": 1,
+        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+        "genai": "2026.4.1.0-3408-ab01d1771e4"
+      },
+      "asr": {
+        "device": "CPU",
+        "segments": 1,
+        "duration": 9.138005,
+        "text": "This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.",
+        "timestamps_valid": true
+      },
+      "result": {
+        "job": {
+          "id": "c86b22c313264c48a06e077f25448b1f",
+          "video": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\windows-app\\runtime\\workspace\\data\\uploads\\c86b22c313264c48a06e077f25448b1f\\speech-check.mp4",
+          "filename": "speech-check.mp4",
+          "title": "",
+          "thinking": false,
+          "mode": "audio",
+          "engine": "whisper-local",
+          "status": "done",
+          "created": 1792422681.9755988,
+          "folder": "speech-c86b22c313264c48a06e077f25448b1f",
+          "language": "en",
+          "speech_only": true,
+          "device_plan": {
+            "version": 1,
+            "requested": "CPU",
+            "selected": "CPU",
+            "engine": {
+              "protocol": 1,
+              "device": "CPU",
+              "model": "small",
+              "pipeline": "dynamic",
+              "multilingual": true,
+              "word_timestamps": false,
+              "num_beams": 1,
+              "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+              "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+              "genai": "2026.4.1.0-3408-ab01d1771e4"
+            },
+            "backends": [
+              {
+                "device": "CPU",
+                "url": "http://127.0.0.1:50122",
+                "command": [
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\python\\python.exe",
+                  "-X",
+                  "utf8",
+                  "-u",
+                  "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\windows-app\\whisper_worker.py",
+                  "--model",
+                  "D:\\a\\_temp\\vd-public-whisper\\whisper-small-2410d022171ca8a97343182f88eec8807a324db9",
+                  "--device",
+                  "CPU",
+                  "--port",
+                  "50122"
+                ],
+                "expected_model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809"
+              }
+            ],
+            "runtime": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\vd-installed-acceptance-k_n30xdl\\Installed preview\\windows-app\\runtime\\backends",
+            "selection_reasons": []
+          },
+          "started": 1792422683.0877168,
+          "error": null,
+          "finished": 1792422687.7170737
+        },
+        "result": {
+          "folder": "speech-c86b22c313264c48a06e077f25448b1f",
+          "video": "data\\uploads\\c86b22c313264c48a06e077f25448b1f\\speech-check.mp4",
+          "title": "speech-check.mp4",
+          "engine": "whisper-local",
+          "duration": 9.138005,
+          "created": 1792422684.0981712,
+          "status": "done",
+          "message": "Распознавание завершено",
+          "processed": 9.138005,
+          "segments": [
+            {
+              "start": 0.0,
+              "end": 8.279999732971191,
+              "text": "This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles.",
+              "speaker": "Без разметки",
+              "id": "s00001"
+            }
+          ],
+          "speaker_names": {},
+          "stage": "done",
+          "job_id": "c86b22c313264c48a06e077f25448b1f",
+          "device": "CPU",
+          "device_switches": [],
+          "requested_device": "CPU",
+          "timing": "segment",
+          "speaker_notice": "Whisper возвращает таймкоды целых реплик; границы слов пока не определяются.",
+          "no_speech": false,
+          "speaker_options": [
+            "unknown",
+            "Без разметки"
+          ],
+          "translations": {},
+          "has_translation": false,
+          "edit_revision": "1bf031194d2c3f00067704b8d27903a42bd39592824d995416001dc09623e126"
+        }
+      },
+      "elapsed_seconds": 16.75
+    }
+  ],
+  "started_at": 1792422661.6406126,
+  "git_sha": "162b956f6cf8d2eaee9f6c4c48f9226dc8fb3826",
+  "version": "0.7.0",
+  "critical_files_verified": 5,
+  "zip_sha256": "5cd5aa244360ba2a7b2739e8b50345b011b9d0eafcd2b6d5af89f81d18640c67",
+  "error": "TimeoutError: Condition timed out after 150s; last error: <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>",
+  "elapsed_seconds": 178.11
+}

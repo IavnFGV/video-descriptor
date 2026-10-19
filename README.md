@@ -5,7 +5,10 @@
 Сохранены DOM/API и WebView2; добавлены защита несохранённых диалогов,
 Back/Forward этапов, возврат из AI-настроек и session drafts без ключей/файлов.
 SRT/VTT/TXT и Markdown дополнены HTML-выгрузкой текущего конспекта.
-Быстрые CSS/DOM/JS guards включены в CI. Реальная приёмка и её границы:
+Быстрые CSS/DOM/JS guards и установленная WebView2 UI-приёмка включены в CI;
+опубликованный release запускает полный Ollama-прогон. Тестовый loopback-port
+передаётся через SDK только в помеченной disposable установке: elevated WebView2
+игнорирует environment overrides. Реальная приёмка и её границы:
 [финальная UI verification](design-system/FINAL-VERIFICATION.md).
 
 19.10.2026: добавлен [Sandbox acceptance harness](windows-app/sandbox/README.md)

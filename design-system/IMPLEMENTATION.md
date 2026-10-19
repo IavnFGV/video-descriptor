@@ -9,6 +9,9 @@ workspace.css и editor.css в design-system; production CSS собирает bu
 Старые независимые CSS и inline CSS реплик/отчёта удалены. Сторонний EasyMDE сохранён.
 Все исходные IDs, прежние API literals и обработчики сверяются с неизменным baseline.
 Единственное серверное изменение — allowlist нового статического studio-drafts.js.
+Для elevated CI/Sandbox добавлен охраняемый SDK test-port в DesktopHost: только
+явный CLI-флаг и marker disposable установки. Обычный запуск и настройки WebView2
+сохранены; environment overrides в elevated процессе игнорируются Microsoft.
 
 Закрытие dirty диалога показывает общий native dialog и возвращает фокус.
 Сохранение реплики сохраняет index/revision/timestamps и показывает busy/error.

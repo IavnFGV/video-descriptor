@@ -21,7 +21,7 @@ Container CI 39268900112: PASS. Optional Ollama CI там не запускал�
 
 ## Установленная сборка и автоматизация
 
-Локально проверенный UI-установщик (до финального исправления skip-link): ZIP SHA256
+Локально проверенный UI-установщик (до финального skip-link и явного SDK test-hook): ZIP SHA256
 `8e632c3d657af6181516ffb96bf307f974911abfaa48156bb302261f6b05c614`.
 Локальная установленная сборка реально выполнила API CPU/Ollama/перевод/конспект,
 а через WebView2 — выбор MP4, upload, CPU inference, перевод и новый конспект.
@@ -61,3 +61,16 @@ inference в этой Sandbox недоступен и не заявляется.
 обнаруживает CPU/GPU/NPU, но этот UI release gate использует явный CPU.
 OS scaling 125/150% не менялся; DPR emulation обозначен отдельно. Narrator и
 аппаратный NPU/GPU полный прогон не входят в полученную здесь приёмку.
+
+
+CI 39274560266 identified the Sandbox transport cause: elevated WebView2 ignores
+WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS. Microsoft documents supported programmatic
+flags: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security#for-an-elevated-host-app-use-appropriate-override-flags.
+The host now has an explicit, port-validated acceptance flag restricted to a marked
+disposable installation; SDK options carry the loopback flag. No policy/registry
+workaround is used. The earlier transport failures remain recorded above.
+
+The supported SDK test flag was then validated in the same elevated disposable
+guest (patched SDK diagnostic, not a new final-package acceptance):
+[evidence](evidence/final/ci-elevated/hook-sdk-check.json). The debug endpoint became
+available without policy changes. The final CI builds and tests the actual package.
