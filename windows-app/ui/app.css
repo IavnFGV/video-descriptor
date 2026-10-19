@@ -132,3 +132,5 @@ summary:focus-visible,.nav-item:focus-visible,.brand:focus-visible,.job:focus-vi
 .workspace.workspace--single{grid-template-columns:minmax(0,1fr)}
 .system-summary{display:flex;align-items:baseline;gap:var(--vd-space-2);font-size:var(--vd-caption);line-height:1.5}.system-summary .dot{flex-shrink:0}
 @media(min-width:801px){.sidebar{position:sticky;top:0;height:100dvh;align-self:start;overflow-y:auto}}
+
+.speaker-select{display:inline-block;width:auto;max-width:100%;min-height:var(--vd-compact-height);font-size:var(--vd-caption);padding:var(--vd-space-1) var(--vd-space-2)}

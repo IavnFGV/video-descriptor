@@ -17,6 +17,29 @@
     });
   };
   let editing=false;
+  window.createSpeakerSelect = function(original, index, onSave){
+    const row=original.segments[index], holder=document.createElement('span');
+    const select=document.createElement('select'), feedback=document.createElement('span');
+    select.className='vd-select speaker-select';
+    select.setAttribute('aria-label','Говорящий реплики '+stamp(row.start));
+    select.title='Изменить говорящего';
+    const speakers=[...new Set([...(original.speaker_options||[]),...original.segments.map(s=>s.speaker),'unknown'])];
+    select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||(s==='unknown'?'Не определён':s))));
+    select.value=row.speaker;
+    feedback.className='vd-help';feedback.setAttribute('role','status');
+    select.onchange=async()=>{
+      if(editing){select.value=row.speaker;feedback.textContent='Сначала завершите текущую правку.';return;}
+      if(select.value===row.speaker)return;
+      editing=true;select.disabled=true;select.setAttribute('aria-busy','true');feedback.textContent='Сохраняем…';
+      try{
+        const saved=await post('/api/speech-edit',{folder:original.folder,revision:original.edit_revision,index,
+          action:'edit',text:row.text,speaker:select.value,translation:original.translations?.[row.id||`s${index+1}`]||''});
+        feedback.textContent='';onSave(saved);
+      }catch(e){select.value=row.speaker;feedback.textContent=e.message;}
+      finally{editing=false;select.disabled=false;select.removeAttribute('aria-busy');}
+    };
+    holder.append(select,feedback);return holder;
+  };
   window.editSpeechReply = function(original, index, video, onSave){
     if(editing)return;
     const row=original.segments[index];
