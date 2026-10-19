@@ -125,8 +125,88 @@ def find_result(root, video):
     return max(candidates, key=lambda f: (f / "manifest.json").stat().st_mtime_ns) if candidates else None
 
 
+class JobStopped(RuntimeError):
+    pass
+
+
+def check_stop(folder, process=None):
+    if not (folder / 'stop-request.json').exists():
+        return
+    if process is not None and process.poll() is None:
+        if os.name == 'nt':
+            subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                           check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           **subprocess_options())
+        else:
+            import signal
+            os.killpg(process.pid, signal.SIGTERM)
+        process.wait(timeout=15)
+    raise JobStopped('Остановлено по вашей команде. Сохранённый текст и кэш доступны.')
+
+
+def run_process(folder, command, **kwargs):
+    kwargs.pop('check', None)
+    check_stop(folder)
+    kwargs = {**subprocess_options(), **kwargs}
+    with subprocess.Popen(command, **kwargs) as process:
+        while process.poll() is None:
+            check_stop(folder, process)
+            time.sleep(.2)
+        check_stop(folder)
+        return subprocess.CompletedProcess(command, process.returncode)
+
+
+def stop_legacy_diarization(root, folder, job):
+    import psutil
+    script = str((Path(__file__).resolve().parents[1] / 'windows-app' / 'diarization_worker.py').resolve())
+    output = str((root / 'output' / job['folder'] / 'diarization-result.json').resolve())
+    for process in psutil.process_iter(['cmdline']):
+        try:
+            args = process.info['cmdline'] or []
+            if script not in args or '--output' not in args or args[args.index('--output') + 1] != output:
+                continue
+            children = process.children(recursive=True)
+            for child in reversed(children):
+                child.kill()
+            process.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied, IndexError):
+            continue
+    for _ in range(150):
+        current = read_json(folder / 'job.json', {})
+        if current.get('status') not in {'queued', 'running'}:
+            if current.get('status') == 'error':
+                current.update(cancelled=True, error='Остановлено по вашей команде. Исходная расшифровка сохранена.')
+                write_json(folder / 'job.json', current)
+            return
+        time.sleep(.1)
+
+
+def request_stop(root, job_id):
+    if not isinstance(job_id, str) or len(job_id) != 32 or any(c not in '0123456789abcdef' for c in job_id):
+        raise ValueError('Некорректное задание')
+    folder = jobs_dir(root) / job_id
+    job = read_json(folder / 'job.json')
+    if not job:
+        raise ValueError('Задание не найдено')
+    if job.get('status') not in {'queued', 'running'}:
+        return job
+    write_json(folder / 'stop-request.json', {'requested': time.time()})
+    if job['status'] == 'running' and job.get('task') == 'diarize' and not job.get('cancellation_version'):
+        # Adopt a pre-upgrade diarization worker by its exact script and output arguments.
+        import threading
+        threading.Thread(target=stop_legacy_diarization, args=(root, folder, job), daemon=True).start()
+
+    if job['status'] == 'queued':
+        job.update(status='error', cancelled=True, error='Остановлено по вашей команде.', finished=time.time())
+        write_json(folder / 'job.json', job)
+    return job
+
+
 def run_job(root, folder, job):
-    job.update(status="running", started=time.time(), error=None)
+    if (folder / 'stop-request.json').exists():
+        return
+    job.pop('cancelled', None)
+    job.update(status="running", started=time.time(), error=None, cancellation_version=1)
     write_json(folder / "job.json", job)
     stage = job.get('task', 'notes' if job.get('mode') == 'notes' else 'speech')
     record('job_started', job_id=job['id'], stage=stage, requested=job.get('device_plan', {}).get('requested'))
@@ -135,6 +215,7 @@ def run_job(root, folder, job):
             if job.get('mode') == 'postprocess':
                 from .postprocess import run
                 run(root, folder, job, log)
+                check_stop(folder)
                 job.update(status='done', finished=time.time())
                 write_json(folder / 'job.json', job)
                 record('job_finished', job_id=job['id'], stage=stage, status='done')
@@ -143,12 +224,13 @@ def run_job(root, folder, job):
                 settings = folder / 'construction.json'
                 write_json(settings, job['construction'])
                 result = root / 'output' / job['folder']
-                code = subprocess.run([sys.executable, '-u', '-m', 'video_descriptor.construction',
+                code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction',
                                        str(root), str(result), str(settings)], cwd=root, stdout=log,
                                       stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
                 if code:
                     error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
                     raise RuntimeError('Конспект остановлен: ' + error)
+                check_stop(folder)
                 job.update(status='done', finished=time.time())
                 write_json(folder / 'job.json', job)
                 record('job_finished', job_id=job['id'], stage='notes', status='done')
@@ -163,7 +245,7 @@ def run_job(root, folder, job):
                 executable = str(python) if "diarization" in job["engine"] and python.exists() else sys.executable
                 code = 0
                 if completed.get("status") != "done":
-                    code = subprocess.run([executable, "-u", "-m", "video_descriptor.speech",
+                    code = run_process(folder, [executable, "-u", "-m", "video_descriptor.speech",
                                            str(folder / "job.json")], cwd=root, stdout=log,
                                           stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False,
                                           env={**os.environ, 'SPEECH_LANGUAGE': job.get('language', 'auto')}).returncode
@@ -175,6 +257,7 @@ def run_job(root, folder, job):
                                        "Распознавание прервано из-за ошибки обработчика. "
                                        "Уже сохранённый текст доступен; повторите запуск после подготовки распознавания.")
             if job.get('speech_only'):
+                check_stop(folder)
                 job.update(status='done', finished=time.time())
                 write_json(folder / 'job.json', job)
                 record('job_finished', job_id=job['id'], stage='speech', status='done')
@@ -189,7 +272,7 @@ def run_job(root, folder, job):
                 command.append("--think")
             if job.get('construction'):
                 command.append('--skip-notes')
-            code = subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT,
+            code = run_process(folder, command, cwd=root, stdout=log, stderr=subprocess.STDOUT,
                                   stdin=subprocess.DEVNULL, check=False).returncode
             result = root / "output" / job["folder"] if job.get("folder") else find_result(root, job["video"])
             if result:
@@ -204,7 +287,7 @@ def run_job(root, folder, job):
                 write_json(settings, job['construction'])
                 write_json(result / 'construction-job.json', {'id': job['id']})
                 (result / 'construction-error.json').unlink(missing_ok=True)
-                code = subprocess.run([sys.executable, '-u', '-m', 'video_descriptor.construction',
+                code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction',
                                        str(root), str(result), str(settings)], cwd=root, stdout=log,
                                       stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
                 if code:
@@ -213,15 +296,25 @@ def run_job(root, folder, job):
             if job["title"]:
                 from .library import save_title
                 save_title(result, job["title"])
-            code = subprocess.run([sys.executable, "-u", "-m", "video_descriptor.translate",
+            code = run_process(folder, [sys.executable, "-u", "-m", "video_descriptor.translate",
                                    str(result), "--model", os.getenv('OLLAMA_MODEL', 'qwen3.5:9b')], cwd=root,
                                   stdout=log, stderr=subprocess.STDOUT,
                                   stdin=subprocess.DEVNULL, check=False).returncode
             if code:
                 raise RuntimeError(f"Перевод остановился, код {code}; конспект уже доступен")
+        check_stop(folder)
         job["status"] = "done"
     except (OSError, RuntimeError) as exc:
-        job.update(status="error", error=str(exc))
+        updated = read_json(folder / "job.json", {})
+        job["folder"] = updated.get("folder", job.get("folder"))
+        stopped = (folder / "stop-request.json").exists()
+        job.update(status="error", cancelled=stopped, error=("Остановлено по вашей команде. Сохранённый текст и кэш доступны." if stopped else str(exc)))
+        if stopped and job.get('folder'):
+            speech_path = root / 'output' / job['folder'] / 'speech.json'
+            speech = read_json(speech_path, {})
+            if speech.get('status') in {'queued', 'running', 'error'}:
+                speech.update(status='error', cancelled=True, message=job['error'])
+                write_json(speech_path, speech)
         record('job_failed', job_id=job['id'], stage=stage, status='error', reason=type(exc).__name__)
     job["finished"] = time.time()
     write_json(folder / "job.json", job)

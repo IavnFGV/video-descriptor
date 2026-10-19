@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 from .construction import checked_folder
-from .jobs import jobs_dir, read_json, write_json
+from .jobs import check_stop, jobs_dir, read_json, write_json
 from .media import extract_audio
 from .platform_support import lock_file, subprocess_options
 from .speech import assign_speakers, editable_result, source_path, subtitle_result
@@ -128,9 +128,11 @@ def run(root, folder, job, log):
                 process = subprocess.Popen(command, stdout=log, stderr=stderr, stdin=subprocess.DEVNULL,
                                            **subprocess_options())
                 while process.poll() is None:
+                    check_stop(folder, process)
                     result.update(message=read_json(progress, {}).get('message', result['message']))
                     publish(target / 'speech.json', result)
                     time.sleep(.5)
+            check_stop(folder)
             if process.returncode:
                 detail = ''
                 for line in reversed(errors.read_text(encoding='utf-8', errors='replace').splitlines()):

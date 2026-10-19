@@ -72,7 +72,8 @@ def main():
     failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids)))
     previous_apis = set(original['windows-app/ui/app.js']['api_literals'])
     current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js))
-    if previous_apis != current_apis:
+    # Explicit additive Stop contract, reviewed in migrations/main.json and CONTRACTS.md.
+    if previous_apis | {'/api/native/cancel?id='} != current_apis:
         failures.append('Desktop API literals changed; explicit API contract review required')
     original_js = git('show', baseline['commit'] + ':windows-app/ui/app.js').decode('utf-8')
     pattern = r"\$\(['\"]([^'\"]+)['\"]\)\.(on\w+)\s*="

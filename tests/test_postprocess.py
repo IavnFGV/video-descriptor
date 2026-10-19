@@ -47,7 +47,7 @@ def test_worker_does_not_repeat_asr_and_uses_pinned_local_model(recording, monke
     root, _ = recording
     job = postprocess.enqueue(root, 'source', task, 'pinned:9b', 'http://127.0.0.1:11434')
     calls = []
-    monkeypatch.setattr(postprocess.subprocess, 'run', lambda command, **kw: calls.append(command) or Mock(returncode=0))
+    monkeypatch.setattr(postprocess, 'run_process', lambda folder, command, **kw: calls.append(command) or Mock(returncode=0))
     jobs.run_job(root, root / 'output/jobs' / job['id'], job)
     assert [command[3] for command in calls] == modules
     assert calls[-1][calls[-1].index('--local-model') + 1] == 'pinned:9b'
@@ -65,7 +65,7 @@ def test_failed_translation_is_retryable_and_preserves_notes(recording, monkeypa
             return Mock(returncode=0)
         return Mock(returncode=1)
 
-    monkeypatch.setattr(postprocess.subprocess, 'run', run)
+    monkeypatch.setattr(postprocess, 'run_process', lambda folder, command, **kwargs: run(command, **kwargs))
     jobs.run_job(root, root / 'output/jobs' / job['id'], job)
     assert job['status'] == 'error' and job['stage'] == 'translation'
     assert (folder / 'notes.md').read_text() == 'Completed notes'

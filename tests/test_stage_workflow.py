@@ -72,7 +72,7 @@ def test_speech_only_rerun_does_not_build_notes_or_translate(tmp_path, monkeypat
     job_folder = jobs.jobs_dir(tmp_path) / job['id']
     job_folder.mkdir()
     run = Mock()
-    monkeypatch.setattr(jobs.subprocess, 'run', run)
+    monkeypatch.setattr(jobs, 'run_process', lambda folder, command, **kwargs: run(command, **kwargs))
     jobs.run_job(tmp_path, job_folder, job)
     run.assert_not_called()
     assert jobs.read_json(job_folder / 'job.json')['status'] == 'done'
@@ -88,7 +88,7 @@ def test_video_pipeline_uses_selected_speech_engine_and_slide_strategy(tmp_path,
     job_folder = jobs.jobs_dir(tmp_path) / job['id']
     job_folder.mkdir()
     commands = []
-    monkeypatch.setattr(jobs.subprocess, 'run', lambda command, **kw: commands.append(command) or Mock(returncode=0))
+    monkeypatch.setattr(jobs, 'run_process', lambda folder, command, **kw: commands.append(command) or Mock(returncode=0))
     jobs.run_job(tmp_path, job_folder, job)
     assert [command[3] for command in commands] == [
         'video_descriptor', 'video_descriptor.construction', 'video_descriptor.translate']

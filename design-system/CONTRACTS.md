@@ -68,3 +68,5 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 ## Матрица будущей приёмки
 
 Каждый затронутый компонент проверять: mouse + keyboard; пусто/очень длинное имя; cancelled picker; 1 и несколько dropped files; invalid format/size; upload interruption; duplicate submit; queued/running/partial/done/error/no_speech; selected stale response; AUTO и недоступный явный device; setup consent + отмена папки; edit/split/409 revision; notes dirty navigation + разные варианты; SRT/VTT/TXT original/ru и Markdown draft; 409 stop busy. Запускать с подменённым HTTP в изолированной копии, затем существующие backend тесты с временными workspace. Аппаратные и Sandbox проверки отдельны и здесь не заявляются.
+
+Остановка обработки (20.10.2026): добавлены stop-job и POST /api/native/cancel?id= с проверкой экземпляра. Исходные API и handlers сохраняются. cancelled=true отображается как «Остановлено»; сохранённые сегменты остаются доступными.

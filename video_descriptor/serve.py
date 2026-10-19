@@ -360,6 +360,8 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     job = read_json(file)
                     if job is None or job.get("status") in ("queued", "running", "deleted"):
                         raise ValueError("Задание уже обрабатывается или не найдено")
+                    (file.parent / "stop-request.json").unlink(missing_ok=True)
+                    job.pop("cancelled", None)
                     job.update(status="queued", error=None)
                     write_json(file, job)
                     record('job_retried', job_id=job['id'], stage='speech')

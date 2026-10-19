@@ -61,7 +61,7 @@ def test_audio_job_runs_common_pipeline_and_translation_after_recognition(tmp_pa
             jobs.write_json(job_folder / 'job.json', job)
         return Mock(returncode=0)
 
-    monkeypatch.setattr(jobs.subprocess, 'run', run)
+    monkeypatch.setattr(jobs, 'run_process', lambda folder, command, **kwargs: run(command, **kwargs))
     jobs.run_job(tmp_path, job_folder, job)
     assert [command[3] for command in commands] == [
         'video_descriptor.speech', 'video_descriptor', 'video_descriptor.translate']

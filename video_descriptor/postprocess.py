@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from .action_history import record
 from .construction import checked_folder, validate
-from .jobs import jobs_dir, read_json, write_json
+from .jobs import jobs_dir, read_json, run_process, write_json
 from .platform_support import lock_file
 from .speech import editable_result, subtitle_result
 
@@ -73,14 +73,14 @@ def run(root, folder, job, log):
         write_json(folder / 'job.json', job)
         settings = folder / 'construction.json'
         write_json(settings, job['construction'])
-        code = subprocess.run([sys.executable, '-u', '-m', 'video_descriptor.construction', str(root),
+        code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction', str(root),
                                str(result), str(settings)], cwd=root, stdout=log, stderr=subprocess.STDOUT,
                               stdin=subprocess.DEVNULL, check=False).returncode
         if code:
             raise RuntimeError('Конспект остановлен; исходная расшифровка сохранена. См. журнал.')
     job['stage'] = 'translation'
     write_json(folder / 'job.json', job)
-    code = subprocess.run([sys.executable, '-u', '-m', 'video_descriptor.translate', str(result),
+    code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.translate', str(result),
                            '--model', job['translation_model'], '--local-model', job['translation_model'],
                            '--base-url', job['translation_base_url']], cwd=root, stdout=log,
                           stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode

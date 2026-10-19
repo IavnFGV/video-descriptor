@@ -104,7 +104,7 @@
   async function jobs() {
     const all=await api('/api/jobs');
     const buttons=all.sort((a,b)=>b.created-a.created).map(job=>{
-      const b=document.createElement('a');b.className='job';b.href='?job='+encodeURIComponent(job.id)+'#records';b.dataset.job=job.id;if(job.id===selected)b.setAttribute('aria-current','true');const title=document.createElement('strong');title.textContent=job.title||job.filename;const state=document.createElement('span');state.className='vd-status';state.dataset.tone={running:'info',done:'success',error:'danger'}[job.status]||'neutral';state.textContent=(job.mode==='notes'?'Конспект · ':'')+(statusNames[job.status]||job.status);b.append(title,state);b.onclick=e=>{if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();select(job.id);};return b;
+      const b=document.createElement('a');b.className='job';b.href='?job='+encodeURIComponent(job.id)+'#records';b.dataset.job=job.id;if(job.id===selected)b.setAttribute('aria-current','true');const title=document.createElement('strong');title.textContent=job.title||job.filename;const state=document.createElement('span');state.className='vd-status';state.dataset.tone=job.cancelled?'neutral':{running:'info',done:'success',error:'danger'}[job.status]||'neutral';state.textContent=(job.mode==='notes'?'Конспект · ':'')+(job.cancelled?'Остановлено':statusNames[job.status]||job.status);b.append(title,state);b.onclick=e=>{if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();select(job.id);};return b;
     });
     const key=JSON.stringify(all.map(job=>[job.id,job.title,job.filename,job.status,job.mode]));
     if($('jobs').dataset.content!==key){
@@ -115,7 +115,7 @@
     for(const link of $('jobs').querySelectorAll('.job')){if(link.dataset.job===selected)link.setAttribute('aria-current','true');else link.removeAttribute('aria-current');}
   }
   function resetResult() {
-    currentJob=null;$('exports').hidden=true;$('postprocess-actions').hidden=true;$('retry').hidden=true;
+    currentJob=null;$('stop-job').hidden=true;$('exports').hidden=true;$('postprocess-actions').hidden=true;$('retry').hidden=true;
     $('result-title').textContent='Загружаем запись…';$('transcript').replaceChildren();$('transcript').dataset.content='';
     $('video').pause();$('video').hidden=true;$('timing-note').textContent='';
   }
@@ -123,8 +123,11 @@
   function render(result,job) {
     currentJob=job;
     $('result-panel').hidden=false;$('result-title').textContent=job.title||job.filename;
-    $('status').textContent=statusNames[job.status]||job.status;
-    $('status').dataset.tone={running:'info',done:'success',error:'danger'}[job.status]||'neutral';
+    $('status').textContent=job.cancelled?'Остановлено':statusNames[job.status]||job.status;
+    $('stop-job').hidden=!['queued','running'].includes(job.status);
+    $('stop-job').disabled=false;
+    $('stop-job').textContent='Стоп';
+    $('status').dataset.tone=job.cancelled?'neutral':{running:'info',done:'success',error:'danger'}[job.status]||'neutral';
     const device=result?.device||job.device_plan?.selected;
     const failureMessage=result?.message==='Не удалось получить достоверные таймкоды; см. диагностику фрагмента'?'Модель вернула некорректные временные метки реплик. Этот фрагмент не удалось сохранить. Это ошибка распознавания; повторный запуск может её повторить.':result?.message;
     $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&result?.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
@@ -200,6 +203,7 @@
     xhr.onerror=()=>message('Соединение прервалось. Проверьте диагностику и повторите загрузку.',true);
     xhr.onloadend=()=>{uploading=false;$('start').setAttribute('aria-busy','false');$('start-label').textContent='Расшифровать запись';$('upload-progress').hidden=true;readiness();};xhr.send(file);
   };
+  $('stop-job').onclick=async()=>{const id=selected;clearTimeout(timer);$('stop-job').disabled=true;$('stop-job').textContent='Останавливаем…';try{await api('/api/native/cancel?id='+encodeURIComponent(id),{method:'POST',headers:{'X-App-Instance':instance}});message('Останавливаем обработку. Сохранённый текст останется доступен.');poll();}catch(e){message(e.message,true);$('stop-job').disabled=false;$('stop-job').textContent='Стоп';}};
   $('retry').onclick=async()=>{try{await api('/api/retry?id='+selected,{method:'POST'});poll();}catch(e){message(e.message,true);}};
   $('start-npu').onclick=async()=>{message('Запускаем распознавание: загружаем модель с диска в память устройства. Скачивание не требуется.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
   $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await readiness();}catch(e){message(e.message,true);}};

@@ -391,12 +391,16 @@ def make_handler(value, instance):
                     return self.json_response(202, job)
                 except (OSError, RuntimeError, ValueError, TypeError) as exc:
                     return self.json_response(400, {'error': str(exc)})
-            if path in {'/api/native/start-npu', '/api/native/stop'}:
+            if path in {'/api/native/start-npu', '/api/native/stop', '/api/native/cancel'}:
                 if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
                     return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})
                 if self.headers.get('X-App-Instance') != instance:
                     return self.json_response(403, {'error': 'Откройте приложение заново'})
                 try:
+                    if path == '/api/native/cancel':
+                        from video_descriptor.jobs import request_stop
+                        job_id = parse_qs(urlsplit(self.path).query).get('id', [''])[0]
+                        return self.json_response(202, request_stop(Path(value['workspace']), job_id))
                     if path.endswith('start-npu'):
                         return self.json_response(202, start_npu(value))
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
