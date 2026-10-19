@@ -40,14 +40,96 @@
   },
   "validation": {
     "fast_policy_passed": 20,
-    "application_passed": 285,
+    "application_passed": 287,
     "application_skipped": 2,
     "ruff": "passed",
     "javascript_syntax": "passed",
-    "ui_contracts": "passed"
+    "ui_contracts": "passed",
+    "vad_gate_and_context_tests": "passed: no speech sends no request; detected speech retains full PCM context; retry/resume provenance preserved"
   },
   "limits": [
     "Real comparison covers first 300 seconds of the failing source, not completed acceptance of the whole 9174.6-second recording.",
     "Model may still return unclosed timestamps after bounded recovery; no times are fabricated."
-  ]
+  ],
+  "full_context_at_failure": {
+    "start": 2212.5,
+    "duration": 300,
+    "status": 200,
+    "seconds": 15.93699999999808,
+    "error": null,
+    "segments": 65,
+    "valid_timestamps": true
+  },
+  "full_context_first_300": {
+    "request": "first 300 seconds without VAD trimming, same current service",
+    "status": 200,
+    "seconds_including_wait": 25.56300000000192,
+    "error": null,
+    "segments": 50,
+    "valid_timestamps": true,
+    "engine": {
+      "protocol": 1,
+      "device": "NPU",
+      "model": "small",
+      "pipeline": "static",
+      "multilingual": true,
+      "word_timestamps": false,
+      "num_beams": 1,
+      "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+      "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+      "genai": "2026.4.1.0-3408-ab01d1771e4"
+    }
+  },
+  "followup": "Completed full recording on NPU with VAD no-speech gate and full model context. SRT/VTT exports and all saved timestamps verified.",
+  "full_recording_acceptance": {
+    "job_status": "done",
+    "speech_status": "done",
+    "duration": 9174.6,
+    "processed": 9174.6,
+    "segments": 475,
+    "valid_timestamps": true,
+    "ordered": true,
+    "active_device": "NPU",
+    "device_switches": [],
+    "exports": {
+      "srt": {
+        "status": 200,
+        "bytes": 169235,
+        "sha256": "3ced0d1db60b8456d8715501b582b6aab199300c84b0b69f3098a539327c4414"
+      },
+      "vtt": {
+        "status": 200,
+        "bytes": 170776,
+        "sha256": "6300f620b6e89de0dfb3dda9c75174a76657e41bd91509f2a0fbba735238c6c9"
+      }
+    },
+    "vad_skipped_blocks": [
+      {
+        "start": 3412.5,
+        "duration": 150.0
+      },
+      {
+        "start": 3562.5,
+        "duration": 75.0
+      },
+      {
+        "start": 5737.5,
+        "duration": 300.0
+      },
+      {
+        "start": 6037.5,
+        "duration": 300.0
+      },
+      {
+        "start": 6337.5,
+        "duration": 300.0
+      },
+      {
+        "start": 6637.5,
+        "duration": 150.0
+      }
+    ],
+    "vad_skipped_seconds": 1275.0,
+    "reuse_note": "Preserved completed pre-fix blocks up to 2212.5 seconds; subsequent blocks use VAD gate with full model context."
+  }
 }

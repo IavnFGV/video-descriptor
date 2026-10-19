@@ -47,17 +47,17 @@ def fixture(tmp_path, monkeypatch, requested='AUTO'):
     audio = tmp_path / 'audio.wav'
     with wave.open(str(audio), 'wb') as stream:
         stream.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
-        stream.writeframes(b'\x01\0' * (4 * 16000))
+        stream.writeframes(b'\x01\0' * (600 * 16000))
     engines = {d: {'device': d, 'model_sha256': 'same-model', 'version': 1} for d in ['NPU', 'GPU', 'CPU']}
     plan = {'requested': requested, 'selected': 'NPU', 'engine': engines['NPU'], 'runtime': str(tmp_path),
             'backends': [{'device': d, 'url': 'http://'+d} for d in engines]}
-    monkeypatch.setattr(speech_devices, 'speech_regions', lambda raw: [(0, 16000), (32000, 48000)])
+    monkeypatch.setattr(speech_devices, 'speech_regions', lambda raw: [(0, len(raw) // 2)])
     monkeypatch.setattr(speech_devices, 'ensure_backend', lambda b, r: engines[b['device']])
     return audio, engines, plan
 
 
 def reply(engine, end=.8):
-    return Mock(ok=True, json=lambda: {'engine': engine, 'audio_seconds': 1,
+    return Mock(ok=True, json=lambda: {'engine': engine, 'audio_seconds': 300,
                                       'segments': [{'start': .1, 'end': end, 'text': 'Text'}]})
 
 
@@ -67,7 +67,7 @@ def test_runtime_fallback_keeps_completed_regions_and_provenance_on_resume(tmp_p
     transport.post.side_effect = [reply(engines['NPU']), requests.ConnectionError('lost'), reply(engines['GPU'])]
     monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
     items, timing = speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
-    assert [(r['start'], r['end']) for r in items] == [(.1, .8), (2.1, 2.8)]
+    assert [(r['start'], r['end']) for r in items] == [(.1, .8), (300.1, 300.8)]
     assert timing == 'segment'
     state = read_json(tmp_path / 'device-state.json')
     assert state['active'] == 'GPU' and state['switches'][0]['previous_device'] == 'NPU'
@@ -162,3 +162,29 @@ def test_timestamp_failure_restores_legacy_retry_and_resume_on_same_device(tmp_p
     resumed, _ = speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
     assert resumed == items
     assert transport.post.call_count == 3
+
+
+def test_vad_rejects_no_speech_without_calling_whisper(tmp_path, monkeypatch):
+    audio, _, plan = fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(speech_devices, 'speech_regions', lambda raw: [])
+    transport = Mock()
+    transport.post.side_effect = AssertionError('No speech: Whisper must not be called')
+    monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
+    checkpoint = Mock()
+    items, _ = speech_devices.transcribe(audio, tmp_path, checkpoint, Mock(), plan, 'job')
+    assert items == []
+    assert checkpoint.call_args.args[1] == 600
+    transport.post.assert_not_called()
+
+
+def test_vad_does_not_trim_model_context(tmp_path, monkeypatch):
+    audio, engines, plan = fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(speech_devices, 'speech_regions', lambda raw: [(44288, 3936512)])
+    transport = Mock()
+    transport.post.return_value = reply(engines['NPU'])
+    monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
+    speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
+    import io
+    for call in transport.post.call_args_list:
+        with wave.open(io.BytesIO(call.kwargs['data']), 'rb') as request:
+            assert request.getnframes() == 300 * 16000

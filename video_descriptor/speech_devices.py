@@ -1,4 +1,4 @@
-"""Checkpoint each VAD fragment with its engine; Auto retries only unfinished speech."""
+"""Gate blocks with VAD and retain model context; checkpoint per engine and retry safely."""
 import hashlib
 import io
 import math
@@ -45,21 +45,29 @@ def transcribe(audio, folder, on_chunk, log, plan, job_id, language='auto'):
             offset, limit = 0, 300 * 16000
             while offset < total:
                 count = min(limit, total - offset)
-                completed_counts = [int(p.parent.name.rsplit('-', 1)[1])
-                                    for p in folder.glob(f'local-{offset:010d}-*/complete.json')]
-                completed_counts = [n for n in completed_counts if 0 < n <= min(300 * 16000, total - offset)]
-                if completed_counts:
-                    count = max(completed_counts)
+                completed = [p.parent for prefix in ('local', 'local-context')
+                             for p in folder.glob(f'{prefix}-{offset:010d}-*/complete.json')]
+                completed = [p for p in completed if 0 < int(p.name.rsplit('-', 1)[1]) <= min(300 * 16000, total - offset)]
+                previous_part = max(completed, key=lambda p: int(p.name.rsplit('-', 1)[1])) if completed else None
+                if previous_part:
+                    count = int(previous_part.name.rsplit('-', 1)[1])
                 stream.setpos(offset)
                 raw = stream.readframes(count)
-                part = folder / f'local-{offset:010d}-{count:08d}'
+                part = previous_part or folder / f'local-context-{offset:010d}-{count:08d}'
                 part.mkdir(exist_ok=True)
                 saved_length = len(result)
                 try:
                     vad = read_json(part / 'vad.json')
                     if vad is None:
-                        vad = {'regions': speech_regions(raw)}
+                        detected = speech_regions(raw)
+                        # VAD gates requests, but its tight edges must not truncate the
+                        # model's context. Keep silence/music-only blocks out of Whisper.
+                        vad = {'policy': 'full-context-v1', 'speech_regions': detected,
+                               'regions': [[0, count]] if detected else []}
                         write_json(part / 'vad.json', vad)
+                    if not vad['regions']:
+                        log(f'Речь не обнаружена: пропускаем {offset / 16000:.1f}–{(offset + count) / 16000:.1f} сек; '
+                            'модель распознавания не вызываем.')
                     for index, (first, last) in enumerate(vad['regions']):
                         region = part / f'speech-{index:04d}'
                         region.mkdir(exist_ok=True)
