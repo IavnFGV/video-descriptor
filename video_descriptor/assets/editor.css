@@ -73,6 +73,8 @@
 
 .dialog-speaker-controls{display:flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.dialog-speaker-controls select{flex:1;min-width:160px}.dialog-speaker-controls button{flex-shrink:0}.dialog-speaker-controls input{flex-basis:100%;min-width:0}
 
+.reply-editor{padding:0}.reply-editor-toolbar{position:sticky;top:0;z-index:var(--vd-layer-sticky);display:flex;align-items:center;justify-content:space-between;gap:var(--vd-space-3);flex-wrap:wrap;padding:var(--vd-space-4) var(--vd-space-6);background:var(--vd-surface);border-bottom:1px solid var(--vd-border)}.reply-editor-toolbar h2{margin:0}.reply-editor-body{padding:var(--vd-space-6)}
+
 /* Source: design-system/surfaces.css */
 /* Shared production foundations, including dynamically created controls. */
 *{box-sizing:border-box}
