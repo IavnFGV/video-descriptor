@@ -212,7 +212,13 @@
   async function diagnostics() {
     const d=await api('/api/setup/diagnostics');
     const inv=d.inventory;
-    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),check('Intel GPU · обнаружение',!!d.hardware.intel_gpu.length,d.hardware.intel_gpu.join(', ')||'Не обнаружен'),check('Intel NPU · обнаружение',!!d.hardware.intel_npu.length,d.hardware.intel_npu.join(', ')||'Не обнаружен'),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Перевод',d.translation.state==='configured',d.translation.state==='configured'?'Настроено · генерация не проверена':'Требуется настройка'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',false,d.diarization.message));
+    const devices=inv.devices.map(name=>name.split('.')[0]);
+    const deviceStatus=(name,listed)=>{
+      const available=devices.includes(name);
+      const text=available?'Доступен в OpenVINO; готовность модели — в панели AI':listed.length?'Виден в Windows, но недоступен в OpenVINO':'Не обнаружен Windows и OpenVINO';
+      return check('Intel '+name+' · распознавание',available,text+(listed.length?' · '+listed.join(', '):''));
+    };
+    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),deviceStatus('GPU',d.hardware.intel_gpu),deviceStatus('NPU',d.hardware.intel_npu),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Перевод',d.translation.state==='configured',d.translation.state==='configured'?'Настроено · генерация не проверена':'Требуется настройка'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',false,d.diarization.message));
     if(!document.activeElement.closest('#gemini-form')){$('gemini-model').value=d.gemini.model;$('gemini-billing').value=d.gemini.billing_mode;$('gemini-ack').checked=d.gemini.free_ack;}
     $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
   }

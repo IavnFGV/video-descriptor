@@ -7,7 +7,7 @@
     return new Promise(resolve=>{
       const opener=document.activeElement,dialog=document.createElement('dialog');discardDialog=dialog;
       dialog.className='vd-dialog';dialog.setAttribute('aria-labelledby','discard-heading');
-      dialog.innerHTML='<h2 id="discard-heading">Есть несохранённые изменения</h2><p></p><div class="vd-actions"><button type="button" data-keep-editing>Продолжить редактирование</button><button type="button" class="vd-button vd-button--danger" data-discard>Закрыть без сохранения</button></div>';
+      dialog.innerHTML='<h2 id="discard-heading">Есть несохранённые изменения</h2><p></p><div class="vd-actions"><button type="button" class="vd-button" data-keep-editing>Продолжить редактирование</button><button type="button" class="vd-button vd-button--danger" data-discard>Закрыть без сохранения</button></div>';
       dialog.querySelector('p').textContent=message;
       let discard=false;
       dialog.querySelector('[data-keep-editing]').onclick=()=>dialog.close();

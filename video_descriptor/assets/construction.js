@@ -60,7 +60,7 @@
     for (const [id,value] of Object.entries(values)) $(id).value = value;
     $('models').replaceChildren(); preview();
   };
-  $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; preview(); };
+  $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; $('prompt').dispatchEvent(new Event('input',{bubbles:true})); preview(); };
   $('load-models').onclick = async () => {
     const provider = $('provider').value; $('load-models').disabled = true;
     try {
@@ -113,7 +113,7 @@
   };
   api('/api/construction-settings').then(data => {
     prompts = data.prompts; fill(data.settings); lastMaterial = data.settings.material; lastProvider = data.settings.provider;
-    window.studioDraft?.restore(form);
+    window.studioDraft?.restore(form);lastMaterial=$('material').value;lastProvider=$('provider').value;
     ready = true; document.dispatchEvent(new Event('construction-ready')); buttons(); $('status').textContent = 'Эти настройки применяются к новым запускам конспекта.'; preview();
   }).catch(error => { $('status').textContent = error.message; });
 })();

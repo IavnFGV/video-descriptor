@@ -43,6 +43,7 @@ jobs:
       - name: Production UI bundles, DOM handlers and JavaScript syntax
         run: |
           python scripts/build-ui-css.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/check-ui-audit.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check windows-app/ui/app.js
@@ -92,7 +93,7 @@ jobs:
       - name: Real installed build, model detection, CPU recognition and saved results through API
         run: |
           $fixture = Get-Content dist/installed-acceptance/model-provenance.json -Raw | ConvertFrom-Json
-          python -X utf8 windows-app/verify_installed.py --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/installed-acceptance/report.json
+          python -X utf8 windows-app/verify_installed.py --ui --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/installed-acceptance/report.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Cache public Ollama dependency and test model for optional acceptance
         if: github.event_name == 'workflow_dispatch' && inputs.test_ollama
@@ -115,7 +116,7 @@ jobs:
           TEST_OLLAMA_MODEL: ${{ inputs.ollama_model }}
         run: |
           $fixture = Get-Content dist/installed-acceptance/model-provenance.json -Raw | ConvertFrom-Json
-          python -X utf8 windows-app/verify_installed.py --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/ollama-acceptance/report.json --with-ollama --ollama-url http://127.0.0.1:11439 --ollama-model $env:TEST_OLLAMA_MODEL
+          python -X utf8 windows-app/verify_installed.py --ui --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/ollama-acceptance/report.json --with-ollama --ollama-url http://127.0.0.1:11439 --ollama-model $env:TEST_OLLAMA_MODEL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Stop only the optional acceptance Ollama process
         if: always() && github.event_name == 'workflow_dispatch' && inputs.test_ollama

@@ -197,6 +197,7 @@ try {
                         if ($target -ne (Join-Path $install 'windows-app\desktop-sdk\VideoDescriptor.exe')) { throw 'Unexpected installed shortcut target' }
                         $start=[Diagnostics.ProcessStartInfo]::new($target)
                         $start.UseShellExecute=$false;$start.WorkingDirectory=$install
+                        $start.EnvironmentVariables['WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS']=$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
                         [Diagnostics.Process]::Start($start) | Out-Null
                     }
                     Invoke-UI 'desktop' | Out-Null; $stage.evidence=@('desktop.json')

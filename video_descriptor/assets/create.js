@@ -8,20 +8,22 @@
   let polling = false, lastSnapshot = null, uploadBusy = false, polls = 0;
   const rendered = {};
   let promptData = null, promptTask = null;
-  const promptDrafts = {};
+  const promptDrafts = window.studioDraft.prompts();
   function selectPrompt() {
     if (!promptData) return;
-    if (promptTask) promptDrafts[promptTask] = $('model-prompt').value;
     promptTask = $('prompt-task').value;
     $('model-prompt').value = promptDrafts[promptTask] ?? promptData.prompts[promptTask];
+    window.studioDraft.savePrompts(promptDrafts,promptTask);
   }
   $('prompt-task').onchange = selectPrompt;
+  $('model-prompt').addEventListener('input',()=>{if(promptTask){promptDrafts[promptTask]=$('model-prompt').value;window.studioDraft.savePrompts(promptDrafts,promptTask);}});
   $('open-prompt-settings').onclick = () => { window.studioUI.openStage('notes'); $('prompt-settings-panel').open = true; };
   if (location.hash === '#translation-settings-panel') {
     window.studioUI.openStage('speech'); $('translation-settings-panel').open = true;
   }
   $('reset-prompt').onclick = () => {
     $('model-prompt').value = promptData.defaults[promptTask];
+    $('model-prompt').dispatchEvent(new Event('input',{bubbles:true}));
     $('prompt-status').textContent = 'Стандартный промпт восстановлен в редакторе. Нажмите «Сохранить промпт».';
   };
   $('prompt-settings-form').onsubmit = async event => {
@@ -30,7 +32,7 @@
     const task = promptTask, content = $('model-prompt').value;
     try {
       promptData = await json('/api/prompts', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({task, text: content})});
-      promptDrafts[task] = content;
+      delete promptDrafts[task];window.studioDraft.savePrompts(promptDrafts,promptTask);
       window.studioDraft.clear($('prompt-settings-form'));
       $('prompt-status').textContent = 'Сохранено. Промпт будет использован в следующих блоках обработки.';
     } catch (error) { $('prompt-status').textContent = error.message; }
@@ -39,7 +41,9 @@
   json('/api/prompts').then(data => {
     promptData = data;
     $('prompt-task').replaceChildren(...Object.entries(data.titles).map(([task, title]) => { const option = text('option', title); option.value = task; return option; }));
-    window.studioDraft.restore($('prompt-settings-form'));selectPrompt();window.studioDraft.restore($('prompt-settings-form'),true); $('save-prompt').disabled = false; $('reset-prompt').disabled = false;
+    const rememberedTask=window.studioDraft.promptTask();
+    if([...$('prompt-task').options].some(option=>option.value===rememberedTask))$('prompt-task').value=rememberedTask;
+    selectPrompt(); $('save-prompt').disabled = false; $('reset-prompt').disabled = false;
     $('prompt-status').textContent = 'Редактируйте инструкцию и сохраните изменения.';
   }).catch(error => { $('prompt-status').textContent = error.message; });
   $('subtitle-mode').onchange = () => { document.body.dataset.subtitles = $('subtitle-mode').value; };

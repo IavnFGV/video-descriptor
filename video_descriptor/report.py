@@ -156,7 +156,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
         display_title = lecture_info(folder)["display"]
     except (OSError, ValueError, KeyError):
         display_title = video.name
-    page += '<nav class="vd-global-nav" aria-label="Основная навигация"><a href="/output/">Записи</a><a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
+    page += '<nav class="vd-global-nav" aria-label="Основная навигация"><a href="/output/" aria-current="page">Записи</a><a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
     page += f'<h1 id="lecture-title">{html.escape(display_title)}</h1>'
     page += '<button id="rename-lecture">Изменить название</button>'
     page += '<form id="title-form" hidden><label>Название записи '

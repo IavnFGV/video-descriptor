@@ -1,3 +1,3 @@
 1
 00:00:00,000 --> 00:00:08,280
-This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles. UI acceptance. UI acceptance.
+This is a local transcription test. The blue train arrives at the station at 9. Please save the sentence as subtitles. UI acceptance. UI acceptance. UI acceptance. UI acceptance. UI acceptance.
