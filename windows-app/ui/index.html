@@ -22,8 +22,7 @@
 <a class="nav-item" id="diagnostics-open" href="#diagnostics">Диагностика</a>
 </nav>
 <div class="sidebar-bottom">
-<span class="vd-status">Windows · WebView2</span>
-<p class="footnote">Видео и аудио → текст</p>
+<a class="system-summary vd-link" href="#diagnostics" aria-label="Состояние распознавания — открыть диагностику"><span class="dot" id="system-dot" aria-hidden="true"></span><span id="system-status" role="status">Проверяем распознавание…</span></a>
 </div>
 </aside>
 <div class="app-content">
@@ -43,7 +42,7 @@
 <p id="view-description">Откройте запись, чтобы продолжить работу с её текстом и результатами.</p>
 </div>
 <p id="message" class="feedback" role="status" aria-live="polite"></p>
-<div class="workspace">
+<div class="workspace" id="page-workspace">
 <div>
 <section id="new-record-view" hidden>
 <section class="card" aria-labelledby="upload-heading">
@@ -269,7 +268,7 @@
 </section>
 </section>
 </div>
-<aside class="card readiness" aria-labelledby="readiness-heading">
+<aside class="card readiness" id="readiness-panel" aria-labelledby="readiness-heading">
 <div class="card-title">
 <h2 id="readiness-heading">Готовность AI</h2>
 <span class="dot" id="ready-dot" aria-hidden="true">
@@ -279,7 +278,7 @@
 <p class="footnote" id="npu-notice">Первая загрузка модели может занять около минуты.</p>
 <a class="vd-link" href="#settings">Настроить компоненты →</a>
 <p class="footnote">Начните с расшифровки. После проверки текста доступны перевод, конспект и экспорт.</p>
-<p class="footnote">Автоматическое разделение голосов на Windows пока не подготовлено.</p>
+
 </aside>
 </div>
 <footer>Video Descriptor · Windows · Локальное рабочее пространство</footer>

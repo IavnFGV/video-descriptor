@@ -17,6 +17,8 @@
     }
 
     const view=['new','settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
+    $('readiness-panel').hidden=!['settings','diagnostics'].includes(view);
+    $('page-workspace').classList.toggle('workspace--single',!['settings','diagnostics'].includes(view));
     $('new-record-view').hidden=view!=='new';
     $('jobs-panel').hidden=!!selected;
     $('result-panel').hidden=!selected;
@@ -79,6 +81,10 @@
     }catch(e){$('ollama-feedback').textContent=e.message;}
   }
   function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className='vd-status';b.dataset.tone=ready?'success':'warning';b.textContent=suffix||(ready?'Готово':'Не подключено');row.append(a,b);return row; }
+  function systemStatus(ready, preparing=false) {
+    $('system-dot').className='dot'+(ready&&!preparing?' good':'');
+    $('system-status').textContent=preparing?'Готовим распознавание…':ready?'Распознавание готово':'Нужна настройка распознавания';
+  }
   async function readiness() {
     try {
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
@@ -91,6 +97,7 @@
         $('device-status').textContent=c.preparing?'Запускаем распознавание с моделью на диске…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
         $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
+        systemStatus(ready&&d.ffmpeg,c.preparing);
         $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
         $('npu-notice').textContent=ready?'Модель готова. Можно добавлять запись.':'Если модель уже подключена, нажмите «Подготовить распознавание»: она загрузится с диска в память устройства. Скачивание не требуется.';
@@ -99,11 +106,12 @@
       }
       $('readiness').replaceChildren(check('Распознавание · Intel NPU',d.npu.ready),check('Видео и аудио',!!d.ffmpeg),check('Ollama · перевод',d.ollama.ready));
       $('ready-dot').className='dot'+(d.npu.ready&&d.ffmpeg?' good':'');
+      systemStatus(d.npu.ready&&d.ffmpeg);
       $('start').disabled=uploading||!d.npu.ready||!d.ffmpeg;
       $('start-npu').hidden=d.npu.ready||!d.can_start_npu;
       $('npu-notice').textContent=d.npu.ready?'Модель готова. Можно добавлять запись.':'Нажмите «Подготовить распознавание», если компоненты уже установлены. Модели автоматически не скачиваются.';
       if(!d.npu.ready&&d.npu_startup?.exit_code!==undefined)$('npu-notice').textContent=`Не удалось загрузить модель (код ${d.npu_startup.exit_code}). Подробности в windows-app/runtime/logs/npu.log. Окружение автоматически не переустанавливается.`;
-    } catch(e) { $('start').disabled=true;$('device-status').textContent='Не удалось проверить готовность. Обновите диагностику перед запуском.';message('Приложение недоступно: '+e.message,true); }
+    } catch(e) { $('system-dot').className='dot';$('system-status').textContent='Нет связи с приложением';$('start').disabled=true;$('device-status').textContent='Не удалось проверить готовность. Обновите диагностику перед запуском.';message('Приложение недоступно: '+e.message,true); }
   }
   async function jobs() {
     const all=await api('/api/jobs');
