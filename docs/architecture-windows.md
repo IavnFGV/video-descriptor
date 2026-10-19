@@ -2,6 +2,16 @@
 
 ## ADR-007: desktop preview 0.7, 18.10.2026
 
+Дополнение 19.10.2026: installer проверяет WebView2 через официальный loader API и
+наличие исполняемых файлов версии. При отсутствии рабочего Runtime скачивает
+закреплённый официальный Fixed Version CAB (SHA256 + Authenticode Microsoft),
+распаковывает в `windows-app/webview2-runtime` выбранной установки и повторяет проверку.
+WinForms host передаёт этот путь в CreateAsync; при отсутствии app-local Runtime
+использует обычное обнаружение Evergreen. Это позволяет поставить зависимость без
+системного Edge Updater и изменения ACL/реестра. Fixed Runtime обслуживается обновлениями
+нашего пакета; offline-повторный запуск не требует загрузки. Целевая проверка — Windows 11.
+Фактические результаты отражаются отдельно в отчёте Sandbox 0.7, а не выводятся из кода.
+
 Native launcher расширен WinForms/WebView2 окном и треем. Tauri 2 не введён:
 готовые app.py, Python payload, locks, очередь и per-user installer позволяют добавить
 только C# host без Rust и повторного управления сервисами. Ярлык → VideoDescriptor.exe →

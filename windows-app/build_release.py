@@ -97,7 +97,7 @@ def source_paths():
     paths += [HERE / name for name in (
         'app.py', 'compute.py', 'setup_service.py', 'model_download.py', 'whisper_worker.py', 'release_lifecycle.py',
         'desktop.py', 'Desktop.ps1', 'DesktopHost.cs', 'app.ico',
-        'Start-App.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
+        'Start-App.ps1', 'Ensure-WebView2.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
     paths += [p for p in (HERE / 'ui').iterdir() if p.is_file()]
     paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md']

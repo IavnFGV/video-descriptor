@@ -27,8 +27,12 @@ binary, Python venv или чужих исходников. Это перече�
 
 Desktop 0.7 включает Microsoft.Web.WebView2 SDK 1.0.2903.40 (NuGet), три runtime/managed
 DLL; LICENSE.txt из проверенного nupkg включается рядом в desktop-sdk. URL/SHA256
-закреплены в release-inputs.json. WebView2 Runtime не распространяется и автоматически
-не ставится; применяются отдельные условия Microsoft. .NET Framework используется системный.
+закреплены в release-inputs.json. При отсутствии рабочего WebView2 Runtime установщик
+скачивает официальный Fixed Version CAB 155.0.4283.62 x64 с закреплёнными URL/SHA256
+в WebView2Runtime.iss, проверяет подпись Microsoft и размещает полный пакет в папке
+приложения. Применяются отдельные условия Microsoft WebView2, включая notices из пакета;
+в Git и основной ZIP веса/Runtime CAB не включаются. Fixed Runtime обслуживается
+обновлениями приложения. .NET Framework используется системный.
 
 Все фактически разрешённые версии Python-зависимостей — в `requirements-lock.txt`.
 Проверенные размер/SHA256 FFmpeg binary и модельный digest — `component-manifest.json`.

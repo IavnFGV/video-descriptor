@@ -140,6 +140,7 @@ Buzz, Subtitle Edit и шестью другими проектами — в [с
 Личные данные, модели, секреты и журналы в Git не входят.
 
 | Дата | Изменение | Проверка |
+| 2026-10-19 | Установщик проверяет WebView2 и при отсутствии скачивает официальный Fixed Runtime с SHA256 и проверкой подписи Microsoft; окно использует app-local Runtime без изменения системного Edge | Повторная Sandbox-приёмка и точные границы — docs/verification-sandbox-desktop-0.7.md; успешный E2E до фактического прохождения не заявляется |
 |---|---|---|
 | 2026-10-18 | После обновления Docker Desktop выполнены настоящие локальные build, Compose lifecycle smoke и PowerShell Install; приложение запущено на localhost:8000/create | Docker Desktop 4.95.0 / Engine 29.8.2 / Compose 5.6.0: PASS, HTTP healthy/200, данные сохраняются; отдельная ошибка Ubuntu WSL integration не блокирует Windows CLI; модели не скачивались — docs/container-verification.md |
 | 2026-10-18 | GitHub Container CI и Windows lifecycle прошли после исправления идентичности workspace; GHCR auth сохраняется до smoke, повтор выпуска проверяет revision образа | dca7d9a: Container CI run 39149814516 и Windows run 39149814507 success; Windows runner 220 passed/1 skipped, 4391 hashes, deterministic ZIP, install/reinstall/upgrade/uninstall с сохранением данных; локально Windows 219 passed/2 skipped, WSL 221 passed; registry публикация не запускалась |

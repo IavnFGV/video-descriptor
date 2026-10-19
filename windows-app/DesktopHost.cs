@@ -138,7 +138,9 @@ namespace VideoDescriptor {
                 session = json.Deserialize<Dictionary<string, object>>(output);
                 await Health();
                 if (!initialized) {
-                    var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(directory, "runtime", "webview"));
+                    string fixedRuntime = Path.Combine(directory, "webview2-runtime");
+                    if (!File.Exists(Path.Combine(fixedRuntime, "msedgewebview2.exe"))) fixedRuntime = null;
+                    var env = await CoreWebView2Environment.CreateAsync(fixedRuntime, Path.Combine(directory, "runtime", "webview"));
                     await web.EnsureCoreWebView2Async(env);
                     var core = web.CoreWebView2;
                     core.Settings.AreHostObjectsAllowed = false;
