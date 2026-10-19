@@ -27,6 +27,12 @@
       button.setAttribute('aria-selected', String(name === stage));
       button.tabIndex = name === stage ? 0 : -1;
       $('stage-' + name).hidden = name !== stage;
+      $('stage-' + name).tabIndex = -1;
+    }
+    const skip = document.querySelector('.vd-skip');
+    if (skip) {
+      skip.href = '#stage-' + stage;
+      skip.onclick = event => { event.preventDefault(); $('stage-' + stage).focus(); };
     }
     if (updateUrl) {
       const params = new URLSearchParams(location.search); params.set('stage', stage);

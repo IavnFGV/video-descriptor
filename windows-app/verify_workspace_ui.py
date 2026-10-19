@@ -191,6 +191,10 @@ def run(args, report):
     cdp.call('Input.dispatchKeyEvent',type='keyDown',key='ArrowRight',code='ArrowRight',windowsVirtualKeyCode=39)
     assert cdp.evaluate('document.querySelector("#tab-speech").getAttribute("aria-selected")==="true"&&document.activeElement.id==="tab-speech"')
     report['checks'].append('keyboard stage arrows update selection and focus')
+    cdp.evaluate('document.querySelector(".vd-skip").focus()')
+    cdp.click('.vd-skip')
+    assert cdp.evaluate('document.activeElement.id==="stage-speech"'), 'skip link did not focus the current stage'
+    report['checks'].append('skip link focuses the active stage without losing URL context')
     cdp.call('Emulation.setDeviceMetricsOverride',width=760,height=560,deviceScaleFactor=1,mobile=False)
     cdp.evaluate("""(() => {const feed=document.querySelector('#speech-feed'),template=feed.querySelector('.utterance');
       if(!template)throw Error('No real utterance to stress');
