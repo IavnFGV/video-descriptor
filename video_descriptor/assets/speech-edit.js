@@ -134,7 +134,7 @@
     name.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();create();}if(e.key==='Escape'&&!publishing){e.preventDefault();cancel();}};
     name.onblur=()=>{if(adding&&!publishing){if(name.value.trim())create();else cancel();}};
     const assignment=document.createElement('label');assignment.className='speaker-assignment';assignment.title='Назначить говорящего только этой реплике';
-    assignment.append(speakerActionIcon('M8 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6 M2 20v-2a6 6 0 0 1 12 0v2 M15 11h7 M19 8l3 3-3 3'),select);
+    assignment.append(select);
     holder.append(assignment,add,name,feedback);return holder;
   };
   window.editSpeechReply = function(original, index, video, onSave){
