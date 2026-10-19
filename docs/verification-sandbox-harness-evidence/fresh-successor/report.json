@@ -1,0 +1,336 @@
+﻿{
+    "schema":  1,
+    "run_id":  "20261019-120709-353-security",
+    "profile":  "Security",
+    "git_sha":  "a21147344dee2666d1b87cc3c38784fa78cdbb5b",
+    "git_dirty":  true,
+    "fingerprint":  "eea7167bbed143395967e6ae2c4fde6ea1c99c9bc09438b295d3ab8e3eb57ffa",
+    "artifacts":  [
+                      {
+                          "file":  "VideoDescriptor-0.7.0-windows-x64-setup.exe",
+                          "bytes":  223908092,
+                          "sha256":  "1464b6a04c2c53a0155950dfd68c15a522218a1b9eac46e333ff0b2eaaaceb9f"
+                      },
+                      {
+                          "file":  "VideoDescriptor-0.7.0-windows-x64.zip",
+                          "bytes":  265726681,
+                          "sha256":  "4c87bb9fc17c40eb3933be66ab7371d601d6fc09489a32680541d16c362090ae"
+                      }
+                  ],
+    "cache":  [
+
+              ],
+    "guest_id":  "5d6c75dc24bc41b89ed5504f6ed698d4",
+    "artifact_versions":  [
+                              "0.7.0"
+                          ],
+    "dependency_versions":  {
+
+                            },
+    "environment":  "Windows Sandbox",
+    "contracts":  {
+                      "version":  1,
+                      "stages":  [
+                                     {
+                                         "name":  "preflight",
+                                         "dependencies":  [
+
+                                                          ],
+                                         "inputs":  [
+                                                        "WSB profile",
+                                                        "artifact SHA256",
+                                                        "cache manifests",
+                                                        "guest identity",
+                                                        "OS",
+                                                        "SAC policy"
+                                                    ],
+                                         "pass":  "Verified disposable Sandbox, supported profile, artifact and selected cache integrity",
+                                         "method":  "guest diagnostics"
+                                     },
+                                     {
+                                         "name":  "installer",
+                                         "dependencies":  [
+                                                              "preflight"
+                                                          ],
+                                         "inputs":  [
+                                                        "installer SHA256",
+                                                        "ZIP SHA256",
+                                                        "OS",
+                                                        "SAC profile",
+                                                        "lifecycle contract"
+                                                    ],
+                                         "pass":  "Security: unchanged enforcement rejects unsigned EXE with correlated Code Integrity event. Functional: fresh install and binary presence; full lifecycle when explicitly requested",
+                                         "method":  "native installer; lifecycle verifier"
+                                     },
+                                     {
+                                         "name":  "desktop",
+                                         "dependencies":  [
+                                                              "installer"
+                                                          ],
+                                         "inputs":  [
+                                                        "installed application",
+                                                        "WebView2 runtime"
+                                                    ],
+                                         "pass":  "Installed Start Menu shortcut opens actual WinForms/WebView2; setup wizard and component diagnostics render",
+                                         "method":  "WebView2 CDP pointer/DOM"
+                                     },
+                                     {
+                                         "name":  "whisper",
+                                         "dependencies":  [
+                                                              "desktop"
+                                                          ],
+                                         "inputs":  [
+                                                        "pinned official Whisper revision and hashes or explicit network download",
+                                                        "CPU runtime",
+                                                        "synthetic bundled MP4/WAV"
+                                                    ],
+                                         "pass":  "UI model setup, fresh CPU readiness, actual MP4 transcription with nonempty timestamped segments; short WAV probe unless exact prior proof applies",
+                                         "method":  "WebView2 CDP pointer/DOM; read-only API evidence"
+                                     },
+                                     {
+                                         "name":  "ollama-install",
+                                         "dependencies":  [
+                                                              "desktop"
+                                                          ],
+                                         "inputs":  [
+                                                        "pinned signed official installer cache object"
+                                                    ],
+                                         "pass":  "Valid Ollama signature, unattended install, local service version, UI status",
+                                         "method":  "guest preparation CLI plus actual application UI"
+                                     },
+                                     {
+                                         "name":  "ollama-model",
+                                         "dependencies":  [
+                                                              "ollama-install"
+                                                          ],
+                                         "inputs":  [
+                                                        "model tag",
+                                                        "verified model cache or explicit network pull"
+                                                    ],
+                                         "pass":  "Model physically present with digest; selected and connected through application UI",
+                                         "method":  "guest preparation CLI plus actual application UI"
+                                     },
+                                     {
+                                         "name":  "ollama-inference",
+                                         "dependencies":  [
+                                                              "ollama-model"
+                                                          ],
+                                         "inputs":  [
+                                                        "installed model digest",
+                                                        "Ollama version",
+                                                        "fixed synthetic prompt"
+                                                    ],
+                                         "pass":  "Real completed nonempty generation; records device-independent timing and raw response",
+                                         "method":  "diagnostic HTTP API; does not claim UI generation"
+                                     },
+                                     {
+                                         "name":  "translation",
+                                         "dependencies":  [
+                                                              "whisper",
+                                                              "ollama-inference"
+                                                          ],
+                                         "inputs":  [
+                                                        "UI-transcribed synthetic video",
+                                                        "selected model digest",
+                                                        "translation contract"
+                                                    ],
+                                         "pass":  "UI action completes separate translation job; saved nonempty Russian text, no translation errors, exported SRT with timestamps",
+                                         "method":  "WebView2 CDP pointer/DOM; read-only saved-file evidence"
+                                     },
+                                     {
+                                         "name":  "notes",
+                                         "dependencies":  [
+                                                              "translation"
+                                                          ],
+                                         "inputs":  [
+                                                        "source transcript",
+                                                        "notes model selection",
+                                                        "notes contract"
+                                                    ],
+                                         "pass":  "UI notes action completes; nonempty saved notes and translation; report HTML persists",
+                                         "method":  "WebView2 CDP pointer/DOM; read-only saved-file evidence"
+                                     },
+                                     {
+                                         "name":  "cleanup",
+                                         "dependencies":  [
+                                                              "preflight"
+                                                          ],
+                                         "inputs":  [
+                                                        "guest installation root",
+                                                        "host report directory"
+                                                    ],
+                                         "pass":  "Application processes confined to this guest installation disposed; reports preserved",
+                                         "method":  "guest process cleanup"
+                                     }
+                                 ]
+                  },
+    "status":  "PASS",
+    "started_at":  "2026-10-19T09:07:38.3024015Z",
+    "finished_at":  "2026-10-19T09:07:44.8396554Z",
+    "elapsed_seconds":  6.343,
+    "os":  {
+               "caption":  "Microsoft Windows 11 Enterprise",
+               "memory_mb":  8191,
+               "architecture":  "64-bit",
+               "build":  "26100",
+               "version":  "10.0.26100"
+           },
+    "policy":  [
+
+               ],
+    "compatibility":  "4c0bd4034d7acbd07af3dd1fe02078db82a91d1d39a41df8f2c5cee8d595407a",
+    "error":  null,
+    "stages":  [
+                   {
+                       "name":  "preflight",
+                       "status":  "PASS",
+                       "reason":  "",
+                       "started_at":  "2026-10-19T09:07:39.1157570Z",
+                       "finished_at":  "2026-10-19T09:07:44.4851059Z",
+                       "seconds":  5.216,
+                       "evidence":  [
+                                        "initial-citool.json",
+                                        "initial-sac.json"
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "installer",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "desktop",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "whisper",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-install",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-model",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "ollama-inference",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "translation",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "notes",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   },
+                   {
+                       "name":  "cleanup",
+                       "status":  "NOT_TESTED",
+                       "reason":  "Not selected",
+                       "started_at":  null,
+                       "finished_at":  null,
+                       "seconds":  0,
+                       "evidence":  [
+
+                                    ],
+                       "checks":  [
+
+                                  ],
+                       "previous_run":  null
+                   }
+               ]
+}

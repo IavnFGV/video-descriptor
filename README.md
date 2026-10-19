@@ -1,5 +1,12 @@
 # Video Descriptor
 
+19.10.2026: добавлен [Sandbox acceptance harness](windows-app/sandbox/README.md)
+с запуском одной командой, отдельными Security/Functional профилями, стадиями,
+проверенным read-only кэшем, checkpoint и отчётами на хосте. Реальная стандартная
+Sandbox подтвердила блокировку неподписанного установщика (Code Integrity 3033).
+Functional Acceptance остановлен как BLOCKED: поддерживаемый SAC Evaluation/Audit
+в этом госте недоступен; это не успешная проверка Ollama/перевода/конспекта.
+
 Windows-приложение для локальной обработки видео: расшифровка, говорящие,
 перевод и конспект с проверяемыми ссылками на исходную запись.
 Рабочая папка: `E:\LocalAI\video desriptor`. Ниже сохранена инструкция исходного CLI;

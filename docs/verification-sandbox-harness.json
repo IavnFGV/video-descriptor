@@ -1,0 +1,233 @@
+{
+  "checked_on": "2026-10-19",
+  "environment": "real Windows Sandbox",
+  "host_security_changed": false,
+  "public_release": false,
+  "functional_acceptance_complete": false,
+  "host_tests": {
+    "command": "python -X utf8 -m pytest -q",
+    "passed": 272,
+    "skipped": 2,
+    "ruff": "PASS",
+    "new_harness_tests": 13,
+    "powershell_syntax": "PASS"
+  },
+  "runs": [
+    {
+      "label": "security",
+      "run_id": "20261019-120136-110-security",
+      "status": "PASS",
+      "git_sha": "a21147344dee2666d1b87cc3c38784fa78cdbb5b",
+      "git_dirty": true,
+      "fingerprint": "1d76c17d345bfc7e06a7aa246069b6df924a1aa097aced61655f64b869d6dc33",
+      "guest_id": "611e458d89814c34abfcb419faf2cab7",
+      "os": {
+        "caption": "Microsoft Windows 11 Enterprise",
+        "memory_mb": 8191,
+        "architecture": "64-bit",
+        "build": "26100",
+        "version": "10.0.26100"
+      },
+      "seconds": 17.675,
+      "stages": [
+        {
+          "name": "preflight",
+          "status": "PASS",
+          "reason": ""
+        },
+        {
+          "name": "installer",
+          "status": "PASS",
+          "reason": "Unsigned installer rejected under unchanged default SAC enforcement; correlated Code Integrity rejection recorded"
+        },
+        {
+          "name": "desktop",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "whisper",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "ollama-install",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "ollama-model",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "ollama-inference",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "translation",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "notes",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "cleanup",
+          "status": "PASS",
+          "reason": "Disposed application processes in this guest; cache and host reports preserved"
+        }
+      ],
+      "evidence": "verification-sandbox-harness-evidence/security"
+    },
+    {
+      "label": "functional",
+      "run_id": "20261019-120602-241-functional",
+      "status": "BLOCKED",
+      "git_sha": "a21147344dee2666d1b87cc3c38784fa78cdbb5b",
+      "git_dirty": true,
+      "fingerprint": "80adc7bbc0e6ef21ec4644a382269967ebecc42372418695e16f7a034105304d",
+      "guest_id": "78c57d390a4b42df86233d5b102c1e2e",
+      "os": {
+        "caption": "Microsoft Windows 11 Enterprise",
+        "memory_mb": 8191,
+        "architecture": "64-bit",
+        "build": "26100",
+        "version": "10.0.26100"
+      },
+      "seconds": 8.823,
+      "stages": [
+        {
+          "name": "preflight",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: Owner authorized Evaluation/Audit. No active supported SAC Evaluation/Audit policy. Microsoft documented transitions need recovery, ACL/ownership or EFI changes excluded by this task. No policy was changed."
+        },
+        {
+          "name": "installer",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency preflight"
+        },
+        {
+          "name": "desktop",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency installer"
+        },
+        {
+          "name": "whisper",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency desktop"
+        },
+        {
+          "name": "ollama-install",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency desktop"
+        },
+        {
+          "name": "ollama-model",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency ollama-install"
+        },
+        {
+          "name": "ollama-inference",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency ollama-model"
+        },
+        {
+          "name": "translation",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency whisper, ollama-inference"
+        },
+        {
+          "name": "notes",
+          "status": "BLOCKED",
+          "reason": "BLOCKED: dependency translation"
+        },
+        {
+          "name": "cleanup",
+          "status": "PASS",
+          "reason": "Disposed application processes in this guest; cache and host reports preserved"
+        }
+      ],
+      "evidence": "verification-sandbox-harness-evidence/functional"
+    },
+    {
+      "label": "fresh-successor",
+      "run_id": "20261019-120709-353-security",
+      "status": "PASS",
+      "git_sha": "a21147344dee2666d1b87cc3c38784fa78cdbb5b",
+      "git_dirty": true,
+      "fingerprint": "eea7167bbed143395967e6ae2c4fde6ea1c99c9bc09438b295d3ab8e3eb57ffa",
+      "guest_id": "5d6c75dc24bc41b89ed5504f6ed698d4",
+      "os": {
+        "caption": "Microsoft Windows 11 Enterprise",
+        "memory_mb": 8191,
+        "architecture": "64-bit",
+        "build": "26100",
+        "version": "10.0.26100"
+      },
+      "seconds": 6.343,
+      "stages": [
+        {
+          "name": "preflight",
+          "status": "PASS",
+          "reason": ""
+        },
+        {
+          "name": "installer",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "desktop",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "whisper",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "ollama-install",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "ollama-model",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "ollama-inference",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "translation",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "notes",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        },
+        {
+          "name": "cleanup",
+          "status": "NOT_TESTED",
+          "reason": "Not selected"
+        }
+      ],
+      "evidence": "verification-sandbox-harness-evidence/fresh-successor"
+    }
+  ],
+  "limitations": [
+    "Functional profile blocked: no confirmed active supported SAC Evaluation/Audit policy; CiTool returns 0x80073BC3.",
+    "Functional UI driver, Ollama installation/model/generation, translation and notes not exercised in a real functional guest.",
+    "No claim of guest restart recovery, cached full installer lifecycle reuse, or newly downloaded model cache validation in a real functional guest.",
+    "A permitted environment with a confirmed functioning supported evaluation policy is needed for continuation; stock Sandbox cannot currently meet this condition."
+  ]
+}

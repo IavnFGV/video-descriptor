@@ -1,5 +1,12 @@
 # Проверка Windows Sandbox
 
+19.10.2026: для новых стадийных прогонов используйте
+[Run-Acceptance.ps1](../windows-app/sandbox/README.md). Новый harness разделяет
+Security и Functional, сохраняет checkpoint/результаты и поддерживает verified
+cache. Документ ниже сохраняет историю прежнего release smoke. Новый Security
+прогон подтвердил блокировку unsigned preview; новый Functional остановлен как
+BLOCKED из-за недоступного поддерживаемого SAC Evaluation/Audit.
+
 Пользователь согласовал включение Sandbox 17.10.2026 после объяснения назначения.
 Рабочая система Windows 11 Pro, 32 ГБ RAM. Компонент изначально не был доступен.
 Автоматическая перезагрузка не разрешена и не выполняется.

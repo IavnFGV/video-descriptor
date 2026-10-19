@@ -1,0 +1,8 @@
+﻿{
+    "attempts":  1,
+    "timestamp":  "2026-10-19T09:07:44.4851059Z",
+    "guest_id":  "5d6c75dc24bc41b89ed5504f6ed698d4",
+    "phase":  "preflight",
+    "state":  "PASS",
+    "run_id":  "20261019-120709-353-security"
+}
