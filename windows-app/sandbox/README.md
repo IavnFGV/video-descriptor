@@ -219,3 +219,9 @@ results remain separate, and transport failures are not counted as application P
 PnP visibility is not inference capability: in the 19 October UI guest Windows
 listed Intel AI Boost and Arc 140V, while OpenVINO exposed only CPU. That guest
 does not establish NPU/GPU support; diagnostics explicitly distinguish the layers.
+
+The Windows workflow also runs on a published release event. On that event the
+cached public qwen3.5:0.8b Ollama scenario is enabled automatically, including API
+and actual installed UI generation, translation, notes and exports. PR/main runs
+always perform CPU/UI acceptance; manual dispatch can request the same full AI
+suite. This configures verification, and does not create or publish a release.

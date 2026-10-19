@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
@@ -80,6 +81,7 @@ def installed_workflow(root, port, output, *, with_ollama=False):
         return evidence
     except Exception as error:
         evidence['error'] = f'{type(error).__name__}: {error}'
+        evidence['traceback'] = traceback.format_exc()
         raise
     finally:
         (output / 'workspace-ui.json').write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -143,10 +145,12 @@ def run(args, report):
         cdp.click('.reply-editor button[type=submit]')
         wait_for(lambda: cdp.evaluate('!document.querySelector("dialog.reply-editor")'))
         saved = json.loads(read_http(args.base + '/api/speech?' + urlencode({'folder': args.folder})))['result']
-        assert saved['segments'][0]['text'] == updated
-        assert saved['segments'][0]['start'] == original['segments'][0]['start']
-        assert saved['segments'][0]['end'] == original['segments'][0]['end']
-        assert saved['edit_revision'] != original['edit_revision']
+        report['reply_save'] = {'before': original['segments'][0], 'after': saved['segments'][0]}
+        assert saved['segments'][0]['text'] == updated, 'saved reply text differs'
+        # The existing editor presents and saves times at millisecond precision.
+        for boundary in ['start', 'end']:
+            assert abs(saved['segments'][0][boundary] - original['segments'][0][boundary]) <= .0005, boundary
+        assert saved['edit_revision'] != original['edit_revision'], 'revision did not advance'
         report['checks'].append('reply dirty Escape retained input; real save/revision and timestamps verified')
     cdp.click('#tab-source')
     cdp.fill('#source-title', 'Несохранённое название / Незбережена назва')

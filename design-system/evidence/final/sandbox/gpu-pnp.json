@@ -1,0 +1,10 @@
+[
+    {
+        "Name":  "Microsoft Remote Display Adapter",
+        "Status":  "OK"
+    },
+    {
+        "Name":  "Intel(R) Arc(TM) 140V GPU (16GB)",
+        "Status":  "OK"
+    }
+]

@@ -48,7 +48,7 @@ def check_installed(args):
     expected_python = root / 'python/python.exe'
     if not expected_python.samefile(sys.executable):
         raise ValueError('Verification must run with this installation\'s embedded Python')
-    report = {'status': 'FAIL', 'method': 'real installed application API; no UI claim',
+    report = {'status': 'FAIL', 'method': 'real installed application API and WebView2 UI' if args.ui else 'real installed application API; no UI claim',
               'environment': 'Windows Sandbox' if os.environ.get('USERNAME', '').lower() == 'wdagutilityaccount'
               else 'GitHub Actions Windows' if os.environ.get('GITHUB_ACTIONS') == 'true' else 'isolated Windows test',
               'installed_root': str(root), 'embedded_python': sys.version, 'models_downloaded': False,
@@ -98,7 +98,9 @@ def check_installed(args):
                     process.wait(timeout=20)
                 for child in psutil.process_iter(['exe']):
                     try:
-                        if child.pid != os.getpid() and child.info['exe'] and Path(child.info['exe']).resolve() == expected_python:
+                        executable = Path(child.info['exe']).resolve() if child.info['exe'] else None
+                        owned = executable == expected_python or (args.ui and executable and executable.is_relative_to(root))
+                        if child.pid != os.getpid() and owned:
                             child.terminate()
                             child.wait(timeout=20)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):

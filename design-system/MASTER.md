@@ -1,6 +1,6 @@
 # Video Descriptor — единая дизайн-система v0.1
 
-Статус: **направление согласовано владельцем 19.10.2026**. Общие компоненты и главная внедрены: см. IMPLEMENTATION.md. Стек: HTML, CSS, JavaScript, WebView2. Источник токенов: `tokens.css`; реализация компонентов: `components.css`; демонстрация: `prototype/index.html`.
+Статус: **направление согласовано владельцем 19.10.2026**. Production библиотека, workspace, редакторы, диалоги и экспорт внедрены: см. IMPLEMENTATION.md. Стек: HTML, CSS, JavaScript, WebView2. Источник токенов: `tokens.css`; реализация компонентов: `components.css`; демонстрация: `prototype/index.html`.
 
 ## Принципы
 
