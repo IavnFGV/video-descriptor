@@ -13,10 +13,15 @@ import json
 import os
 import socket
 import struct
+import sys
 import time
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
+
+# The packaged Python uses an isolated _pth and omits the script directory.
+# Include the staged driver directory so shared workspace checks load in Sandbox.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 class Blocked(RuntimeError):
