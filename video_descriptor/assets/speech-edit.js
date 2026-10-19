@@ -17,6 +17,34 @@
     });
   };
   let editing=false;
+  window.createSpeakerName = function(original, speaker, onSave){
+    const holder=document.createElement('span'), button=document.createElement('button');
+    const input=document.createElement('input'), feedback=document.createElement('span');
+    const label=original.speaker_names?.[speaker]||(speaker==='unknown'?'Не определён':speaker);
+    button.type='button';button.className='vd-button vd-button--quiet vd-button--compact speaker-name';
+    button.textContent=label;button.title='Переименовать во всех репликах этого говорящего';
+    input.className='vd-input speaker-name-input';input.maxLength=100;input.hidden=true;
+    input.setAttribute('aria-label','Имя говорящего '+label);feedback.className='vd-help';feedback.setAttribute('role','status');
+    let active=false,saving=false;
+    const close=()=>{active=false;editing=false;input.hidden=true;button.hidden=false;button.focus({preventScroll:true});};
+    button.onclick=()=>{if(editing)return;editing=true;active=true;input.value=label;button.hidden=true;input.hidden=false;input.focus();input.select();};
+    const save=async()=>{
+      if(!active||saving)return;
+      const name=input.value.trim();
+      if(!name){feedback.textContent='Введите имя говорящего.';input.focus();return;}
+      if(name===label){close();return;}
+      saving=true;input.disabled=true;feedback.textContent='Сохраняем имя…';
+      try{
+        const names={...original.speaker_names,[speaker]:name};
+        await post('/api/speech-names',{folder:original.folder,speaker_names:names});
+        active=false;editing=false;onSave({...original,speaker_names:names});
+      }catch(e){feedback.textContent=e.message;}
+      finally{saving=false;input.disabled=false;}
+    };
+    input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save();}if(e.key==='Escape'&&!saving){e.preventDefault();feedback.textContent='';close();}};
+    input.onblur=()=>{if(active&&!saving)save();};
+    holder.append(button,input,feedback);return holder;
+  };
   window.createSpeakerSelect = function(original, index, onSave){
     const row=original.segments[index], holder=document.createElement('span');
     const select=document.createElement('select'), feedback=document.createElement('span');
