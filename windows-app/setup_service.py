@@ -14,6 +14,7 @@ from scripts.whisper_npu_server import model_digest
 from video_descriptor import translation_settings
 from video_descriptor.action_history import record
 from video_descriptor.jobs import read_json, write_json
+from video_descriptor.platform_support import windows_powershell, windows_shell_environment
 
 
 def ollama_request(value, endpoint, body=None):
@@ -38,7 +39,7 @@ def ollama_status(value):
                            'Выберите установленную модель для перевода'}
     except (requests.RequestException, ValueError, KeyError, TypeError):
         return {'ready': False, 'detected': bool(shutil.which('ollama')), 'service_ready': False, 'selected': selected, 'models': [],
-                'message': 'Запустите установленную Ollama и обновите список. Автоустановка пока не подключена.'}
+                'message': 'Ollama недоступна. Установите её в этом разделе или запустите существующую Ollama.'}
 
 
 
@@ -115,9 +116,9 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 }
 $dialog.Dispose()
 """
-    result = subprocess.run(['powershell.exe', '-NoProfile', '-STA', '-Command', script],
+    result = subprocess.run([windows_powershell(), '-NoProfile', '-STA', '-Command', script],
                             capture_output=True, text=True, encoding='utf-8-sig', timeout=180,
-                            check=True, creationflags=0x08000000)
+                            check=True, env=windows_shell_environment(), creationflags=0x08000000)
     return result.stdout.strip()
 
 
@@ -314,9 +315,9 @@ $npu=@(Get-CimInstance Win32_PnPEntity | Where-Object {$_.Name -match 'Intel.*(A
 @{intel_gpu=$gpu;intel_npu=$npu} | ConvertTo-Json -Compress
 """
     try:
-        output = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
+        output = subprocess.run([windows_powershell(), '-NoProfile', '-NonInteractive', '-Command', script],
                                 capture_output=True, text=True, encoding='utf-8-sig', check=True,
-                                timeout=15, creationflags=0x08000000)
+                                timeout=15, env=windows_shell_environment(), creationflags=0x08000000)
         result.update(json.loads(output.stdout))
     except (OSError, ValueError, subprocess.SubprocessError):
         result['message'] = 'Системный список устройств недоступен; см. устройства OpenVINO'

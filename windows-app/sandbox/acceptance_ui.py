@@ -198,8 +198,9 @@ def run(args, evidence):
             cdp.fill('#ollama-model', args.model)
             cdp.fill('#ollama-task', task)
             cdp.click('#ollama-connect')
-            wait_for(lambda: cdp.visible_text('#ollama-feedback'),
-                     lambda text: text.startswith('Подключена '))
+            wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'ollama'),
+                     lambda row: row['state'] == 'ready' and row.get('proof', {}).get('model') == args.model
+                     and row.get('proof', {}).get('task') == task, timeout=240)
 
         def completed():
             value = cdp.visible_text('#status')
@@ -225,9 +226,9 @@ def run(args, evidence):
                 cdp.evaluate('document.querySelector("#download-consent").closest("details").open=true')
                 cdp.click('#download-consent')
                 cdp.click('#download-model')
-                operation = wait_for(lambda: api('/api/setup')['operation'],
-                                     lambda op: op.get('kind') == 'download' and op['status'] in {'done', 'error'}, timeout=600)
-                if operation['status'] != 'done':
+                operation = wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'whisper'),
+                                     lambda op: op['state'] in {'ready', 'error'}, timeout=900)
+                if operation['state'] != 'ready':
                     raise RuntimeError(f'Whisper network download failed: {operation}')
             else:
                 objects = [obj for obj in plan['cache'] if obj['component'] == 'whisper-model']
@@ -244,22 +245,26 @@ def run(args, evidence):
                          lambda text: 'Модель подключена' in text)
             cdp.fill('#speech-device', 'CPU')
             wait_for(lambda: api('/api/compute-settings')['settings']['speech_device'] == 'CPU')
-            wait_for(lambda: not cdp.evaluate('document.querySelector("#start-npu").hidden'))
-            cdp.click('#start-npu')
+            if not api('/api/compute-settings')['capabilities']['CPU']['ready']:
+                wait_for(lambda: not cdp.evaluate('document.querySelector("#start-npu").hidden'))
+                cdp.click('#start-npu')
             compute = wait_for(lambda: api('/api/compute-settings'),
                                lambda state: not state['preparing'] and state['capabilities']['CPU']['ready'],
                                timeout=240)
             evidence['compute'] = compute
             if not args.reuse_expensive_proof:
                 cdp.click('#probe-model')
-                operation = wait_for(lambda: api('/api/setup')['operation'],
-                                     lambda op: op.get('kind') == 'probe' and op['status'] in {'done', 'error'}, timeout=180)
-                if operation['status'] != 'done' or not operation.get('result', {}).get('segments'):
+                operation = wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'whisper'),
+                                     lambda op: op['state'] in {'ready', 'error'}, timeout=240)
+                if operation['state'] != 'ready' or not operation.get('proof', {}).get('segments'):
                     raise RuntimeError(f'Real Whisper probe failed: {operation}')
                 evidence['probe'] = operation
             else:
                 evidence['probe_skipped'] = 'Exact-input previous proof; fresh guest CPU readiness verified'
             cdp.click('#setup-finish')
+            wait_for(lambda: cdp.evaluate('location.hash === "#records"'))
+            cdp.click('#new-record-open')
+            wait_for(lambda: cdp.evaluate('!document.querySelector("#new-record-view").hidden'))
             cdp.call('DOM.getDocument')
             document = cdp.call('DOM.getDocument')['root']['nodeId']
             node = cdp.call('DOM.querySelector', nodeId=document, selector='#file')['nodeId']

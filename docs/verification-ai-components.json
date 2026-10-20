@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-20",
+  "status": "INCOMPLETE_ACCEPTANCE_DO_NOT_MERGE",
+  "tested_installer_sha256": "d0df2521aa6d4e263a4107caad1f02d1001e00680b0cc2da8e8ebf20aa36fdee",
+  "host_api_stages": [
+    {
+      "name": "Whisper automatic download and real CPU inference",
+      "status": "PASS",
+      "state": "ready",
+      "message": "Проверка выполнена",
+      "proof": {
+        "device": "CPU",
+        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+        "segments": 3
+      },
+      "elapsed_seconds": 10.12,
+      "version": "small FP16",
+      "device": "CPU",
+      "fallback_reason": null
+    },
+    {
+      "name": "Ollama official standalone installation and API",
+      "status": "PASS",
+      "state": "ready",
+      "message": "Проверка выполнена",
+      "proof": {
+        "api_version": {
+          "version": "0.40.6"
+        },
+        "generation_checked": false
+      },
+      "elapsed_seconds": 24.28,
+      "version": "0.40.6",
+      "device": null,
+      "fallback_reason": null
+    },
+    {
+      "name": "Ollama small model download and real generation",
+      "status": "PASS",
+      "state": "ready",
+      "message": "Проверка выполнена",
+      "proof": {
+        "version": {
+          "version": "0.40.6"
+        },
+        "model": "qwen3:0.6b",
+        "task": "translation",
+        "generation_checked": true,
+        "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435"
+      },
+      "elapsed_seconds": 16.16,
+      "version": "0.40.6",
+      "device": "Ollama Auto",
+      "fallback_reason": null
+    },
+    {
+      "name": "Ollama notes model generation check",
+      "status": "PASS",
+      "state": "ready",
+      "message": "Проверка выполнена",
+      "proof": {
+        "version": {
+          "version": "0.40.6"
+        },
+        "model": "qwen3:0.6b",
+        "task": "notes",
+        "generation_checked": true,
+        "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435"
+      },
+      "elapsed_seconds": 1.03,
+      "version": "0.40.6",
+      "device": "Ollama Auto",
+      "fallback_reason": null
+    },
+    {
+      "name": "Real installed pipeline: translate",
+      "status": "PASS",
+      "elapsed_seconds": 6.25,
+      "segments": 1,
+      "has_translation": true
+    }
+  ],
+  "notes_pipeline": {
+    "status": "FAIL",
+    "error": "Конспект остановлен; исходная расшифровка сохранена. См. журнал.",
+    "diagnostic": "Cannot verify local model context; existing notes pipeline rejects selected small model metadata."
+  },
+  "sandbox": {
+    "policy": "SAC Off in disposable guest; not default signing/trust proof",
+    "installer": "PASS",
+    "desktop": "PASS",
+    "whisper_ui_retry": {
+      "status": "PASS",
+      "proof": {
+        "device": "CPU",
+        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+        "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+        "segments": 3
+      },
+      "checks": [
+        "reply dirty Escape retained input; real save/revision and timestamps verified",
+        "stage Back, query parameters, AI round trip and unsaved title recovery",
+        "two independent prompt drafts and selected task survive AI navigation",
+        "real SRT/VTT/TXT downloads through production links",
+        "keyboard stage arrows update selection and focus",
+        "skip link focuses the active stage without losing URL context",
+        "visual-only DOM stress fixture: 1000 long RU/UK utterances; no API/mock inference claim",
+        "four requested CSS viewport sizes and 125/150 percent DPR; no horizontal overflow"
+      ]
+    },
+    "note": "Initial UI driver failed on async wizard navigation; corrected retry in same clean-origin guest passed."
+  },
+  "pyannote_cpu": {
+    "status": "NOT_TESTED",
+    "note": "Managed installation code and offline contracts implemented; no completed installed E2E."
+  },
+  "pyannote_xpu": {
+    "status": "NOT_TESTED",
+    "note": "No completed new-manager Intel GPU E2E; previous project hardware proof is not claimed here."
+  },
+  "final_build_artifacts": [
+    {
+      "file": "VideoDescriptor-0.8.0-windows-x64-setup.exe",
+      "bytes": 223961553,
+      "sha256": "4a8a98ac178f73414bd753426c4fb94ad96d123de13a555f5d40d19ff991097d"
+    },
+    {
+      "file": "VideoDescriptor-0.8.0-windows-x64.zip",
+      "bytes": 265788777,
+      "sha256": "dd7168d17216c4851ed37707c70a396f3bad1fa261306b22fa71a33b25781631"
+    }
+  ],
+  "final_build_e2e": "NOT_COMPLETED; last acceptance artifact predates final small readiness/environment/focus fixes",
+  "merge": "Not performed: full acceptance is incomplete."
+}

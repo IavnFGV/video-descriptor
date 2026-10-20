@@ -44,8 +44,9 @@ def installed_workflow(root, port, output, *, with_ollama=False):
         wait_for(lambda: cdp.evaluate('!!document.querySelector("#setup-finish")'))
         if cdp.evaluate('document.querySelector("#setup-finish").getClientRects().length'):
             cdp.click('#setup-finish')
-        else:
-            cdp.click('#records-open')
+            wait_for(lambda: cdp.evaluate('location.hash === "#records"'))
+        cdp.click('#new-record-open')
+        wait_for(lambda: cdp.evaluate('!document.querySelector("#new-record-view").hidden'))
         document = cdp.call('DOM.getDocument')['root']['nodeId']
         node = cdp.call('DOM.querySelector', nodeId=document, selector='#file')['nodeId']
         cdp.call('DOM.setFileInputFiles', nodeId=node, files=[str(root / 'windows-app/samples/speech-check.mp4')])

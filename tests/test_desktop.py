@@ -22,12 +22,13 @@ spec.loader.exec_module(desktop)
 
 
 @pytest.fixture
-def installation(tmp_path):
+def installation(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user-data"))
     shutil.copytree(ROOT / 'video_descriptor', tmp_path / 'video_descriptor',
                     ignore=shutil.ignore_patterns('__pycache__'))
     folder = tmp_path / 'windows-app'
     folder.mkdir()
-    for name in ('app.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component-manifest.json'):
+    for name in ('app.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component_manager.py', 'model_download.py', 'component-manifest.json'):
         shutil.copyfile(ROOT / 'windows-app' / name, folder / name)
     shutil.copytree(ROOT / 'windows-app/ui', folder / 'ui')
     (tmp_path / 'scripts').mkdir()

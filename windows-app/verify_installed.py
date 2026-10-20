@@ -27,7 +27,9 @@ def verify_payload(root, archive):
     installed = json.loads((root / 'release-manifest.json').read_text(encoding='utf-8'))
     if installed != expected:
         raise ValueError('Installed release manifest does not match the tested ZIP')
-    critical = {'windows-app/app.py', 'windows-app/compute.py', 'windows-app/setup_service.py',
+    critical = {'windows-app/component_manager.py', 'windows-app/component-manifest.json',
+                'windows-app/requirements-pyannote-cpu.lock', 'windows-app/requirements-pyannote-xpu.lock',
+                'windows-app/diarization_worker.py', 'windows-app/app.py', 'windows-app/compute.py', 'windows-app/setup_service.py',
                 'windows-app/whisper_worker.py', 'windows-app/desktop-sdk/VideoDescriptor.exe'}
     entries = {item['path']: item for item in expected['files']}
     for name in critical:

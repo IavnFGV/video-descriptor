@@ -28,7 +28,7 @@ REPOSITORY = HERE.parent
 sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
-VERSION = '0.7.0-prototype'
+VERSION = '0.8.0-prototype'
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 
@@ -225,6 +225,8 @@ def make_handler(value, instance):
     from video_descriptor.jobs import enqueue, read_json, start_worker
     manager = ComputeManager(value, HERE) if 'npu_worker_directory' in value else None
     setup = SetupService(manager, HERE) if manager is not None else None
+    from component_manager import ComponentManager
+    components = ComponentManager(setup) if setup else None
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
@@ -265,6 +267,8 @@ def make_handler(value, instance):
                 return self.json_response(200, manager.snapshot())
             if path == '/api/setup' and setup is not None:
                 return self.json_response(200, setup.snapshot())
+            if path == '/api/components' and components is not None:
+                return self.json_response(200, components.snapshot())
             if path == '/api/setup/diagnostics' and setup is not None:
                 return self.json_response(200, setup.diagnostics())
             if path == '/api/setup/ollama' and setup is not None:
@@ -296,7 +300,7 @@ def make_handler(value, instance):
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/native/postprocess'}:
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
                     origin = self.headers.get('Origin')
@@ -319,6 +323,14 @@ def make_handler(value, instance):
                     body = json.loads(self.rfile.read(length))
                     if not isinstance(body, dict):
                         raise TypeError('Ожидается объект настроек модели')
+                    if path == '/api/setup/external':
+                        pages = {'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
+                        if body.get('page') not in pages:
+                            raise ValueError('Неизвестная страница')
+                        webbrowser.open(pages[body['page']])
+                        return self.json_response(200, {'opened': True})
+                    if path == '/api/components':
+                        return self.json_response(202, components.action(body.get('component'), body))
                     if path == '/api/setup/refresh':
                         with manager._lock:
                             setup.guard()
@@ -333,6 +345,7 @@ def make_handler(value, instance):
                     if path == '/api/setup/gemini':
                         return self.json_response(200, setup.gemini(body))
                     if path == '/api/native/postprocess':
+                        setup.guard()
                         if body.get('task') == 'diarize':
                             from video_descriptor.diarization_postprocess import (
                                 enqueue as enqueue_diarization,

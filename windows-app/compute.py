@@ -110,8 +110,8 @@ class ComputeManager:
         return {'settings': settings, 'capabilities': caps, 'selected': selected,
                 'preparing': self.preparing, 'operation': self.operation, 'error': self.last_error}
 
-    def make_plan(self, requested):
-        if self.operation and self.operation != 'probe':
+    def make_plan(self, requested, *, operation=None):
+        if self.operation and self.operation not in {'probe', operation}:
             raise BackendUnavailable('Дождитесь завершения настройки модели')
         resolved = plan(requested, self.capabilities(), self.backends, self.runtime)
         self.failed.update({r['device']: r['reason'] for r in resolved['selection_reasons']})

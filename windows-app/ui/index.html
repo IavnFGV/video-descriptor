@@ -142,7 +142,7 @@
 <div id="setup-wizard" hidden>
 <section class="card">
 <h2>Распознавание · обязательные шаги</h2>
-<p class="footnote">1. Проверьте компоненты → 2. Подключите Whisper → 3. Подготовьте распознавание. Перевод, облако, OCR и диаризацию можно пропустить.</p>
+<p class="footnote">1. Распознавание → 2. Перевод и конспекты → 3. Говорящие → 4. Готовность. Необязательные шаги можно пропустить и настроить позднее.</p>
 <a class="vd-link" href="#diagnostics">Проверить компоненты в диагностике →</a>
 </section>
 <section class="card" id="setup-card" aria-label="Настройка распознавания">
@@ -150,6 +150,7 @@
 <h2>Подготовим приложение к работе</h2>
 <button id="setup-toggle" class="vd-button vd-button--quiet" type="button" aria-controls="setup-form" aria-expanded="false">Настроить модель</button>
 </div>
+<div id="component-whisper"></div>
 <p id="setup-summary" class="footnote">Проверяем установленную модель…</p>
 <form id="setup-form" hidden>
 <p class="footnote">Подключите имеющуюся Whisper small FP16 в формате OpenVINO. Файлы останутся на месте. Проверка ничего не скачивает и не меняет модели.</p>
@@ -170,7 +171,7 @@
 <p class="footnote">Требуются OpenVINO/GenAI 2026.4.1 (включены в установщик), около 550 МиБ на диске и CPU либо совместимый Intel GPU/NPU с драйвером. Существующие модели сохраняются.</p>
 <label class="check-label">
 <input id="download-consent" type="checkbox" name="download-consent"> Разрешаю скачать эту модель с Hugging Face</label>
-<button type="button" id="download-model" class="vd-button">Скачать Whisper small FP16</button>
+<button type="button" id="download-model" class="vd-button">Установить и проверить Whisper</button>
 </details>
 <p class="footnote">После подключения нажмите «Подготовить распознавание» в этом разделе. Дополнительная короткая проверка выполняется только по вашей команде.</p>
 <p class="footnote">После подготовки модели проверьте распознавание на короткой записи из установщика. Выбор файла не требуется.</p>
@@ -198,7 +199,15 @@
 <h2>Перевод через Ollama</h2>
 <button type="button" id="ollama-refresh" class="vd-button vd-button--quiet">Обновить список</button>
 </div>
-<p class="footnote">Если Ollama отсутствует: официальная инструкция https://ollama.com/download/windows (откройте в браузере). Установите Ollama и нужную модель, затем обновите список. Выберите уже установленную языковую модель. Ничего не скачивается. Ollama самостоятельно управляет устройством для перевода.</p>
+<p class="footnote">Ollama запускает локальные языковые модели для перевода и конспектов. Работающая Ollama подключается без изменений. При установке официальный Windows ZIP размещается в пользовательском каталоге приложения; права администратора не нужны.</p>
+<div id="component-ollama"></div>
+<p id="ollama-install-info" class="footnote"></p>
+<label class="check-label"><input id="ollama-install-consent" type="checkbox"> Разрешаю загрузить и установить Ollama</label>
+<button type="button" id="ollama-install" class="vd-button">Установить Ollama</button>
+<label class="vd-field">Скачать языковую модель<select id="ollama-catalog" class="vd-select"></select></label>
+<p id="ollama-catalog-info" class="footnote"></p>
+<label class="check-label"><input id="ollama-pull-consent" type="checkbox"> Разрешаю загрузить выбранную модель</label>
+<button type="button" id="ollama-pull" class="vd-button">Скачать и проверить генерацию</button>
 <form id="ollama-form">
 <label class="vd-field">Модель перевода<select id="ollama-model" class="vd-select" name="ollama-model">
 <option value="">Проверяем Ollama…</option>
@@ -239,7 +248,23 @@
 </p>
 </form>
 </section>
+<section class="card" aria-label="Настройка говорящих">
+<h2>3. Говорящие · необязательно</h2>
+<p class="footnote">Автоматически подготовим отдельное окружение и модель community-1. Системный Python не нужен. Требуется не менее 8 ГиБ свободного места; загрузка пакетов может занять несколько гигабайт. Распознавание остаётся в своём окружении.</p>
+<div id="component-diarization"></div>
+<label class="vd-field">Устройство диаризации<select id="diarization-device" class="vd-select"><option value="auto">Auto · Intel GPU → CPU с объяснением</option><option value="cpu">CPU</option><option value="xpu">Intel GPU · PyTorch XPU</option></select></label>
+<p class="footnote">Для community-1 требуется принять условия Hugging Face и предоставить токен чтения. Токен защищается Windows DPAPI; в отчёты не попадает.</p>
+<button type="button" id="hf-terms" class="vd-button">Открыть условия community-1</button>
+<button type="button" id="hf-tokens" class="vd-button">Получить токен Hugging Face</button>
+<label class="vd-field">Токен чтения Hugging Face (пустое поле сохраняет прежний)<input id="hf-token" type="password" autocomplete="off" maxlength="512" class="vd-input"></label>
+<label class="check-label"><input id="diarization-consent" type="checkbox"> Условия доступа приняты; разрешаю загрузку окружения и модели</label>
+<button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button>
+<p class="footnote">Явный XPU не заменяется на CPU. Auto проверяет CPU после ошибки XPU и показывает причину. NPU для диаризации не используется.</p>
+</section>
 <section class="card">
+<h2>4. Готовность</h2>
+<div id="component-summary"></div>
+<p id="component-directory" class="footnote"></p>
 <button id="setup-finish" type="button" class="vd-button vd-button--primary">К записям →</button>
 <p class="footnote">Вернуться можно через «Настройки AI». Для локального распознавания достаточно Whisper, CPU и FFmpeg.</p>
 </section>
