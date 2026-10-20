@@ -134,3 +134,12 @@ def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch
         (dist / 'acceptance-provenance.json').write_text('{"git_sha":"accepted-sha","artifacts":[]}')
     with pytest.raises(AssertionError):
         module.main()
+
+
+
+def test_windows_workflows_resolve_artifact_names_from_release_inputs():
+    for name in ('windows-smoke.yml', 'full-acceptance.yml'):
+        source = (ROOT / '.github/workflows' / name).read_text()
+        assert 'VideoDescriptor-0.7.0' not in source and 'VideoDescriptor-0.8.0' not in source
+        assert 'Resolve versioned artifact paths' in source
+        assert 'release-inputs.json' in source and '$env:VD_ZIP' in source and '$env:VD_INSTALLER' in source
