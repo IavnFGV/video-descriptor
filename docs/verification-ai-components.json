@@ -1,6 +1,6 @@
 {
   "date": "2026-10-20",
-  "status": "FINAL_ACCEPTANCE_IN_PROGRESS_DO_NOT_MERGE",
+  "status": "PASS",
   "initial_attempt": {
     "date": "2026-10-20",
     "status": "INCOMPLETE_ACCEPTANCE_DO_NOT_MERGE",
@@ -164,8 +164,9 @@
     },
     "installed_existing_ollama": {
       "status": "PASS",
+      "zip_sha256": "1ebd3d97922c04fa7e47f3286b3c654f16a81eb764d5d77be8bd0f7431f4ca57",
       "endpoint_transition": {
-        "before": "http://127.0.0.1:62527",
+        "before": "http://127.0.0.1:56067",
         "after": "http://127.0.0.1:11434",
         "mode": "existing",
         "method": "explicit connection change after installed application startup"
@@ -173,36 +174,45 @@
       "stages": [
         {
           "stage": "desktop",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 7.078
         },
         {
           "stage": "whisper",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 14.89
         },
         {
           "stage": "ollama-install",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 0.157
         },
         {
           "stage": "ollama-model",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 0.203
         },
         {
           "stage": "ollama-inference",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 3.594
         },
         {
           "stage": "translation",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 39.906
         },
         {
           "stage": "notes",
-          "status": "PASS"
+          "status": "PASS",
+          "elapsed_seconds": 39.39
         }
       ],
       "ui_status": "PASS",
-      "zip_sha256": "e898a962a8fb43e3fe19f78acbaaa2fdfb7421962f5dbc5111c035bc6fb7df79",
-      "note": "Read-only copy of already cached public qwen3.5:9b; no model download or user-service changes."
+      "external_survived_close": true,
+      "model_names_and_digests_unchanged": true,
+      "model_weights_downloaded": false,
+      "sample": "built-in acceptance media only"
     },
     "managed_pyannote_backend": {
       "status": "PASS",
@@ -380,8 +390,558 @@
         }
       ]
     },
-    "final_installed_component_ui": "RUNNING",
-    "ci": "Pending updated branch run; Windows artifact names now derive from release-inputs.json",
-    "local_fast": "353 passed, 2 skipped; actionlint, Ruff, JS syntax and preservation contracts passed"
-  }
+    "final_installed_component_ui": {
+      "status": "PASS",
+      "zip_sha256": "1ebd3d97922c04fa7e47f3286b3c654f16a81eb764d5d77be8bd0f7431f4ca57",
+      "cpu": {
+        "status": "PASS",
+        "method": "real installed WebView2 DOM and pointer input",
+        "environment": "Windows host",
+        "component_source_sha256": "31502881700d27250ad02c374f155358bbb31536b5916b5f86e58187ac74d924",
+        "external_reuse": {
+          "private_model_directory_existed_before": false,
+          "private_model_directory_exists_after": false,
+          "ownership": "external"
+        },
+        "stages": [
+          {
+            "name": "Verify Whisper and prepare installed backend through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 3.75,
+            "proof": {
+              "device": "CPU",
+              "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "segments": 3
+            }
+          },
+          {
+            "name": "Use existing Ollama without second server or downloads",
+            "status": "PASS",
+            "state": "installed",
+            "elapsed_seconds": 0.08,
+            "proof": {
+              "api_version": {
+                "version": "0.40.6"
+              },
+              "mode": "existing",
+              "endpoint": "http://127.0.0.1:11434",
+              "generation_checked": false
+            }
+          },
+          {
+            "name": "Select and test existing translation model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 10.67,
+            "proof": {
+              "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3.5:9b",
+              "generation_checked": true,
+              "task": "translation"
+            }
+          },
+          {
+            "name": "Select and test notes model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 0.61,
+            "proof": {
+              "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3.5:9b",
+              "generation_checked": true,
+              "task": "notes"
+            }
+          },
+          {
+            "name": "Install isolated CPython and pyannote CPU through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 350.34,
+            "proof": {
+              "model_revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+              "duration": 9.138125,
+              "pyannote": "4.0.7",
+              "device": "cpu",
+              "requirements_sha256": "0fc26b281a0c31e27739276061c123e1e149798fafed934de30bdacc05147a2c",
+              "device_name": "CPU",
+              "torch": "2.14.1+cpu",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "python": "3.12.15",
+              "inference_seconds": 0.9529999999995198,
+              "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+              "turn_count": 3
+            }
+          },
+          {
+            "name": "Real UI pipeline: translation",
+            "status": "PASS",
+            "elapsed_seconds": 33.12,
+            "segments": 1,
+            "proof": {}
+          },
+          {
+            "name": "Real UI pipeline: notes",
+            "status": "PASS",
+            "elapsed_seconds": 41.17,
+            "segments": 1,
+            "proof": {}
+          },
+          {
+            "name": "Real UI pipeline: diarization",
+            "status": "PASS",
+            "elapsed_seconds": 14.56,
+            "segments": 1,
+            "proof": {}
+          }
+        ]
+      },
+      "xpu": {
+        "status": "PASS",
+        "method": "real installed WebView2 DOM and pointer input",
+        "environment": "Windows host",
+        "component_source_sha256": "31502881700d27250ad02c374f155358bbb31536b5916b5f86e58187ac74d924",
+        "external_reuse": {
+          "private_model_directory_existed_before": false,
+          "private_model_directory_exists_after": false,
+          "ownership": "external"
+        },
+        "stages": [
+          {
+            "name": "Verify Whisper and prepare installed backend through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 3.22,
+            "proof": {
+              "device": "CPU",
+              "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "segments": 3
+            }
+          },
+          {
+            "name": "Use existing Ollama without second server or downloads",
+            "status": "PASS",
+            "state": "installed",
+            "elapsed_seconds": 0.08,
+            "proof": {
+              "api_version": {
+                "version": "0.40.6"
+              },
+              "mode": "existing",
+              "endpoint": "http://127.0.0.1:11434",
+              "generation_checked": false
+            }
+          },
+          {
+            "name": "Select and test existing translation model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 10.17,
+            "proof": {
+              "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3.5:9b",
+              "generation_checked": true,
+              "task": "translation"
+            }
+          },
+          {
+            "name": "Select and test notes model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 0.61,
+            "proof": {
+              "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3.5:9b",
+              "generation_checked": true,
+              "task": "notes"
+            }
+          },
+          {
+            "name": "Install isolated CPython and pyannote XPU through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 346.84,
+            "proof": {
+              "model_revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+              "duration": 9.138125,
+              "pyannote": "4.0.7",
+              "device": "xpu",
+              "requirements_sha256": "4b3ad850685438b0055987524d3abbfa1ac00d28fc93bc7944c7a6d25117edd6",
+              "device_name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+              "torch": "2.14.1+xpu",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "python": "3.12.15",
+              "inference_seconds": 4.2039999999997235,
+              "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+              "turn_count": 23
+            }
+          },
+          {
+            "name": "Real UI pipeline: translation",
+            "status": "PASS",
+            "elapsed_seconds": 47.33,
+            "segments": 1,
+            "proof": {}
+          },
+          {
+            "name": "Real UI pipeline: notes",
+            "status": "PASS",
+            "elapsed_seconds": 40.73,
+            "segments": 1,
+            "proof": {}
+          },
+          {
+            "name": "Real UI pipeline: diarization",
+            "status": "PASS",
+            "elapsed_seconds": 20.62,
+            "segments": 1,
+            "proof": {}
+          }
+        ]
+      }
+    },
+    "ci": {
+      "status": "PASS",
+      "tested_code_commit": "69c832fd2b459e4876af140a56388daaab8dd7b1",
+      "checks": [
+        {
+          "name": "required",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39451042228/job/118729307569"
+        },
+        {
+          "name": "container / smoke",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39451042228/job/118727034237"
+        },
+        {
+          "name": "windows / smoke",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39451042228/job/118727034103"
+        },
+        {
+          "name": "Fast (windows-2025)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39451042228/job/118725775039"
+        },
+        {
+          "name": "Fast (ubuntu-24.04)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39451042228/job/118725774916"
+        },
+        {
+          "name": "Configuration and paths",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/actions/runs/39451042228/job/118725592363"
+        },
+        {
+          "name": "GitGuardian Security Checks",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/IavnFGV/video-descriptor/runs/118725555851"
+        }
+      ]
+    },
+    "local_fast": "355 passed, 2 skipped; actionlint, Ruff, JS and preservation contracts passed",
+    "final_artifact_scope": {
+      "status": "PASS",
+      "compared_files": 77,
+      "old_zip_sha256": "1ebd3d97922c04fa7e47f3286b3c654f16a81eb764d5d77be8bd0f7431f4ca57",
+      "final_zip_sha256": "de8a1fd36878ecd2414935cbb8fc5e86fbcadcc00bf098c2c04dfe2de9f5b558",
+      "changed_runtime_sources": [
+        "windows-app/component_manager.py"
+      ],
+      "reason": "Only clean-Windows CRT and long-path handling differ from the full CPU/XPU, translation/notes UI acceptance artifact."
+    },
+    "self_managed_service_url": {
+      "status": "PASS",
+      "mode": "service",
+      "url": "http://localhost:11434",
+      "version": {
+        "version": "0.40.6"
+      },
+      "models": [
+        "qwen3.5:9b",
+        "qwen3:0.6b"
+      ],
+      "restart_retains_connection": true,
+      "external_survives_close": true,
+      "binary_downloads": 0,
+      "owned_server_process": false,
+      "private_model_directory_created": false
+    },
+    "installed_but_stopped": {
+      "status": "PASS",
+      "fixture": "verified test-owned executable, server stopped; no user executable started",
+      "detected": true,
+      "service_ready": false,
+      "message": "Ollama установлена, но сервер выключен. Запустите её отдельным действием.",
+      "check_and_pull_errors": [
+        "Ollama установлена, но сервер выключен. Запустите Ollama отдельным действием.",
+        "Ollama установлена, но сервер выключен. Запустите Ollama отдельным действием."
+      ],
+      "processes_started": 0,
+      "downloads": 0,
+      "endpoint_unchanged": true
+    },
+    "current_source_app_local_crt_hardware": {
+      "status": "PASS",
+      "source_sha256": "bf8d115366962802283cfcca9d5abf95365817e18d3119a19fc98979a60495fb",
+      "devices": [
+        {
+          "device": "cpu",
+          "status": "PASS",
+          "proof": {
+            "duration": 9.138125,
+            "pyannote": "4.0.7",
+            "device": "cpu",
+            "device_name": "CPU",
+            "torch": "2.14.1+cpu",
+            "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+            "python": "3.12.15",
+            "inference_seconds": 0.8599999999999,
+            "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+            "turn_count": 3
+          }
+        },
+        {
+          "device": "xpu",
+          "status": "PASS",
+          "proof": {
+            "duration": 9.138125,
+            "pyannote": "4.0.7",
+            "device": "xpu",
+            "device_name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+            "torch": "2.14.1+xpu",
+            "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+            "python": "3.12.15",
+            "inference_seconds": 4.781999999999925,
+            "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+            "turn_count": 23
+          }
+        }
+      ]
+    },
+    "final_sandbox": {
+      "status": "PASS",
+      "installer_sha256": "5816175ea5ea9bc0a55c90a22619a7d2b039030d406a18a9be54473c63ebac03",
+      "zip_sha256": "de8a1fd36878ecd2414935cbb8fc5e86fbcadcc00bf098c2c04dfe2de9f5b558",
+      "component_source_sha256": "bf8d115366962802283cfcca9d5abf95365817e18d3119a19fc98979a60495fb",
+      "policy": "Disposable Windows Sandbox; guest-only SAC Off and one same-guest restart; no host security changes. Functional proof, not default-policy signing proof.",
+      "baseline_stages": [
+        {
+          "name": "preflight",
+          "status": "PASS"
+        },
+        {
+          "name": "installer",
+          "status": "PASS"
+        },
+        {
+          "name": "desktop",
+          "status": "PASS"
+        },
+        {
+          "name": "whisper",
+          "status": "PASS"
+        }
+      ],
+      "same_guest_restart": true,
+      "existing_and_cpu": {
+        "status": "PASS",
+        "method": "real installed WebView2 DOM and pointer input",
+        "environment": "Windows Sandbox",
+        "component_source_sha256": "bf8d115366962802283cfcca9d5abf95365817e18d3119a19fc98979a60495fb",
+        "external_reuse": {
+          "private_model_directory_existed_before": false,
+          "private_model_directory_exists_after": false,
+          "ownership": "external"
+        },
+        "stages": [
+          {
+            "name": "Verify Whisper and prepare installed backend through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 17.75,
+            "proof": {
+              "device": "CPU",
+              "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "segments": 3
+            }
+          },
+          {
+            "name": "Use existing Ollama without second server or downloads",
+            "status": "PASS",
+            "state": "installed",
+            "elapsed_seconds": 0.09,
+            "proof": {
+              "api_version": {
+                "version": "0.40.6"
+              },
+              "mode": "existing",
+              "endpoint": "http://127.0.0.1:11434",
+              "generation_checked": false
+            }
+          },
+          {
+            "name": "Select and test existing translation model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 5.67,
+            "proof": {
+              "model_digest": "6f76d4346c34ba89df6e137fb661b4bb4daf322c1151b6ef0dfda981070a851f",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3:0.6b",
+              "generation_checked": true,
+              "task": "translation"
+            }
+          },
+          {
+            "name": "Select and test notes model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 0.61,
+            "proof": {
+              "model_digest": "6f76d4346c34ba89df6e137fb661b4bb4daf322c1151b6ef0dfda981070a851f",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3:0.6b",
+              "generation_checked": true,
+              "task": "notes"
+            }
+          },
+          {
+            "name": "Install isolated CPython and pyannote CPU through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 128.03,
+            "proof": {
+              "model_revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+              "duration": 9.138125,
+              "pyannote": "4.0.7",
+              "device": "cpu",
+              "requirements_sha256": "0fc26b281a0c31e27739276061c123e1e149798fafed934de30bdacc05147a2c",
+              "device_name": "CPU",
+              "torch": "2.14.1+cpu",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "python": "3.12.15",
+              "inference_seconds": 2.3120000000001255,
+              "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+              "turn_count": 3
+            }
+          },
+          {
+            "name": "Real UI pipeline: diarization",
+            "status": "PASS",
+            "elapsed_seconds": 16.59,
+            "segments": 1,
+            "proof": {}
+          }
+        ]
+      },
+      "explicit_managed": {
+        "status": "PASS",
+        "method": "real installed WebView2 DOM and pointer input",
+        "environment": "Windows Sandbox",
+        "component_source_sha256": "bf8d115366962802283cfcca9d5abf95365817e18d3119a19fc98979a60495fb",
+        "stages": [
+          {
+            "name": "Verify Whisper and prepare installed backend through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 7.31,
+            "proof": {
+              "device": "CPU",
+              "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+              "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+              "segments": 3
+            }
+          },
+          {
+            "name": "Install official Ollama through AI Settings",
+            "status": "PASS",
+            "state": "installed",
+            "elapsed_seconds": 27.64,
+            "proof": {
+              "api_version": {
+                "version": "0.40.6"
+              },
+              "generation_checked": false
+            }
+          },
+          {
+            "name": "Select and test existing translation model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 2.19,
+            "proof": {
+              "model_digest": "6f76d4346c34ba89df6e137fb661b4bb4daf322c1151b6ef0dfda981070a851f",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3:0.6b",
+              "generation_checked": true,
+              "task": "translation"
+            }
+          },
+          {
+            "name": "Select and test notes model through UI",
+            "status": "PASS",
+            "state": "ready",
+            "elapsed_seconds": 0.59,
+            "proof": {
+              "model_digest": "6f76d4346c34ba89df6e137fb661b4bb4daf322c1151b6ef0dfda981070a851f",
+              "version": {
+                "version": "0.40.6"
+              },
+              "model": "qwen3:0.6b",
+              "generation_checked": true,
+              "task": "notes"
+            }
+          }
+        ]
+      },
+      "external_survives_application_exit": true,
+      "external_models_unchanged": true,
+      "managed_server_stopped": true,
+      "cache_policy": "Official archives and pinned already-authorized public model weights reused; fresh CPython/venvs/dependency installation and real inference; no prebuilt environments or unnecessary model download."
+    },
+    "clean_windows_crt_regression": {
+      "initial_failure": "Clean guest had no system VC++ runtime. PyTorch could not load c10.dll and pip stopped before finishing pyannote.",
+      "fix": "SHA256-verified installer CRT DLLs staged into each new venv Library/bin before pip. No system install or administrator requirement.",
+      "long_path_failure": "Fresh standard-length candidate hit WinError 206 in PyTorch bundled license paths; short-path and extended-prefix controls isolated the cause.",
+      "long_path_fix": "Explicit extended-length pip prefix, matching size accounting and owned-runtime removal; no machine policy changes.",
+      "final_status": "PASS"
+    }
+  },
+  "limitations": [
+    "Functional Sandbox uses explicitly authorized guest-only SAC Off; unsigned installer trust under standard SAC policy is not established.",
+    "Hugging Face terms/access remain a user prerequisite. Final community-1 tests reused already-authorized pinned weights; no new credential/terms acceptance was impersonated.",
+    "Remote Ollama URLs are not supported in the loopback-only MVP. Translation quality depends on the chosen model.",
+    "The final code CI is green. Any subsequent evidence-only commit is checked again before merge."
+  ]
 }

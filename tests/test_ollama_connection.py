@@ -1,8 +1,10 @@
 """Connection ownership and endpoint regression contracts; no real user service touched."""
 import importlib
 import json
+import socket
 import sys
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -204,11 +206,12 @@ def test_managed_install_uses_only_owned_binary_after_explicit_consent(manager, 
     process.poll.return_value = None
     spawn = Mock(return_value=process)
     monkeypatch.setattr(cm.subprocess, 'Popen', spawn)
+    monkeypatch.setattr(socket.socket, 'connect_ex', lambda self, address: 1)
     manager.action('ollama', {'action': 'install', 'mode': 'managed', 'confirmed': True})
-    for _ in range(200):
-        if not manager.active:
-            break
-        __import__('time').sleep(.01)
+    deadline = time.monotonic() + 5
+    while manager.active and time.monotonic() < deadline:
+        time.sleep(.01)
+    assert manager.active is None
     assert manager.components['ollama']['state'] == 'installed'
     assert manager.manager.value['ollama_mode'] == 'managed'
     assert spawn.call_args.args[0] == [str(target / 'ollama.exe'), 'serve']

@@ -120,5 +120,12 @@ public model, without downloading model weights or changing the user's Ollama.
 Fresh managed CPython 3.12.15, pyannote 4.0.7 and pinned PyTorch CPU/XPU environments both
 performed real inference on the Windows host; XPU used Intel Arc 140V. Existing approved
 community-1 weights matched the pinned checksums and were reused. Final installed component
-UI acceptance and the updated CI run are recorded in that report when completed. The initial
-notes-context error is fixed; actual model-context validation remains enabled.
+UI acceptance passed on CPU and XPU, including real translation, notes and diarization.
+A clean Sandbox also passed fresh managed CPython/pyannote CPU installation, real diarization,
+existing Ollama reuse, explicit managed installation, unchanged external model digests,
+external-service survival and owned-server shutdown. The guest used authorized SAC Off;
+this is functional proof rather than standard-policy signing proof.
+The initial notes-context error is fixed; actual model-context validation remains enabled.
+Clean-guest checks additionally exposed missing VC++ libraries and PyTorch long-path limits;
+both are handled app-locally without administrator rights or machine-policy changes.
+Exact artifact/source hashes and CI results are retained in the report.
