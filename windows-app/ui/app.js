@@ -82,7 +82,7 @@
       const options=s.models.map(m=>{const o=document.createElement('option');o.value=m.name;o.textContent=`${m.name} · ${(m.bytes/1024**3).toFixed(1)} ГиБ`;return o;});
       if(!options.length){const o=document.createElement('option');o.value='';o.textContent='Нет доступных моделей';options.push(o);}
       list.replaceChildren(...options);if(s.models.some(m=>m.name===s.selected))list.value=s.selected;
-      $('ollama-connect').disabled=!s.models.length;$('ollama-feedback').textContent=s.message+(s.ready?' · '+s.selected:'');
+      $('ollama-connect').disabled=componentBusy||!s.models.length;$('ollama-feedback').textContent=s.message+(s.ready?' · '+s.selected:'');
     }catch(e){$('ollama-feedback').textContent=e.message;}
   }
   function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className='vd-status';b.dataset.tone=ready?'success':'warning';b.textContent=suffix||(ready?'Готово':'Не подключено');row.append(a,b);return row; }
@@ -312,7 +312,8 @@
     if(profile)$('ollama-install-info').textContent='Источник: '+profile.source+' · версия '+profile.version+' · '+(profile.bytes/1024**3).toFixed(2)+' ГиБ. Размер распакованного компонента больше.';
     if(!$('ollama-catalog').options.length)for(const model of data.profiles.ollama_models||[]){const o=document.createElement('option');o.value=model.name;o.textContent=model.name+' · ≈'+(model.bytes/1024**3).toFixed(1)+' ГиБ';$('ollama-catalog').append(o);}
     catalogInfo();
-    for(const id of ['ollama-install','ollama-pull','diarization-install','ollama-use-connection','ollama-start-existing'])$(id).disabled=!!data.active;
+    for(const id of ['ollama-install','ollama-pull','diarization-install','ollama-use-connection','ollama-start-existing','ollama-connect'])$(id).disabled=!!data.active;
+    if(!$('ollama-model').value)$('ollama-connect').disabled=true;
     clearTimeout(componentTimer);
     if(data.active)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){ollamaStatus();readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
   }

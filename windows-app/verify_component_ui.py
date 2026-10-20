@@ -52,7 +52,7 @@ def main():
             destination = Path(api('/api/components')['root'])
             downloads = destination / 'downloads'
             downloads.mkdir(exist_ok=True)
-            for key in ('ollama', 'managed_python'):
+            for key in (('ollama', 'managed_python') if args.install_managed else ('managed_python',)):
                 item = manifest[key]
                 source = args.cache / 'downloads' / item['sha256']
                 if source.is_file():
@@ -63,6 +63,8 @@ def main():
             model_name = 'community-1-' + manifest['diarization_model']['revision']
             if (args.cache / model_name).is_dir():
                 shutil.copytree(args.cache / model_name, destination / model_name, dirs_exist_ok=True)
+            if args.install_managed and (args.cache / 'ollama-models').is_dir():
+                shutil.copytree(args.cache / 'ollama-models', destination / 'ollama-models', dirs_exist_ok=True)
             report['cache_note'] = 'Reviewed archive/model cache copied; application verifies hashes and performs actual install/inference. No prebuilt environments.'
         cdp.click('#setup-open')
         wait_for(lambda: cdp.evaluate('!document.querySelector("#setup-wizard").hidden'))
@@ -73,6 +75,7 @@ def main():
             started = time.monotonic()
             if consent and not cdp.evaluate(f'document.querySelector({json.dumps(consent)}).checked'):
                 cdp.click(consent)
+            wait_for(lambda: cdp.evaluate(f'!document.querySelector({json.dumps(selector)}).disabled && !document.querySelector("#component-{key} button")?.textContent.includes("Остановить")'))
             cdp.click(selector)
             wait_for(lambda: row(key), lambda item: item.get('operation_id') != before.get('operation_id')
                      or item['state'] in {'downloading', 'installing', 'verifying'}, timeout=30)
@@ -87,15 +90,22 @@ def main():
             save()
             if not ready or task and proof.get('task') != task:
                 raise RuntimeError(name + ': ' + item['message'])
+            wait_for(lambda: cdp.evaluate(f'document.querySelector("#component-{key} .vd-status").textContent.includes({json.dumps(item["message"])}) && !document.querySelector("#component-{key} button").textContent.includes("Остановить")'))
             cdp.screenshot(args.reports / (key + '-' + str(len(report['stages'])) + '.png'))
             return evidence
+        run_action('Verify Whisper and prepare installed backend through UI', 'whisper', '#probe-model', timeout=300)
         report['initial_ollama_state'] = row('ollama')['state']
+        model_directory = Path(api('/api/components')['root']) / 'ollama-models'
+        private_models_before = model_directory.exists()
         if args.install_managed:
             cdp.fill('#ollama-mode', 'managed')
             run_action('Install official Ollama through AI Settings', 'ollama', '#ollama-install', consent='#ollama-install-consent')
         else:
             cdp.fill('#ollama-mode', 'existing')
             run_action('Use existing Ollama without second server or downloads', 'ollama', '#ollama-use-connection')
+            report['external_reuse'] = {'private_model_directory_existed_before': private_models_before, 'private_model_directory_exists_after': model_directory.exists(), 'ownership': api('/api/components')['ollama_connection']['ownership']}
+            if not private_models_before and model_directory.exists():
+                raise AssertionError('External connection unexpectedly created a private model directory')
         wait_for(lambda: cdp.evaluate('document.querySelector("#ollama-catalog").options.length > 0'))
         if args.ollama_model in {item['name'] for item in manifest['ollama_models']}:
             cdp.fill('#ollama-catalog', args.ollama_model)
@@ -109,6 +119,8 @@ def main():
         cdp.click('#ollama-refresh')
         wait_for(lambda: cdp.evaluate(f'[...document.querySelector("#ollama-model").options].some(o=>o.value==={json.dumps(args.ollama_model)})'))
         cdp.fill('#ollama-model', args.ollama_model)
+        cdp.fill('#ollama-task', 'translation')
+        run_action('Select and test existing translation model through UI', 'ollama', '#ollama-connect', task='translation', timeout=300)
         cdp.fill('#ollama-task', 'notes')
         run_action('Select and test notes model through UI', 'ollama', '#ollama-connect', task='notes', timeout=300)
         if args.with_diarization:
