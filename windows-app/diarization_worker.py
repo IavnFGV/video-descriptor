@@ -24,6 +24,31 @@ def save(path, value):
             time.sleep(.05)
 
 
+def cpu_powerset_conversion(pipeline, torch):
+    """Avoid incorrect XPU one_hot for singleton batches (Torch 2.14.1).
+
+    Neural segmentation/embeddings stay on XPU. Only the small, discrete
+    powerset conversion runs on CPU, where Inference consumes its output anyway.
+    Apply after pipeline.to: a later .to would move the mapping back to XPU.
+    """
+    from pyannote.audio.utils.powerset import Powerset
+
+    conversion = pipeline._segmentation.conversion
+    if not isinstance(conversion, Powerset):
+        raise RuntimeError(  # noqa: TRY004 — installed upstream API compatibility, not caller input.
+            'Неподдерживаемое преобразование segmentation: проверка совместимости XPU требует powerset.')
+
+    class CPUConversion(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conversion = conversion.cpu()
+
+        def forward(self, scores, *args, **kwargs):
+            return self.conversion(scores.cpu(), *args, **kwargs)
+
+    pipeline._segmentation.conversion = CPUConversion()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model', type=Path, required=True)
@@ -57,8 +82,13 @@ def main():
         print(message, flush=True)
 
     progress(f'Говорящие · {args.device.upper()} · загружаем локальную модель; скачивания нет')
+    load_started = time.monotonic()
     pipeline = Pipeline.from_pretrained(str(args.model))
     pipeline.to(torch.device(args.device))
+    if args.device == 'xpu':
+        cpu_powerset_conversion(pipeline, torch)
+        torch.xpu.synchronize()
+    load_seconds = time.monotonic() - load_started
     with wave.open(str(args.audio), 'rb') as audio:
         if (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) != (1, 2, 16000):
             raise ValueError('Диаризации нужен mono PCM16 WAV 16000 Гц.')
@@ -92,6 +122,8 @@ def main():
                        'python': __import__('sys').version.split()[0], 'pyannote': importlib.metadata.version('pyannote.audio'),
                        'duration': duration, 'pcm_sha256': hashlib.sha256(raw).hexdigest(),
                        'audio_sha256': hashlib.sha256(args.audio.read_bytes()).hexdigest(),
+                       'load_seconds': load_seconds,
+                       'powerset_device': 'cpu',
                        'inference_seconds': time.monotonic() - started})
     progress('Голоса определены; сохраняем отдельную версию')
 

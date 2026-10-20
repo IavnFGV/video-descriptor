@@ -483,6 +483,13 @@ speech_regions. Завершённые local-* блоки переиспольз
 
 ### Нативная диаризация готовой расшифровки
 
+Уточнение 20.10.2026: после перевода pipeline на XPU worker оставляет дискретный
+Powerset conversion на CPU из-за воспроизведённого дефекта `one_hot` Torch 2.14.1+xpu
+для singleton batch. Segmentation/embedding нейросети продолжают работать на XPU;
+явный выбор устройства не подменяется. Короткие интервалы не фильтруются.
+`load_seconds` и `powerset_device` дополняют worker proof.
+См. [качество диаризации](diarization-quality.md).
+
 POST /api/native/postprocess с task=diarize использует те же same-origin и
 X-App-Instance проверки, что перевод/конспект. Ollama и NPU не требуются.
 Задание mode=postprocess/task=diarize сохраняет immutable snapshot исправленных
