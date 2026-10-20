@@ -92,7 +92,7 @@ def main():
                 time.sleep(1)
             raise RuntimeError(name + ': timeout')
         stage('Whisper automatic download and real CPU inference', 'whisper', 'install')
-        stage('Ollama official standalone installation and API', 'ollama', 'install')
+        stage('Ollama official standalone installation and API', 'ollama', 'install', mode='managed')
         stage('Ollama small model download and real generation', 'ollama', 'pull', model='qwen3:0.6b', task='translation')
         stage('Ollama notes model generation check', 'ollama', 'check', model='qwen3:0.6b', task='notes')
         sample = root / 'windows-app/samples/speech-check.mp4'

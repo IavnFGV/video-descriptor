@@ -19,6 +19,10 @@ def main():
     parser.add_argument('--debug-port', type=int, default=9222)
     parser.add_argument('--cache', type=Path)
     parser.add_argument('--with-diarization', action='store_true')
+    parser.add_argument('--skip-text-pipeline', action='store_true', help='Run component and diarization acceptance without rechecking translation/notes quality')
+    parser.add_argument('--ollama-model', default='qwen3:0.6b')
+    parser.add_argument('--diarization-device', choices=['cpu', 'xpu'], default='cpu')
+    parser.add_argument('--install-managed', action='store_true', help='Explicitly test managed installation instead of preferring an existing service')
     args = parser.parse_args()
     args.reports.mkdir(parents=True, exist_ok=True)
     report = {'status': 'RUNNING', 'method': 'real installed WebView2 DOM and pointer input',
@@ -70,12 +74,12 @@ def main():
             if consent and not cdp.evaluate(f'document.querySelector({json.dumps(consent)}).checked'):
                 cdp.click(consent)
             cdp.click(selector)
-            wait_for(lambda: row(key), lambda item: item.get('elapsed_seconds') != before.get('elapsed_seconds')
+            wait_for(lambda: row(key), lambda item: item.get('operation_id') != before.get('operation_id')
                      or item['state'] in {'downloading', 'installing', 'verifying'}, timeout=30)
             result = wait_for(lambda: api('/api/components'), lambda state: state['active'] is None, timeout=timeout)
             item = next(item for item in result['components'] if item['id'] == key)
             proof = item.get('proof', {})
-            ready = item['state'] == 'ready' or (key == 'ollama' and selector == '#ollama-install'
+            ready = item['state'] == 'ready' or (key == 'ollama' and selector in {'#ollama-install', '#ollama-use-connection'}
                                                and item['state'] == 'installed' and proof.get('api_version'))
             evidence = {'name': name, 'status': 'PASS' if ready else 'FAIL', 'state': item['state'], 'proof': proof,
                         'elapsed_seconds': round(time.monotonic() - started, 2), 'message': item['message']}
@@ -86,20 +90,30 @@ def main():
             cdp.screenshot(args.reports / (key + '-' + str(len(report['stages'])) + '.png'))
             return evidence
         report['initial_ollama_state'] = row('ollama')['state']
-        run_action('Install official Ollama through AI Settings', 'ollama', '#ollama-install', consent='#ollama-install-consent')
+        if args.install_managed:
+            cdp.fill('#ollama-mode', 'managed')
+            run_action('Install official Ollama through AI Settings', 'ollama', '#ollama-install', consent='#ollama-install-consent')
+        else:
+            cdp.fill('#ollama-mode', 'existing')
+            run_action('Use existing Ollama without second server or downloads', 'ollama', '#ollama-use-connection')
         wait_for(lambda: cdp.evaluate('document.querySelector("#ollama-catalog").options.length > 0'))
-        cdp.fill('#ollama-catalog', 'qwen3:0.6b')
+        if args.ollama_model in {item['name'] for item in manifest['ollama_models']}:
+            cdp.fill('#ollama-catalog', args.ollama_model)
         cdp.fill('#ollama-task', 'translation')
-        run_action('Pull small model and verify real generation through UI', 'ollama', '#ollama-pull',
-                   consent='#ollama-pull-consent', task='translation', timeout=1200)
+        available = json.loads(read_http(origin + '/api/setup/ollama'))['models']
+        if not any(item['name'] == args.ollama_model for item in available):
+            if not args.install_managed:
+                raise RuntimeError('Existing service has no selected test model; refusing an unnecessary automatic download')
+            run_action('Pull small model and verify real generation through UI', 'ollama', '#ollama-pull',
+                       consent='#ollama-pull-consent', task='translation', timeout=1200)
         cdp.click('#ollama-refresh')
-        wait_for(lambda: cdp.evaluate('[...document.querySelector("#ollama-model").options].some(o=>o.value==="qwen3:0.6b")'))
-        cdp.fill('#ollama-model', 'qwen3:0.6b')
+        wait_for(lambda: cdp.evaluate(f'[...document.querySelector("#ollama-model").options].some(o=>o.value==={json.dumps(args.ollama_model)})'))
+        cdp.fill('#ollama-model', args.ollama_model)
         cdp.fill('#ollama-task', 'notes')
         run_action('Select and test notes model through UI', 'ollama', '#ollama-connect', task='notes', timeout=300)
         if args.with_diarization:
-            cdp.fill('#diarization-device', 'cpu')
-            run_action('Install isolated CPython and pyannote CPU through UI', 'diarization', '#diarization-install',
+            cdp.fill('#diarization-device', args.diarization_device)
+            run_action('Install isolated CPython and pyannote ' + args.diarization_device.upper() + ' through UI', 'diarization', '#diarization-install',
                        consent='#diarization-consent', timeout=2400)
         cdp.click('#setup-finish')
         wait_for(lambda: cdp.evaluate('location.hash === "#records"'))
@@ -118,7 +132,7 @@ def main():
             return text == 'Готово'
         wait_for(completed, timeout=240)
         source_job = cdp.evaluate('new URLSearchParams(location.search).get("job")')
-        for stage, button in [('translation', '#translate-run'), ('notes', '#notes-run')] + ([('diarization', '#diarize-run')] if args.with_diarization else []):
+        for stage, button in ([] if args.skip_text_pipeline else [('translation', '#translate-run'), ('notes', '#notes-run')]) + ([('diarization', '#diarize-run')] if args.with_diarization else []):
             cdp.call('Page.navigate', url=origin + '/?job=' + source_job + '#records')
             wait_for(lambda: cdp.evaluate('!!document.querySelector("#setup-open")'))
             wait_for(completed)

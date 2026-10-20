@@ -200,6 +200,7 @@ def test_startup_keeps_proof_without_claiming_live_readiness(manager):
 
 def test_managed_version_update_detection(manager):
     manager.manifest['ollama'] = {'version': '2.0'}
+    manager.manager.value['ollama_mode'] = 'managed'
     manager.update('ollama', 'installed', version='1.0', path=str(manager.root / 'ollama-1.0'))
     row = next(row for row in manager.snapshot()['components'] if row['id'] == 'ollama')
     assert row['state'] == 'update_available'

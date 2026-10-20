@@ -199,11 +199,19 @@
 <h2>Перевод через Ollama</h2>
 <button type="button" id="ollama-refresh" class="vd-button vd-button--quiet">Обновить список</button>
 </div>
-<p class="footnote">Ollama запускает локальные языковые модели для перевода и конспектов. Работающая Ollama подключается без изменений. При установке официальный Windows ZIP размещается в пользовательском каталоге приложения; права администратора не нужны.</p>
+<p class="footnote">Ollama запускает локальные языковые модели для перевода и конспектов. По умолчанию используйте работающую Ollama на 11434. При отдельном выборе управляемой установки официальный Windows ZIP размещается в пользовательском каталоге приложения; права администратора не нужны.</p>
+<p id="ollama-connection-current" role="status" class="footnote"></p>
+<label class="vd-field">Подключение Ollama<select id="ollama-mode" class="vd-select"><option value="existing">Существующая Ollama · предпочтительно</option><option value="service">Самостоятельно управляемый сервис</option><option value="managed">Управляется Video Descriptor</option></select></label>
+<p id="ollama-existing-info" class="footnote"></p>
+<div id="ollama-service-fields" hidden><label class="vd-field">Локальный адрес сервиса<input id="ollama-service-url" type="url" class="vd-input" value="http://127.0.0.1:11434" maxlength="256" autocomplete="off"></label><p class="footnote">Для этой версии поддерживаются только localhost, 127.0.0.1 и [::1]. Настройки и жизненный цикл внешнего сервиса остаются под вашим управлением.</p></div>
+<button id="ollama-use-connection" type="button" class="vd-button">Использовать существующую Ollama</button>
+<button id="ollama-start-existing" type="button" class="vd-button" hidden>Запустить установленную Ollama на 11434</button>
 <div id="component-ollama"></div>
+<div id="ollama-managed-install" hidden>
 <p id="ollama-install-info" class="footnote"></p>
 <label class="check-label"><input id="ollama-install-consent" type="checkbox"> Разрешаю загрузить и установить Ollama</label>
-<button type="button" id="ollama-install" class="vd-button">Установить Ollama</button>
+<button type="button" id="ollama-install" class="vd-button">Установить / запустить управляемую Ollama</button>
+</div>
 <label class="vd-field">Скачать языковую модель<select id="ollama-catalog" class="vd-select"></select></label>
 <p id="ollama-catalog-info" class="footnote"></p>
 <label class="check-label"><input id="ollama-pull-consent" type="checkbox"> Разрешаю загрузить выбранную модель</label>

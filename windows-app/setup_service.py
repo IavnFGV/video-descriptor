@@ -14,6 +14,8 @@ from scripts.whisper_npu_server import model_digest
 from video_descriptor import translation_settings
 from video_descriptor.action_history import record
 from video_descriptor.jobs import read_json, write_json
+from video_descriptor.ollama_connection import DEFAULT_URL
+from video_descriptor.ollama_connection import selected as selected_connection
 from video_descriptor.platform_support import windows_powershell, windows_shell_environment
 
 
@@ -26,20 +28,27 @@ def ollama_request(value, endpoint, body=None):
         return response.json()
 
 
-def ollama_status(value):
+def ollama_status(value, *, discover=False):
+    from component_manager import ComponentManager
+    if discover:
+        value = {**value, 'ollama_mode': 'existing', 'ollama_url': DEFAULT_URL}
+    connection = selected_connection(value)
+    executable = ComponentManager.existing_executable()
+    details = {**connection, 'detected': bool(executable), 'executable': executable}
     settings = translation_settings.load(value['workspace'])
     selected = settings.get('ollama_model') or value.get('ollama_model', '')
     try:
+        version = ollama_request(value, '/api/version')
         data = ollama_request(value, '/api/tags')
         models = [{'name': item['name'], 'bytes': item.get('size', 0)} for item in data['models']]
         present = selected in {item['name'] for item in models}
         compatible = present and ollama_completion(value, selected)
-        return {'ready': compatible, 'model_present': present, 'compatible': compatible, 'detected': bool(shutil.which('ollama')), 'service_ready': True, 'selected': selected, 'models': models,
+        return {**details, 'version': version.get('version', ''), 'ready': compatible, 'model_present': present, 'compatible': compatible, 'service_ready': True, 'selected': selected, 'models': models,
                 'message': 'Языковая модель настроена; генерация проверяется при обработке' if compatible else
                            'Выберите установленную модель для перевода'}
     except (requests.RequestException, ValueError, KeyError, TypeError):
-        return {'ready': False, 'detected': bool(shutil.which('ollama')), 'service_ready': False, 'selected': selected, 'models': [],
-                'message': 'Ollama недоступна. Установите её в этом разделе или запустите существующую Ollama.'}
+        return {**details, 'version': '', 'ready': False, 'service_ready': False, 'selected': selected, 'models': [],
+                'message': ('Ollama установлена, но сервер выключен. Запустите её отдельным действием.' if executable and connection['mode'] == 'existing' else 'Выбранный сервер недоступен. Повторите подключение. Автоматическое переключение отключено.')}
 
 
 

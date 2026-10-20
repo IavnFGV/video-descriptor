@@ -94,6 +94,34 @@ def installed_workflow(root, port, output, *, with_ollama=False):
             process.wait(timeout=20)
 
 
+def installed_component_workflow(root, port, output, model, cache, device):
+    """Explicit slow installed UI acceptance; never called by Fast CI or normal smoke."""
+    output.mkdir(parents=True, exist_ok=True)
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', 0))
+        debug_port = probe.getsockname()[1]
+    environment = dict(os.environ, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=
+                       f'--remote-debugging-port={debug_port} --remote-debugging-address=127.0.0.1')
+    process = subprocess.Popen([str(root / 'windows-app/desktop-sdk/VideoDescriptor.exe'),
+                                str(root / 'windows-app'), str(root / 'python/python.exe'),
+                                '--ui-test-port=' + str(debug_port)], env=environment, creationflags=0x08000000)
+    command = [sys.executable, str(Path(__file__).parent / 'verify_component_ui.py'), '--root', str(root),
+               '--reports', str(output), '--debug-port', str(debug_port), '--with-diarization',
+               '--ollama-model', model, '--diarization-device', device]
+    if cache:
+        command += ['--cache', str(cache)]
+    try:
+        result = subprocess.run(command, check=False, timeout=3600, env=environment)
+        report = json.loads((output / 'component-ui.json').read_text(encoding='utf-8'))
+        if result.returncode or report['status'] != 'PASS':
+            raise RuntimeError('Installed component UI acceptance failed: ' + str(report.get('error', device)))
+        return report
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=20)
+
+
 def run(args, report):
     targets = json.loads(read_http(f'http://127.0.0.1:{args.debug_port}/json/list'))
     matches = [item for item in targets if item.get('type') == 'page'

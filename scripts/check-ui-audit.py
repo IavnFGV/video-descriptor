@@ -73,7 +73,7 @@ def main():
     previous_apis = set(original['windows-app/ui/app.js']['api_literals'])
     current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js))
     # Explicit additive Stop contract, reviewed in migrations/main.json and CONTRACTS.md.
-    if previous_apis | {'/api/native/cancel?id=', '/api/components'} != current_apis:
+    if previous_apis | {'/api/native/cancel?id=', '/api/components', '/api/setup/ollama?discover=1'} != current_apis:
         failures.append('Desktop API literals changed; explicit API contract review required')
     original_js = git('show', baseline['commit'] + ':windows-app/ui/app.js').decode('utf-8')
     pattern = r"\$\(['\"]([^'\"]+)['\"]\)\.(on\w+)\s*="

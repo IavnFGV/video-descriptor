@@ -15,6 +15,7 @@ import requests
 
 from .jobs import jobs_dir, read_json, write_json
 from .models import Chapter, Note, Notes, Source, VideoSection
+from .ollama_connection import base_url as ollama_base_url
 from .progress import ProgressLog, update_status
 from .report import render
 from .request_log import RequestJournal
@@ -288,7 +289,7 @@ def enqueue_notes(root, name, value):
         job = {'id': id, 'video': manifest['video'], 'filename': Path(manifest['video']).name,
                'folder': version.name, 'source_folder': folder.name, 'title': '',
                'thinking': False, 'mode': 'notes', 'construction': config,
-               'created': time.time(), 'status': 'queued'}
+               'created': time.time(), 'status': 'queued', 'ollama_url': ollama_base_url(root)}
         target = jobs_dir(root) / id
         target.mkdir()
         write_json(version / 'construction-job.json', {'id': id})
@@ -305,7 +306,7 @@ def available_models(root, provider):
         return models(credentials(root)['api_key'])
     if provider != 'ollama':
         raise ValueError('Неизвестный исполнитель конспекта')
-    base = os.getenv('OLLAMA_BASE_URL', 'http://host.docker.internal:11434')
+    base = ollama_base_url(root)
     try:
         response = requests.get(base + '/api/tags', timeout=10)
         response.raise_for_status()
@@ -322,7 +323,7 @@ def actual_limits(root, config):
         config['context_tokens'] = min(config['context_tokens'], meta['inputTokenLimit'])
         config['output_tokens'] = min(config['output_tokens'], meta['outputTokenLimit'])
     else:
-        base = os.getenv('OLLAMA_BASE_URL', 'http://host.docker.internal:11434')
+        base = ollama_base_url(root)
         try:
             response = requests.post(base + '/api/show', json={'model': config['model']}, timeout=15)
             response.raise_for_status()
@@ -347,7 +348,7 @@ def generate(root, config, text, log, stage='Конспект'):
         # Builder prompts are independent of the legacy lecture/filter prompts.
         log.prompt_settings = {}
         return chat_json(prompt, text, None, config['model'],
-                         os.getenv('OLLAMA_BASE_URL', 'http://host.docker.internal:11434'), log,
+                         ollama_base_url(root), log,
                          context=config['context_tokens'], task='construction',
                          output_limit=config['output_tokens'])
     from .gemini import BASE, call

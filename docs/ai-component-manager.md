@@ -11,8 +11,8 @@ managed-environment removal with confirmation. Optional components do not block 
 - Ollama: official standalone Windows ZIP, version 0.40.6, GitHub release asset SHA256
   pinned in component-manifest.json. Signed executables must have valid Authenticode;
   upstream unsigned executables are accepted only with the pinned archive hash.
-  Existing HTTP services are reused. An existing executable may run as an app-owned
-  instance; otherwise the official ZIP is staged and atomically renamed. A private
+  Existing HTTP services are reused. Managed installation always uses the owned pinned
+  binary; an external executable is never repurposed into a private-port instance. A private
   loopback service uses a separate model directory. No Windows service/UAC is required.
 - CPython: full 3.12.15 x64 python-build-standalone release 20261013 from Astral,
   upstream release asset SHA256 pinned. This is a third-party CPython distribution,
@@ -28,6 +28,32 @@ Sources: [Ollama Windows](https://github.com/ollama/ollama/blob/main/docs/window
 [Ollama release](https://github.com/ollama/ollama/releases/tag/v0.40.6),
 [standalone CPython](https://github.com/astral-sh/python-build-standalone/releases/tag/20261013),
 [community-1](https://huggingface.co/pyannote/speaker-diarization-community-1).
+
+## Ollama connection modes
+
+Existing Ollama is the default: the application probes `/api/version` and `/api/tags`
+on `http://127.0.0.1:11434`, shows its version/models, and offers **Use existing Ollama**.
+Detection and check/pull never download or start another server. An executable without
+an active API is reported as stopped. The separate explicit start action verifies a
+signed `ollama.exe`, starts on 11434 with the user's model directory/environment, and
+leaves that external service running when Video Descriptor closes.
+
+**Self-managed service** accepts a validated HTTP loopback URL (localhost, 127.0.0.1,
+or [::1]); credentials, paths, queries and other hosts are rejected for this MVP.
+The application never installs, updates, stops or reconfigures an external service.
+An unavailable selected endpoint remains selected with an error and reconnect action.
+No automatic server or model fallback is performed.
+
+**Managed Ollama** requires selecting this mode and explicit installation consent.
+Only this mode uses the pinned private binary and model directory. Mode switching
+never moves or deletes models; switching to external stops only a currently owned
+managed process, and explicit removal is restricted to a marked owned runtime.
+
+`ollama_mode` and `ollama_url` are persisted with the desktop configuration; a workspace
+connection pointer is committed with rollback. Notes planning reads the same pointer.
+Both notes and translation children receive one immutable endpoint snapshot through
+`OLLAMA_BASE_URL` and `VIDEO_DESCRIPTOR_JOB_OLLAMA_URL`, including the real `/api/show`
+context-window check. Existing model selections are retained across restart.
 
 ## Consent and credentials
 
@@ -77,12 +103,17 @@ real WebView2 UI coverage. Actual results are recorded in the acceptance report 
 this change; incomplete scenarios must not be represented as passed.
 
 
-## Acceptance outcome at handoff
+## Acceptance evidence
 
-See [verification-ai-components.json](verification-ai-components.json). The official Ollama ZIP
-installed successfully after fixing inherited PowerShell module paths; model pull, generation
-for both assignments and real translation passed. The notes pipeline failed its model-context
-check. Clean-origin Sandbox installer/desktop and Whisper UI, editing and export passed after
-correcting the test driver navigation race. New managed pyannote CPU/XPU installation E2E and
-full final-artifact acceptance remain incomplete. This branch must not be merged on the basis
-of unit-test success alone. No public release was published.
+[verification-ai-components.json](verification-ai-components.json) retains the initial attempt
+as history and records the follow-up separately. Real installed API and WebView2 translation,
+notes, editing and exports passed after an explicit endpoint change from an unavailable
+address to existing Ollama on 11434. The external service survived application exit and its
+model names/digests were unchanged. Tests used an isolated fixture and an already cached
+public model, without downloading model weights or changing the user's Ollama.
+
+Fresh managed CPython 3.12.15, pyannote 4.0.7 and pinned PyTorch CPU/XPU environments both
+performed real inference on the Windows host; XPU used Intel Arc 140V. Existing approved
+community-1 weights matched the pinned checksums and were reused. Final installed component
+UI acceptance and the updated CI run are recorded in that report when completed. The initial
+notes-context error is fixed; actual model-context validation remains enabled.

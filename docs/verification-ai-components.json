@@ -1,136 +1,387 @@
 {
   "date": "2026-10-20",
-  "status": "INCOMPLETE_ACCEPTANCE_DO_NOT_MERGE",
-  "tested_installer_sha256": "d0df2521aa6d4e263a4107caad1f02d1001e00680b0cc2da8e8ebf20aa36fdee",
-  "host_api_stages": [
-    {
-      "name": "Whisper automatic download and real CPU inference",
-      "status": "PASS",
-      "state": "ready",
-      "message": "Проверка выполнена",
-      "proof": {
-        "device": "CPU",
-        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
-        "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
-        "segments": 3
-      },
-      "elapsed_seconds": 10.12,
-      "version": "small FP16",
-      "device": "CPU",
-      "fallback_reason": null
-    },
-    {
-      "name": "Ollama official standalone installation and API",
-      "status": "PASS",
-      "state": "ready",
-      "message": "Проверка выполнена",
-      "proof": {
-        "api_version": {
-          "version": "0.40.6"
+  "status": "FINAL_ACCEPTANCE_IN_PROGRESS_DO_NOT_MERGE",
+  "initial_attempt": {
+    "date": "2026-10-20",
+    "status": "INCOMPLETE_ACCEPTANCE_DO_NOT_MERGE",
+    "tested_installer_sha256": "d0df2521aa6d4e263a4107caad1f02d1001e00680b0cc2da8e8ebf20aa36fdee",
+    "host_api_stages": [
+      {
+        "name": "Whisper automatic download and real CPU inference",
+        "status": "PASS",
+        "state": "ready",
+        "message": "Проверка выполнена",
+        "proof": {
+          "device": "CPU",
+          "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+          "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+          "segments": 3
         },
-        "generation_checked": false
+        "elapsed_seconds": 10.12,
+        "version": "small FP16",
+        "device": "CPU",
+        "fallback_reason": null
       },
-      "elapsed_seconds": 24.28,
-      "version": "0.40.6",
-      "device": null,
-      "fallback_reason": null
+      {
+        "name": "Ollama official standalone installation and API",
+        "status": "PASS",
+        "state": "ready",
+        "message": "Проверка выполнена",
+        "proof": {
+          "api_version": {
+            "version": "0.40.6"
+          },
+          "generation_checked": false
+        },
+        "elapsed_seconds": 24.28,
+        "version": "0.40.6",
+        "device": null,
+        "fallback_reason": null
+      },
+      {
+        "name": "Ollama small model download and real generation",
+        "status": "PASS",
+        "state": "ready",
+        "message": "Проверка выполнена",
+        "proof": {
+          "version": {
+            "version": "0.40.6"
+          },
+          "model": "qwen3:0.6b",
+          "task": "translation",
+          "generation_checked": true,
+          "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435"
+        },
+        "elapsed_seconds": 16.16,
+        "version": "0.40.6",
+        "device": "Ollama Auto",
+        "fallback_reason": null
+      },
+      {
+        "name": "Ollama notes model generation check",
+        "status": "PASS",
+        "state": "ready",
+        "message": "Проверка выполнена",
+        "proof": {
+          "version": {
+            "version": "0.40.6"
+          },
+          "model": "qwen3:0.6b",
+          "task": "notes",
+          "generation_checked": true,
+          "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435"
+        },
+        "elapsed_seconds": 1.03,
+        "version": "0.40.6",
+        "device": "Ollama Auto",
+        "fallback_reason": null
+      },
+      {
+        "name": "Real installed pipeline: translate",
+        "status": "PASS",
+        "elapsed_seconds": 6.25,
+        "segments": 1,
+        "has_translation": true
+      }
+    ],
+    "notes_pipeline": {
+      "status": "FAIL",
+      "error": "Конспект остановлен; исходная расшифровка сохранена. См. журнал.",
+      "diagnostic": "Cannot verify local model context; existing notes pipeline rejects selected small model metadata."
     },
-    {
-      "name": "Ollama small model download and real generation",
+    "sandbox": {
+      "policy": "SAC Off in disposable guest; not default signing/trust proof",
+      "installer": "PASS",
+      "desktop": "PASS",
+      "whisper_ui_retry": {
+        "status": "PASS",
+        "proof": {
+          "device": "CPU",
+          "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
+          "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+          "segments": 3
+        },
+        "checks": [
+          "reply dirty Escape retained input; real save/revision and timestamps verified",
+          "stage Back, query parameters, AI round trip and unsaved title recovery",
+          "two independent prompt drafts and selected task survive AI navigation",
+          "real SRT/VTT/TXT downloads through production links",
+          "keyboard stage arrows update selection and focus",
+          "skip link focuses the active stage without losing URL context",
+          "visual-only DOM stress fixture: 1000 long RU/UK utterances; no API/mock inference claim",
+          "four requested CSS viewport sizes and 125/150 percent DPR; no horizontal overflow"
+        ]
+      },
+      "note": "Initial UI driver failed on async wizard navigation; corrected retry in same clean-origin guest passed."
+    },
+    "pyannote_cpu": {
+      "status": "NOT_TESTED",
+      "note": "Managed installation code and offline contracts implemented; no completed installed E2E."
+    },
+    "pyannote_xpu": {
+      "status": "NOT_TESTED",
+      "note": "No completed new-manager Intel GPU E2E; previous project hardware proof is not claimed here."
+    },
+    "final_build_artifacts": [
+      {
+        "file": "VideoDescriptor-0.8.0-windows-x64-setup.exe",
+        "bytes": 223961553,
+        "sha256": "4a8a98ac178f73414bd753426c4fb94ad96d123de13a555f5d40d19ff991097d"
+      },
+      {
+        "file": "VideoDescriptor-0.8.0-windows-x64.zip",
+        "bytes": 265788777,
+        "sha256": "dd7168d17216c4851ed37707c70a396f3bad1fa261306b22fa71a33b25781631"
+      }
+    ],
+    "final_build_e2e": "NOT_COMPLETED; last acceptance artifact predates final small readiness/environment/focus fixes",
+    "merge": "Not performed: full acceptance is incomplete."
+  },
+  "followup": {
+    "external_connection_backend": {
       "status": "PASS",
-      "state": "ready",
-      "message": "Проверка выполнена",
-      "proof": {
+      "checks": [
+        "existing 11434 version/tags reused without binary download, second server or second model directory",
+        "closing the component manager leaves the external service running",
+        "restart retains the external endpoint and chosen model",
+        "real /api/show context validation uses selected workspace endpoint despite stale OLLAMA_BASE_URL",
+        "installed application exit did not stop external server or change installed model names/digests"
+      ],
+      "version": {
+        "version": "0.40.6"
+      },
+      "generation": {
         "version": {
           "version": "0.40.6"
         },
-        "model": "qwen3:0.6b",
+        "model": "qwen3.5:9b",
         "task": "translation",
         "generation_checked": true,
-        "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435"
+        "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7"
       },
-      "elapsed_seconds": 16.16,
-      "version": "0.40.6",
-      "device": "Ollama Auto",
-      "fallback_reason": null
+      "real_context": 8192,
+      "model_downloaded": false
     },
-    {
-      "name": "Ollama notes model generation check",
+    "installed_existing_ollama": {
       "status": "PASS",
-      "state": "ready",
-      "message": "Проверка выполнена",
-      "proof": {
-        "version": {
-          "version": "0.40.6"
+      "endpoint_transition": {
+        "before": "http://127.0.0.1:62527",
+        "after": "http://127.0.0.1:11434",
+        "mode": "existing",
+        "method": "explicit connection change after installed application startup"
+      },
+      "stages": [
+        {
+          "stage": "desktop",
+          "status": "PASS"
         },
-        "model": "qwen3:0.6b",
-        "task": "notes",
-        "generation_checked": true,
-        "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435"
-      },
-      "elapsed_seconds": 1.03,
-      "version": "0.40.6",
-      "device": "Ollama Auto",
-      "fallback_reason": null
+        {
+          "stage": "whisper",
+          "status": "PASS"
+        },
+        {
+          "stage": "ollama-install",
+          "status": "PASS"
+        },
+        {
+          "stage": "ollama-model",
+          "status": "PASS"
+        },
+        {
+          "stage": "ollama-inference",
+          "status": "PASS"
+        },
+        {
+          "stage": "translation",
+          "status": "PASS"
+        },
+        {
+          "stage": "notes",
+          "status": "PASS"
+        }
+      ],
+      "ui_status": "PASS",
+      "zip_sha256": "e898a962a8fb43e3fe19f78acbaaa2fdfb7421962f5dbc5111c035bc6fb7df79",
+      "note": "Read-only copy of already cached public qwen3.5:9b; no model download or user-service changes."
     },
-    {
-      "name": "Real installed pipeline: translate",
+    "managed_pyannote_backend": {
       "status": "PASS",
-      "elapsed_seconds": 6.25,
-      "segments": 1,
-      "has_translation": true
-    }
-  ],
-  "notes_pipeline": {
-    "status": "FAIL",
-    "error": "Конспект остановлен; исходная расшифровка сохранена. См. журнал.",
-    "diagnostic": "Cannot verify local model context; existing notes pipeline rejects selected small model metadata."
-  },
-  "sandbox": {
-    "policy": "SAC Off in disposable guest; not default signing/trust proof",
-    "installer": "PASS",
-    "desktop": "PASS",
-    "whisper_ui_retry": {
-      "status": "PASS",
-      "proof": {
-        "device": "CPU",
-        "model_sha256": "b5566bca9ac6075e6da66fda6d8a582b00ff59b5e9322376a0b400639aecd809",
-        "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
-        "segments": 3
-      },
-      "checks": [
-        "reply dirty Escape retained input; real save/revision and timestamps verified",
-        "stage Back, query parameters, AI round trip and unsaved title recovery",
-        "two independent prompt drafts and selected task survive AI navigation",
-        "real SRT/VTT/TXT downloads through production links",
-        "keyboard stage arrows update selection and focus",
-        "skip link focuses the active stage without losing URL context",
-        "visual-only DOM stress fixture: 1000 long RU/UK utterances; no API/mock inference claim",
-        "four requested CSS viewport sizes and 125/150 percent DPR; no horizontal overflow"
+      "environment": "Windows host, full managed CPython and fresh isolated environments; existing verified model; no installed-UI claim",
+      "stages": [
+        {
+          "device": "cpu",
+          "status": "PASS",
+          "seconds": 321.33,
+          "proof": {
+            "device": "cpu",
+            "torch": "2.14.1+cpu",
+            "python": "3.12.15",
+            "pyannote": "4.0.7",
+            "device_name": "CPU",
+            "duration": 9.138125,
+            "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+            "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+            "inference_seconds": 0.75,
+            "requirements_sha256": "0fc26b281a0c31e27739276061c123e1e149798fafed934de30bdacc05147a2c",
+            "model_revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+            "turns": [
+              {
+                "start": 0.11534375000000001,
+                "end": 2.0897187500000003,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 2.98409375,
+                "end": 5.2790937499999995,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 6.27471875,
+                "end": 8.35034375,
+                "speaker": "SPEAKER_00"
+              }
+            ]
+          }
+        },
+        {
+          "device": "xpu",
+          "status": "PASS",
+          "seconds": 356.73,
+          "proof": {
+            "device": "xpu",
+            "torch": "2.14.1+xpu",
+            "python": "3.12.15",
+            "pyannote": "4.0.7",
+            "device_name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+            "duration": 9.138125,
+            "audio_sha256": "4f72821d214c24216b11a9df570edd425140cf8d894850daa7cfe4ff5e4267d4",
+            "pcm_sha256": "b45b829b2f4add9fb886bb8897898f96302acbed9f1c2b06d051489a6aefa705",
+            "inference_seconds": 4.436999999999898,
+            "requirements_sha256": "4b3ad850685438b0055987524d3abbfa1ac00d28fc93bc7944c7a6d25117edd6",
+            "model_revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+            "turns": [
+              {
+                "start": 0.11534375000000001,
+                "end": 0.31784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 0.57096875,
+                "end": 0.58784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 0.84096875,
+                "end": 0.85784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 1.11096875,
+                "end": 1.12784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 1.38096875,
+                "end": 1.39784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 1.65096875,
+                "end": 1.66784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 1.9209687500000001,
+                "end": 1.93784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 3.00096875,
+                "end": 3.0178437500000004,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 3.27096875,
+                "end": 3.2878437500000004,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 3.54096875,
+                "end": 3.5578437500000004,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 3.8109687500000002,
+                "end": 3.8278437500000004,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 4.08096875,
+                "end": 4.097843750000001,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 4.35096875,
+                "end": 4.3678437500000005,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 4.620968749999999,
+                "end": 4.63784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 4.890968750000001,
+                "end": 4.90784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 5.16096875,
+                "end": 5.177843750000001,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 6.51096875,
+                "end": 6.527843750000001,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 6.7809687499999995,
+                "end": 6.79784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 7.050968750000001,
+                "end": 7.06784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 7.3209687500000005,
+                "end": 7.337843750000001,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 7.59096875,
+                "end": 7.607843750000001,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 7.86096875,
+                "end": 7.87784375,
+                "speaker": "SPEAKER_00"
+              },
+              {
+                "start": 8.130968750000001,
+                "end": 8.14784375,
+                "speaker": "SPEAKER_00"
+              }
+            ]
+          }
+        }
       ]
     },
-    "note": "Initial UI driver failed on async wizard navigation; corrected retry in same clean-origin guest passed."
-  },
-  "pyannote_cpu": {
-    "status": "NOT_TESTED",
-    "note": "Managed installation code and offline contracts implemented; no completed installed E2E."
-  },
-  "pyannote_xpu": {
-    "status": "NOT_TESTED",
-    "note": "No completed new-manager Intel GPU E2E; previous project hardware proof is not claimed here."
-  },
-  "final_build_artifacts": [
-    {
-      "file": "VideoDescriptor-0.8.0-windows-x64-setup.exe",
-      "bytes": 223961553,
-      "sha256": "4a8a98ac178f73414bd753426c4fb94ad96d123de13a555f5d40d19ff991097d"
-    },
-    {
-      "file": "VideoDescriptor-0.8.0-windows-x64.zip",
-      "bytes": 265788777,
-      "sha256": "dd7168d17216c4851ed37707c70a396f3bad1fa261306b22fa71a33b25781631"
-    }
-  ],
-  "final_build_e2e": "NOT_COMPLETED; last acceptance artifact predates final small readiness/environment/focus fixes",
-  "merge": "Not performed: full acceptance is incomplete."
+    "final_installed_component_ui": "RUNNING",
+    "ci": "Pending updated branch run; Windows artifact names now derive from release-inputs.json",
+    "local_fast": "353 passed, 2 skipped; actionlint, Ruff, JS syntax and preservation contracts passed"
+  }
 }

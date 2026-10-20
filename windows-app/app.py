@@ -272,7 +272,7 @@ def make_handler(value, instance):
             if path == '/api/setup/diagnostics' and setup is not None:
                 return self.json_response(200, setup.diagnostics())
             if path == '/api/setup/ollama' and setup is not None:
-                return self.json_response(200, ollama_status(value))
+                return self.json_response(200, ollama_status(value, discover=parse_qs(urlsplit(self.path).query).get('discover') == ['1']))
             if path == '/api/native/events':
                 event_file = HERE / 'runtime/logs/events.jsonl'
                 events = []
@@ -419,6 +419,10 @@ def make_handler(value, instance):
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
                     if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
                         return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
+                    if components and components.active:
+                        return self.json_response(409, {'error': 'Остановите подготовку компонентов перед закрытием приложения'})
+                    if components:
+                        components.close()
                     self.json_response(200, {'stopped': True})
                     threading.Thread(target=self.server.shutdown, daemon=True).start()
                     return

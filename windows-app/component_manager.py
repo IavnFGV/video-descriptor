@@ -17,6 +17,7 @@ import requests
 from model_download import checksum
 
 from video_descriptor.jobs import read_json, write_json
+from video_descriptor.ollama_connection import DEFAULT_URL, loopback_url, selected, workspace_file
 from video_descriptor.platform_support import (
     lock_file,
     windows_powershell,
@@ -106,14 +107,11 @@ class ComponentManager:
                     elif item['state'] == 'ready':
                         item.update(state='installed', message='Последняя проверка сохранена. Проверьте готовность в этом запуске.')
                 self.save()
-        # Restart only a previously managed service, without downloading anything.
-        if self.components['ollama'].get('path') and self.manager.value.get('ollama_url', '').startswith('http://127.0.0.1:'):
-            def reconnect():
-                try:
-                    self.ensure_ollama()
-                except (OSError, ValueError, RuntimeError, requests.RequestException):
-                    self.update('ollama', 'installed', message='Ollama установлена; повторите проверку подключения.')
-            threading.Thread(target=reconnect, name='managed-ollama-reconnect', daemon=True).start()
+        # Selection is configuration, not something inferred from an old managed artifact.
+        self.connection = selected(self.manager.value)
+        self.manager.value.update(ollama_mode=self.connection['mode'], ollama_url=self.connection['url'])
+        if self.manager.value.get('workspace'):
+            atomic(workspace_file(self.manager.value['workspace']), self.connection)
 
     def save(self):
         atomic(self.path, self.components)
@@ -142,13 +140,17 @@ class ComponentManager:
                     shutil.which('ollama') or item.get('path'))
                 if item['state'] == 'not_installed' and installed:
                     item.update(state='installed', message='Обнаружен компонент. Выполните проверку.')
-                if (key == 'ollama' and item.get('path') and item.get('version') and item['state'] not in BUSY | {'error'}
+                if (key == 'ollama' and selected(self.manager.value)['mode'] == 'managed' and item.get('path') and item.get('version') and item['state'] not in BUSY | {'error'}
                         and item['version'] != self.manifest.get('ollama', {}).get('version', item['version'])):
                     item.update(state='update_available', message='В этой версии приложения доступен новый проверенный runtime. Рабочая версия сохранена.')
+                if key == 'ollama':
+                    item.update(selected(self.manager.value))
                 rows.append({'id': key, 'name': title, **item})
             return {'components': rows, 'active': self.active or next((key for key in NAMES if self.components[key]['state'] in BUSY), None), 'root': str(self.root),
                     'profiles': {key: self.manifest.get(key) for key in ('managed_python', 'ollama', 'diarization_model', 'ollama_models')},
-                    'has_hf_token': (self.root / 'hf-token.dpapi').is_file()}
+                    'has_hf_token': (self.root / 'hf-token.dpapi').is_file(),
+                    'ollama_connection': {**selected(self.manager.value), 'executable': self.existing_executable(),
+                                          'service_url': self.manager.value.get('ollama_service_url', DEFAULT_URL)}}
 
     def check_cancel(self):
         if self.cancel.is_set():
@@ -220,9 +222,37 @@ class ComponentManager:
     def publish(self, changes):
         self.check_cancel()
         with self.manager._lock:
-            local = read_json(self.here / 'config.local.json', {})
-            atomic(self.here / 'config.local.json', {**local, **changes})
+            config = self.here / 'config.local.json'
+            original = config.read_bytes() if config.exists() else None
+            try:
+                local = json.loads(original.decode('utf-8-sig')) if original is not None else {}
+                if not isinstance(local, dict):
+                    raise TypeError
+            except (ValueError, TypeError):
+                raise ValueError('Локальные настройки повреждены. Файл сохранён; восстановите настройки перед подключением.') from None
+            replacement = {**self.manager.value, **changes}
+            connection = selected(replacement) if 'ollama_url' in changes or 'ollama_mode' in changes else None
+            workspace = workspace_file(replacement['workspace']) if connection else None
+            previous_workspace = workspace.read_bytes() if workspace and workspace.exists() else None
+            try:
+                atomic(config, {**local, **changes})
+                if workspace:
+                    atomic(workspace, connection)
+            except OSError:
+                if original is None:
+                    config.unlink(missing_ok=True)
+                else:
+                    config.write_bytes(original)
+                if workspace:
+                    if previous_workspace is None:
+                        workspace.unlink(missing_ok=True)
+                    else:
+                        workspace.write_bytes(previous_workspace)
+                raise
             self.manager.value.update(changes)
+            if connection:
+                self.connection = connection
+                os.environ['OLLAMA_BASE_URL'] = connection['url']
 
     def action(self, key, body):
         if key not in NAMES:
@@ -233,10 +263,14 @@ class ComponentManager:
                 raise ValueError('У этого компонента нет активной операции')
             self.cancel.set()
             return {'cancel_requested': True}
-        if action not in {'install', 'check', 'pull', 'remove'}:
+        if action not in {'install', 'check', 'pull', 'remove', 'connect', 'start_existing'}:
             raise ValueError('Неизвестное действие')
-        if action in {'install', 'pull', 'remove'} and body.get('confirmed') is not True:
+        if action in {'install', 'pull', 'remove', 'start_existing'} and body.get('confirmed') is not True:
             raise ValueError('Подтвердите загрузку или удаление управляемого компонента')
+        if key == 'ollama' and action == 'install' and body.get('mode') != 'managed':
+            raise ValueError('Выберите режим «Установить управляемую Ollama» и подтвердите установку')
+        if action in {'connect', 'start_existing'} and key != 'ollama':
+            raise ValueError('Действие доступно только для Ollama')
         if key == 'diarization' and body.get('device', 'auto') not in {'auto', 'cpu', 'xpu'}:
             raise ValueError('Выберите Auto, CPU или XPU')
         with self.manager._lock:
@@ -252,7 +286,7 @@ class ComponentManager:
             self.active = key
             self.manager.operation = 'components-' + key
             self.cancel.clear()
-            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0)
+            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0, operation_id=uuid.uuid4().hex)
 
         def work():
             started = time.monotonic()
@@ -269,7 +303,7 @@ class ComponentManager:
                 state = 'not_installed' if action == 'remove' else 'ready'
                 message = 'Компонент удалён' if action == 'remove' else 'Проверка выполнена'
                 if key == 'ollama' and action != 'remove' and not proof.get('generation_checked'):
-                    state, message = 'installed', 'Ollama запущена. Выберите модель и проверьте генерацию.'
+                    state, message = 'installed', 'Подключение Ollama проверено. Выберите модель и проверьте генерацию.'
                 self.update(key, state, message=message,
                             proof=proof, elapsed_seconds=round(time.monotonic() - started, 2))
             except Exception as exc:  # noqa: BLE001 — operation boundary; never leak upstream response/token.
@@ -293,106 +327,181 @@ class ComponentManager:
             response.raise_for_status()
             return response.json()
 
-    def ensure_ollama(self, install=False):
-        profile = self.manifest['ollama']
-        installed = self.components['ollama'].get('path')
-        upgrade = bool(install and installed and Path(installed).name != 'ollama-' + profile['version'])
+    @staticmethod
+    def existing_executable():
+        candidates = [shutil.which('ollama'), str(Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Programs/Ollama/ollama.exe')]
+        for value in candidates:
+            if value:
+                path = Path(value).resolve()
+                if path.name.lower() == 'ollama.exe' and path.is_file():
+                    return str(path)
+        return None
+
+    def inspect_ollama(self, url):
+        from setup_service import ollama_request
+        settings = {**self.manager.value, 'ollama_url': loopback_url(url)}
+        version = ollama_request(settings, '/api/version')
+        tags = ollama_request(settings, '/api/tags')
+        if not isinstance(version, dict) or not isinstance(version.get('version'), str) or not isinstance(tags, dict) or not isinstance(tags.get('models'), list):
+            raise TypeError('Сервис не вернул версию и список моделей Ollama')
+        return version, tags['models']
+
+    def connect_ollama(self, mode, url=None):
+        if mode not in {'existing', 'service', 'managed'}:
+            raise ValueError('Выберите режим подключения Ollama')
+        if mode == 'managed':
+            url = self.manager.value.get('ollama_managed_url')
+            path = Path(self.components['ollama'].get('path') or '__missing__')
+            if not url or path.resolve().parent != self.root.resolve() or read_json(path / '.managed.json', {}).get('component') != 'ollama':
+                raise ValueError('Сначала явно установите управляемую Ollama')
+        url = DEFAULT_URL if mode == 'existing' else loopback_url(url)
         try:
-            current = self.api('/api/version')
-            if not upgrade:
-                return current
-        except (requests.RequestException, ValueError):
+            version, models = self.inspect_ollama(url)
+        except requests.RequestException:
+            if mode == 'existing' and self.existing_executable():
+                raise ValueError('Ollama установлена, но сервер выключен. Запустите её отдельной кнопкой и повторите подключение.') from None
+            raise ValueError('Выбранная Ollama недоступна. Проверьте адрес и запустите сервер; автоматического переключения нет.') from None
+        changes = {'ollama_mode': mode, 'ollama_url': url}
+        if mode == 'service':
+            changes['ollama_service_url'] = url
+        self.publish(changes)
+        if mode != 'managed':
+            self.close()
+        self.update('ollama', version=version['version'], endpoint=url, ownership='managed' if mode == 'managed' else 'external')
+        return {'api_version': version, 'models': models, 'endpoint': url, 'mode': mode, 'generation_checked': False}
+
+    def start_existing_ollama(self):
+        # An explicit user action only. Never private-port or private-model-directory flags.
+        try:
+            return self.connect_ollama('existing')
+        except ValueError:
             pass
+        executable = self.existing_executable()
+        if not executable:
+            raise ValueError('Не найден проверяемый путь ollama.exe. Запустите Ollama самостоятельно.')
+        if self.verify_signature(executable) != 'Valid':
+            raise ValueError('Не удалось подтвердить цифровую подпись установленной Ollama. Запустите её самостоятельно.')
+        import socket
+        with socket.socket() as sock:
+            if sock.connect_ex(('127.0.0.1', 11434)) == 0:
+                raise ValueError('Порт 11434 занят другим сервисом. Новый процесс не запущен.')
+        subprocess.Popen([executable, 'serve'], env={**os.environ, 'OLLAMA_HOST': '127.0.0.1:11434'},
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         creationflags=0x08000000 if os.name == 'nt' else 0)
+        # This remains an external user service, including after Video Descriptor exits.
+        for _ in range(100):
+            self.check_cancel()
+            try:
+                return self.connect_ollama('existing')
+            except ValueError:
+                self.cancel.wait(.2)
+        raise ValueError('Ollama не запустилась на 11434. Проверьте её окно и повторите подключение.')
+
+    def ensure_ollama(self, install=False):
+        if not install:
+            try:
+                version, _ = self.inspect_ollama(selected(self.manager.value)['url'])
+                return version
+            except requests.RequestException:
+                mode = selected(self.manager.value)['mode']
+                if mode == 'existing' and self.existing_executable():
+                    raise ValueError('Ollama установлена, но сервер выключен. Запустите Ollama отдельным действием.') from None
+                raise ValueError('Выбранный сервер Ollama недоступен. Повторите подключение; другой сервер не запускается.') from None
         profile = self.manifest['ollama']
         target = self.root / ('ollama-' + profile['version'])
-        if not install and installed and Path(installed).resolve().parent == self.root.resolve():
-            target = Path(installed)
         executable = target / 'ollama.exe'
-        external = shutil.which('ollama')
-        default_external = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Programs/Ollama/ollama.exe'
-        if not external and default_external.is_file():
-            external = str(default_external)
-        if not executable.is_file() and external and not upgrade:
-            executable = Path(external)
         if not executable.is_file():
-            if not install:
-                raise ValueError('Ollama недоступна. Нажмите «Установить Ollama». Существующая Ollama сохраняется.')
             archive = self.download(profile, 'ollama')
             staging = self.root / ('ollama-staging-' + uuid.uuid4().hex)
             extract(archive, staging, self.cancel)
             if not (staging / 'ollama.exe').is_file():
                 raise ValueError('Дистрибутив Ollama не содержит исполняемый файл')
-            # Official ZIP integrity is pinned to upstream release asset SHA256. Check
-            # Authenticode when the upstream executable is signed; reject invalid signatures.
             self.verify_signature(staging / 'ollama.exe')
             atomic(staging / '.managed.json', {'component': 'ollama', 'sha256': profile['sha256']})
             staging.rename(target)
-        self.update('ollama', path=str(target) if executable.parent == target else '',
-                    version=profile['version'] if executable.parent == target else 'external',
-                    bytes_on_disk=self.size(target) if target.exists() else 0)
-        # A dedicated port/cache isolates the managed instance from the user's service.
+        if read_json(target / '.managed.json', {}).get('component') != 'ollama':
+            raise ValueError('Не подтверждено владение управляемым runtime Ollama')
+        endpoint = self.manager.value.get('ollama_managed_url')
+        if endpoint and self.components['ollama'].get('path') == str(target):
+            try:
+                version, _ = self.inspect_ollama(endpoint)
+                if version.get('version') != profile['version']:
+                    raise requests.ConnectionError('Managed runtime version differs from pinned update')
+                self.publish({'ollama_url': endpoint, 'ollama_mode': 'managed'})
+                return version
+            except requests.RequestException:
+                pass
         import socket
         port = 11435
         with socket.socket() as sock:
             if sock.connect_ex(('127.0.0.1', port)) == 0:
-                if not upgrade:
-                    raise ValueError('Порт 11435 занят. Управляемая Ollama не запущена; существующий процесс сохранён.')
                 with socket.socket() as available:
                     available.bind(('127.0.0.1', 0))
                     port = available.getsockname()[1]
         endpoint = f'http://127.0.0.1:{port}'
-        env = {**os.environ, 'OLLAMA_HOST': f'127.0.0.1:{port}', 'OLLAMA_MODELS': str(self.root / 'ollama-models'),
-               'OLLAMA_NO_CLOUD': '1'}
+        env = {**os.environ, 'OLLAMA_HOST': f'127.0.0.1:{port}', 'OLLAMA_MODELS': str(self.root / 'ollama-models'), 'OLLAMA_NO_CLOUD': '1'}
         previous_server = self.server
-        self.server = subprocess.Popen([str(executable), 'serve'], env=env, stdin=subprocess.DEVNULL,
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                       creationflags=0x08000000 if os.name == 'nt' else 0)
-        previous = self.manager.value.get('ollama_url')
-        self.manager.value['ollama_url'] = endpoint
+        candidate = subprocess.Popen([str(executable), 'serve'], env=env, stdin=subprocess.DEVNULL,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                     creationflags=0x08000000 if os.name == 'nt' else 0)
         try:
             for _ in range(100):
                 self.check_cancel()
+                if candidate.poll() is not None:
+                    raise ValueError('Управляемая Ollama завершилась при запуске; прежнее подключение сохранено')
                 try:
-                    proof = self.api('/api/version')
-                    self.publish({'ollama_url': endpoint})
+                    version, _ = self.inspect_ollama(endpoint)
+                    self.publish({'ollama_url': endpoint, 'ollama_mode': 'managed', 'ollama_managed_url': endpoint})
+                    self.server = candidate
+                    self.update('ollama', path=str(target), version=profile['version'], endpoint=endpoint, ownership='managed', bytes_on_disk=self.size(target))
                     if previous_server and previous_server.poll() is None:
                         previous_server.terminate()
                         previous_server.wait(timeout=15)
-                    return proof
+                    return version
                 except requests.RequestException:
                     self.cancel.wait(.2)
-            raise ValueError('Ollama не ответила после запуска. Повторите проверку.')
+            raise ValueError('Управляемая Ollama не ответила после запуска; прежнее подключение сохранено')
         except Exception:
-            self.manager.value['ollama_url'] = previous
-            if self.server.poll() is None:
-                self.server.terminate()
-                self.server.wait(timeout=15)
-            self.server = previous_server
+            if candidate.poll() is None:
+                candidate.terminate()
+                candidate.wait(timeout=15)
             raise
+
+    def close(self):
+        # Never stop an external service (even one explicitly started on 11434).
+        if self.server and self.server.poll() is None:
+            self.server.terminate()
+            self.server.wait(timeout=15)
+        self.server = None
 
     @staticmethod
     def verify_signature(executable):
         if os.name != 'nt':
-            return
+            return 'NotSigned'
         result = subprocess.run([windows_powershell(), '-NoProfile', '-NonInteractive', '-Command',
                                  "$ErrorActionPreference='Stop'; $s=Get-AuthenticodeSignature -LiteralPath $env:VD_SIGNATURE_FILE; [Console]::Write($s.Status.ToString())"],
                                 env=windows_shell_environment({'VD_SIGNATURE_FILE': str(executable)}), capture_output=True,
                                 text=True, timeout=30, check=True, creationflags=0x08000000)
         if result.stdout.strip() not in {'Valid', 'NotSigned'}:
             raise ValueError('Цифровая подпись компонента недействительна')
+        return result.stdout.strip()
 
     def ollama(self, body, action):
+        if action == 'connect':
+            return self.connect_ollama(body.get('mode'), body.get('url'))
+        if action == 'start_existing':
+            return self.start_existing_ollama()
         version = self.ensure_ollama(install=action == 'install')
         model = body.get('model')
         if not model:
             if action == 'pull':
                 raise ValueError('Выберите модель')
             return {'api_version': version, 'generation_checked': False}
-        profiles = {item['name']: item for item in self.manifest['ollama_models']}
+        profiles = {item['name']: item for item in self.manifest.get('ollama_models', [])}
         if action == 'pull':
             if model not in profiles:
                 raise ValueError('Выберите модель из каталога')
-            if shutil.disk_usage(self.root).free < profiles[model]['bytes'] * 1.2:
+            if selected(self.manager.value)['mode'] == 'managed' and shutil.disk_usage(self.root).free < profiles[model]['bytes'] * 1.2:
                 raise ValueError('Недостаточно свободного места для языковой модели')
             with requests.Session() as session:
                 session.trust_env = False
@@ -633,6 +742,8 @@ class ComponentManager:
         marker = read_json(path / '.managed.json', {})
         if marker.get('component') != key:
             raise ValueError('Компонент не принадлежит приложению')
+        if key == 'ollama' and selected(self.manager.value)['mode'] != 'managed':
+            raise ValueError('Внешний сервис не принадлежит Video Descriptor и не удаляется приложением')
         if key == 'ollama' and self.server and self.server.poll() is None:
             self.server.terminate()
             self.server.wait(timeout=15)

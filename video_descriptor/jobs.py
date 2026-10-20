@@ -221,12 +221,15 @@ def run_job(root, folder, job):
                 record('job_finished', job_id=job['id'], stage=stage, status='done')
                 return
             if job.get('mode') == 'notes':
+                from .ollama_connection import base_url as ollama_base_url
+                from .ollama_connection import job_environment
                 settings = folder / 'construction.json'
                 write_json(settings, job['construction'])
                 result = root / 'output' / job['folder']
                 code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction',
                                        str(root), str(result), str(settings)], cwd=root, stdout=log,
-                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False,
+                                      env=job_environment(job.get('ollama_url') or ollama_base_url(root))).returncode
                 if code:
                     error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
                     raise RuntimeError('Конспект остановлен: ' + error)
