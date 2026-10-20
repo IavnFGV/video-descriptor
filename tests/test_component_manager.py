@@ -57,6 +57,21 @@ def test_managed_python_uses_verified_app_local_crt(manager):
     assert (destination / library.name).read_bytes() == b'reviewed-runtime-fixture'
 
 
+def test_owned_environment_size_and_removal_support_long_windows_paths(manager, monkeypatch):
+    folder = manager.root / 'candidate'
+    directory = cm.native_path(folder / ('a' * 100) / ('b' * 100))
+    directory.mkdir(parents=True)
+    payload = directory / 'fixture.txt'
+    payload.write_bytes(b'long-path-payload')
+    marker = folder / '.managed.json'
+    cm.atomic(marker, {'component': 'diarization'})
+    assert manager.size(folder) == len(b'long-path-payload') + marker.stat().st_size
+    manager.components['diarization']['path'] = str(folder)
+    monkeypatch.setattr(manager, 'publish', lambda changes: None)
+    manager.remove('diarization')
+    assert not folder.exists()
+
+
 def test_restart_recovers_incomplete_operation(manager):
     manager.update('diarization', 'installing', message='pending')
     restored = cm.ComponentManager(manager.setup, manager.root)

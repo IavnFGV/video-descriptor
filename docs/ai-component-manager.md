@@ -83,7 +83,9 @@ into the active environment; failed candidates remain available for diagnosis. V
 created at their final unique path, because moving a venv breaks absolute launcher paths.
 Each candidate receives the installer's SHA256-verified Microsoft VC++ runtime DLLs in
 its local `Library/bin`, which PyTorch adds to its DLL search path. No system-wide VC++
-installation or administrator rights are needed.
+installation or administrator rights are needed. pip uses an explicit extended-length
+installation prefix on Windows; size accounting and owned-runtime removal use the same
+filesystem namespace. The app never enables a machine-wide long-path policy.
 A newer pinned Ollama is staged before switching to another private port; failure retains
 the old endpoint. Only process objects launched by this manager may be terminated.
 No active-job dependency update is allowed. Cross-process file locks serialize operations.

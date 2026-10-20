@@ -529,3 +529,7 @@ PR #5, подключения Ollama: ollama_mode=existing|service|managed и ol
 Managed pyannote candidates carry the installer's reviewed Microsoft VC++ DLLs in
 venv-local `Library/bin` before dependency installation, with SHA256 checks against
 `release-inputs.json`. This supports clean Windows without a system redistributable.
+
+Managed pip installation uses an explicit extended-length Windows prefix, with matching
+size/removal paths. Runtime configuration keeps normal absolute paths; no registry policy
+is changed and venvs are never relocated.

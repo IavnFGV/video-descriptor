@@ -36,6 +36,17 @@ class Cancelled(RuntimeError):
     pass
 
 
+def native_path(path):
+    """Extended filesystem paths work without changing Windows long-path policy."""
+    path = Path(path)
+    if os.name != 'nt':
+        return path
+    value = str(path.resolve())
+    if not value.startswith('\\\\?\\'):
+        value = '\\\\?\\UNC\\' + value[2:] if value.startswith('\\\\') else '\\\\?\\' + value
+    return Path(value)
+
+
 def atomic(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(20):
@@ -541,7 +552,7 @@ class ComponentManager:
 
     @staticmethod
     def size(path):
-        return sum(p.stat().st_size for p in path.rglob('*') if p.is_file() and not p.is_symlink())
+        return sum(p.stat().st_size for p in native_path(path).rglob('*') if p.is_file() and not p.is_symlink())
 
     def token(self, value=None):
         path = self.root / 'hf-token.dpapi'
@@ -689,7 +700,7 @@ class ComponentManager:
             self.stage_python_runtime_libraries(folder / 'Library/bin')
             requirements = self.here / ('requirements-pyannote-' + device + '.lock')
             self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--index-url',
-                      'https://pypi.org/simple', '-r', requirements], 'diarization')
+                      'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization')
             self.run([python, '-m', 'pip', 'check'], 'diarization')
         else:
             python = Path(self.manager.value.get('diarization_python', ''))
@@ -773,6 +784,6 @@ class ComponentManager:
             self.server.wait(timeout=15)
         if key == 'diarization':
             self.publish({'diarization_python': '', 'diarization_probe': {}})
-        shutil.rmtree(path)
+        shutil.rmtree(native_path(path))
         self.update(key, path='', version='', proof={}, bytes_on_disk=0)
         return {'removed': True, 'models_retained': True}
