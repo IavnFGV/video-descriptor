@@ -1,6 +1,7 @@
 """Offline native pyannote worker; accepts PCM WAV, never invokes speech recognition."""
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
@@ -88,6 +89,7 @@ def main():
         raise ValueError('Диаризация вернула неверные границы голосов. Исходная расшифровка сохранена.')
     save(args.output, {'turns': turns, 'device': args.device, 'torch': torch.__version__,
                        'device_name': torch.xpu.get_device_name(0) if args.device == 'xpu' else 'CPU',
+                       'python': __import__('sys').version.split()[0], 'pyannote': importlib.metadata.version('pyannote.audio'),
                        'duration': duration, 'pcm_sha256': hashlib.sha256(raw).hexdigest(),
                        'audio_sha256': hashlib.sha256(args.audio.read_bytes()).hexdigest(),
                        'inference_seconds': time.monotonic() - started})

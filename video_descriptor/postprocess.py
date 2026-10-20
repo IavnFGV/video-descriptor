@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from .action_history import record
 from .construction import checked_folder, validate
 from .jobs import jobs_dir, read_json, run_process, write_json
+from .ollama_connection import job_environment
 from .platform_support import lock_file
 from .speech import editable_result, subtitle_result
 
@@ -75,7 +76,7 @@ def run(root, folder, job, log):
         write_json(settings, job['construction'])
         code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction', str(root),
                                str(result), str(settings)], cwd=root, stdout=log, stderr=subprocess.STDOUT,
-                              stdin=subprocess.DEVNULL, check=False).returncode
+                              stdin=subprocess.DEVNULL, check=False, env=job_environment(job['translation_base_url'])).returncode
         if code:
             raise RuntimeError('Конспект остановлен; исходная расшифровка сохранена. См. журнал.')
     job['stage'] = 'translation'
@@ -83,7 +84,7 @@ def run(root, folder, job, log):
     code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.translate', str(result),
                            '--model', job['translation_model'], '--local-model', job['translation_model'],
                            '--base-url', job['translation_base_url']], cwd=root, stdout=log,
-                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False, env=job_environment(job['translation_base_url'])).returncode
     if code:
         raise RuntimeError('Перевод остановлен; готовые блоки сохранены. Нажмите «Продолжить».')
     job['stage'] = 'done'

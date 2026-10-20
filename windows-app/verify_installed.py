@@ -27,7 +27,9 @@ def verify_payload(root, archive):
     installed = json.loads((root / 'release-manifest.json').read_text(encoding='utf-8'))
     if installed != expected:
         raise ValueError('Installed release manifest does not match the tested ZIP')
-    critical = {'windows-app/app.py', 'windows-app/compute.py', 'windows-app/setup_service.py',
+    critical = {'windows-app/component_manager.py', 'windows-app/component-manifest.json',
+                'windows-app/requirements-pyannote-cpu.lock', 'windows-app/requirements-pyannote-xpu.lock',
+                'windows-app/diarization_worker.py', 'windows-app/app.py', 'windows-app/compute.py', 'windows-app/setup_service.py',
                 'windows-app/whisper_worker.py', 'windows-app/desktop-sdk/VideoDescriptor.exe'}
     entries = {item['path']: item for item in expected['files']}
     for name in critical:
@@ -41,7 +43,7 @@ def verify_payload(root, archive):
 
 def check_installed(args):
     import psutil
-    from acceptance_api import InstalledAPI
+    from acceptance_api import InstalledAPI, wait_for
     from verify_release import configure, free_port, start, stop
 
     root = args.installed_root.resolve()
@@ -66,12 +68,27 @@ def check_installed(args):
         port = free_port()
         local = configure(root, port)
         settings = json.loads(local.read_text(encoding='utf-8'))
-        if args.with_ollama:
-            settings['ollama_url'] = args.ollama_url
+        # Keep the initial unavailable fixture endpoint: acceptance must exercise
+        # changing the selected endpoint after startup, not only initial configuration.
         local.write_text(json.dumps(settings), encoding='utf-8')
         process, log, instance = start(root, port)
         driver = InstalledAPI(root, args.output.parent, model_directory=args.model,
                               ollama_model=args.ollama_model)
+        if args.with_ollama:
+            driver.connect()
+            driver.request('/api/components', body={'component': 'ollama', 'action': 'connect',
+                           'mode': 'existing' if args.ollama_url == 'http://127.0.0.1:11434' else 'service',
+                           'url': args.ollama_url})
+            def selected_connection():
+                state = driver.request('/api/components')
+                row = next(item for item in state['components'] if item['id'] == 'ollama')
+                if not state['active'] and row['state'] == 'error':
+                    raise ValueError(row['message'])
+                return state
+            connected = wait_for(selected_connection, lambda state: not state['active'] and state['ollama_connection']['url'] == args.ollama_url)
+            report['endpoint_transition'] = {'before': settings['ollama_url'], 'after': args.ollama_url,
+                                             'mode': connected['ollama_connection']['mode'], 'method': 'explicit connection change after installed application startup'}
+            driver.settings['ollama_url'] = args.ollama_url
         stages = ['desktop', 'whisper']
         if args.with_ollama:
             stages += ['ollama-install', 'ollama-model', 'ollama-inference', 'translation', 'notes']
@@ -85,6 +102,12 @@ def check_installed(args):
 
             ui_output = args.output.parent / 'webview2-ui'
             report['ui'] = installed_workflow(root, port, ui_output, with_ollama=args.with_ollama)
+        if args.component_devices:
+            from verify_workspace_ui import installed_component_workflow
+            report['component_ui'] = []
+            for device in args.component_devices:
+                report['component_ui'].append(installed_component_workflow(root, port, args.output.parent / ('component-ui-' + device),
+                                               args.ollama_model, args.component_cache, device))
         report['status'] = 'PASS'
     except Exception as exc:  # noqa: BLE001 -- acceptance runner persists every failure
         report['error'] = f'{type(exc).__name__}: {exc}'
@@ -122,6 +145,8 @@ def main():
     parser.add_argument('--model', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--with-ollama', action='store_true')
+    parser.add_argument('--component-cache', type=Path, help='Verified task-owned CPython/model cache for explicit component UI acceptance')
+    parser.add_argument('--component-devices', nargs='+', choices=['cpu', 'xpu'], default=[])
     parser.add_argument('--ui', action='store_true', help='Run real installed WebView2 input/editor/export acceptance')
     parser.add_argument('--ollama-url', default='http://127.0.0.1:11434')
     parser.add_argument('--ollama-model', default='qwen3.5:9b')
@@ -147,9 +172,13 @@ def main():
                  '--ollama-model', args.ollama_model]
         if args.with_ollama:
             child.append('--with-ollama')
+        if args.component_cache:
+            child += ['--component-cache', str(args.component_cache.resolve())]
+        if args.component_devices:
+            child += ['--component-devices', *args.component_devices]
         if args.ui:
             child.append('--ui')
-        result_code = subprocess.run(child, check=False, timeout=1800).returncode
+        result_code = subprocess.run(child, check=False, timeout=3600 if args.component_devices else 1800).returncode
         if not args.output.is_file():
             args.output.write_text(json.dumps({'status': 'FAIL', 'error': 'Embedded verifier exited without a result',
                                                'exit_code': result_code, 'installed_root': str(root)}), encoding='utf-8')

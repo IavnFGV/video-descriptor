@@ -19,17 +19,24 @@
     "video_descriptor/serve.py": "User-requested Stop: retry clears the cancellation marker and flag; existing routes and guards preserved.",
     "video_descriptor/assets/construction.js": "Restore per-record session drafts after asynchronous settings load; clear after successful save; API unchanged.",
     "windows-app/sandbox/acceptance_ui.py": "Add installed real workspace/editor/export/viewport acceptance to existing whisper/notes UI stages; production unchanged.",
-    "windows-app/verify_installed.py": "Optional --ui runs real installed WebView2 acceptance against the fresh installer test root; enabled by Windows CI. No product change.",
+    "windows-app/verify_installed.py": "AI manager installed acceptance: explicit inbox PowerShell with module-path isolation; component payload integrity checks; existing algorithms preserved.",
     "windows-app/DesktopHost.cs": "Explicit validated loopback --ui-test-port in marked disposable installations passes AdditionalBrowserArguments through the supported SDK. Required because elevated CI/Sandbox ignore environment overrides. Normal host navigation, security settings and lifetime unchanged.",
     "video_descriptor/speech_devices.py": "19.10.2026: user-requested speech regression fix restores legacy timestamp retry on the same device, completed block checkpoints and actionable error classification; verified against real NPU recording and regression tests.",
     "video_descriptor/speech_npu.py": "19.10.2026: clarify invalid/unclosed timestamp errors; retain genuine timing validation and never fabricate end_ts=-1.",
-    "video_descriptor/jobs.py": "19.10.2026: surface saved speech failure reason instead of hiding it behind a generic log reference; queue and persisted statuses unchanged.",
-    "video_descriptor/postprocess.py": "User-requested native diarization task dispatches independent worker without invoking ASR or Ollama; existing tasks unchanged.",
+    "video_descriptor/jobs.py": "PR #5: persist selected Ollama endpoint; pin both notes and translation child environments to the job snapshot, retaining real context-window validation.",
+    "video_descriptor/postprocess.py": "PR #5: persist selected Ollama endpoint; pin both notes and translation child environments to the job snapshot, retaining real context-window validation.",
     "windows-app/app.py": "User-requested native diarization and authenticated POST /api/native/cancel?id=; existing instance and origin checks preserved.",
     "windows-app/setup_service.py": "Expose configured native diarization environment separately from recognition hardware readiness.",
     "windows-app/build_release.py": "Include the native diarization worker, optional setup script, pinned dependency requirements and guide in the existing explicit release source allowlist; no models or extra runtime dependencies bundled.",
     "windows-app/Prepare-Diarization.ps1": "User-requested GPU-aware preparation defaults to Auto, delegates isolated installation and mandatory hardware/model validation to diarization_setup.py; preserves active jobs and NPU environment.",
-    "video_descriptor/speech.py": "20.10.2026 user-requested manual speaker creation: named speaker IDs are available options and accepted for utterance edits; revisions and source text unchanged."
+    "video_descriptor/speech.py": "20.10.2026 user-requested manual speaker creation: named speaker IDs are available options and accepted for utterance edits; revisions and source text unchanged.",
+    "windows-app/component-manifest.json": "AI Component Manager: additive pinned profiles, owned setup operation and verified download reuse; existing recognition contracts retained.",
+    "windows-app/compute.py": "AI Component Manager: additive pinned profiles, owned setup operation and verified download reuse; existing recognition contracts retained.",
+    "windows-app/model_download.py": "AI Component Manager: additive pinned profiles, owned setup operation and verified download reuse; existing recognition contracts retained.",
+    "windows-app/release-inputs.json": "Bump build artifact version to 0.8.0 for AI component manager acceptance; no public release.",
+    "video_descriptor/platform_support.py": "AI manager installed acceptance: explicit inbox PowerShell with module-path isolation; component payload integrity checks; existing algorithms preserved.",
+    "windows-app/diarization_setup.py": "AI manager installed acceptance: explicit inbox PowerShell with module-path isolation; component payload integrity checks; existing algorithms preserved.",
+    "video_descriptor/construction.py": "PR #5: persist selected Ollama endpoint; pin both notes and translation child environments to the job snapshot, retaining real context-window validation."
   },
   "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required. Subsequent explicitly requested backend fixes are listed individually above; immutable UI baseline and handler/API checks remain in force."
 }

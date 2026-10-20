@@ -26,6 +26,11 @@ def download_profile(profile, root, progress):
     for folder in (staging, target):
         if folder.is_symlink() or folder.is_junction():
             raise ValueError('Model directory must not be a link')
+    if target.is_dir() and all(
+            Path(item['name']).name == item['name'] and (target / item['name']).is_file()
+            and (target / item['name']).stat().st_size == item['bytes']
+            and checksum(target / item['name']) == item['sha256'] for item in profile['files']):
+        return target, target
     staging.mkdir(exist_ok=True)
     total = sum(item['bytes'] for item in profile['files'])
     if shutil.disk_usage(root).free < total + 64 * 1024**2:

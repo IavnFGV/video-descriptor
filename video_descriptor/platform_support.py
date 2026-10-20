@@ -39,3 +39,14 @@ def environment_python(root, name):
 
 def subprocess_options():
     return {'creationflags': 0x08000000} if os.name == 'nt' else {'start_new_session': True}
+
+
+
+def windows_powershell():
+    """Windows inbox shell, independent of PATH or a parent PowerShell 7 install."""
+    return str(Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe')
+
+
+def windows_shell_environment(extra=None):
+    # PowerShell 7's module path can make Windows PowerShell load incompatible DLLs.
+    return {**{key: value for key, value in os.environ.items() if key.upper() != 'PSMODULEPATH'}, **(extra or {})}

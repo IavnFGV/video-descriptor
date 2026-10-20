@@ -518,3 +518,18 @@ requirements и venv не смешивают GPU, CPU и Whisper NPU. Устан
 POST `/api/native/cancel?id=<job>` требует X-App-Instance и same-origin. Маркер stop-request.json отменяет очередь или останавливает принадлежащий заданию процесс с дочерними процессами. Совместимое состояние: status=error, cancelled=true; UI показывает «Остановлено». Retry удаляет маркер. Общие NPU/Ollama сервисы не завершаются. Для диаризации, запущенной до обновления, допустима остановка только по точному пути worker и аргументу output выбранной версии.
 
 Ручные говорящие: speaker_names в speech.json служит также реестром добавленных пользователем ID в пределах версии записи. UI создаёт UUID с префиксом speaker_; editable_result включает эти ID в speaker_options, edit_utterance принимает их наравне с ID диаризации. Исходные реплики при добавлении не меняются.
+
+
+## AI Component Manager (20.10.2026)
+
+`windows-app/component_manager.py` расширяет SetupService/ComputeManager: GET/POST `/api/components`, прежние instance/origin guards и блокировка активных jobs. Состояния компонентов не меняют job.status. Журнал, скачивания, CPython, pyannote venv и модели находятся в `%LOCALAPPDATA%/VideoDescriptor/ai-components`; конфигурация указателей сохраняется существующим механизмом config.local.json. Операции сериализованы также файловой блокировкой. HF-токен — только current-user DPAPI. CPU/XPU используют полный CPython, а не embedded venv. Новое окружение создаётся по уникальному конечному пути (venv нельзя переносить), проверяется существующим diarization_worker на встроенном WAV и только затем публикуется. Whisper использует прежний manifest/SHA256/downloader и прежний ComputeManager Auto NPU→GPU→CPU. Ollama использует существующий API либо собственный процесс с отдельным loopback-портом и каталогом моделей; чужие процессы не останавливаются.
+
+PR #5, подключения Ollama: ollama_mode=existing|service|managed и ollama_url — выбранное подключение в config.local.json; .devcontainer/ollama-connection.json передаёт его планировщику. Job snapshot передаёт OLLAMA_BASE_URL и VIDEO_DESCRIPTOR_JOB_OLLAMA_URL обоим дочерним процессам; последующие смены адреса не изменяют уже закреплённый endpoint. На старте нет inference владения по порту и нет автоматического запуска внешнего сервиса. Остановка приложения вызывает close только для сохранённого объекта принадлежащего менеджеру процесса.
+
+Managed pyannote candidates carry the installer's reviewed Microsoft VC++ DLLs in
+venv-local `Library/bin` before dependency installation, with SHA256 checks against
+`release-inputs.json`. This supports clean Windows without a system redistributable.
+
+Managed pip installation uses an explicit extended-length Windows prefix, with matching
+size/removal paths. Runtime configuration keeps normal absolute paths; no registry policy
+is changed and venvs are never relocated.

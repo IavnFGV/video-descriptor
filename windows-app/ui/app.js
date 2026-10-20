@@ -1,6 +1,6 @@
 (() => {
   const $ = id => document.getElementById(id);
-  let wizardLoaded=false, setupPolling=false;
+  let wizardLoaded=false, setupPolling=false, ollamaConnectionLoaded=false;
   let diarizationConfigured=false;
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Ошибка обработки'};
@@ -74,10 +74,15 @@
   async function ollamaStatus() {
     try {
       const s=await api('/api/setup/ollama'), list=$('ollama-model');
+      $('ollama-connection-current').textContent='Текущее подключение: '+({existing:'Существующая Ollama',service:'Свой сервис',managed:'Управляемая Ollama'}[s.mode]||s.mode)+' · '+s.url+' · '+(s.ownership==='managed'?'Управляется Video Descriptor':'Внешний')+' · '+(s.version?'версия '+s.version:'Сервер недоступен');
+      if(!ollamaConnectionLoaded){$('ollama-mode').value=s.mode;$('ollama-service-url').value=s.mode==='service'?s.url:'http://127.0.0.1:11434';ollamaConnectionLoaded=true;connectionMode();}
+      const detected=s.mode==='existing'?s:await api('/api/setup/ollama?discover=1');
+      $('ollama-existing-info').textContent=detected.service_ready?'Существующая Ollama: '+detected.url+' · '+detected.version+' · модели: '+(detected.models.map(m=>m.name).join(', ')||'нет моделей'):detected.message;
+      $('ollama-start-existing').hidden=$('ollama-mode').value!=='existing'||!detected.detected||detected.service_ready;
       const options=s.models.map(m=>{const o=document.createElement('option');o.value=m.name;o.textContent=`${m.name} · ${(m.bytes/1024**3).toFixed(1)} ГиБ`;return o;});
       if(!options.length){const o=document.createElement('option');o.value='';o.textContent='Нет доступных моделей';options.push(o);}
       list.replaceChildren(...options);if(s.models.some(m=>m.name===s.selected))list.value=s.selected;
-      $('ollama-connect').disabled=!s.models.length;$('ollama-feedback').textContent=s.message+(s.ready?' · '+s.selected:'');
+      $('ollama-connect').disabled=componentBusy||!s.models.length;$('ollama-feedback').textContent=s.message+(s.ready?' · '+s.selected:'');
     }catch(e){$('ollama-feedback').textContent=e.message;}
   }
   function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className='vd-status';b.dataset.tone=ready?'success':'warning';b.textContent=suffix||(ready?'Готово':'Не подключено');row.append(a,b);return row; }
@@ -234,7 +239,7 @@
   $('notes-run').onclick=()=>postprocess('notes');
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;$('setup-toggle').setAttribute('aria-expanded',String(!$('setup-form').hidden));};
   $('ollama-refresh').onclick=ollamaStatus;
-  $('ollama-form').onsubmit=async e=>{e.preventDefault();const b=$('ollama-connect');b.disabled=true;try{const s=await api('/api/setup/ollama',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({model:$('ollama-model').value,task:$('ollama-task').value})});$('ollama-feedback').textContent='Подключена '+s.selected+'. Назначение: '+$('ollama-task').selectedOptions[0].textContent+'.';await readiness();}catch(error){$('ollama-feedback').textContent=error.message;}finally{b.disabled=false;}};
+  $('ollama-form').onsubmit=async e=>{e.preventDefault();$('ollama-feedback').textContent='Проверяем генерацию перед сохранением модели…';await componentAction('ollama','check',{model:$('ollama-model').value,task:$('ollama-task').value});};
   $('inspect-model').onclick=()=>modelAction(false);
   $('setup-form').onsubmit=e=>{e.preventDefault();modelAction(true);};
   $('pick-model').onclick=async()=>{const b=$('pick-model');b.disabled=true;$('setup-feedback').textContent='Выберите папку в окне Windows…';try{const r=await api('/api/setup/pick-model',{method:'POST',headers:{'X-App-Instance':instance}});if(r.path)$('model-path').value=r.path;$('setup-feedback').textContent=r.path?'Папка выбрана. Теперь проверьте и подключите модель.':'Выбор отменён.';}catch(e){$('setup-feedback').textContent=e.message;}finally{b.disabled=false;}};
@@ -253,9 +258,9 @@
     $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
   }
   $('setup-open').onclick=()=>{diagnostics().catch(e=>message(e.message,true));};
-  $('setup-finish').onclick=async()=>{try{await setupPost('complete');location.hash='records';showView(true);}catch(e){message(e.message,true);}};
+  $('setup-finish').onclick=async()=>{const b=$('setup-finish'),route=location.hash;b.disabled=true;try{await setupPost('complete');if(location.hash===route){location.hash='records';showView(true);}}catch(e){message(e.message,true);}finally{b.disabled=false;}};
   $('diagnostics-refresh').onclick=async()=>{try{await setupPost('refresh');await diagnostics();await readiness();}catch(e){message(e.message,true);}};
-  $('download-model').onclick=async()=>{try{await setupPost('download',{confirmed:$('download-consent').checked});await setupStatus();}catch(e){$('operation-feedback').textContent=e.message;}};
+  $('download-model').onclick=()=>componentAction('whisper','install',{confirmed:$('download-consent').checked});
   $('probe-audio').onchange=()=>{if($('probe-audio').files.length)$('probe-filename').textContent=$('probe-audio').files[0].name;};
   async function runProbe(custom=false) {
     const feedback=$('operation-feedback'), buttons=[$('probe-model'),$('probe-custom')];
@@ -267,10 +272,67 @@
     try{if(custom){await api('/api/setup/probe',{method:'POST',headers:{'X-App-Instance':instance,'Content-Type':'audio/wav'},body:file});}else{await setupPost('probe');}await setupStatus();}
     catch(e){feedback.textContent='Не удалось выполнить проверку: '+e.message;buttons.forEach(b=>b.disabled=false);}
   }
-  $('probe-model').onclick=()=>runProbe();
+  $('probe-model').onclick=()=>componentAction('whisper','check');
   $('probe-custom').onclick=()=>runProbe(true);
   $('gemini-form').onsubmit=async e=>{e.preventDefault();try{await setupPost('gemini',{api_key:$('gemini-key').value,model:$('gemini-model').value,billing_mode:$('gemini-billing').value,free_ack:$('gemini-ack').checked});$('gemini-key').value='';$('gemini-feedback').textContent='Настройки сохранены. Перевод через Gemini доступен в расширенном редакторе.';await diagnostics();}catch(error){$('gemini-feedback').textContent=error.message;}};
   $('gemini-check').onclick=async()=>{const b=$('gemini-check');b.disabled=true;try{const r=await setupPost('gemini',{check:true});$('gemini-models').replaceChildren(...r.models.map(m=>{const o=document.createElement('option');o.value=m.id;return o;}));$('gemini-feedback').textContent=r.message+(r.available?' Выбранная модель доступна.':' Выберите доступную модель из списка.');}catch(e){$('gemini-feedback').textContent=e.message;}finally{b.disabled=false;}};
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus(),diagnostics()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+
+  let componentTimer, componentProfiles={}, componentBusy=false;
+  const componentNames={not_installed:'Не установлен',installed:'Установлен · нужна проверка',downloading:'Загрузка',installing:'Установка',verifying:'Проверка',ready:'Готово',error:'Ошибка · можно повторить',update_available:'Доступно обновление'};
+  async function componentAction(component,action,extra={}) {
+    try {
+      if(componentBusy&&action!=='cancel')return;
+      componentBusy=action!=='cancel';
+      await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component,action,...extra})});
+      await componentStatus();
+    }catch(e){message(e.message,true);componentBusy=false;await componentStatus().catch(()=>{});}
+  }
+  async function componentStatus() {
+    const data=await api('/api/components');componentProfiles=data.profiles;componentBusy=!!data.active;
+    for(const item of data.components){
+      const box=$('component-'+item.id);
+      if(!box.componentControls){
+        const state=document.createElement('p'),details=document.createElement('p'),progress=document.createElement('progress'),button=document.createElement('button'),remove=document.createElement('button');
+        state.className='vd-status';state.setAttribute('role','status');details.className='footnote';progress.className='vd-progress';button.type='button';button.className='vd-button';remove.type='button';remove.className='vd-button vd-button--danger';
+        box.replaceChildren(state,details,progress,button,remove);box.componentControls={state,details,progress,button,remove};
+      }
+      const {state,details,progress,button,remove}=box.componentControls;
+      state.dataset.tone=item.state==='error'?'danger':item.state==='ready'?'success':'info';
+      state.textContent=(componentNames[item.state]||item.state)+' · '+item.message+(item.fallback_reason?' · '+item.fallback_reason:'');
+      details.textContent=[item.version?'Версия: '+item.version:'',item.device?'Устройство: '+item.device:'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
+      progress.hidden=data.active!==item.id;progress.setAttribute('aria-label',item.name);
+      if(item.total){progress.max=item.total;progress.value=item.bytes||0;if(data.active===item.id)state.textContent+=' · '+Math.floor(100*(item.bytes||0)/item.total)+'%';}else progress.removeAttribute('value');
+      button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
+      button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:$('ollama-model').value,task:$('ollama-task').value}:{});
+      remove.hidden=!item.path||!!data.active||(item.id==='ollama'&&data.ollama_connection.mode!=='managed');remove.textContent='Удалить окружение';remove.onclick=()=>{if(window.confirm('Удалить только управляемое приложением окружение? Модели и пользовательские файлы сохранятся.'))componentAction(item.id,'remove',{confirmed:true});};
+    }
+    $('component-summary').replaceChildren(...data.components.map(item=>check(item.name,item.state==='ready',componentNames[item.state])));
+    $('component-directory').textContent='Модели, окружения и проверенные загрузки: '+data.root+'. При обновлении приложения сохраняются.';
+    const profile=data.profiles.ollama;
+    if(profile)$('ollama-install-info').textContent='Источник: '+profile.source+' · версия '+profile.version+' · '+(profile.bytes/1024**3).toFixed(2)+' ГиБ. Размер распакованного компонента больше.';
+    if(!$('ollama-catalog').options.length)for(const model of data.profiles.ollama_models||[]){const o=document.createElement('option');o.value=model.name;o.textContent=model.name+' · ≈'+(model.bytes/1024**3).toFixed(1)+' ГиБ';$('ollama-catalog').append(o);}
+    catalogInfo();
+    for(const id of ['ollama-install','ollama-pull','diarization-install','ollama-use-connection','ollama-start-existing','ollama-connect'])$(id).disabled=!!data.active;
+    if(!$('ollama-model').value)$('ollama-connect').disabled=true;
+    clearTimeout(componentTimer);
+    if(data.active)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){ollamaStatus();readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
+  }
+  function catalogInfo(){const model=componentProfiles.ollama_models?.find(m=>m.name===$('ollama-catalog').value);if(model)$('ollama-catalog-info').textContent=model.purpose+' Около '+model.memory_gib+' ГиБ памяти; нужно ≈'+(model.bytes*1.2/1024**3).toFixed(1)+' ГиБ свободного места. Размер ориентировочный, точный прогресс покажет Ollama.';}
+  function connectionMode(){
+    const mode=$('ollama-mode').value;
+    $('ollama-service-fields').hidden=mode!=='service';$('ollama-managed-install').hidden=mode!=='managed';
+    $('ollama-use-connection').textContent={existing:'Использовать существующую Ollama',service:'Проверить и использовать сервис',managed:'Подключить установленную управляемую Ollama'}[mode];
+    if(mode!=='existing')$('ollama-start-existing').hidden=true;
+  }
+  $('ollama-mode').onchange=()=>{connectionMode();ollamaStatus().catch(e=>message(e.message,true));};
+  $('ollama-use-connection').onclick=()=>componentAction('ollama','connect',{mode:$('ollama-mode').value,url:$('ollama-service-url').value});
+  $('ollama-start-existing').onclick=()=>componentAction('ollama','start_existing',{confirmed:true});
+  $('ollama-catalog').onchange=catalogInfo;
+  $('ollama-install').onclick=()=>componentAction('ollama','install',{confirmed:$('ollama-install-consent').checked,mode:'managed'});
+  $('ollama-pull').onclick=()=>componentAction('ollama','pull',{confirmed:$('ollama-pull-consent').checked,model:$('ollama-catalog').value,task:$('ollama-task').value});
+  $('diarization-install').onclick=()=>{const token=$('hf-token').value;$('hf-token').value='';componentAction('diarization','install',{confirmed:$('diarization-consent').checked,device:$('diarization-device').value,token});};
+  for(const [id,page] of [['hf-terms','terms'],['hf-tokens','tokens']])$(id).onclick=()=>setupPost('external',{page}).catch(e=>message(e.message,true));
+
+  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus(),diagnostics(),componentStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

@@ -111,5 +111,70 @@
       }
     ],
     "download_bytes": 493208911
-  }
+  },
+  "managed_python": {
+    "version": "3.12.15",
+    "source": "https://github.com/astral-sh/python-build-standalone",
+    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.12.15%2B20261013-x86_64-pc-windows-msvc-install_only.tar.gz",
+    "bytes": 46390009,
+    "sha256": "bbc902d4d187ac4914915bf538196a064b49109a33a104965b5164ced5b80a1e"
+  },
+  "ollama": {
+    "version": "0.40.6",
+    "source": "https://github.com/ollama/ollama/releases/tag/v0.40.6",
+    "url": "https://github.com/ollama/ollama/releases/download/v0.40.6/ollama-windows-amd64.zip",
+    "bytes": 1471164488,
+    "sha256": "e359637575302f288d76c0007c408a4be9c7376d59c4f28684d63b232a44b427"
+  },
+  "diarization_model": {
+    "source": "https://huggingface.co/pyannote/speaker-diarization-community-1",
+    "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+    "files": [
+      {
+        "name": "config.yaml",
+        "bytes": 444,
+        "git_blob": "4022db43960736338378fdb6b5a85cfdae198910"
+      },
+      {
+        "name": "embedding/pytorch_model.bin",
+        "bytes": 26646242,
+        "sha256": "6f10ff60898a1d185fa22e1d11e0bfa8a92efec811f11bca48cb8cafebefd929"
+      },
+      {
+        "name": "plda/plda.npz",
+        "bytes": 133852,
+        "sha256": "9b77bcd840692710dd3496f62ecfeed8d8e5f002fd991b785079b244eab7d255"
+      },
+      {
+        "name": "plda/xvec_transform.npz",
+        "bytes": 134376,
+        "sha256": "325f1ce8e48f7e55e9c8aa47e05d2766b7c48c4b25b8de8dd751e7a4cc5fbe8f"
+      },
+      {
+        "name": "segmentation/pytorch_model.bin",
+        "bytes": 5906507,
+        "sha256": "7ad24338d844fb95985486eb1a464e32d229f6d7a03c9abe60f978bacf3f816e"
+      }
+    ]
+  },
+  "ollama_models": [
+    {
+      "name": "qwen3:0.6b",
+      "bytes": 523000000,
+      "memory_gib": 2,
+      "purpose": "Быстрая проверка. Ограниченное качество перевода длинных текстов."
+    },
+    {
+      "name": "qwen3:4b",
+      "bytes": 2500000000,
+      "memory_gib": 6,
+      "purpose": "Перевод и конспекты; качество нужно оценить на своих записях."
+    },
+    {
+      "name": "qwen3:8b",
+      "bytes": 5200000000,
+      "memory_gib": 10,
+      "purpose": "Перевод и конспекты; больше памяти и времени."
+    }
+  ]
 }

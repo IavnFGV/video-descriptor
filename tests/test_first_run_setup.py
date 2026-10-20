@@ -474,6 +474,8 @@ def test_ollama_show_failure_keeps_installed_models_selectable(configured, monke
     manager.value['ollama_model'] = 'present:9b'
 
     def request(value, endpoint, body=None):
+        if endpoint == '/api/version':
+            return {'version': 'test'}
         if endpoint == '/api/tags':
             return {'models': [{'name': 'present:9b'}]}
         raise requests.HTTPError('show unavailable')

@@ -8,6 +8,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+sys.path.insert(0, str(ROOT))
+
+from video_descriptor.platform_support import windows_powershell, windows_shell_environment
 
 
 def detect_adapters():
@@ -16,8 +19,8 @@ def detect_adapters():
     command = ("[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
                "ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_VideoController | "
                "ForEach-Object {$_.Name})")
-    result = subprocess.run(['powershell.exe', '-NoProfile', '-Command', command], check=True,
-                            capture_output=True, encoding='utf-8-sig', timeout=30, creationflags=0x08000000)
+    result = subprocess.run([windows_powershell(), '-NoProfile', '-Command', command], check=True,
+                            capture_output=True, encoding='utf-8-sig', timeout=30, env=windows_shell_environment(), creationflags=0x08000000)
     adapters = json.loads(result.stdout)
     return adapters if isinstance(adapters, list) else [adapters]
 

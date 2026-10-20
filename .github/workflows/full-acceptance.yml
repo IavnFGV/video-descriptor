@@ -39,6 +39,13 @@ jobs:
     - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
       with:
         node-version: 24.19.0
+    - name: Resolve versioned artifact paths
+      shell: pwsh
+      run: |-
+        $version = (Get-Content windows-app/release-inputs.json -Raw | ConvertFrom-Json).version
+        "VD_ZIP=dist/VideoDescriptor-$version-windows-x64.zip" >> $env:GITHUB_ENV
+        "VD_INSTALLER=dist/VideoDescriptor-$version-windows-x64-setup.exe" >> $env:GITHUB_ENV
+        "VD_PREFIX=VideoDescriptor-$version-windows-x64" >> $env:GITHUB_ENV
     - name: Locked test dependencies
       run: python -m pip install -r windows-app/requirements-lock.txt
     - name: Fast checks once on Windows
@@ -67,14 +74,14 @@ jobs:
       run: |
         python -X utf8 windows-app/build_release.py --output dist/rebuild
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        $first = (Get-FileHash dist/VideoDescriptor-0.7.0-windows-x64.zip).Hash
-        $second = (Get-FileHash dist/rebuild/VideoDescriptor-0.7.0-windows-x64.zip).Hash
+        $first = (Get-FileHash "$env:VD_ZIP").Hash
+        $second = (Get-FileHash "dist/rebuild/$env:VD_PREFIX.zip").Hash
         if ($first -ne $second) { throw 'ZIP is not reproducible from the same inputs' }
       if: github.event_name != 'release'
     - name: Use the exact published assets; never rebuild a release substitute
       run: |-
         New-Item -ItemType Directory -Force dist | Out-Null
-        gh release download "$env:RELEASE_TAG" --dir dist --pattern "VideoDescriptor-0.7.0-windows-x64*" --pattern SHA256SUMS.json --pattern acceptance-provenance.json
+        gh release download "$env:RELEASE_TAG" --dir dist --pattern "$env:VD_PREFIX*" --pattern SHA256SUMS.json --pattern acceptance-provenance.json
       if: github.event_name == 'release'
       env:
         GH_TOKEN: ${{ github.token }}
@@ -85,11 +92,11 @@ jobs:
     - name: Verify exact artifact hashes and revision
       run: python scripts/ci_artifacts.py
     - name: Real WebView2 window, UI document and close-to-tray smoke
-      run: python -X utf8 windows-app/verify_desktop.py --zip dist/VideoDescriptor-0.7.0-windows-x64.zip
+      run: python -X utf8 windows-app/verify_desktop.py --zip "$env:VD_ZIP"
     - name: ZIP, install, running-update refusal, reinstall, upgrade fixture, uninstall
       run: |
         $compiler = & ./windows-app/Prepare-BuildTools.ps1
-        python -X utf8 windows-app/verify_release.py dist/VideoDescriptor-0.7.0-windows-x64.zip --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --iscc $compiler
+        python -X utf8 windows-app/verify_release.py "$env:VD_ZIP" --installer "$env:VD_INSTALLER" --iscc $compiler
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Cache the pinned public Whisper test model
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -119,7 +126,7 @@ jobs:
         TEST_OLLAMA_MODEL: ${{ inputs.ollama_model || 'qwen3.5:0.8b' }}
       run: |
         $fixture = Get-Content dist/installed-acceptance/model-provenance.json -Raw | ConvertFrom-Json
-        python -X utf8 windows-app/verify_installed.py --ui --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe --zip dist/VideoDescriptor-0.7.0-windows-x64.zip --model $fixture.model_directory --output dist/ollama-acceptance/report.json --with-ollama --ollama-url http://127.0.0.1:11439 --ollama-model $env:TEST_OLLAMA_MODEL
+        python -X utf8 windows-app/verify_installed.py --ui --installer "$env:VD_INSTALLER" --zip "$env:VD_ZIP" --model $fixture.model_directory --output dist/ollama-acceptance/report.json --with-ollama --ollama-url http://127.0.0.1:11439 --ollama-model $env:TEST_OLLAMA_MODEL
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Stop only the optional acceptance Ollama process
       run: |
