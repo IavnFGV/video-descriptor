@@ -262,3 +262,50 @@ def test_ollama_api_alone_does_not_claim_language_model_ready(manager, monkeypat
     wait(manager)
     assert manager.components['ollama']['state'] == 'installed'
     assert 'Выберите модель' in manager.components['ollama']['message']
+
+
+def test_single_local_ai_preparation_requires_consent_and_managed_mode(manager):
+    with pytest.raises(ValueError, match='Подтвердите'):
+        manager.action('ollama', {'action': 'prepare', 'model': 'example'})
+    with pytest.raises(ValueError, match='управляемую'):
+        manager.action('ollama', {'action': 'prepare', 'model': 'example', 'confirmed': True})
+    assert manager.active is None
+
+
+def test_pending_action_rejects_wrong_component_before_start(manager):
+    manager.manager.value['workspace'] = str(manager.here)
+    with pytest.raises(ValueError, match='соответствует'):
+        manager.action('diarization', {'action': 'check', 'resume': {'task': 'translate', 'folder': 'record'}})
+    assert manager.active is None
+    assert manager.manager.operation is None
+
+
+def test_failed_preparation_keeps_resume_target_and_retry_enqueues_once(manager, monkeypatch):
+    import video_descriptor.diarization_postprocess as diarization
+    from video_descriptor import construction, jobs
+    manager.manager.value['workspace'] = str(manager.here)
+    monkeypatch.setattr(construction, 'checked_folder', lambda root, folder: root / folder)
+    enqueued = []
+    monkeypatch.setattr(jobs, 'start_worker', lambda root: None)
+    monkeypatch.setattr(diarization, 'enqueue', lambda root, folder, value: (enqueued.append(folder) or {'id': 'resumed'}))
+    monkeypatch.setattr(manager, 'diarization', lambda body, action: (_ for _ in ()).throw(ValueError('retry')))
+    manager.action('diarization', {'action': 'check', 'resume': {'folder': 'source-record', 'task': 'diarize'}})
+    wait(manager)
+    assert enqueued == []
+    assert manager.components['diarization']['pending_action']['folder'] == 'source-record'
+    monkeypatch.setattr(manager, 'diarization', lambda body, action: {'turns': [1]})
+    manager.action('diarization', {'action': 'check'})
+    wait(manager)
+    assert enqueued == ['source-record']
+    assert manager.components['diarization']['resumed_job'] == 'resumed'
+    assert manager.components['diarization']['pending_action'] is None
+
+
+def test_resume_never_crosses_workspaces(manager, monkeypatch):
+    manager.manager.value['workspace'] = str(manager.here)
+    manager.components['diarization']['pending_action'] = {'workspace': 'another-workspace', 'folder': 'record', 'task': 'diarize'}
+    monkeypatch.setattr(manager, 'diarization', lambda body, action: {})
+    manager.action('diarization', {'action': 'check'})
+    wait(manager)
+    assert manager.components['diarization']['state'] == 'ready'
+    assert manager.components['diarization']['pending_action'] is None

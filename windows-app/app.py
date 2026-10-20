@@ -227,6 +227,8 @@ def make_handler(value, instance):
     setup = SetupService(manager, HERE) if manager is not None else None
     from component_manager import ComponentManager
     components = ComponentManager(setup) if setup else None
+    if setup:
+        setup.bootstrap()
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):

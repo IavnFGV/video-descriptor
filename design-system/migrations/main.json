@@ -36,7 +36,9 @@
     "windows-app/release-inputs.json": "Bump build artifact version to 0.8.0 for AI component manager acceptance; no public release.",
     "video_descriptor/platform_support.py": "AI manager installed acceptance: explicit inbox PowerShell with module-path isolation; component payload integrity checks; existing algorithms preserved.",
     "windows-app/diarization_setup.py": "AI manager installed acceptance: explicit inbox PowerShell with module-path isolation; component payload integrity checks; existing algorithms preserved.",
-    "video_descriptor/construction.py": "PR #5: persist selected Ollama endpoint; pin both notes and translation child environments to the job snapshot, retaining real context-window validation."
+    "video_descriptor/construction.py": "PR #5: persist selected Ollama endpoint; pin both notes and translation child environments to the job snapshot, retaining real context-window validation.",
+    "video_descriptor/diarization_postprocess.py": "Owner request 21 October: expose saved requested device for inline speaker processing; preserve explicit CPU/XPU choice.",
+    "windows-app/config.example.json": "Owner request 21 October: new profiles choose a compatible installed Ollama model instead of pinning a nonexistent default; saved local configuration is preserved."
   },
   "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required. Subsequent explicitly requested backend fixes are listed individually above; immutable UI baseline and handler/API checks remain in force."
 }

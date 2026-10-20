@@ -540,3 +540,9 @@ venv-local `Library/bin` before dependency installation, with SHA256 checks agai
 Managed pip installation uses an explicit extended-length Windows prefix, with matching
 size/removal paths. Runtime configuration keeps normal absolute paths; no registry policy
 is changed and venvs are never relocated.
+
+## Background bootstrap and contextual preparation (21 October 2026)
+
+`SetupService.bootstrap()` runs once per server process after manager construction. It inventories the bundled runtime, imports a detected model only when no verified configuration exists, and uses `ComputeManager.prepare()` with the saved device preference. Speech and Ollama failures are isolated. Ollama discovery uses the selected connection and capability metadata only; no generation or Gemini request runs during bootstrap. Existing diagnostics inspect local diarization and saved Gemini configuration without sending recording data.
+
+The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. The `prepare` Ollama action explicitly opts into managed installation and then pulls/verifies one catalog model under the same lease.

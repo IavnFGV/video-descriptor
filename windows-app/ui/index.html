@@ -42,6 +42,7 @@
 <p id="view-description">Откройте запись, чтобы продолжить работу с её текстом и результатами.</p>
 </div>
 <p id="message" class="feedback" role="status" aria-live="polite"></p>
+<section class="card" id="bootstrap-notice" aria-label="Готовность приложения"><p id="bootstrap-message" role="status" aria-live="polite">Проверяем AI-компоненты…</p><button id="prepare-speech" class="vd-button" type="button" hidden>Скачать и подготовить</button><button id="cancel-preparation" class="vd-button" type="button" hidden>Остановить подготовку</button></section>
 <div class="workspace" id="page-workspace">
 <div>
 <section id="new-record-view" hidden>
@@ -141,15 +142,16 @@
 </section>
 <div id="setup-wizard" hidden>
 <section class="card">
-<h2>Распознавание · обязательные шаги</h2>
-<p class="footnote">1. Распознавание → 2. Перевод и конспекты → 3. Говорящие → 4. Готовность. Необязательные шаги можно пропустить и настроить позднее.</p>
+<h2>Готовность AI</h2>
+<p id="ai-summary" role="status">Проверяем компоненты…</p>
 <a class="vd-link" href="#diagnostics">Проверить компоненты в диагностике →</a>
 </section>
-<section class="card" id="setup-card" aria-label="Настройка распознавания">
+<details class="card ai-section" id="setup-card"><summary>Распознавание речи</summary>
 <div class="card-title">
-<h2>Подготовим приложение к работе</h2>
+<h2>Модель и устройство</h2>
 <button id="setup-toggle" class="vd-button vd-button--quiet" type="button" aria-controls="setup-form" aria-expanded="false">Настроить модель</button>
 </div>
+<label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор CPU</option><option value="GPU">Intel GPU</option><option value="NPU">Intel NPU</option></select></label>
 <div id="component-whisper"></div>
 <p id="setup-summary" class="footnote">Проверяем установленную модель…</p>
 <form id="setup-form" hidden>
@@ -173,7 +175,7 @@
 <input id="download-consent" type="checkbox" name="download-consent"> Разрешаю скачать эту модель с Hugging Face</label>
 <button type="button" id="download-model" class="vd-button">Установить и проверить Whisper</button>
 </details>
-<p class="footnote">После подключения нажмите «Подготовить распознавание» в этом разделе. Дополнительная короткая проверка выполняется только по вашей команде.</p>
+<p class="footnote">Подключённая модель запускается автоматически. Дополнительная проверка доступна ниже.</p>
 <p class="footnote">После подготовки модели проверьте распознавание на короткой записи из установщика. Выбор файла не требуется.</p>
 <div class="setup-actions">
 <button id="start-npu" type="button" hidden class="vd-button">Подготовить распознавание</button>
@@ -191,10 +193,9 @@
 </progress>
 <p id="operation-feedback" role="status" aria-live="polite">
 </p>
-</section>
-<h2 class="optional-heading">Необязательные возможности</h2>
-<p class="footnote">Перевод и конспект можно подключить позже.</p>
-<section class="card" aria-label="Настройка перевода">
+</details>
+
+<details class="card ai-section"><summary>Локальный AI (Ollama)</summary>
 <div class="card-title">
 <h2>Перевод через Ollama</h2>
 <button type="button" id="ollama-refresh" class="vd-button vd-button--quiet">Обновить список</button>
@@ -230,8 +231,8 @@
 <p id="ollama-feedback" class="footnote" role="status" aria-live="polite">
 </p>
 </form>
-</section>
-<section class="card">
+</details>
+<details class="card ai-section"><summary>Облачный AI (Gemini)</summary>
 <h2>Gemini · необязательно</h2>
 <p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p>
 <form id="gemini-form">
@@ -255,9 +256,9 @@
 <p id="gemini-feedback" role="status" class="footnote">
 </p>
 </form>
-</section>
-<section class="card" aria-label="Настройка говорящих">
-<h2>3. Говорящие · необязательно</h2>
+</details>
+<details class="card ai-section"><summary>Говорящие</summary>
+<h2>Определение говорящих</h2>
 <p class="footnote">Автоматически подготовим отдельное окружение и модель community-1. Системный Python не нужен. Требуется не менее 8 ГиБ свободного места; загрузка пакетов может занять несколько гигабайт. Распознавание остаётся в своём окружении.</p>
 <div id="component-diarization"></div>
 <label class="vd-field">Устройство диаризации<select id="diarization-device" class="vd-select"><option value="auto">Auto · Intel GPU → CPU с объяснением</option><option value="cpu">CPU</option><option value="xpu">Intel GPU · PyTorch XPU</option></select></label>
@@ -268,14 +269,14 @@
 <label class="check-label"><input id="diarization-consent" type="checkbox"> Условия доступа приняты; разрешаю загрузку окружения и модели</label>
 <button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button>
 <p class="footnote">Явный XPU не заменяется на CPU. Auto проверяет CPU после ошибки XPU и показывает причину. NPU для диаризации не используется.</p>
-</section>
-<section class="card">
-<h2>4. Готовность</h2>
+</details>
+<details class="card ai-section"><summary>Дополнительно</summary>
+<h2>Компоненты и восстановление</h2>
 <div id="component-summary"></div>
 <p id="component-directory" class="footnote"></p>
 <button id="setup-finish" type="button" class="vd-button vd-button--primary">К записям →</button>
 <p class="footnote">Вернуться можно через «Настройки AI». Для локального распознавания достаточно Whisper, CPU и FFmpeg.</p>
-</section>
+</details>
 </div>
 
 <section id="diagnostics-view" hidden>
@@ -318,6 +319,26 @@
 </main>
 </div>
 </div>
+<dialog id="local-ai-dialog" class="vd-dialog" aria-labelledby="local-ai-heading">
+<h2 id="local-ai-heading">Подключить локальный AI</h2>
+<p id="local-ai-info" role="status" aria-live="polite"></p>
+<p>Работающая установка и её модели используются автоматически. Для отдельной управляемой установки нужно разрешение на загрузку.</p>
+<label class="check-label"><input id="local-ai-consent" type="checkbox">Разрешаю установить управляемый локальный AI и скачать модель</label>
+<div class="setup-actions"><button id="local-ai-go" type="button" class="vd-button vd-button--primary">Подготовить и продолжить</button><button id="local-ai-close" type="button" class="vd-button">Позже</button></div>
+</dialog>
+<dialog id="speaker-dialog" class="vd-dialog" aria-labelledby="speaker-heading">
+<h2 id="speaker-heading">Определить говорящих</h2>
+<label class="vd-field">Способ обработки<select id="speaker-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="xpu">Intel GPU</option><option value="cpu">Процессор CPU</option></select></label>
+<p id="speaker-status" role="status" aria-live="polite"></p>
+<details id="speaker-install-fields"><summary>Подготовка определения говорящих</summary>
+<p>Источник: PyPI, python.org и Hugging Face community-1. Загрузка — несколько гигабайт, необходимо 8 ГиБ свободного места. Для community-1 примите условия доступа и предоставьте токен чтения.</p>
+<button id="speaker-terms" type="button" class="vd-button">Условия community-1</button>
+<button id="speaker-tokens" type="button" class="vd-button">Получить токен</button>
+<label class="vd-field">Токен чтения<input id="speaker-token" class="vd-input" type="password" autocomplete="off" maxlength="512"></label>
+<label class="check-label"><input id="speaker-consent" type="checkbox">Условия приняты; разрешаю загрузку окружения и модели</label>
+</details>
+<div class="setup-actions"><button id="speaker-go" type="button" class="vd-button vd-button--primary">Продолжить</button><button id="speaker-cancel" type="button" class="vd-button">Закрыть</button></div>
+</dialog>
 <script src="/studio-assets/speech-edit.js">
 </script>
 <script src="/native.js">

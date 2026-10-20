@@ -49,7 +49,7 @@
   function message(text, error=false) { $('message').textContent=text; $('message').dataset.tone=error?'danger':'success'; }
   async function setupStatus() {
     const s=await api('/api/setup');
-    if(!wizardLoaded){if(!s.completed&&!selected&&!location.hash){history.replaceState(null,'',location.search+'#settings');showView();}wizardLoaded=true;}
+    if(!wizardLoaded)wizardLoaded=true;
     $('download-info').textContent=`Официальный источник: ${s.download.source} · revision ${s.download.revision} · ${(s.download.download_bytes/1024**2).toFixed(0)} МиБ. После сбоя повторите загрузку: готовые файлы будут проверены и использованы.`;
     const op=s.operation;
     $('setup-progress').hidden=op.status!=='running';
@@ -57,9 +57,9 @@
     $('operation-feedback').textContent=(op.status==='error'?'Ошибка: ':op.status==='done'?'Готово: ':'')+(op.result?.message||op.message||'')+(op.result?.device?' · '+op.result.device+' · реплик: '+op.result.segments:'');
     $('download-model').disabled=op.status==='running';$('probe-model').disabled=op.status==='running';$('probe-custom').disabled=op.status==='running';
     if(op.status==='running'&&!setupPolling){setupPolling=true;setTimeout(()=>{setupPolling=false;setupStatus().catch(e=>message(e.message,true));readiness();},1000);}
-    $('setup-summary').textContent=s.verified?'Модель подключена и проверена. Можно подготовить распознавание.':s.model_present?'Найдена существующая модель. Проверьте и подключите её в мастере.':'Для распознавания нужно подключить модель. Начните с выбора папки.';
+    $('setup-summary').textContent=s.verified?'Модель подключена. Распознавание готовится автоматически.':s.model_present?'Проверяем найденную модель…':'Нужно подготовить распознавание. Можно скачать модель или подключить имеющуюся.';
     if(!$('model-path').value)$('model-path').value=s.model_present?s.model_path:'';
-    if(!s.model_present)$('setup-form').hidden=false;
+
     $('setup-toggle').setAttribute('aria-expanded',String(!$('setup-form').hidden));
   }
   async function modelAction(save) {
@@ -68,7 +68,7 @@
     try {
       const r=await api(save?'/api/setup/model':'/api/setup/inspect',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({path:$('model-path').value})});
       $('setup-feedback').textContent=`${r.model} · ${(r.bytes/1024/1024).toFixed(0)} МиБ · файлы проверены.`+(save?' Модель подключена. Нажмите «Подготовить распознавание» в этом разделе.':' Можно подключить модель.');
-      if(save){await setupStatus();await readiness();}
+      if(save){await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await setupStatus();await readiness();}
     } catch(e){$('setup-feedback').textContent=e.message;}finally{buttons.forEach(b=>b.disabled=false);}
   }
   async function ollamaStatus() {
@@ -93,11 +93,12 @@
   async function readiness() {
     try {
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
-      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Определить говорящих'+(d.diarization?.device?' · '+d.diarization.device.toUpperCase():'');$('diarize-run').disabled=processing||!diarizationConfigured;$('diarize-run').title=d.diarization?.message||'Подготовьте диаризацию в настройках AI';
+      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Определить говорящих'+(d.diarization?.device?' · '+d.diarization.device.toUpperCase():'');$('diarize-run').disabled=processing;$('diarize-run').title='Выбрать способ обработки и определить говорящих';
       if(d.compute){
         const c=d.compute, chosen=c.selected, ready=chosen&&c.capabilities[chosen].ready;
         const deviceReason=(name)=>{const cap=c.capabilities[name];return c.preparing&&name===chosen?'Запускаем распознавание…':cap.available&&!cap.ready&&cap.model_present&&cap.reason==='Модель не загружена'?'Распознавание не запущено':cap.reason;};
-        $('speech-device').value=c.settings.speech_device;
+        if(document.activeElement!==$('speech-device'))$('speech-device').value=c.settings.speech_device;
+        if(document.activeElement!==$('settings-speech-device'))$('settings-speech-device').value=c.settings.speech_device;
         for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+deviceReason(option.value);}
         $('device-status').textContent=c.preparing?'Запускаем распознавание с моделью на диске…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
         $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
@@ -105,7 +106,9 @@
         systemStatus(ready&&d.ffmpeg,c.preparing);
         $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
-        $('npu-notice').textContent=ready?'Модель готова. Можно добавлять запись.':'Если модель уже подключена, нажмите «Подготовить распознавание»: она загрузится с диска в память устройства. Скачивание не требуется.';
+        $('npu-notice').textContent=ready?'Распознавание готово. Можно добавить запись.':'Подготавливаем распознавание в фоне. Выбранный файл сохраняется.';
+        if(!componentBusy){$('bootstrap-message').textContent=c.preparing?'Подготавливаем распознавание…':ready?'Распознавание готово':c.error?'Не удалось подготовить распознавание. Повторите.':'Нужно подготовить распознавание';$('prepare-speech').hidden=!!ready||c.preparing;}
+        $('ai-summary').textContent=(ready?'Распознавание готово. ':'Распознавание требует подготовки. ')+(d.ollama.ready?'Локальный перевод подключён. ':'Локальный перевод не подключён. ')+(diarizationConfigured?'Определение говорящих доступно.':'Говорящие подготавливаются при первом использовании.');
         try{const events=await api('/api/native/events');$('events').textContent=events.slice(-20).map(e=>`${new Date(e.time_utc).toLocaleTimeString()} · ${actionNames[e.action]||e.action}${e.device||e.requested?' · '+(e.device||e.requested):''}${e.previous_device?' ← '+e.previous_device:''}${e.job_id?' · запись '+e.job_id.slice(0,8):''}`).join('\n')||'Событий пока нет';}catch(e){$('events').textContent='Не удалось обновить историю: '+e.message;}
         return;
       }
@@ -167,7 +170,7 @@
     $('retry').textContent=job.task==='diarize'?'Повторить определение говорящих':result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
     const done=job.status==='done'&&result?.status==='done';$('exports').hidden=!done;
     $('postprocess-actions').hidden=!done||!result?.segments?.length;
-    $('translate-run').disabled=processing;$('notes-run').disabled=processing;$('diarize-run').disabled=processing||!diarizationConfigured;
+    $('translate-run').disabled=processing;$('notes-run').disabled=processing;$('diarize-run').disabled=processing;
     $('ru-srt').hidden=!done||!result?.has_translation;
     $('open-report').hidden=!done||(job.mode!=='notes'&&job.task!=='notes');
     if(!result){$('video').pause();$('video').hidden=true;$('transcript').replaceChildren();$('transcript').dataset.content='';$('timing-note').textContent='';return;}
@@ -226,7 +229,8 @@
   $('stop-job').onclick=async()=>{const id=selected;clearTimeout(timer);$('stop-job').disabled=true;$('stop-job').textContent='Останавливаем…';try{await api('/api/native/cancel?id='+encodeURIComponent(id),{method:'POST',headers:{'X-App-Instance':instance}});message('Останавливаем обработку. Сохранённый текст останется доступен.');poll();}catch(e){message(e.message,true);$('stop-job').disabled=false;$('stop-job').textContent='Стоп';}};
   $('retry').onclick=async()=>{try{await api('/api/retry?id='+selected,{method:'POST'});poll();}catch(e){message(e.message,true);}};
   $('start-npu').onclick=async()=>{message('Запускаем распознавание: загружаем модель с диска в память устройства. Скачивание не требуется.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
-  $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await readiness();}catch(e){message(e.message,true);}};
+  $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await readiness();}catch(e){message(e.message,true);}};
+  $('settings-speech-device').onchange=()=>{$('speech-device').value=$('settings-speech-device').value;$('speech-device').onchange();};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
   async function postprocess(task) {
@@ -234,9 +238,9 @@
     processing=true;$('translate-run').disabled=true;$('notes-run').disabled=true;
     try{const job=await api('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({folder:currentJob.folder,task})});message('Создана отдельная версия. Исходная расшифровка сохранена.');select(job.id);await jobs();}catch(e){message(e.message,true);}finally{processing=false;$('translate-run').disabled=false;$('notes-run').disabled=false;}
   }
-  $('diarize-run').onclick=()=>postprocess('diarize');
-  $('translate-run').onclick=()=>postprocess('translate');
-  $('notes-run').onclick=()=>postprocess('notes');
+  $('diarize-run').onclick=openSpeakers;
+  $('translate-run').onclick=()=>localAI('translate');
+  $('notes-run').onclick=()=>localAI('notes');
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;$('setup-toggle').setAttribute('aria-expanded',String(!$('setup-form').hidden));};
   $('ollama-refresh').onclick=ollamaStatus;
   $('ollama-form').onsubmit=async e=>{e.preventDefault();$('ollama-feedback').textContent='Проверяем генерацию перед сохранением модели…';await componentAction('ollama','check',{model:$('ollama-model').value,task:$('ollama-task').value});};
@@ -289,6 +293,8 @@
   }
   async function componentStatus() {
     const data=await api('/api/components');componentProfiles=data.profiles;componentBusy=!!data.active;
+    $('cancel-preparation').hidden=!data.active;
+    if(data.active){const active=data.components.find(c=>c.id===data.active);$('bootstrap-message').textContent=active.message+(active.total?' · '+Math.floor(100*(active.bytes||0)/active.total)+'%':'');$('prepare-speech').hidden=true;}
     for(const item of data.components){
       const box=$('component-'+item.id);
       if(!box.componentControls){
@@ -333,6 +339,106 @@
   $('diarization-install').onclick=()=>{const token=$('hf-token').value;$('hf-token').value='';componentAction('diarization','install',{confirmed:$('diarization-consent').checked,device:$('diarization-device').value,token});};
   for(const [id,page] of [['hf-terms','terms'],['hf-tokens','tokens']])$(id).onclick=()=>setupPost('external',{page}).catch(e=>message(e.message,true));
 
+  let localTask=null, localFolder=null;
+  async function localAI(task){
+    try{
+      const status=await api('/api/setup/ollama');
+      if(status.ready){await postprocess(task);return;}
+      localTask=task;localFolder=currentJob?.folder;
+      const d=await api('/api/components'), model=d.profiles.ollama_models?.[0], runtime=d.profiles.ollama;
+      $('local-ai-info').textContent=status.service_ready?'Выберите установленную языковую модель в настройках AI.':status.mode!=='existing'||status.detected?'Выбранный сервис недоступен. Запустите его или измените подключение в настройках AI.':'Подготовим локальный AI. Источник: '+runtime.source+' и Ollama Library. Объём около '+((runtime.bytes+(model?.bytes||0))/1024**3).toFixed(1)+' ГиБ; модель '+(model?.name||'не выбрана')+'.';
+      $('local-ai-go').hidden=status.service_ready||status.mode!=='existing'||status.detected||!model;
+      $('local-ai-consent').parentElement.hidden=$('local-ai-go').hidden;
+      $('local-ai-dialog').showModal();
+    }catch(e){message(e.message,true);}
+  }
+  $('local-ai-close').onclick=()=>$('local-ai-dialog').close();
+  $('local-ai-go').onclick=async()=>{
+    $('local-ai-go').disabled=true;
+    try{
+      const d=await api('/api/components'), model=d.profiles.ollama_models[0];
+      await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component:'ollama',action:'prepare',mode:'managed',model:model.name,task:localTask==='notes'?'notes':'translation',resume:{folder:localFolder,task:localTask},confirmed:$('local-ai-consent').checked})});
+      const folder=localFolder;
+      const wait=async()=>{
+        const d=await api('/api/components'),item=d.components.find(c=>c.id==='ollama');
+        $('local-ai-info').textContent=item.message;
+        if(d.active){setTimeout(()=>wait().catch(fail),1000);return;}
+        if(item.state!=='ready')throw Error(item.message);
+        $('local-ai-go').disabled=false;
+        if($('local-ai-dialog').open)$('local-ai-dialog').close();
+        if(currentJob?.folder===folder&&item.resumed_job)await select(item.resumed_job);
+        await jobs();
+      };
+      await wait();
+    }catch(e){fail(e);}
+    function fail(e){$('local-ai-go').disabled=false;$('local-ai-info').textContent=e.message;message(e.message,true);}
+  };
+
+  let speakerFolder=null, speakerPending=false, speakerNeedsInstall=false;
+  async function openSpeakers(){
+    speakerFolder=currentJob?.folder;
+    if(!speakerFolder)return;
+    $('speaker-dialog').showModal();
+    try{await speakerStatus();$('speaker-device').focus();}catch(e){$('speaker-status').textContent='Не удалось проверить готовность. Закройте окно и повторите.';}
+  }
+  async function speakerStatus(){
+    const d=await api('/api/components'), item=d.components.find(c=>c.id==='diarization');
+    const health=await api('/api/doctor');
+    const diagnostics=await api('/api/setup/diagnostics');
+    speakerNeedsInstall=health.diarization?.state!=='configured';
+    if(!speakerPending)$('speaker-device').value=health.diarization?.requested_device||'auto';
+    for(const option of $('speaker-device').options){const unavailable=option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=({auto:'Автоматически (рекомендуется)',xpu:'Intel GPU',cpu:'Процессор CPU'}[option.value])+' · '+(unavailable?'недоступно':ready?'готово':'потребуется проверка или подготовка');}
+    $('speaker-consent').checked=item.download_consent===true&&item.consent_revision===d.profiles.diarization_model?.revision;
+    $('speaker-token').placeholder=d.has_hf_token?'Токен сохранён; можно оставить пустым':'Введите токен чтения';
+    $('speaker-install-fields').open=speakerNeedsInstall;
+    $('speaker-install-fields').hidden=!speakerNeedsInstall;
+    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':'Готово для '+(health.diarization?.device==='xpu'?'Intel GPU':'процессора')+'. Другой способ проверим перед запуском.';
+    $('speaker-go').textContent=speakerNeedsInstall?'Скачать, подготовить и запустить':'Определить говорящих';
+  }
+  $('speaker-cancel').onclick=()=>$('speaker-dialog').close();
+  $('speaker-dialog').addEventListener('close',()=>{$('speaker-token').value='';$('diarize-run').focus();});
+  $('speaker-terms').onclick=()=>setupPost('external',{page:'terms'}).catch(e=>message(e.message,true));
+  $('speaker-tokens').onclick=()=>setupPost('external',{page:'tokens'}).catch(e=>message(e.message,true));
+  $('speaker-go').onclick=async()=>{
+    if(speakerPending)return;
+    speakerPending=true;$('speaker-go').disabled=true;$('speaker-device').disabled=true;
+    const folder=speakerFolder, device=$('speaker-device').value;
+    try{
+      const token=$('speaker-token').value;
+      const health=await api('/api/doctor');
+      const saved=await api('/api/components');
+      const previous=saved.components.find(c=>c.id==='diarization');
+      const cached=health.diarization?.state==='configured'&&previous.proof?.turns?.length&&health.diarization.requested_device===device;
+      if(!cached)await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component:'diarization',action:speakerNeedsInstall?'install':'check',device,token,resume:{folder,task:'diarize'},confirmed:$('speaker-consent').checked})});
+      $('speaker-token').value='';
+      $('speaker-status').textContent='Подготавливаем определение говорящих… Можно закрыть это окно.';
+      const wait=async()=>{
+        const d=await api('/api/components'),item=d.components.find(c=>c.id==='diarization');
+        $('speaker-status').textContent=item.message;
+        if(d.active){setTimeout(()=>wait().catch(fail),1000);return;}
+        if(!cached&&item.state!=='ready')throw Error(item.message);
+        const job=cached?await api('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({folder,task:'diarize'})}):{id:item.resumed_job};
+        speakerPending=false;$('speaker-go').disabled=false;$('speaker-device').disabled=false;
+        if($('speaker-dialog').open)$('speaker-dialog').close();
+        if(currentJob?.folder===folder)await select(job.id);
+        await jobs();await readiness();
+      };
+      await wait();
+    }catch(e){fail(e);}
+    function fail(e){speakerPending=false;$('speaker-device').disabled=false;speakerNeedsInstall=true;$('speaker-install-fields').hidden=false;$('speaker-install-fields').open=true;$('speaker-go').textContent='Подготовить и повторить';$('speaker-go').disabled=false;$('speaker-status').textContent=e.message;message(e.message,true);}
+  };
+  $('prepare-speech').onclick=async()=>{
+    try{
+      const s=await api('/api/setup');
+      if(s.model_present){await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await readiness();return;}
+      const data=await api('/api/components'), item=data.components.find(c=>c.id==='whisper');
+      const consent=(item.download_consent===true&&item.consent_revision===s.download.revision)||window.confirm('Скачать и подготовить распознавание?\nИсточник: '+s.download.source+'\nОбъём: '+Math.ceil(s.download.download_bytes/1024**2)+' МиБ. Файлы проверяются перед установкой.');
+      if(consent)await componentAction('whisper','install',{confirmed:true});
+    }catch(e){message(e.message,true);}
+  };
+  $('cancel-preparation').onclick=async()=>{const d=await api('/api/components');if(d.active)await componentAction(d.active,'cancel');};
+
+  for(const section of document.querySelectorAll('.ai-section')){const summary=section.querySelector(':scope > summary');summary.setAttribute('aria-expanded',String(section.open));section.addEventListener('toggle',()=>summary.setAttribute('aria-expanded',String(section.open)));}
   api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus(),diagnostics(),componentStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

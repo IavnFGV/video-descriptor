@@ -212,7 +212,13 @@ def run(args, evidence):
         evidence['method'] = 'real installed WinForms/WebView2 DOM and pointer input'
         evidence['app_version'] = api('/health').get('version')
         if stage == 'desktop':
+            if not cdp.evaluate('document.querySelector("#setup-wizard").hidden'):
+                raise RuntimeError('First-run wizard unexpectedly blocks the main screen')
+            cdp.screenshot(args.reports / 'zero-config-first-launch.png')
             cdp.click('#setup-open')
+            if cdp.evaluate('[...document.querySelectorAll(".ai-section")].some(e=>e.open)'):
+                raise RuntimeError('Technical settings are expanded by default')
+            cdp.screenshot(args.reports / 'zero-config-settings.png')
             wait_for(lambda: cdp.visible_text('#setup-diagnostics'),
                      lambda text: 'OpenVINO' in text and 'CPU' in text)
             evidence['diagnostics'] = api('/api/setup/diagnostics')
@@ -222,6 +228,7 @@ def run(args, evidence):
         elif stage == 'whisper':
             plan = json.loads(Path('C:/VD-Acceptance/plan.json').read_text(encoding='utf-8-sig'))
             cdp.click('#setup-open')
+            cdp.click('#setup-card > summary')
             if plan['network_download']:
                 cdp.evaluate('document.querySelector("#download-consent").closest("details").open=true')
                 cdp.click('#download-consent')
@@ -243,6 +250,7 @@ def run(args, evidence):
                 cdp.click('#apply-model')
                 wait_for(lambda: cdp.visible_text('#setup-feedback'),
                          lambda text: 'Модель подключена' in text)
+            wait_for(lambda: not api('/api/compute-settings')['preparing'])
             cdp.fill('#speech-device', 'CPU')
             wait_for(lambda: api('/api/compute-settings')['settings']['speech_device'] == 'CPU')
             if not api('/api/compute-settings')['capabilities']['CPU']['ready']:
@@ -261,6 +269,7 @@ def run(args, evidence):
                 evidence['probe'] = operation
             else:
                 evidence['probe_skipped'] = 'Exact-input previous proof; fresh guest CPU readiness verified'
+            cdp.click('.ai-section:last-of-type > summary')
             cdp.click('#setup-finish')
             wait_for(lambda: cdp.evaluate('location.hash === "#records"'))
             cdp.click('#new-record-open')
@@ -285,6 +294,13 @@ def run(args, evidence):
                 if not (0 <= segment['start'] <= segment['end'] <= result['duration'] + 0.1):
                     raise RuntimeError('Transcription contains invalid timestamps')
             evidence['video'] = speech
+            cdp.click('#diarize-run')
+            wait_for(lambda: cdp.evaluate('document.querySelector("#speaker-dialog").open'))
+            cdp.screenshot(args.reports / 'zero-config-speaker-choice.png')
+            cdp.call('Input.dispatchKeyEvent', type='keyDown', key='Escape', code='Escape', windowsVirtualKeyCode=27)
+            cdp.call('Input.dispatchKeyEvent', type='keyUp', key='Escape', code='Escape', windowsVirtualKeyCode=27)
+            evidence['speaker_choice_from_record'] = True
+            evidence['speaker_choice_did_not_modify_record'] = api('/api/speech?job=' + source_job)['result']['segments'] == result['segments']
             save('workflow-state.json', {'source_job': source_job})
         elif stage == 'ollama-install':
             version = wait_for(lambda: json.loads(read_http('http://127.0.0.1:11434/api/version')))

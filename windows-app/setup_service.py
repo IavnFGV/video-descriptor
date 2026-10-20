@@ -138,6 +138,39 @@ class SetupService:
         self.state = {'status': 'idle', 'message': ''}
         self.hardware = None
 
+    def bootstrap(self):
+        """One background discovery per process; never download or run cloud inference."""
+        with self.manager._lock:
+            if hasattr(self, 'bootstrap_state'):
+                return
+            self.bootstrap_state = {'status': 'checking', 'message': 'Проверяем AI-компоненты…'}
+
+        def work():
+            failures = []
+            try:
+                self.manager.inventory()
+                model = self.manager.model
+                if (model / 'config.json').is_file():
+                    if not self.manager.value.get('whisper_model_sha256'):
+                        self.apply(str(model))
+                    self.manager.prepare()
+            except (OSError, ValueError, RuntimeError):
+                failures.append('распознавание')
+            try:
+                status = ollama_status(self.manager.value)
+                settings = translation_settings.load(self.manager.value['workspace'])
+                # Preserve saved provider, model and endpoint even when unavailable.
+                if not status['selected'] and not settings.get('ollama_model') and settings.get('provider') == 'ollama':
+                    for item in status['models']:
+                        if ollama_completion(self.manager.value, item['name']):
+                            select_ollama(self.manager.value, item['name'])
+                            break
+            except (OSError, ValueError, RuntimeError, requests.RequestException):
+                failures.append('локальный AI')
+            self.bootstrap_state = {'status': 'error' if failures else 'done',
+                                    'message': 'Требуется проверка: ' + ', '.join(failures) if failures else 'Проверка компонентов завершена'}
+        threading.Thread(target=work, name='ai-bootstrap', daemon=True).start()
+
     def snapshot(self):
         model = self.manager.model
         present = (model / 'config.json').is_file()
@@ -145,6 +178,7 @@ class SetupService:
                 'verified': present and bool(self.manager.value.get('whisper_model_sha256')),
                 'model_name': 'Whisper small FP16', 'downloads': True,
                 'download': self.profile(), 'operation': dict(self.state),
+                'bootstrap': getattr(self, 'bootstrap_state', {}),
                 'completed': read_json(self.here / 'runtime/setup-state.json', {}).get('completed', False)}
 
     def apply(self, value, *, downloading=False):

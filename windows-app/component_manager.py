@@ -273,12 +273,15 @@ class ComponentManager:
             if self.active != key:
                 raise ValueError('У этого компонента нет активной операции')
             self.cancel.set()
+            self.update(key, pending_action=None)
             return {'cancel_requested': True}
-        if action not in {'install', 'check', 'pull', 'remove', 'connect', 'start_existing'}:
+        if action == 'prepare' and key != 'ollama':
+            raise ValueError('Автоматическая подготовка доступна для локального AI')
+        if action not in {'install', 'check', 'pull', 'prepare', 'remove', 'connect', 'start_existing'}:
             raise ValueError('Неизвестное действие')
-        if action in {'install', 'pull', 'remove', 'start_existing'} and body.get('confirmed') is not True:
+        if action in {'install', 'pull', 'prepare', 'remove', 'start_existing'} and body.get('confirmed') is not True:
             raise ValueError('Подтвердите загрузку или удаление управляемого компонента')
-        if key == 'ollama' and action == 'install' and body.get('mode') != 'managed':
+        if key == 'ollama' and action in {'install', 'prepare'} and body.get('mode') != 'managed':
             raise ValueError('Выберите режим «Установить управляемую Ollama» и подтвердите установку')
         if action in {'connect', 'start_existing'} and key != 'ollama':
             raise ValueError('Действие доступно только для Ollama')
@@ -288,12 +291,25 @@ class ComponentManager:
             self.setup.guard()
             if self.active:
                 raise RuntimeError('Дождитесь завершения текущей подготовки')
+            saved_pending = self.components[key].get('pending_action')
+            pending = body.get('resume', saved_pending if isinstance(saved_pending, dict) and saved_pending.get('workspace') == self.manager.value.get('workspace') and action != 'remove' else None)
+            if pending is not None:
+                from video_descriptor.construction import checked_folder
+                if not isinstance(pending, dict) or pending.get('task') not in {'diarize', 'translate', 'notes'}:
+                    raise ValueError('Выберите действие для записи')
+                if (key == 'diarization') != (pending['task'] == 'diarize') or key == 'whisper':
+                    raise ValueError('Действие не соответствует компоненту')
+                checked_folder(Path(self.manager.value['workspace']), pending.get('folder'))
             lease = (self.root / 'operation.lock').open('a+')
             try:
                 lock_file(lease)
             except (BlockingIOError, PermissionError):
                 lease.close()
                 raise RuntimeError('Компоненты настраиваются в другом экземпляре приложения') from None
+            if action in {'install', 'pull', 'prepare'}:
+                profile = self.manifest.get('whisper_model' if key == 'whisper' else 'diarization_model' if key == 'diarization' else 'ollama', {})
+                self.update(key, download_consent=True, consent_revision=profile.get('revision') or profile.get('sha256'))
+            self.update(key, pending_action={**pending, 'workspace': self.manager.value['workspace']} if pending else None, resumed_job=None)
             self.active = key
             self.manager.operation = 'components-' + key
             self.cancel.clear()
@@ -311,6 +327,18 @@ class ComponentManager:
                 else:
                     proof = self.whisper(action)
                 self.check_cancel()
+                pending = self.components[key].get('pending_action')
+                if pending and pending.get('workspace') == self.manager.value['workspace'] and action != 'remove':
+                    from video_descriptor.jobs import start_worker
+                    root = Path(self.manager.value['workspace'])
+                    if pending['task'] == 'diarize':
+                        from video_descriptor.diarization_postprocess import enqueue
+                        job = enqueue(root, pending['folder'], self.manager.value)
+                    else:
+                        from video_descriptor.postprocess import enqueue
+                        job = enqueue(root, pending['folder'], pending['task'], proof['model'], self.manager.value['ollama_url'], notes_model=proof['model'])
+                    self.update(key, pending_action=None, resumed_job=job['id'])
+                    start_worker(root)
                 state = 'not_installed' if action == 'remove' else 'ready'
                 message = 'Компонент удалён' if action == 'remove' else 'Проверка выполнена'
                 if key == 'ollama' and action != 'remove' and not proof.get('generation_checked'):
@@ -502,14 +530,14 @@ class ComponentManager:
             return self.connect_ollama(body.get('mode'), body.get('url'))
         if action == 'start_existing':
             return self.start_existing_ollama()
-        version = self.ensure_ollama(install=action == 'install')
+        version = self.ensure_ollama(install=action in {'install', 'prepare'})
         model = body.get('model')
         if not model:
-            if action == 'pull':
+            if action in {'pull', 'prepare'}:
                 raise ValueError('Выберите модель')
             return {'api_version': version, 'generation_checked': False}
         profiles = {item['name']: item for item in self.manifest.get('ollama_models', [])}
-        if action == 'pull':
+        if action in {'pull', 'prepare'}:
             if model not in profiles:
                 raise ValueError('Выберите модель из каталога')
             if selected(self.manager.value)['mode'] == 'managed' and shutil.disk_usage(self.root).free < profiles[model]['bytes'] * 1.2:
@@ -659,7 +687,7 @@ class ComponentManager:
         self.publish({'diarization_python': str(runtime), 'diarization_model_directory': str(model),
                       'diarization_device': selected, 'diarization_requested_device': requested,
                       'diarization_setup_warning': warning, 'diarization_probe': proof})
-        self.update('diarization', path=str(runtime.parent.parent), model=str(model), device=selected,
+        self.update('diarization', path=str(runtime.parent.parent), model=str(model), device=selected, requested_device=requested,
                     version=proof.get('torch', ''), fallback_reason=warning,
                     bytes_on_disk=self.size(runtime.parent.parent) + self.size(model))
         return proof
