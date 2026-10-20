@@ -17,8 +17,9 @@
     }
 
     const view=['new','settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
-    $('readiness-panel').hidden=!['settings','diagnostics'].includes(view);
-    $('page-workspace').classList.toggle('workspace--single',!['settings','diagnostics'].includes(view));
+    $('readiness-panel').hidden=view!=='diagnostics';
+    $('bootstrap-notice').hidden=view==='settings';
+    $('page-workspace').classList.toggle('workspace--single',view!=='diagnostics');
     $('new-record-view').hidden=view!=='new';
     $('jobs-panel').hidden=!!selected;
     $('result-panel').hidden=!selected;
@@ -41,7 +42,8 @@
   $('records-open').onclick=async e=>{if($('records-open').getAttribute('href').startsWith('/create'))return;if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(!await window.mayLeaveQuickReply())return;const url=new URL(location.href);url.searchParams.delete('job');url.hash='records';history.pushState(null,'',url);clearTimeout(timer);selected=null;resetResult();showView(true);};
   $('skip-link').onclick=e=>{e.preventDefault();$('main').focus();};
   async function api(url, options) {
-    const response = await fetch(url, options);
+    let response;
+    try{response=await fetch(url,options);}catch(e){throw Error('Нет связи с приложением. Повторите действие.');}
     const data = await response.json();
     if (!response.ok) throw Error(data.error || `Ошибка ${response.status}`);
     return data;
@@ -313,6 +315,7 @@
       remove.hidden=!item.path||!!data.active||(item.id==='ollama'&&data.ollama_connection.mode!=='managed');remove.textContent='Удалить окружение';remove.onclick=()=>{if(window.confirm('Удалить только управляемое приложением окружение? Модели и пользовательские файлы сохранятся.'))componentAction(item.id,'remove',{confirmed:true});};
     }
     $('component-summary').replaceChildren(...data.components.map(item=>check(item.name,item.state==='ready',componentNames[item.state])));
+    if(!$('component-root').value)$('component-root').value=data.root;
     $('component-directory').textContent='Модели, окружения и проверенные загрузки: '+data.root+'. При обновлении приложения сохраняются.';
     const profile=data.profiles.ollama;
     if(profile)$('ollama-install-info').textContent='Источник: '+profile.source+' · версия '+profile.version+' · '+(profile.bytes/1024**3).toFixed(2)+' ГиБ. Размер распакованного компонента больше.';
@@ -387,12 +390,12 @@
     const diagnostics=await api('/api/setup/diagnostics');
     speakerNeedsInstall=health.diarization?.state!=='configured';
     if(!speakerPending)$('speaker-device').value=health.diarization?.requested_device||'auto';
-    for(const option of $('speaker-device').options){const unavailable=option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=({auto:'Автоматически (рекомендуется)',xpu:'Intel GPU',cpu:'Процессор CPU'}[option.value])+' · '+(unavailable?'недоступно':ready?'готово':'потребуется проверка или подготовка');}
+    for(const option of $('speaker-device').options){const unavailable=option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&!!item.proof?.turns?.length&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=({auto:'Автоматически (рекомендуется)',xpu:'Intel GPU',cpu:'Процессор CPU'}[option.value])+' · '+(unavailable?'недоступно':ready?'готово':'потребуется проверка или подготовка');}
     $('speaker-consent').checked=item.download_consent===true&&item.consent_revision===d.profiles.diarization_model?.revision;
     $('speaker-token').placeholder=d.has_hf_token?'Токен сохранён; можно оставить пустым':'Введите токен чтения';
     $('speaker-install-fields').open=speakerNeedsInstall;
     $('speaker-install-fields').hidden=!speakerNeedsInstall;
-    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':'Готово для '+(health.diarization?.device==='xpu'?'Intel GPU':'процессора')+'. Другой способ проверим перед запуском.';
+    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':(item.proof?.turns?.length?'Готово для ':'Окружение найдено для ')+(health.diarization?.device==='xpu'?'Intel GPU':'процессора')+'. Способ обработки проверим перед запуском.';
     $('speaker-go').textContent=speakerNeedsInstall?'Скачать, подготовить и запустить':'Определить говорящих';
   }
   $('speaker-cancel').onclick=()=>$('speaker-dialog').close();
@@ -436,9 +439,10 @@
       if(consent)await componentAction('whisper','install',{confirmed:true});
     }catch(e){message(e.message,true);}
   };
+  $('save-component-root').onclick=async()=>{const b=$('save-component-root');b.disabled=true;try{const result=await setupPost('component-directory',{directory:$('component-root').value});$('component-root-feedback').textContent=result.message;}catch(e){$('component-root-feedback').textContent=e.message;}finally{b.disabled=false;}};
   $('cancel-preparation').onclick=async()=>{const d=await api('/api/components');if(d.active)await componentAction(d.active,'cancel');};
 
   for(const section of document.querySelectorAll('.ai-section')){const summary=section.querySelector(':scope > summary');summary.setAttribute('aria-expanded',String(section.open));section.addEventListener('toggle',()=>summary.setAttribute('aria-expanded',String(section.open)));}
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),ollamaStatus(),diagnostics(),componentStatus()]);}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics()]));}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

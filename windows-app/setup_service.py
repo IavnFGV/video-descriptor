@@ -161,7 +161,7 @@ class SetupService:
                 settings = translation_settings.load(self.manager.value['workspace'])
                 # Preserve saved provider, model and endpoint even when unavailable.
                 if not status['selected'] and not settings.get('ollama_model') and settings.get('provider') == 'ollama':
-                    for item in status['models']:
+                    for item in sorted(status['models'], key=lambda model: model.get('bytes') or float('inf')):
                         if ollama_completion(self.manager.value, item['name']):
                             select_ollama(self.manager.value, item['name'])
                             break
@@ -300,6 +300,28 @@ class SetupService:
                     'message': 'Проверка распознавания выполнена' if data['segments'] else
                                'Обработчик ответил, речь не обнаружена. Выберите фрагмент с речью.'}
         return self.start('probe', work, 'Распознаём тестовую запись на выбранном устройстве. Дождитесь результата…')
+
+    def component_directory(self, directory):
+        if not isinstance(directory, str) or not directory.strip() or len(directory) > 1024:
+            raise ValueError('Укажите полный путь к локальной папке компонентов')
+        target = Path(directory.strip())
+        if not target.is_absolute() or target.anchor.startswith('\\\\'):
+            raise ValueError('Выберите локальную папку по полному пути')
+        target = target.resolve()
+        if target.exists() and not target.is_dir():
+            raise ValueError('Выберите папку, а не файл')
+        workspace = Path(self.manager.value['workspace']).resolve()
+        if target == workspace or workspace in target.parents:
+            raise ValueError('Выберите папку вне каталога записей приложения')
+        with self.manager._lock:
+            self.guard()
+            path = self.here / 'config.local.json'
+            saved = read_json(path, {})
+            if not isinstance(saved, dict):
+                raise TypeError('Настройки повреждены; существующий файл сохранён')
+            write_json(path, {**saved, 'ai_components_directory': str(target)})
+        return {'directory': str(target), 'restart_required': True,
+                'message': 'Каталог сохранён. Применится после перезапуска. Существующие модели и записи остаются на месте.'}
 
     def complete(self):
         with self.manager._lock:

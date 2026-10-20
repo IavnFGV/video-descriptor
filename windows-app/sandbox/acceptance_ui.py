@@ -202,6 +202,17 @@ def run(args, evidence):
                      lambda row: row['state'] == 'ready' and row.get('proof', {}).get('model') == args.model
                      and row.get('proof', {}).get('task') == task, timeout=240)
 
+        def download_consent(accept):
+            def respond():
+                try:
+                    cdp.call('Page.handleJavaScriptDialog', accept=accept)
+                    return True
+                except RuntimeError as exc:
+                    if 'No dialog is showing' not in str(exc):
+                        raise
+                    return False
+            wait_for(respond, timeout=30)
+
         def completed():
             value = cdp.visible_text('#status')
             if value == 'Нужна проверка':
@@ -214,10 +225,14 @@ def run(args, evidence):
         if stage == 'desktop':
             if not cdp.evaluate('document.querySelector("#setup-wizard").hidden'):
                 raise RuntimeError('First-run wizard unexpectedly blocks the main screen')
+            wait_for(lambda:cdp.visible_text('#bootstrap-message'),lambda text:text and 'Проверяем' not in text)
             cdp.screenshot(args.reports / 'zero-config-first-launch.png')
             cdp.click('#setup-open')
             if cdp.evaluate('[...document.querySelectorAll(".ai-section")].some(e=>e.open)'):
                 raise RuntimeError('Technical settings are expanded by default')
+            wait_for(lambda:cdp.visible_text('#ai-summary'),lambda text:text and 'Проверяем' not in text)
+            if 'Failed to fetch' in cdp.visible_text('body'):
+                raise RuntimeError('Raw startup fetch error leaked into UI')
             cdp.screenshot(args.reports / 'zero-config-settings.png')
             wait_for(lambda: cdp.visible_text('#setup-diagnostics'),
                      lambda text: 'OpenVINO' in text and 'CPU' in text)
@@ -227,17 +242,34 @@ def run(args, evidence):
                 raise RuntimeError('Setup wizard did not open')
         elif stage == 'whisper':
             plan = json.loads(Path('C:/VD-Acceptance/plan.json').read_text(encoding='utf-8-sig'))
-            cdp.click('#setup-open')
-            cdp.click('#setup-card > summary')
             if plan['network_download']:
-                cdp.evaluate('document.querySelector("#download-consent").closest("details").open=true')
-                cdp.click('#download-consent')
-                cdp.click('#download-model')
+                cdp.click('#new-record-open')
+                document = cdp.call('DOM.getDocument')['root']['nodeId']
+                node = cdp.call('DOM.querySelector', nodeId=document, selector='#file')['nodeId']
+                cdp.call('DOM.setFileInputFiles', nodeId=node, files=[str(args.root / 'windows-app/samples/speech-check.mp4')])
+                wait_for(lambda:not cdp.evaluate('document.querySelector("#prepare-speech").hidden'))
+                cdp.call('Page.enable')
+                cdp.click('#prepare-speech')
+                if args.manual_download_consent:
+                    evidence['consent_method'] = 'native WebView2 confirmation; acceptance operator responds in the guest'
+                    wait_for(lambda:api('/api/components')['active'] == 'whisper', timeout=180)
+                else:
+                    download_consent(False)
+                    assert api('/api/components')['active'] is None
+                    assert cdp.evaluate('document.querySelector("#file").files[0]?.name') == 'speech-check.mp4'
+                    evidence['download_refusal_preserved_file_and_started_nothing'] = True
+                    cdp.click('#prepare-speech')
+                    download_consent(True)
                 operation = wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'whisper'),
                                      lambda op: op['state'] in {'ready', 'error'}, timeout=900)
                 if operation['state'] != 'ready':
                     raise RuntimeError(f'Whisper network download failed: {operation}')
+                assert cdp.evaluate('document.querySelector("#file").files[0]?.name') == 'speech-check.mp4'
+                evidence['selected_file_preserved'] = True
+                evidence['download_confirmations'] = 1
             else:
+                cdp.click('#setup-open')
+                cdp.click('#setup-card > summary')
                 objects = [obj for obj in plan['cache'] if obj['component'] == 'whisper-model']
                 if not objects:
                     raise Blocked('No verified whisper-model cache. Register official test assets or use -NetworkDownload.')
@@ -248,37 +280,19 @@ def run(args, evidence):
                     cdp.click('#setup-toggle')
                 cdp.fill('#model-path', model_path)
                 cdp.click('#apply-model')
-                wait_for(lambda: cdp.visible_text('#setup-feedback'),
-                         lambda text: 'Модель подключена' in text)
-            wait_for(lambda: not api('/api/compute-settings')['preparing'])
-            cdp.fill('#speech-device', 'CPU')
-            wait_for(lambda: api('/api/compute-settings')['settings']['speech_device'] == 'CPU')
-            if not api('/api/compute-settings')['capabilities']['CPU']['ready']:
-                wait_for(lambda: not cdp.evaluate('document.querySelector("#start-npu").hidden'))
-                cdp.click('#start-npu')
-            compute = wait_for(lambda: api('/api/compute-settings'),
-                               lambda state: not state['preparing'] and state['capabilities']['CPU']['ready'],
-                               timeout=240)
-            evidence['compute'] = compute
-            if not args.reuse_expensive_proof:
-                cdp.click('#probe-model')
-                operation = wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'whisper'),
-                                     lambda op: op['state'] in {'ready', 'error'}, timeout=240)
-                if operation['state'] != 'ready' or not operation.get('proof', {}).get('segments'):
-                    raise RuntimeError(f'Real Whisper probe failed: {operation}')
-                evidence['probe'] = operation
-            else:
-                evidence['probe_skipped'] = 'Exact-input previous proof; fresh guest CPU readiness verified'
-            cdp.click('.ai-section:last-of-type > summary')
-            cdp.click('#setup-finish')
-            wait_for(lambda: cdp.evaluate('location.hash === "#records"'))
-            cdp.click('#new-record-open')
-            wait_for(lambda: cdp.evaluate('!document.querySelector("#new-record-view").hidden'))
-            cdp.call('DOM.getDocument')
-            document = cdp.call('DOM.getDocument')['root']['nodeId']
-            node = cdp.call('DOM.querySelector', nodeId=document, selector='#file')['nodeId']
-            cdp.call('DOM.setFileInputFiles', nodeId=node,
-                     files=[str(args.root / 'windows-app/samples/speech-check.mp4')])
+                wait_for(lambda: cdp.visible_text('#setup-feedback'), lambda text: 'Модель подключена' in text)
+                wait_for(lambda: not api('/api/compute-settings')['preparing'])
+                cdp.fill('#speech-device', 'CPU')
+                wait_for(lambda: api('/api/compute-settings')['settings']['speech_device'] == 'CPU')
+                compute = wait_for(lambda: api('/api/compute-settings'),
+                                   lambda state: not state['preparing'] and state['capabilities']['CPU']['ready'], timeout=240)
+                evidence['compute'] = compute
+                cdp.click('.ai-section:last-of-type > summary')
+                cdp.click('#setup-finish')
+                cdp.click('#new-record-open')
+                document = cdp.call('DOM.getDocument')['root']['nodeId']
+                node = cdp.call('DOM.querySelector', nodeId=document, selector='#file')['nodeId']
+                cdp.call('DOM.setFileInputFiles', nodeId=node, files=[str(args.root / 'windows-app/samples/speech-check.mp4')])
             cdp.fill('#language', 'en')
             wait_for(lambda: not cdp.evaluate('document.querySelector("#start").disabled'))
             cdp.click('#start')
@@ -297,6 +311,10 @@ def run(args, evidence):
             cdp.click('#diarize-run')
             wait_for(lambda: cdp.evaluate('document.querySelector("#speaker-dialog").open'))
             cdp.screenshot(args.reports / 'zero-config-speaker-choice.png')
+            cdp.click('#speaker-go')
+            wait_for(lambda:not cdp.evaluate('document.querySelector("#speaker-go").disabled'))
+            assert api('/api/components')['active'] is None
+            evidence['speaker_without_consent_starts_nothing'] = True
             cdp.call('Input.dispatchKeyEvent', type='keyDown', key='Escape', code='Escape', windowsVirtualKeyCode=27)
             cdp.call('Input.dispatchKeyEvent', type='keyUp', key='Escape', code='Escape', windowsVirtualKeyCode=27)
             evidence['speaker_choice_from_record'] = True
@@ -409,6 +427,7 @@ def main():
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--reports', type=Path, required=True)
     parser.add_argument('--model', required=True)
+    parser.add_argument('--manual-download-consent', action='store_true', help='Native WebView2 confirmation is answered by the acceptance operator')
     parser.add_argument('--reuse-expensive-proof', action='store_true')
     args = parser.parse_args()
     if os.name != 'nt' or os.environ.get('USERNAME', '').lower() != 'wdagutilityaccount':

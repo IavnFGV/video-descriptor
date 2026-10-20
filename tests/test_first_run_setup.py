@@ -528,3 +528,32 @@ def test_bootstrap_optional_discovery_survives_broken_speech(configured, monkeyp
     while service.bootstrap_state['status'] == 'checking' and time.monotonic() < deadline:
         time.sleep(.01)
     assert service.bootstrap_state['status'] == 'error'
+
+
+def test_bootstrap_selects_small_existing_text_model_without_generation(configured, monkeypatch):
+    _, _, manager, service = configured
+    monkeypatch.setattr(manager, 'inventory', dict)
+    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: {'selected': '', 'models': [
+        {'name': 'large-text', 'bytes': 5000}, {'name': 'embedding', 'bytes': 1}, {'name': 'small-text', 'bytes': 100}]})
+    monkeypatch.setattr(setup_api, 'ollama_completion', lambda value, name: name != 'embedding')
+    selected, done = [], threading.Event()
+    monkeypatch.setattr(setup_api, 'select_ollama', lambda value, name: (selected.append(name), done.set()))
+    service.bootstrap()
+    assert done.wait(3)
+    assert selected == ['small-text']
+
+
+def test_component_directory_change_preserves_files_and_requires_restart(configured):
+    here, model, manager, service = configured
+    target = here / 'new-components'
+    (here / 'config.local.json').write_text('{"port": 9123}')
+    result = service.component_directory(str(target))
+    assert result['restart_required']
+    saved = json.loads((here / 'config.local.json').read_text(encoding='utf-8'))
+    assert saved['port'] == 9123 and saved['ai_components_directory'] == str(target)
+    assert model.is_dir() and not target.exists()
+    manager.preparing = True
+    with pytest.raises(RuntimeError, match='Дождитесь'):
+        service.component_directory(str(here / 'another'))
+    with pytest.raises(ValueError, match='каталога записей'):
+        service.component_directory(str(Path(manager.value['workspace']) / 'components'))

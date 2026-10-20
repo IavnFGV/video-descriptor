@@ -668,7 +668,9 @@ class ComponentManager:
         from diarization_setup import choose_device, detect_adapters
         requested = body.get('device', 'auto')
         selected = choose_device(requested, detect_adapters() if requested == 'auto' else [])
-        model = self.hf_model(self.token(body.get('token'))) if action == 'install' else Path(self.manager.value.get('diarization_model_directory', ''))
+        model = Path(self.manager.value.get('diarization_model_directory', ''))
+        if action == 'install' and not self.verify_model(model, self.manifest['diarization_model']):
+            model = self.hf_model(self.token(body.get('token')))
         if not (model / 'config.yaml').is_file():
             raise ValueError('Сначала подготовьте модель диаризации')
         if action == 'install' and shutil.disk_usage(self.root).free < 8 * 1024**3:

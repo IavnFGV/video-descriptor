@@ -309,3 +309,18 @@ def test_resume_never_crosses_workspaces(manager, monkeypatch):
     wait(manager)
     assert manager.components['diarization']['state'] == 'ready'
     assert manager.components['diarization']['pending_action'] is None
+
+
+def test_reinstall_reuses_verified_model_without_requesting_token(manager, monkeypatch):
+    model = manager.here / 'licensed-model'
+    model.mkdir()
+    (model / 'config.yaml').write_text('pipeline: local')
+    manager.manager.value['diarization_model_directory'] = str(model)
+    manager.manifest['diarization_model'] = {'files': []}
+    monkeypatch.setattr(manager, 'verify_model', lambda path, profile: path == model)
+    monkeypatch.setattr(manager, 'token', lambda value: (_ for _ in ()).throw(AssertionError('token should not be required')))
+    monkeypatch.setattr(manager, 'hf_model', lambda token: (_ for _ in ()).throw(AssertionError('model should not be downloaded')))
+    monkeypatch.setattr(cm.shutil, 'disk_usage', lambda path: SimpleNamespace(free=16 * 1024**3))
+    monkeypatch.setattr(manager, 'diarization_runtime', lambda device, path, install: (manager.here / 'runtime/Scripts/python.exe', {'torch': 'verified'}))
+    monkeypatch.setattr(manager, 'publish', lambda value: None)
+    assert manager.diarization({'device': 'cpu'}, 'install')['torch'] == 'verified'
