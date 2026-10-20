@@ -1,5 +1,11 @@
 # Video Descriptor
 
+20.10.2026: AI Component Manager переиспользует существующую Ollama и сохраняет
+выбранное подключение для перевода и конспектов. Установка отдельного сервера
+выполняется только в управляемом режиме с согласием. Новое окружение pyannote
+получает проверенные app-local DLL Microsoft VC++ из установщика, чтобы работать
+на чистой Windows без системного redistributable. [Приёмка](docs/verification-ai-components.json).
+
 19.10.2026: GitHub Actions разделены на Fast CI, условные Windows/Docker Build &
 Smoke и отдельный Full Acceptance. Feature push больше не дублирует PR; PR runs
 отменяются при новой ревизии. Обычный CI не скачивает Whisper/Ollama, не выполняет

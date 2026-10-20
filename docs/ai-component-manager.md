@@ -81,6 +81,9 @@ The downloader resumes interrupted archives with Range and verifies final size/h
 Whisper/HF retries reuse completed verified files. pyannote candidates are never installed
 into the active environment; failed candidates remain available for diagnosis. Venvs are
 created at their final unique path, because moving a venv breaks absolute launcher paths.
+Each candidate receives the installer's SHA256-verified Microsoft VC++ runtime DLLs in
+its local `Library/bin`, which PyTorch adds to its DLL search path. No system-wide VC++
+installation or administrator rights are needed.
 A newer pinned Ollama is staged before switching to another private port; failure retains
 the old endpoint. Only process objects launched by this manager may be terminated.
 No active-job dependency update is allowed. Cross-process file locks serialize operations.

@@ -40,6 +40,23 @@ def test_explicit_consent(manager, action):
     assert manager.active is None
 
 
+def test_managed_python_uses_verified_app_local_crt(manager):
+    source = manager.here.parent / 'python'
+    source.mkdir()
+    library = source / 'msvcp140.dll'
+    library.write_bytes(b'reviewed-runtime-fixture')
+    profile = {'vcrt': {'files': [{'name': library.name, 'sha256': cm.checksum(library)}]}}
+    (manager.here / 'release-inputs.json').write_text(json.dumps(profile))
+    destination = manager.root / 'candidate/Scripts'
+    destination.mkdir(parents=True)
+    manager.stage_python_runtime_libraries(destination)
+    assert (destination / library.name).read_bytes() == library.read_bytes()
+    library.write_bytes(b'corrupt')
+    with pytest.raises(ValueError, match='повреждены'):
+        manager.stage_python_runtime_libraries(destination)
+    assert (destination / library.name).read_bytes() == b'reviewed-runtime-fixture'
+
+
 def test_restart_recovers_incomplete_operation(manager):
     manager.update('diarization', 'installing', message='pending')
     restored = cm.ComponentManager(manager.setup, manager.root)

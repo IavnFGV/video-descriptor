@@ -653,6 +653,28 @@ class ComponentManager:
                     bytes_on_disk=self.size(runtime.parent.parent) + self.size(model))
         return proof
 
+    def stage_python_runtime_libraries(self, destination):
+        # PyTorch needs the app-local CRT even on a clean Windows installation.
+        # Reuse reviewed installer files; never depend on a system redistributable.
+        profile = read_json(self.here / 'release-inputs.json', {})['vcrt']
+        source = self.here.parent / 'python'
+        for item in profile['files']:
+            name = item['name']
+            if Path(name).name != name or not name.lower().endswith('.dll'):
+                raise ValueError('Некорректный профиль библиотек Python')
+            library = source / name
+            if not library.is_file() or checksum(library) != item['sha256']:
+                raise ValueError('Библиотеки Microsoft VC++ повреждены. Переустановите Video Descriptor.')
+        destination.mkdir(parents=True, exist_ok=True)
+        for item in profile['files']:
+            self.check_cancel()
+            target = destination / item['name']
+            if target.is_file() and checksum(target) == item['sha256']:
+                continue
+            temporary = target.with_suffix('.dll.tmp')
+            shutil.copyfile(source / item['name'], temporary)
+            temporary.replace(target)
+
     def diarization_runtime(self, device, model, install):
         if install:
             base = self.python()
@@ -663,6 +685,8 @@ class ComponentManager:
             atomic(folder / '.managed.json', {'component': 'diarization', 'device': device})
             self.run([base, '-m', 'venv', folder], 'diarization')
             python = folder / 'Scripts/python.exe'
+            # PyTorch explicitly adds this venv-local directory to DLL search.
+            self.stage_python_runtime_libraries(folder / 'Library/bin')
             requirements = self.here / ('requirements-pyannote-' + device + '.lock')
             self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--index-url',
                       'https://pypi.org/simple', '-r', requirements], 'diarization')
