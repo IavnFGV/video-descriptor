@@ -77,10 +77,10 @@
 <details class="recognition-settings">
 <summary>Параметры распознавания</summary>
 <label for="speech-device" class="vd-field">Устройство распознавания<select id="speech-device" name="device" aria-describedby="device-status" class="vd-select">
-<option value="AUTO">Авто · NPU → GPU → CPU</option>
-<option value="NPU">NPU</option>
-<option value="GPU">GPU · Intel OpenVINO</option>
-<option value="CPU">CPU</option>
+<option value="AUTO">Автоматически (рекомендуется)</option>
+<option value="NPU">Нейропроцессор (NPU)</option>
+<option value="GPU">Видеокарта (GPU)</option>
+<option value="CPU">Процессор (CPU)</option>
 </select>
 </label>
 </details>
@@ -151,7 +151,7 @@
 <h2>Модель и устройство</h2>
 <button id="setup-toggle" class="vd-button vd-button--quiet" type="button" aria-controls="setup-form" aria-expanded="false">Настроить модель</button>
 </div>
-<label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор CPU</option><option value="GPU">Intel GPU</option><option value="NPU">Intel NPU</option></select></label>
+<label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор (CPU)</option><option value="GPU">Видеокарта (GPU)</option><option value="NPU">Нейропроцессор (NPU)</option></select></label>
 <div id="component-whisper"></div>
 <p id="setup-summary" class="footnote">Проверяем установленную модель…</p>
 <form id="setup-form" hidden>
@@ -261,14 +261,14 @@
 <h2>Определение говорящих</h2>
 <p class="footnote">Автоматически подготовим отдельное окружение и модель community-1. Системный Python не нужен. Требуется не менее 8 ГиБ свободного места; загрузка пакетов может занять несколько гигабайт. Распознавание остаётся в своём окружении.</p>
 <div id="component-diarization"></div>
-<label class="vd-field">Устройство диаризации<select id="diarization-device" class="vd-select"><option value="auto">Auto · Intel GPU → CPU с объяснением</option><option value="cpu">CPU</option><option value="xpu">Intel GPU · PyTorch XPU</option></select></label>
+<label class="vd-field">Устройство диаризации<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
 <p class="footnote">Для community-1 требуется принять условия Hugging Face и предоставить токен чтения. Токен защищается Windows DPAPI; в отчёты не попадает.</p>
 <button type="button" id="hf-terms" class="vd-button">Открыть условия community-1</button>
 <button type="button" id="hf-tokens" class="vd-button">Получить токен Hugging Face</button>
 <label class="vd-field">Токен чтения Hugging Face (пустое поле сохраняет прежний)<input id="hf-token" type="password" autocomplete="off" maxlength="512" class="vd-input"></label>
 <label class="check-label"><input id="diarization-consent" type="checkbox"> Условия доступа приняты; разрешаю загрузку окружения и модели</label>
 <button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button>
-<p class="footnote">Явный XPU не заменяется на CPU. Auto проверяет CPU после ошибки XPU и показывает причину. NPU для диаризации не используется.</p>
+<p class="footnote">Автоматический режим пробует видеокарту, затем процессор. Явно выбранное устройство не заменяется другим. Нейропроцессор (NPU) пока не поддерживается для определения говорящих.</p>
 </details>
 <details class="card ai-section"><summary>Дополнительно</summary>
 <h2>Компоненты и восстановление</h2>
@@ -337,7 +337,7 @@
 </dialog>
 <dialog id="speaker-dialog" class="vd-dialog" aria-labelledby="speaker-heading">
 <h2 id="speaker-heading">Определить говорящих</h2>
-<label class="vd-field">Способ обработки<select id="speaker-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="xpu">Intel GPU</option><option value="cpu">Процессор CPU</option></select></label>
+<label class="vd-field">Способ обработки<select id="speaker-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option><option value="cpu">Процессор (CPU)</option></select></label>
 <p id="speaker-status" role="status" aria-live="polite"></p>
 <details id="speaker-install-fields"><summary>Подготовка определения говорящих</summary>
 <p>Источник: PyPI, python.org и Hugging Face community-1. Загрузка — несколько гигабайт, необходимо 8 ГиБ свободного места. Для community-1 примите условия доступа и предоставьте токен чтения.</p>

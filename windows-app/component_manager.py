@@ -205,9 +205,11 @@ class ComponentManager:
         temporary.replace(target)
         return target
 
-    def run(self, command, key, timeout=1800, env=None):
+    def run(self, command, key, timeout=1800, env=None, failure_message=None):
         self.check_cancel()
-        self.update(key, 'installing', message='Подготавливаем окружение' if 'pip' in command else 'Проверяем компонент')
+        installing = 'pip' in command or 'venv' in command
+        self.update(key, 'installing' if installing else 'verifying',
+                    message='Подготавливаем окружение' if installing else 'Проверяем компонент')
         # Never persist subprocess output: pip/upstream diagnostics can contain credentials.
         with open(os.devnull, 'wb') as output:
             process = subprocess.Popen([str(arg) for arg in command], stdin=subprocess.DEVNULL,
@@ -223,7 +225,8 @@ class ComponentManager:
                         raise RuntimeError('Превышено время подготовки. Проверьте сеть и повторите.')
                     self.cancel.wait(.2)
                 if process.returncode:
-                    raise RuntimeError(f'Проверка/установка завершилась с кодом {process.returncode}. Рабочая конфигурация сохранена.')
+                    raise RuntimeError((failure_message or 'Проверка/установка не завершена.') +
+                                       f' Код: {process.returncode}. Последняя рабочая конфигурация сохранена.')
             finally:
                 if process.poll() is None:
                     process.terminate()  # Only this exact owned child; never taskkill/python/ollama by name.
@@ -286,7 +289,7 @@ class ComponentManager:
         if action in {'connect', 'start_existing'} and key != 'ollama':
             raise ValueError('Действие доступно только для Ollama')
         if key == 'diarization' and body.get('device', 'auto') not in {'auto', 'cpu', 'xpu'}:
-            raise ValueError('Выберите Auto, CPU или XPU')
+            raise ValueError('Выберите автоматический режим, процессор (CPU) или видеокарту (GPU). Нейропроцессор (NPU) для этой задачи не поддерживается.')
         with self.manager._lock:
             self.setup.guard()
             if self.active:
@@ -682,7 +685,7 @@ class ComponentManager:
             self.check_cancel()
             if requested != 'auto' or selected != 'xpu':
                 raise
-            warning = 'Intel GPU обнаружен, но проверка XPU не прошла. Проверен CPU. ' + str(exc)
+            warning = 'Видеокарта (GPU) не прошла проверку. Используется проверенный процессор (CPU). ' + str(exc)
             selected = 'cpu'
             runtime, proof = self.diarization_runtime(selected, model, install=action == 'install')
         self.check_cancel()
@@ -730,18 +733,24 @@ class ComponentManager:
             self.stage_python_runtime_libraries(folder / 'Library/bin')
             requirements = self.here / ('requirements-pyannote-' + device + '.lock')
             self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--index-url',
-                      'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization')
+                      'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization',
+                     failure_message='Не удалось установить пакеты для ' + ('видеокарты (GPU).' if device == 'xpu' else 'процессора (CPU).') +
+                                     ' Проверьте подключение к интернету и свободное место, затем повторите подготовку.')
             self.run([python, '-m', 'pip', 'check'], 'diarization')
         else:
             python = Path(self.manager.value.get('diarization_python', ''))
+            if device == 'xpu' and self.manager.value.get('diarization_device') == 'cpu':
+                raise ValueError('Сейчас подготовлен процессор (CPU). Для видеокарты (GPU) нажмите «Подготовить диаризацию»: требуется отдельное окружение.')
         if not python.is_file():
             raise ValueError('Окружение диаризации отсутствует. Нажмите «Подготовить диаризацию».')
         proof_dir = self.root / 'checks' / uuid.uuid4().hex
         proof_dir.mkdir(parents=True)
-        self.update('diarization', 'verifying', message='Проверяем диаризацию · ' + device.upper())
+        device_label = 'видеокарта (GPU)' if device == 'xpu' else 'процессор (CPU)'
+        self.update('diarization', 'verifying', message='Проверяем определение говорящих · ' + device_label)
         self.run([python, self.here / 'diarization_worker.py', '--model', model, '--device', device,
                   '--audio', self.here / 'samples/speech-check.wav', '--output', proof_dir / 'result.json',
-                  '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600)
+                  '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600,
+                 failure_message='Не удалось выполнить пробное определение говорящих: ' + device_label + '.')
         proof = read_json(proof_dir / 'result.json', {})
         requirements = self.here / ('requirements-pyannote-' + device + '.lock')
         proof['requirements_sha256'] = checksum(requirements)

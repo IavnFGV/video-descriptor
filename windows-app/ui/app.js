@@ -48,7 +48,7 @@
     if (!response.ok) throw Error(data.error || `Ошибка ${response.status}`);
     return data;
   }
-  function message(text, error=false) { $('message').textContent=text; $('message').dataset.tone=error?'danger':'success'; }
+  function message(text, error=false) { $('message').textContent=deviceMessage(text); $('message').dataset.tone=error?'danger':'success'; }
   async function setupStatus() {
     const s=await api('/api/setup');
     if(!wizardLoaded)wizardLoaded=true;
@@ -56,7 +56,7 @@
     const op=s.operation;
     $('setup-progress').hidden=op.status!=='running';
     if(op.total)$('setup-progress').value=100*op.bytes/op.total;else $('setup-progress').removeAttribute('value');
-    $('operation-feedback').textContent=(op.status==='error'?'Ошибка: ':op.status==='done'?'Готово: ':'')+(op.result?.message||op.message||'')+(op.result?.device?' · '+op.result.device+' · реплик: '+op.result.segments:'');
+    $('operation-feedback').textContent=(op.status==='error'?'Ошибка: ':op.status==='done'?'Готово: ':'')+deviceMessage(op.result?.message||op.message||'')+(op.result?.device?' · '+deviceName(op.result.device)+' · реплик: '+op.result.segments:'');
     $('download-model').disabled=op.status==='running';$('probe-model').disabled=op.status==='running';$('probe-custom').disabled=op.status==='running';
     if(op.status==='running'&&!setupPolling){setupPolling=true;setTimeout(()=>{setupPolling=false;setupStatus().catch(e=>message(e.message,true));readiness();},1000);}
     $('setup-summary').textContent=s.verified?'Модель подключена. Распознавание готовится автоматически.':s.model_present?'Проверяем найденную модель…':'Нужно подготовить распознавание. Можно скачать модель или подключить имеющуюся.';
@@ -87,7 +87,7 @@
       $('ollama-connect').disabled=componentBusy||!s.models.length;$('ollama-feedback').textContent=s.message+(s.ready?' · '+s.selected:'');
     }catch(e){$('ollama-feedback').textContent=e.message;}
   }
-  function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className='vd-status';b.dataset.tone=ready?'success':'warning';b.textContent=suffix||(ready?'Готово':'Не подключено');row.append(a,b);return row; }
+  function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className='vd-status';b.dataset.tone=ready?'success':'warning';b.textContent=deviceMessage(suffix||(ready?'Готово':'Не подключено'));row.append(a,b);return row; }
   function systemStatus(ready, preparing=false) {
     $('system-dot').className='dot'+(ready&&!preparing?' good':'');
     $('system-status').textContent=preparing?'Готовим распознавание…':ready?'Распознавание готово':'Нужна настройка распознавания';
@@ -95,15 +95,15 @@
   async function readiness() {
     try {
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
-      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Определить говорящих'+(d.diarization?.device?' · '+d.diarization.device.toUpperCase():'');$('diarize-run').disabled=processing;$('diarize-run').title='Выбрать способ обработки и определить говорящих';
+      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Определить говорящих'+(d.diarization?.device?' · '+deviceName(d.diarization.device):'');$('diarize-run').disabled=processing;$('diarize-run').title='Выбрать способ обработки и определить говорящих';
       if(d.compute){
         const c=d.compute, chosen=c.selected, ready=chosen&&c.capabilities[chosen].ready;
         const deviceReason=(name)=>{const cap=c.capabilities[name];return c.preparing&&name===chosen?'Запускаем распознавание…':cap.available&&!cap.ready&&cap.model_present&&cap.reason==='Модель не загружена'?'Распознавание не запущено':cap.reason;};
         if(document.activeElement!==$('speech-device'))$('speech-device').value=c.settings.speech_device;
         if(document.activeElement!==$('settings-speech-device'))$('settings-speech-device').value=c.settings.speech_device;
-        for(const option of $('speech-device').options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=option.value+' · '+deviceReason(option.value);}
-        $('device-status').textContent=c.preparing?'Запускаем распознавание с моделью на диске…':c.error||(chosen?`Выбрано: ${c.settings.speech_device} → ${chosen}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
-        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(name,c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
+        for(const id of ['speech-device','settings-speech-device'])for(const option of $(id).options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=deviceName(option.value)+' · '+deviceReason(option.value);}
+        $('device-status').textContent=c.preparing?'Запускаем распознавание с моделью на диске…':c.error||(chosen?`Выбрано: ${deviceName(c.settings.speech_device)} → ${deviceName(chosen)}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
+        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(deviceName(name),c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
         systemStatus(ready&&d.ffmpeg,c.preparing);
         $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
@@ -154,7 +154,8 @@
     $('status').dataset.tone=job.cancelled?'neutral':{running:'info',done:'success',error:'danger'}[job.status]||'neutral';
     const device=result?.device||job.device_plan?.selected;
     const failureMessage=result?.message==='Не удалось получить достоверные таймкоды; см. диагностику фрагмента'?'Модель вернула некорректные временные метки реплик. Этот фрагмент не удалось сохранить. Это ошибка распознавания; повторный запуск может её повторить.':result?.message;
-    $('progress-text').textContent=(device?`${job.device_plan?.requested||device} → ${device} · `:'')+((job.status==='error'&&result?.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    $('progress-text').textContent=(device?`${deviceName(job.device_plan?.requested||device)} → ${deviceName(device)} · `:'')+((job.status==='error'&&result?.status==='error'&&failureMessage?failureMessage:job.error)||result?.message||(job.status==='done'?(result?.no_speech?'Речь не обнаружена':'Расшифровка готова'):job.status==='running'?'Распознаём запись…':'Ожидаем свободный обработчик'));
+    $('progress-text').textContent=deviceMessage($('progress-text').textContent);
     if(job.status==='running'&&result?.duration>0){
       const clock=(seconds)=>{const value=Math.max(0,Math.floor(seconds));return `${Math.floor(value/3600)}:${String(Math.floor(value/60)%60).padStart(2,'0')}:${String(value%60).padStart(2,'0')}`;};
       $('progress-text').textContent+=` · Сохранено ${clock(result.processed||0)} из ${clock(result.duration)} записи`;
@@ -253,6 +254,8 @@
   async function diagnostics() {
     const d=await api('/api/setup/diagnostics');
     const inv=d.inventory;
+    const gpuOption=Array.from($('diarization-device').options).find(o=>o.value==='xpu');
+    gpuOption.disabled=!d.hardware.intel_gpu.length;gpuOption.textContent='Видеокарта (GPU)'+(gpuOption.disabled?' · совместимая видеокарта не обнаружена':'');
     const devices=inv.devices.map(name=>name.split('.')[0]);
     const deviceStatus=(name,listed)=>{
       const available=devices.includes(name);
@@ -284,6 +287,9 @@
   $('gemini-check').onclick=async()=>{const b=$('gemini-check');b.disabled=true;try{const r=await setupPost('gemini',{check:true});$('gemini-models').replaceChildren(...r.models.map(m=>{const o=document.createElement('option');o.value=m.id;return o;}));$('gemini-feedback').textContent=r.message+(r.available?' Выбранная модель доступна.':' Выберите доступную модель из списка.');}catch(e){$('gemini-feedback').textContent=e.message;}finally{b.disabled=false;}};
 
   let componentTimer, componentProfiles={}, componentBusy=false;
+  const deviceNames={AUTO:'Автоматически',auto:'Автоматически',CPU:'Процессор (CPU)',cpu:'Процессор (CPU)',GPU:'Видеокарта (GPU)',xpu:'Видеокарта (GPU)',NPU:'Нейропроцессор (NPU)',npu:'Нейропроцессор (NPU)'};
+  const deviceName=value=>deviceNames[value]||value;
+  const deviceMessage=value=>String(value||'').replace(/PyTorch XPU|Intel GPU|XPU/g,'видеокарта (GPU)');
   const componentNames={not_installed:'Не установлен',installed:'Установлен · нужна проверка',downloading:'Загрузка',installing:'Установка',verifying:'Проверка',ready:'Готово',error:'Ошибка · можно повторить',update_available:'Доступно обновление'};
   async function componentAction(component,action,extra={}) {
     try {
@@ -296,21 +302,24 @@
   async function componentStatus() {
     const data=await api('/api/components');componentProfiles=data.profiles;componentBusy=!!data.active;
     $('cancel-preparation').hidden=!data.active;
-    if(data.active){const active=data.components.find(c=>c.id===data.active);$('bootstrap-message').textContent=active.message+(active.total?' · '+Math.floor(100*(active.bytes||0)/active.total)+'%':'');$('prepare-speech').hidden=true;}
+    if(data.active){const active=data.components.find(c=>c.id===data.active);$('bootstrap-message').textContent=deviceMessage(active.message)+(active.total?' · '+Math.floor(100*(active.bytes||0)/active.total)+'%':'');$('prepare-speech').hidden=true;}
     for(const item of data.components){
       const box=$('component-'+item.id);
+      if(item.id==='diarization'&&!box.deviceLoaded){$('diarization-device').value=item.requested_device||'auto';box.deviceLoaded=true;}
       if(!box.componentControls){
         const state=document.createElement('p'),details=document.createElement('p'),progress=document.createElement('progress'),button=document.createElement('button'),remove=document.createElement('button');
         state.className='vd-status';state.setAttribute('role','status');details.className='footnote';progress.className='vd-progress';button.type='button';button.className='vd-button';remove.type='button';remove.className='vd-button vd-button--danger';
-        box.replaceChildren(state,details,progress,button,remove);box.componentControls={state,details,progress,button,remove};
+        const actions=document.createElement('div');actions.className='vd-actions';actions.append(button,remove);
+        box.replaceChildren(state,details,progress,actions);box.componentControls={state,details,progress,button,remove};
       }
       const {state,details,progress,button,remove}=box.componentControls;
       state.dataset.tone=item.state==='error'?'danger':item.state==='ready'?'success':'info';
-      state.textContent=(componentNames[item.state]||item.state)+' · '+item.message+(item.fallback_reason?' · '+item.fallback_reason:'');
-      details.textContent=[item.version?'Версия: '+item.version:'',item.device?'Устройство: '+item.device:'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
+      state.textContent=(componentNames[item.state]||item.state)+' · '+deviceMessage(item.message)+(item.state==='ready'&&item.fallback_reason?' · '+deviceMessage(item.fallback_reason):'');
+      details.textContent=[item.version?'Версия: '+item.version:'',item.device?(item.state==='error'?'Последняя успешная проверка: ':'Устройство: ')+deviceName(item.device):'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
       progress.hidden=data.active!==item.id;progress.setAttribute('aria-label',item.name);
       if(item.total){progress.max=item.total;progress.value=item.bytes||0;if(data.active===item.id)state.textContent+=' · '+Math.floor(100*(item.bytes||0)/item.total)+'%';}else progress.removeAttribute('value');
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
+      if(item.id==='diarization'&&data.active!==item.id&&$('diarization-device').value==='xpu'&&item.device==='cpu'){button.disabled=true;button.textContent='Для видеокарты нужна подготовка';}
       button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:$('ollama-model').value,task:$('ollama-task').value}:{});
       remove.hidden=!item.path||!!data.active||(item.id==='ollama'&&data.ollama_connection.mode!=='managed');remove.textContent='Удалить окружение';remove.onclick=()=>{if(window.confirm('Удалить только управляемое приложением окружение? Модели и пользовательские файлы сохранятся.'))componentAction(item.id,'remove',{confirmed:true});};
     }
@@ -339,6 +348,7 @@
   $('ollama-catalog').onchange=catalogInfo;
   $('ollama-install').onclick=()=>componentAction('ollama','install',{confirmed:$('ollama-install-consent').checked,mode:'managed'});
   $('ollama-pull').onclick=()=>componentAction('ollama','pull',{confirmed:$('ollama-pull-consent').checked,model:$('ollama-catalog').value,task:$('ollama-task').value});
+  $('diarization-device').onchange=()=>componentStatus().catch(e=>message(e.message,true));
   $('diarization-install').onclick=()=>{const token=$('hf-token').value;$('hf-token').value='';componentAction('diarization','install',{confirmed:$('diarization-consent').checked,device:$('diarization-device').value,token});};
   for(const [id,page] of [['hf-terms','terms'],['hf-tokens','tokens']])$(id).onclick=()=>setupPost('external',{page}).catch(e=>message(e.message,true));
 
@@ -385,20 +395,22 @@
     $('speaker-dialog').showModal();
     try{await speakerStatus();$('speaker-device').focus();}catch(e){$('speaker-status').textContent='Не удалось проверить готовность. Закройте окно и повторите.';}
   }
-  async function speakerStatus(){
+  async function speakerStatus(preserveDevice=false){
     const d=await api('/api/components'), item=d.components.find(c=>c.id==='diarization');
     const health=await api('/api/doctor');
     const diagnostics=await api('/api/setup/diagnostics');
     speakerNeedsInstall=health.diarization?.state!=='configured';
-    if(!speakerPending)$('speaker-device').value=health.diarization?.requested_device||'auto';
-    for(const option of $('speaker-device').options){const unavailable=option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&!!item.proof?.turns?.length&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=({auto:'Автоматически (рекомендуется)',xpu:'Intel GPU',cpu:'Процессор CPU'}[option.value])+' · '+(unavailable?'недоступно':ready?'готово':'потребуется проверка или подготовка');}
-    $('speaker-consent').checked=item.download_consent===true&&item.consent_revision===d.profiles.diarization_model?.revision;
+    if(!speakerPending&&!preserveDevice)$('speaker-device').value=health.diarization?.requested_device||'auto';
+    if($('speaker-device').value==='xpu'&&health.diarization?.device!=='xpu')speakerNeedsInstall=true;
+    for(const option of $('speaker-device').options){const unavailable=option.value==='npu'||option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&!!item.proof?.turns?.length&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=(option.value==='auto'?'Автоматически (рекомендуется)':deviceName(option.value))+' · '+(option.value==='npu'?'не поддерживается для этой задачи':unavailable?'не обнаружена совместимая видеокарта':ready?'готово':'потребуется проверка или подготовка');}
+    if(!preserveDevice)$('speaker-consent').checked=item.download_consent===true&&item.consent_revision===d.profiles.diarization_model?.revision;
     $('speaker-token').placeholder=d.has_hf_token?'Токен сохранён; можно оставить пустым':'Введите токен чтения';
     $('speaker-install-fields').open=speakerNeedsInstall;
     $('speaker-install-fields').hidden=!speakerNeedsInstall;
-    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':(item.proof?.turns?.length?'Готово для ':'Окружение найдено для ')+(health.diarization?.device==='xpu'?'Intel GPU':'процессора')+'. Способ обработки проверим перед запуском.';
+    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':(item.proof?.turns?.length?'Готово для ':'Окружение найдено для ')+deviceName(health.diarization?.device||'cpu')+'. Способ обработки проверим перед запуском.';
     $('speaker-go').textContent=speakerNeedsInstall?'Скачать, подготовить и запустить':'Определить говорящих';
   }
+  $('speaker-device').onchange=async()=>{$('speaker-go').disabled=true;try{await speakerStatus(true);}catch(e){$('speaker-status').textContent=e.message;}finally{$('speaker-go').disabled=false;}};
   $('speaker-cancel').onclick=()=>$('speaker-dialog').close();
   $('speaker-dialog').addEventListener('close',()=>{$('speaker-token').value='';$('diarize-run').focus();});
   $('speaker-terms').onclick=()=>setupPost('external',{page:'terms'}).catch(e=>message(e.message,true));

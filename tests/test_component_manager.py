@@ -180,6 +180,21 @@ def test_auto_fallback_is_probed_and_explained(manager, monkeypatch, tmp_path):
     assert 'GPU failed' in manager.components['diarization']['fallback_reason']
 
 
+def test_gpu_check_does_not_probe_saved_cpu_environment(manager, monkeypatch):
+    manager.manager.value.update(diarization_device='cpu', diarization_python='cpu/Scripts/python.exe')
+    calls = []
+    monkeypatch.setattr(manager, 'run', lambda *args, **kwargs: calls.append(args))
+    with pytest.raises(ValueError, match='требуется отдельное окружение'):
+        manager.diarization_runtime('xpu', manager.root, install=False)
+    assert calls == []
+
+
+def test_npu_diarization_rejected_before_start(manager):
+    with pytest.raises(ValueError, match='для этой задачи не поддерживается'):
+        manager.action('diarization', {'action': 'check', 'device': 'npu'})
+    assert manager.active is None
+
+
 def test_gated_model_message_does_not_expose_token(manager, monkeypatch):
     manager.manifest['diarization_model'] = {'revision': 'a' * 40, 'source': 'https://huggingface.co/pyannote/test',
                                                'files': [{'name': 'config.yaml', 'bytes': 3}]}
