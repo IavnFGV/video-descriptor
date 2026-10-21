@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Запись · Video Descriptor</title>
 <link rel="stylesheet" href="/studio-assets/create.css">
-<body>
+<body class="recording-workspace">
 <a class="vd-skip" href="#stage-source">К содержимому</a>
 <nav class="vd-global-nav" aria-label="Основная навигация"><a href="/output/" aria-current="page">Записи</a><a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>
 <header class="studio-header"><button id="open-connections" type="button">Подключения</button><h1>Запись</h1><p>Источник, речь и конспект — в одном месте. Нажмите на этап, чтобы открыть результат и его настройки.</p></header>
@@ -20,9 +20,9 @@
 <p id="translation-summary" hidden></p>
 <div id="translation-blocks-panel" hidden><div id="translation-blocks" class="block-dots" aria-label="Состояние блоков перевода"></div><p class="block-legend">Готово · Ожидает · Повтор после сбоя · Сейчас в работе · Ошибка</p></div>
 </main>
-<div class="studio-layout"><aside id="shared-player" hidden><section class="player-card"><video id="process-video" controls preload="metadata"></video>
+<div class="studio-layout"><aside id="shared-player" hidden><section class="player-card"><div class="player-toolbar"><strong>Видео</strong><div class="player-actions"><label><input id="playback-link" type="checkbox" checked> 🧲 Связать с видео</label><button id="expand-player" type="button" aria-pressed="false">Развернуть наверх</button></div></div><video id="process-video" controls preload="metadata"></video>
 <div class="follow"><label id="follow-control"><input id="follow" type="checkbox" checked> Следовать обработке</label><span id="video-clock">00:00</span></div>
-<p id="follow-hint" class="hint">Указатель следует за реально обработанным фрагментом. Снимите галочку, чтобы смотреть видео самостоятельно.</p></section><section><h3>Источник</h3><dl id="source-info"></dl><form id="source-title-form" class="stage-settings"><label>Название записи<input id="source-title" maxlength="200"></label><button type="submit">Сохранить название</button><p id="source-title-status" class="hint" role="status"></p></form></section></aside><div class="stage-content">
+<p id="follow-hint" class="hint">Указатель следует за реально обработанным фрагментом. Снимите галочку, чтобы смотреть видео самостоятельно.</p><button id="resume-playback-link" type="button" hidden>Вернуться к текущему моменту</button><details id="source-details"><summary>Сведения о файле</summary><h3>Источник</h3><dl id="source-info"></dl><form id="source-title-form" class="stage-settings"><label>Название записи<input id="source-title" maxlength="200"></label><button type="submit">Сохранить название</button><p id="source-title-status" class="hint" role="status"></p></form></details></section></aside><div class="stage-content">
 <div id="stage-source" tabindex="-1" role="tabpanel" aria-labelledby="tab-source" data-stage-panel="source">
 <section id="setup" class="setup" aria-label="Новая запись">
 <form id="upload-form">
@@ -46,7 +46,8 @@
 </form></details></section>
 </div>
 <div id="stage-notes" role="tabpanel" aria-labelledby="tab-notes" data-stage-panel="notes" hidden>
-<section><div class="construction-actions"><button id="new-notes" type="button" hidden>Создать новый конспект</button><button id="delete-notes" class="danger" type="button" hidden>Удалить конспект</button></div><p id="notes-action-status" class="hint" role="status"></p><details id="notes-settings" open><summary>Настройки конспекта</summary><div id="construction-panel"><form id="construction-settings-form" class="construction-settings">
+<div class="recording-notes-heading"><label>Конспект<select id="recording-notes"><option value="">Конспект ещё не создан</option><option value="__new__">＋ Создать новый конспект…</option></select></label><p id="recording-notes-origin" class="hint"></p></div>
+<section><div class="construction-actions"><button id="new-notes" type="button" hidden>Создать новый конспект</button><button id="delete-notes" class="danger" type="button" hidden>Удалить конспект</button></div><p id="notes-action-status" class="hint" role="status"></p><details id="notes-settings" open><summary>Настройки нового конспекта</summary><div id="construction-panel"><form id="construction-settings-form" class="construction-settings">
 <div class="construction-options"><label>Материал конспекта<select id="construction-input"><option value="speech">По речи</option><option value="slides">По речи и тексту слайдов</option></select></label>
 <label>Характер материала<select id="construction-material"><option value="lecture">Учебная лекция</option><option value="conversation">Разговорная лекция</option></select></label>
 <label>Модель для конспекта<select id="construction-provider"><option value="ollama">Локально · Ollama</option><option value="gemini">Google · Gemini</option></select></label>
@@ -59,6 +60,7 @@
 <details><summary>Разбиение и лимиты модели</summary><div class="construction-options">
 <label>Границы частей<select id="construction-grouping"><option value="auto">Автоматически</option><option value="slides">По смене слайда</option><option value="speech">По паузам в речи</option><option value="time">По времени</option></select></label>
 <label>Контекст модели, токенов<input id="construction-context" type="number" min="4096" max="2097152" value="16384" required></label>
+<label><input id="construction-auto-context" type="checkbox" checked> Определять доступный контекст модели автоматически</label>
 <label>Предел ответа, токенов<input id="construction-output" type="number" min="512" max="65536" value="4096" required></label>
 <label>Целевая длина части, секунд<input id="construction-chunk" type="number" min="30" max="3600" value="180" required></label>
 <label>Максимальная длина части, секунд<input id="construction-max-chunk" type="number" min="60" max="7200" value="600" required></label>
@@ -66,7 +68,8 @@
 </div></details>
 <p id="construction-plan" role="status">Выберите готовую запись, чтобы оценить размер и способ обработки.</p>
 <p class="hint">До запуска показываем оценку размера. Контекст включает место для инструкции и ответа. При запуске проверяем лимиты модели; для Gemini дополнительно считаем точные токены. Обработка частей заканчивается общим конспектом и оглавлением; большие промежуточные результаты объединяются в несколько проходов.</p>
-<div class="construction-actions"><button id="construction-save" type="submit" disabled>Сохранить настройки</button><button id="construction-preview" type="button" disabled>Проверить план</button><button id="construction-run" type="button" disabled>Создать новый конспект</button><a id="construction-download" hidden download>Конспект Markdown ↓</a></div>
+<label id="construction-cloud-label" hidden><input id="construction-cloud" type="checkbox"> Разрешаю отправить текст расшифровки в Google. Возможны расходы по тарифу моего проекта.</label><label><input id="construction-translate-after" type="checkbox"> Также перевести расшифровку выбранной моделью</label>
+<div class="construction-actions"><button id="construction-save" type="submit" disabled>Сохранить настройки</button><button id="construction-preview" type="button" disabled>Проверить план</button><button id="construction-run" type="button" disabled>Создать новый конспект</button><button id="cancel-new-notes" type="button">Отмена</button><a id="construction-download" hidden download>Конспект Markdown ↓</a></div>
 <p id="construction-status" role="status">Загружаем настройки…</p>
 </form></div></details></section>
 <section id="report-editor-card" hidden><div class="card-heading"><h3>Конспект</h3><label id="notes-variant-label" hidden>Вариант<select id="notes-variant"></select></label></div><p id="report-version-notice" class="hint" hidden></p><iframe id="report-editor" title="Чтение и редактирование конспекта"></iframe></section>
@@ -100,4 +103,5 @@
 <script src="/studio-assets/construction.js"></script>
 <script src="/studio-assets/studio.js"></script>
 <script src="/studio-assets/create.js"></script>
+<script src="/studio-assets/recording.js"></script>
 </body></html>

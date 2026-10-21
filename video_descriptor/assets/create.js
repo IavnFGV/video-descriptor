@@ -305,7 +305,8 @@
     window.constructionUI?.select(null);
     requestUrl = null; loadedRequest = null;
     $('request-feed').replaceChildren(text('p', 'Запрос появится после обращения к модели.', 'empty'));
-    video.removeAttribute('src'); video.load(); follow.checked = true;
+    // Preserve the one player when switching results of the same recording.
+    follow.checked = false;
     Object.keys(rendered).forEach(key => delete rendered[key]);
     $('workspace').hidden = false;
     $('processing-title').textContent = 'Текущий этап';
@@ -324,6 +325,7 @@
     query.set('stage', document.querySelector('[role=tab][aria-selected=true]').dataset.stage);
     if (value.folder === params.get('folder') && params.has('report')) query.set('report', params.get('report'));
     if(updateUrl)history.replaceState(null, '', '/create?' + query);
+    document.dispatchEvent(new CustomEvent('recording-selection',{detail:value}));
     poll();
   }
   let activeReply = null;
@@ -336,11 +338,13 @@
     activeReply?.classList.remove('active'); activeReply = row;
     if (row) {
       row.classList.add('active');
-      const feed = $('speech-feed');
-      feed.scrollTop += row.getBoundingClientRect().top - feed.getBoundingClientRect().top;
+      if (window.recordingUI?.linked()) {
+        const feed = $('speech-feed');
+        feed.scrollTop += row.getBoundingClientRect().top - feed.getBoundingClientRect().top - 24;
+      }
     }
   }
-  function jump(time) { follow.checked = false; video.currentTime = time; syncPlayback(); }
+  function jump(time) { if(window.recordingUI)window.recordingUI.seek(time);else { follow.checked = false; video.currentTime = time; syncPlayback(); } }
   function stamp(time) {
     const button = text('button', clock(time), 'timestamp');
     button.type = 'button'; button.addEventListener('click', () => jump(time)); return button;
@@ -409,6 +413,7 @@
       });
     }
     $('stage-progress').value = progress;
+    document.body.classList.toggle('recording-busy', Boolean(snapshot.running || ['queued','running'].includes(job?.status)));
     $('run-message').textContent = (!snapshot.notes_deleted && job?.error) || (job?.status === 'queued' ? 'Задание в очереди. Готовые версии остаются доступны.' : !snapshot.running && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Речь готова к просмотру и правке. Постройте конспект, когда закончите проверку.' : status.message || 'Ожидаем следующий результат.');
     if (snapshot.video_url && video.getAttribute('src') !== snapshot.video_url) video.src = snapshot.video_url;
     if (follow.checked) {
@@ -513,6 +518,7 @@
           $('workspace').hidden = false; $('run-title').textContent = data.job.title || data.job.filename;
           $('run-state').textContent = data.job.status === 'error' ? 'Ошибка' : 'В очереди';
           $('run-message').textContent = data.job.error || 'Запись сохранена. Начнём, когда завершится текущая обработка.';
+          if(data.job.status==='error'&&$('recording-processing'))$('recording-processing').open=true;
           $('retry-job').hidden = data.job.status !== 'error';
         }
       } else {
@@ -687,7 +693,7 @@
     try { await json('/api/retry?' + new URLSearchParams({id}), {method: 'POST'}); poll(); listJobs(); }
     catch (error) { $('run-message').textContent = error.message; }
   });
-  $('existing-runs').addEventListener('change', event => { if (event.target.value) select({folder: event.target.value}); });
+  $('existing-runs').addEventListener('change', event => { if (event.target.value === '__new__') { renderVersions(); $('speech-settings').open=true; $('speech-engine').focus(); } else if (event.target.value) select({folder: event.target.value}); });
   document.addEventListener('construction-started', event => { select({job:event.detail.id}); listJobs(); });
   video.addEventListener('pointerdown', () => { follow.checked = false; });
   video.addEventListener('timeupdate', () => { if (!follow.checked) { $('video-clock').textContent = clock(video.currentTime); syncPlayback(); } });
@@ -698,6 +704,7 @@
     if(value&&JSON.stringify(value)!==JSON.stringify(selected))select(value,false);
   });
   loadInventory();
+  window.recordingSelection = {select, refresh:poll};
   listJobs(); if (selected) select(selected);
   setInterval(poll, 2000);
 })();

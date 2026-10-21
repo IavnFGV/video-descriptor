@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "scope": "Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked media metadata; no inference or user data",
+  "checks": [
+    "one shared player; embedded report has no media source",
+    "side layout: speech under video, notes right",
+    "expanded layout",
+    "player identity and time preserved across report variants",
+    "speech and Markdown heading synchronization",
+    "manual scroll pause and resume",
+    "magnet off",
+    "dirty report blocks variant switch",
+    "new notes settings preserve existing report",
+    "Google generation requires consent before submission",
+    "new speech settings",
+    "1920/1100/760/360 widths fit",
+    "no browser runtime errors"
+  ]
+}

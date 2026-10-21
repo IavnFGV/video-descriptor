@@ -227,7 +227,7 @@ def make_handler(value, instance):
     )
 
     from video_descriptor.action_history import record
-    from video_descriptor.jobs import enqueue, read_json, start_worker
+    from video_descriptor.jobs import enqueue, read_json, start_worker, write_json
     manager = ComputeManager(value, HERE) if 'npu_worker_directory' in value else None
     setup = SetupService(manager, HERE) if manager is not None else None
     from component_manager import ComponentManager
@@ -320,6 +320,34 @@ def make_handler(value, instance):
             if storage and storage.blocked() and path not in {'/api/setup/storage', '/api/native/stop'}:
                 self.close_connection = True
                 return self.json_response(409, {'error': 'Перенос данных: дождитесь завершения и полностью перезапустите приложение'})
+            if path == '/api/speech-run' and manager is not None:
+                try:
+                    if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
+                        return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if self.headers.get_content_type() != 'application/json' or not 0 < length <= 400_000:
+                        raise ValueError('Ожидается JSON параметров распознавания')
+                    body = json.loads(self.rfile.read(length))
+                    if not isinstance(body, dict) or body.get('engine') != 'whisper-local':
+                        raise ValueError('Выберите локальное распознавание в настройках приложения')
+                    if manager.operation:
+                        raise RuntimeError('Дождитесь завершения настройки')
+                    from video_descriptor.speech import enqueue_existing, source_path
+                    if body.get('language', 'auto') not in {'auto', 'en', 'ru', 'uk'}:
+                        raise ValueError('Выберите язык: auto, en, ru или uk')
+                    source = source_path(Path(value['workspace']), body.get('video'))
+                    if any((item := read_json(path, {})).get('status') in {'queued', 'running'}
+                           and item.get('video') == str(source)
+                           for path in (Path(value['workspace']) / 'output/jobs').glob('*/job.json')):
+                        raise ValueError('Эта запись уже находится в обработке')
+                    plan = manager.make_plan(body.get('device', manager.settings()['speech_device']))
+                    job = enqueue_existing(Path(value['workspace']), body.get('video'), 'whisper-local', body.get('title', ''))
+                    job.update(speech_only=True, device_plan=plan, language=body.get('language', 'auto'))
+                    write_json(Path(value['workspace']) / 'output/jobs' / job['id'] / 'job.json', job)
+                    start_worker(Path(value['workspace']))
+                    return self.json_response(202, job)
+                except (ValueError, TypeError, OSError, RuntimeError) as exc:
+                    return self.json_response(400, {'error': str(exc)})
             if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/component-directory', '/api/setup/storage', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
@@ -338,7 +366,7 @@ def make_handler(value, instance):
                         return self.json_response(202, setup.probe(self.rfile.read(length)))
                     if path == '/api/setup/pick-model':
                         return self.json_response(200, {'path': choose_folder()})
-                    if not 0 < length <= 4096 or self.headers.get_content_type() != 'application/json':
+                    if not 0 < length <= (400_000 if path == '/api/native/postprocess' else 4096) or self.headers.get_content_type() != 'application/json':
                         raise ValueError('Ожидается путь к модели в JSON')
                     body = json.loads(self.rfile.read(length))
                     if not isinstance(body, dict):

@@ -11,6 +11,9 @@
     return [Math.floor(total/3600),Math.floor(total/60)%60,total%60].map(n=>String(n).padStart(2,'0')).join(':');
   };
   function showView(focus=false) {
+    if(selected&&!['new','settings','diagnostics'].includes(location.hash.slice(1))){
+      location.replace('/create?'+new URLSearchParams({job:selected}));return;
+    }
     const context=new URLSearchParams(location.search);
     if(context.get('workspace')==='1'){
       context.delete('workspace');$('records-open').href='/create?'+context;
@@ -127,7 +130,9 @@
   }
   async function jobs() {
     const all=await api('/api/jobs');
-    const buttons=all.sort((a,b)=>b.created-a.created).map(job=>{
+    const seen=new Set();
+    const recordings=all.sort((a,b)=>b.created-a.created).filter(job=>{const key=job.video||job.id;if(seen.has(key))return false;seen.add(key);return true;});
+    const buttons=recordings.map(job=>{
       const b=document.createElement('a');b.className='job';b.href='?job='+encodeURIComponent(job.id)+'#records';b.dataset.job=job.id;if(job.id===selected)b.setAttribute('aria-current','true');const title=document.createElement('strong');title.textContent=job.title||job.filename;const state=document.createElement('span');state.className='vd-status';state.dataset.tone=job.cancelled?'neutral':{running:'info',done:'success',error:'danger'}[job.status]||'neutral';state.textContent=(job.mode==='notes'?'Конспект · ':'')+(job.cancelled?'Остановлено':statusNames[job.status]||job.status);b.append(title,state);b.onclick=e=>{if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();select(job.id);};return b;
     });
     const key=JSON.stringify(all.map(job=>[job.id,job.title,job.filename,job.status,job.mode]));
@@ -144,7 +149,7 @@
     $('result-title').textContent='Загружаем запись…';$('transcript').replaceChildren();$('transcript').dataset.content='';
     $('video').pause();$('video').hidden=true;$('timing-note').textContent='';
   }
-  async function select(id) { if(!await window.mayLeaveQuickReply())return;if(id!==selected)resetResult();selected=id;const url=new URL(location.href);url.searchParams.set('job',id);url.hash='records';history.pushState(null,'',url);showView(true);$('result-panel').hidden=false;clearTimeout(timer);poll(); }
+  async function select(id) { if(!await window.mayLeaveQuickReply())return;location.assign('/create?'+new URLSearchParams({job:id})); }
   function render(result,job,progress={}) {
     currentJob=job;
     if(!['new','settings','diagnostics'].includes(location.hash.slice(1)))$('main-heading').textContent=job.title||job.filename||'Запись';

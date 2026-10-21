@@ -171,3 +171,44 @@ body:has(#workspace:not([hidden])) .studio-header{display:flex;justify-content:f
 body:has(#workspace:not([hidden])) .studio-header h1,body:has(#workspace:not([hidden])) .studio-header p{display:none}
 .run-heading h1{margin:var(--vd-space-2) 0;font-size:var(--vd-h2)}
 @media(max-width:800px){.vd-global-nav{margin-bottom:var(--vd-space-3)}.record-toolbar{margin:var(--vd-space-2) 0}.stage-tabs{margin:var(--vd-space-3) 0}}
+
+/* Approved unified recording layout, 21 October 2026. */
+body.recording-workspace{max-width:none}
+body.recording-workspace:has(>.vd-global-nav){max-width:none}
+.recording-left,.player-actions,.player-toolbar{min-width:0}
+.player-toolbar,.player-actions,.recording-actions{display:flex;align-items:center;gap:var(--vd-space-3);flex-wrap:wrap}
+.player-toolbar{justify-content:space-between;margin-bottom:var(--vd-space-3)}
+.player-actions label{display:flex;align-items:center;gap:var(--vd-space-2)}
+.recording-workspace .studio-layout{grid-template-columns:minmax(0,42fr) minmax(0,58fr)}
+.recording-workspace #shared-player{position:static}
+.recording-workspace .player-card video{aspect-ratio:16/9;max-height:none;object-fit:contain}
+.recording-workspace.has-recording .stage-tabs,.recording-workspace.has-recording .record-toolbar,
+.recording-workspace.has-recording #new-notes,.recording-workspace #notes-variant-label{display:none}
+.recording-workspace .studio-header{display:none!important}
+.recording-workspace:not(.has-recording) .studio-header{display:block!important}
+.recording-workspace .recording-notes-heading,.recording-workspace .recording-speech-heading{margin-bottom:var(--vd-space-4)}
+.recording-workspace .recording-notes-heading>label,.recording-workspace .recording-speech-heading>label{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
+.recording-workspace .recording-notes-heading select,.recording-workspace .recording-speech-heading select{font-size:var(--vd-body);font-weight:var(--vd-normal)}
+.recording-workspace #stage-speech>section,.recording-workspace #stage-notes>section{padding:var(--vd-space-4)}
+.recording-workspace #speech-feed{max-height:55vh;overflow:auto;scrollbar-gutter:stable}
+.recording-workspace #report-editor-card> .card-heading{display:none}
+.recording-workspace #report-editor{border:0;border-radius:0;height:76vh;min-height:460px}
+.recording-workspace .stage-content:has(#stage-source:not([hidden])){min-width:0}
+.recording-workspace #recording-processing{font-size:var(--vd-label)}
+.recording-workspace:not(.recording-busy) #stage-progress{display:none}
+.recording-workspace .progress-line{justify-content:flex-start}
+.recording-workspace #run-title{overflow-wrap:anywhere}
+.recording-workspace #speech-settings{margin-top:0}
+.recording-workspace #follow-control,.recording-workspace #follow-hint{display:none}
+.recording-workspace #stage-speech>section:has(>#speech-settings:not([open])){padding:0;border:0;background:transparent;margin-bottom:var(--vd-space-3)}
+.recording-workspace #speech-settings:not([open]){margin:0}
+.recording-workspace #speech-heading{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.recording-workspace .subtitle-tools a[download]{min-height:var(--vd-compact-height);padding:var(--vd-space-1) var(--vd-space-2)}
+.recording-workspace .studio-layout.video-expanded{grid-template-columns:repeat(2,minmax(0,1fr))}
+.recording-workspace .video-expanded .recording-left{display:contents}
+.recording-workspace .video-expanded #shared-player{grid-column:1/-1;grid-row:1}
+.recording-workspace .video-expanded #stage-speech{grid-column:1;grid-row:2}
+.recording-workspace .video-expanded .stage-content{grid-column:2;grid-row:2}
+.recording-workspace .video-expanded .player-card video{max-height:60vh;aspect-ratio:auto}
+.recording-actions{margin-top:var(--vd-space-3)}
+@media(max-width:1000px){.recording-workspace .studio-layout,.recording-workspace .studio-layout.video-expanded{grid-template-columns:1fr}.recording-workspace .video-expanded #stage-speech{grid-column:1;grid-row:2}.recording-workspace .video-expanded .stage-content{grid-column:1;grid-row:3}}

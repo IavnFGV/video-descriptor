@@ -26,7 +26,7 @@
       const button = $('tab-' + name);
       button.setAttribute('aria-selected', String(name === stage));
       button.tabIndex = name === stage ? 0 : -1;
-      $('stage-' + name).hidden = name !== stage;
+      $('stage-' + name).hidden = snapshot ? name === 'source' : name !== stage;
       $('stage-' + name).tabIndex = -1;
     }
     const skip = document.querySelector('.vd-skip');
@@ -38,7 +38,7 @@
       const params = new URLSearchParams(location.search); params.set('stage', stage);
       history.pushState(null, '', '/create?' + params);
     }
-    if (stage === 'notes') loadReport();
+    if (stage === 'notes' || snapshot) loadReport();
   }
   stages.forEach(name => {
     $('tab-' + name).onclick = () => openStage(name);
@@ -64,7 +64,7 @@
       if (reportUrl) { reportUrl = null; $('report-editor').src = 'about:blank'; }
       return;
     }
-    if (reportUrl === url || stage !== 'notes') return;
+    if (reportUrl === url || stage !== 'notes' && !snapshot) return;
     const frame = $('report-editor');
     if (frame.contentWindow?.notesEditorDirty?.()) {
       $('report-version-notice').hidden = false;
@@ -118,6 +118,7 @@
   $('speech-engine').onchange = () => localStorage.setItem('video-descriptor-speech-engine', $('speech-engine').value);
   $('rerun-speech').onclick = async () => {
     if (!snapshot) return;
+    if($('report-editor').contentWindow?.notesEditorDirty?.()){$('speech-settings-status').textContent='Сохраните правки конспекта перед новым запуском.';return;}
     const button = $('rerun-speech'); button.disabled = true;
     try {
       const source = snapshot.source_video;
@@ -161,6 +162,7 @@
   }
   $('process-video').addEventListener('loadedmetadata', updateSourceInfo);
   function update() {
+    document.body.classList.toggle('has-recording', Boolean(snapshot || job));
     const busy = snapshot?.running || ['queued', 'running'].includes(job?.status);
     $('rerun-speech').disabled = !snapshot?.source_video || busy;
     $('delete-version').hidden = !snapshot?.folder;
@@ -204,13 +206,21 @@
     state('notes', building ? snapshot.phase === 3 ? 'Подготовка слайдов' : 'Построение' : reports.length ? 'Готово' : 'Ожидает', building ? 'active' : reports.length ? 'done' : 'pending');
     if (job?.status === 'error' && !snapshot.notes_deleted) state(snapshot.phase === 2 ? 'speech' : 'notes', 'Ошибка', 'error');
     $('shared-player').hidden = false;
+    $('stage-source').hidden = true; $('stage-speech').hidden = false; $('stage-notes').hidden = false;
     updateSourceInfo();
     $('slide-material').hidden = !snapshot.frame_count;
     $('notes-card').hidden = Boolean(reports.length || (busy && snapshot.previous_report_url));
     $('diagnostics').hidden = false;
     loadReport();
+    document.dispatchEvent(new CustomEvent('recording-snapshot', {detail:{snapshot,job}}));
   }
   window.studioUI = {
+    chooseReport(name) {
+      variant = name; $('notes-variant').value = name;
+      const params = new URLSearchParams(location.search);
+      if (name) params.set('report',name); else params.delete('report');
+      history.replaceState(null,'','/create?'+params); loadReport();
+    },
     openStage,
     select(value) {
       snapshot = null; job = value?.job ? {status:'queued'} : null;

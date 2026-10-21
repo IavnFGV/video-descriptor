@@ -231,7 +231,7 @@ def snapshot(root, folder):
     done = ready and not running
     if done:
         position = manifest.get("start", 0) + duration
-    visible_speech = speech if not running or construction_job and construction_job.get('status') == 'queued' else speech[-80:]
+    visible_speech = speech if speech_result.get('status') == 'done' or (folder / 'transcript.json').is_file() or not running or construction_job and construction_job.get('status') == 'queued' else speech[-80:]
     visible_frames = frames[-12:]
     if phase in (4, 6) and block_end is not None and running and not (construction_job and construction_job.get('status') == 'queued'):
         visible_speech = [s for s in speech if s["end"] > position and s["start"] < block_end][-80:]

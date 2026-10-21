@@ -15,9 +15,10 @@
   }
   const post = (url, data) => api(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   function settings() {
-    return Object.fromEntries(Object.entries(fields).map(([key,id]) => [key,numeric.has(key) ? Number($(id).value) : $(id).value]));
+    return {...Object.fromEntries(Object.entries(fields).map(([key,id]) => [key,numeric.has(key) ? Number($(id).value) : $(id).value])),...(window.recordingUI?.native?{input:'speech'}:{}),auto_context:$('auto-context').checked};
   }
-  function fill(config) { for (const [key,id] of Object.entries(fields)) $(id).value = config[key]; }
+  function fill(config) { for (const [key,id] of Object.entries(fields)) $(id).value = config[key]; $('auto-context').checked=config.auto_context!==false; $('context').disabled=$('auto-context').checked; }
+  $('auto-context').onchange=()=>{$('context').disabled=$('auto-context').checked;preview();};
   function buttons() {
     $('save').disabled = !ready || busy;
     $('preview').hidden = !selected?.has_ready_transcript;
@@ -53,6 +54,7 @@
     preview();
   };
   $('provider').onchange = () => {
+    $('cloud').checked=false; $('cloud-label').hidden=$('provider').value!=='gemini';
     providerValues[lastProvider] = {model:$('model').value, context:$('context').value, output:$('output').value};
     lastProvider = $('provider').value;
     const values = providerValues[lastProvider] || (lastProvider === 'gemini' ?
@@ -81,9 +83,13 @@
   };
   $('run').onclick = async () => {
     if (!selected?.has_ready_transcript || !form.reportValidity()) return;
+    if(document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){$('status').textContent='Сохраните правки текущего конспекта перед новым запуском.';return;}
     const folder = selected.folder, config = settings(); busy = true; buttons();
     try {
-      const job = await post('/api/notes-run', {folder,settings:config});
+      if(config.provider==='gemini'&&!$('cloud').checked)throw Error('Подтвердите отправку текста в Google и возможные расходы');
+      const job = window.recordingUI?.native ? await window.recordingUI.postprocess('notes', {
+        construction:config,translate_after:$('translate-after').checked,cloud_confirmed:$('cloud').checked
+      }) : await post('/api/notes-run', {folder,settings:config});
       $('status').textContent = 'Конспект добавлен в очередь. Повторное распознавание речи не требуется.';
       document.dispatchEvent(new CustomEvent('construction-started', {detail:job}));
     } catch (error) { $('status').textContent = error.message; }
