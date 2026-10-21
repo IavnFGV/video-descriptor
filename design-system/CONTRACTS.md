@@ -86,3 +86,9 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 20.10.2026: AI Component Manager adds GET/POST /api/components with existing X-App-Instance and Origin guards. POST component=whisper|ollama|diarization, action=install|check|pull|cancel|remove; install/pull/remove require confirmed=true. Existing setup endpoints/ids/handlers remain. HF links use POST /api/setup/external with fixed terms|tokens allowlist. Operations persist separately from job enums; bytes/total are real, cancellation retains verified cache. No credentials in GET responses. Standard Whisper download/probe controls now run the unified manager; custom WAV API remains.
 
 20.10.2026, PR #5: Ollama modes existing/service/managed, explicit connect and start_existing actions on /api/components; managed install additionally requires mode=managed. Read-only /api/setup/ollama?discover=1 probes 11434 without changing selection. Selected endpoint, ownership, version and models are visible; polling preserves mode/URL drafts. External check/pull never install, launch, stop or switch endpoints. Notes and translation snapshot one selected endpoint, including actual context checks.
+
+
+21.10.2026: однократная подготовка — top-level выбор функций/устройств и один submit после общего download consent; для community-1 отдельное HF consent. POST /api/components action=prepare_selected|cancel_selected; существующие операции/IDs сохранены. Главное окно подсвечивает настройки без принудительного перехода; общий прогресс доступен после ухода/возврата. Ошибка шага не отменяет готовые компоненты.
+
+
+21.10.2026: прогресс подготовки имеет текстовую подпись и aria-describedby. Процент относится к текущему файлу/этапу с реальным знаменателем. Неопределённая полоса подписана; рядом длительность subprocess и давность фактического вывода. После 60 с тишины показывается отсутствие новых сообщений и факт запуска процесса, без заявления о зависании.

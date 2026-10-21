@@ -484,3 +484,76 @@ def test_ollama_show_failure_keeps_installed_models_selectable(configured, monke
     status = setup_api.ollama_status(manager.value)
     assert status['service_ready'] and status['model_present'] and not status['ready']
     assert status['models'][0]['name'] == 'present:9b'
+
+
+def test_bootstrap_is_nonblocking_once_and_preserves_explicit_device(configured, monkeypatch):
+    _, model, manager, service = configured
+    manager.model = model
+    service.apply(str(model))
+    manager.save({'speech_device': 'CPU'})
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def inventory():
+        entered.set()
+        release.wait(3)
+        return {}
+
+    monkeypatch.setattr(manager, 'inventory', inventory)
+    monkeypatch.setattr(manager, 'prepare', lambda: calls.append(manager.settings()['speech_device']))
+    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: {'selected': 'saved', 'models': []})
+    service.bootstrap()
+    assert entered.wait(1)
+    service.bootstrap()
+    assert calls == []
+    assert service.snapshot()['bootstrap']['status'] == 'checking'
+    release.set()
+    import time
+    deadline = time.monotonic() + 3
+    while service.bootstrap_state['status'] == 'checking' and time.monotonic() < deadline:
+        time.sleep(.01)
+    assert calls == ['CPU']
+    assert service.bootstrap_state['status'] == 'done'
+
+
+def test_bootstrap_optional_discovery_survives_broken_speech(configured, monkeypatch):
+    _, _, manager, service = configured
+    seen = threading.Event()
+    monkeypatch.setattr(manager, 'inventory', lambda: (_ for _ in ()).throw(ValueError('broken runtime')))
+    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: (seen.set() or {'selected': 'saved', 'models': []}))
+    service.bootstrap()
+    assert seen.wait(3)
+    import time
+    deadline = time.monotonic() + 3
+    while service.bootstrap_state['status'] == 'checking' and time.monotonic() < deadline:
+        time.sleep(.01)
+    assert service.bootstrap_state['status'] == 'error'
+
+
+def test_bootstrap_selects_small_existing_text_model_without_generation(configured, monkeypatch):
+    _, _, manager, service = configured
+    monkeypatch.setattr(manager, 'inventory', dict)
+    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: {'selected': '', 'models': [
+        {'name': 'large-text', 'bytes': 5000}, {'name': 'embedding', 'bytes': 1}, {'name': 'small-text', 'bytes': 100}]})
+    monkeypatch.setattr(setup_api, 'ollama_completion', lambda value, name: name != 'embedding')
+    selected, done = [], threading.Event()
+    monkeypatch.setattr(setup_api, 'select_ollama', lambda value, name: (selected.append(name), done.set()))
+    service.bootstrap()
+    assert done.wait(3)
+    assert selected == ['small-text']
+
+
+def test_component_directory_change_preserves_files_and_requires_restart(configured):
+    here, model, manager, service = configured
+    target = here / 'new-components'
+    (here / 'config.local.json').write_text('{"port": 9123}')
+    result = service.component_directory(str(target))
+    assert result['restart_required']
+    saved = json.loads((here / 'config.local.json').read_text(encoding='utf-8'))
+    assert saved['port'] == 9123 and saved['ai_components_directory'] == str(target)
+    assert model.is_dir() and not target.exists()
+    manager.preparing = True
+    with pytest.raises(RuntimeError, match='Дождитесь'):
+        service.component_directory(str(here / 'another'))
+    with pytest.raises(ValueError, match='каталога записей'):
+        service.component_directory(str(Path(manager.value['workspace']) / 'components'))

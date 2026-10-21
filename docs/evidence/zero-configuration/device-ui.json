@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "scope": "real isolated packaged WebView2, device labels and layout; synthetic long-error stress fixture",
+  "pid": 16680,
+  "labels": [
+    {
+      "value": "auto",
+      "label": "Автоматически (рекомендуется)",
+      "disabled": false
+    },
+    {
+      "value": "cpu",
+      "label": "Процессор (CPU)",
+      "disabled": false
+    },
+    {
+      "value": "xpu",
+      "label": "Видеокарта (GPU)",
+      "disabled": false
+    },
+    {
+      "value": "npu",
+      "label": "Нейропроцессор (NPU) · не поддерживается для этой задачи",
+      "disabled": true
+    }
+  ],
+  "viewports": [
+    {
+      "width": 760,
+      "scroll": 745,
+      "state": "normal"
+    },
+    {
+      "width": 1024,
+      "scroll": 1009,
+      "state": "normal"
+    },
+    {
+      "width": 1200,
+      "scroll": 1185,
+      "state": "normal"
+    }
+  ]
+}

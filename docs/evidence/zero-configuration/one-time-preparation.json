@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "scope": "real isolated packaged WebView2, existing verified Whisper, no model downloads",
+  "pid": 20052,
+  "focus_after_refusal": "prepare-consent",
+  "preparation": {
+    "state": "ready",
+    "features": [
+      "whisper"
+    ],
+    "device": "auto",
+    "mode": "existing",
+    "model": null,
+    "completed": [
+      "whisper"
+    ],
+    "message": "Выбранные функции готовы. Можно работать с записями.",
+    "current": null
+  },
+  "consent_refusal_starts_nothing": true,
+  "completed_after_leaving_settings": true,
+  "no_horizontal_overflow": [
+    760,
+    1024,
+    1200
+  ]
+}

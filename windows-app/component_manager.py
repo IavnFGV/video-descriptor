@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -30,6 +31,45 @@ STATES = {'not_installed', 'installed', 'downloading', 'installing', 'verifying'
 BUSY = {'downloading', 'installing', 'verifying'}
 NAMES = {'whisper': 'Whisper · распознавание', 'ollama': 'Ollama · языковые модели',
          'diarization': 'pyannote · говорящие'}
+
+
+def package_progress(line, package=''):
+    """Whitelist progress fields only. Never return raw pip text, URLs or credentials."""
+    match = re.fullmatch(r'Progress (\d+) of (\d+)', line.strip())
+    if match:
+        done, total = map(int, match.groups())
+        if 0 < total <= 2**63 - 1 and 0 <= done <= total:
+            return {'state': 'downloading', 'message': 'Скачиваем пакет' + (': ' + package if package else ''),
+                    'bytes': done, 'total': total, 'progress_scope': 'file', 'progress_unit': 'bytes'}
+    match = re.match(r'\s*(Downloading|Using cached) ([A-Za-z0-9][A-Za-z0-9_.+\-]{0,180}\.whl)(?:\s|$)', line)
+    if match:
+        name = match[2].split('-')[0][:80]
+        return {'state': 'downloading' if match[1] == 'Downloading' else 'installing', 'package': name,
+                'message': ('Скачиваем пакет: ' if match[1] == 'Downloading' else 'Используем кэш пакета: ') + name,
+                'bytes': 0, 'total': 0, 'progress_scope': 'file', 'progress_unit': 'bytes'}
+    match = re.match(r'Collecting ([A-Za-z0-9][A-Za-z0-9_.\-]{0,79})(?=[\s=<>!~\[]|$)', line)
+    if match:
+        return {'state': 'installing', 'package': match[1], 'message': 'Подбираем зависимости: ' + match[1], 'bytes': 0, 'total': 0}
+    if line.startswith('Installing collected packages:'):
+        return {'state': 'installing', 'message': 'Распаковываем и устанавливаем скачанные пакеты', 'bytes': 0, 'total': 0}
+    if line.startswith('Successfully installed '):
+        return {'state': 'verifying', 'message': 'Пакеты установлены. Переходим к проверке окружения', 'bytes': 0, 'total': 0}
+    return None
+
+
+def model_progress(value):
+    stages = {'model_load': 'Загружаем локальную модель в память — скачивания нет',
+              'segmentation': 'Пробная запись: ищем смены голосов', 'embeddings': 'Пробная запись: сравниваем голоса',
+              'discrete_diarization': 'Пробная запись: размечаем говорящих', 'clustering': 'Пробная запись: объединяем голоса',
+              'complete': 'Пробная запись обработана. Проверяем результат'}
+    if not isinstance(value, dict) or not isinstance(value.get('stage'), str) or value['stage'] not in stages:
+        return None
+    result = {'state': 'verifying', 'message': stages[value['stage']], 'bytes': 0, 'total': 0,
+              'progress_scope': 'stage', 'progress_unit': 'steps'}
+    done, total = value.get('completed'), value.get('total')
+    if isinstance(done, (int, float)) and isinstance(total, (int, float)) and math.isfinite(total) and math.isfinite(done) and 0 <= done <= total and total > 0:
+        result.update(bytes=done, total=total)
+    return result
 
 
 class Cancelled(RuntimeError):
@@ -102,6 +142,20 @@ class ComponentManager:
         self.active = None
         self.process = None
         self.server = None
+        self.plan_cancel = threading.Event()
+        self.plan_owner = False
+        self.plan_path = self.root / 'preparation.json'
+        self.plan = read_json(self.plan_path, {})
+        self.plan = self.plan if isinstance(self.plan, dict) else {}
+        with (self.root / 'preparation.lock').open('a+') as plan_lease:
+            try:
+                lock_file(plan_lease)
+            except (BlockingIOError, PermissionError):
+                pass
+            else:
+                if self.plan.get('state') == 'running':
+                    self.plan.update(state='error', message='Подготовка прервана закрытием приложения. Нажмите «Сохранить и подготовить»: проверенные компоненты будут использованы повторно.')
+                    atomic(self.plan_path, self.plan)
         saved = read_json(self.path, {})
         saved = saved if isinstance(saved, dict) else {}
         self.components = {key: saved[key] if isinstance(saved.get(key), dict) and saved[key].get('state') in STATES
@@ -138,6 +192,10 @@ class ComponentManager:
 
     def snapshot(self):
         with self.lock:
+            if not self.plan_owner:
+                saved_plan = read_json(self.plan_path, self.plan)
+                if isinstance(saved_plan, dict):
+                    self.plan = saved_plan
             if not self.active:
                 saved = read_json(self.path, {})
                 if isinstance(saved, dict):
@@ -157,8 +215,8 @@ class ComponentManager:
                 if key == 'ollama':
                     item.update(selected(self.manager.value))
                 rows.append({'id': key, 'name': title, **item})
-            return {'components': rows, 'active': self.active or next((key for key in NAMES if self.components[key]['state'] in BUSY), None), 'root': str(self.root),
-                    'profiles': {key: self.manifest.get(key) for key in ('managed_python', 'ollama', 'diarization_model', 'ollama_models')},
+            return {'components': rows, 'preparation': dict(self.plan), 'active': self.active or next((key for key in NAMES if self.components[key]['state'] in BUSY), None), 'root': str(self.root),
+                    'profiles': {key: self.manifest.get(key) for key in ('whisper_model', 'managed_python', 'ollama', 'diarization_model', 'ollama_models')},
                     'has_hf_token': (self.root / 'hf-token.dpapi').is_file(),
                     'ollama_connection': {**selected(self.manager.value), 'executable': self.existing_executable(),
                                           'service_url': self.manager.value.get('ollama_service_url', DEFAULT_URL)}}
@@ -205,30 +263,78 @@ class ComponentManager:
         temporary.replace(target)
         return target
 
-    def run(self, command, key, timeout=1800, env=None):
+    def run(self, command, key, timeout=1800, env=None, failure_message=None, progress_file=None):
         self.check_cancel()
-        self.update(key, 'installing', message='Подготавливаем окружение' if 'pip' in command else 'Проверяем компонент')
-        # Never persist subprocess output: pip/upstream diagnostics can contain credentials.
-        with open(os.devnull, 'wb') as output:
-            process = subprocess.Popen([str(arg) for arg in command], stdin=subprocess.DEVNULL,
-                                       stdout=output, stderr=output, env=env or {**{k: v for k, v in os.environ.items() if k.upper() not in {'PYTHONPATH', 'PYTHONHOME'}},
-                                                    'PYTHONUTF8': '1', 'PIP_NO_INPUT': '1'},
-                                       creationflags=0x08000000 if os.name == 'nt' else 0)
-            self.process = process
-            started = time.monotonic()
-            try:
-                while process.poll() is None:
-                    self.check_cancel()
-                    if time.monotonic() - started > timeout:
-                        raise RuntimeError('Превышено время подготовки. Проверьте сеть и повторите.')
-                    self.cancel.wait(.2)
-                if process.returncode:
-                    raise RuntimeError(f'Проверка/установка завершилась с кодом {process.returncode}. Рабочая конфигурация сохранена.')
-            finally:
-                if process.poll() is None:
-                    process.terminate()  # Only this exact owned child; never taskkill/python/ollama by name.
-                    process.wait(timeout=15)
-                self.process = None
+        pip_command = 'pip' in command or len(command) > 1 and Path(command[1]).name == 'install_packages.py'
+        installing = pip_command and 'install' in command or 'venv' in command
+        message = ('Создаём отдельное окружение Python' if 'venv' in command else
+                   'Подбираем зависимости и готовим загрузку пакетов' if 'install' in command else
+                   'Проверяем совместимость установленных пакетов' if pip_command else
+                   'Запускаем пробное определение говорящих')
+        self.update(key, 'installing' if installing else 'verifying',
+                    message=message, bytes=0, total=0, progress_scope='stage', progress_unit=None,
+                    step_started_at=time.time(), activity_at=time.time(), process_running=False)
+        process = subprocess.Popen([str(arg) for arg in command], stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                   encoding='utf-8', errors='replace', bufsize=1,
+                                   env=env or {**{k: v for k, v in os.environ.items() if k.upper() not in {'PYTHONPATH', 'PYTHONHOME'}},
+                                                'PYTHONUTF8': '1', 'PYTHONUNBUFFERED': '1', 'PIP_NO_INPUT': '1'},
+                                   creationflags=0x08000000 if os.name == 'nt' else 0)
+        self.process = process
+        self.update(key, process_running=True)
+        observed, output_lock = {}, threading.Lock()
+
+        def read_output():
+            package = ''
+            while line := process.stdout.readline(4096):
+                progress = package_progress(line, package) if pip_command else None
+                if progress:
+                    package = progress.pop('package', package)
+                with output_lock:
+                    observed['activity_at'] = time.time()
+                    if progress:
+                        observed.update(progress)
+                # Raw output is discarded, including unknown warnings and errors.
+        reader = threading.Thread(target=read_output, name='component-progress', daemon=True)
+        reader.start()
+        started, published, last_model = time.monotonic(), {}, None
+
+        def publish_progress():
+            nonlocal last_model
+            with output_lock:
+                fields = dict(observed)
+            if progress_file:
+                progress = model_progress(read_json(progress_file, {}))
+                if progress and progress != last_model:
+                    last_model = progress
+                    fields.update(progress, activity_at=time.time())
+                    with output_lock:
+                        observed.update(fields)
+            if fields != published:
+                self.update(key, **fields)
+                published.clear()
+                published.update(fields)
+        try:
+            while process.poll() is None:
+                self.check_cancel()
+                publish_progress()
+                if time.monotonic() - started > timeout:
+                    raise RuntimeError('Превышено время подготовки. Проверьте сеть и повторите.')
+                self.cancel.wait(.5)
+            reader.join(timeout=2)
+            publish_progress()
+            if process.returncode:
+                raise RuntimeError((failure_message or 'Проверка/установка не завершена.') +
+                                   f' Код: {process.returncode}. Последняя рабочая конфигурация сохранена.')
+        finally:
+            if process.poll() is None:
+                process.terminate()  # Only this exact owned child; never taskkill/python/ollama by name.
+                process.wait(timeout=15)
+            reader.join(timeout=2)
+            if not reader.is_alive():
+                process.stdout.close()
+            self.process = None
+            self.update(key, process_running=False)
 
     def publish(self, changes):
         self.check_cancel()
@@ -265,7 +371,111 @@ class ComponentManager:
                 self.connection = connection
                 os.environ['OLLAMA_BASE_URL'] = connection['url']
 
-    def action(self, key, body):
+    def prepare_selected(self, body):
+        features = body.get('features')
+        if not isinstance(features, list) or not features or any(not isinstance(key, str) or key not in NAMES for key in features) or len(set(features)) != len(features):
+            raise ValueError('Выберите нужные функции: распознавание, говорящие, локальный AI')
+        if body.get('confirmed') is not True:
+            raise ValueError('Разрешите загрузку и установку выбранных AI-компонентов')
+        device = body.get('device', 'auto')
+        if device not in {'auto', 'cpu', 'xpu'}:
+            raise ValueError('Выберите поддерживаемое устройство для определения говорящих')
+        if 'diarization' in features and body.get('hf_consent') is not True:
+            raise ValueError('Для говорящих примите условия community-1 и отметьте согласие Hugging Face в разделе «Говорящие»')
+        if 'diarization' in features and not body.get('token') and not (self.root / 'hf-token.dpapi').is_file():
+            profile = self.manifest.get('diarization_model', {})
+            model_path = Path(self.manager.value.get('diarization_model_directory') or '__missing__')
+            cached = self.root / ('community-1-' + str(profile.get('revision', '')))
+            if profile.get('revision') and not (model_path / 'config.yaml').is_file() and not (cached / 'config.yaml').is_file():
+                raise ValueError('Для первой загрузки говорящих укажите токен чтения Hugging Face в разделе «Говорящие»')
+        mode = body.get('mode', 'existing')
+        if mode not in {'existing', 'service', 'managed'}:
+            raise ValueError('Выберите подключение локального AI')
+        model = body.get('model')
+        if 'ollama' in features and (not isinstance(model, str) or not model.strip()):
+            raise ValueError('Выберите языковую модель в разделе «Локальный AI»')
+        with self.manager._lock:
+            if self.plan.get('state') == 'running' or self.active:
+                raise RuntimeError('Подготовка уже выполняется')
+            self.setup.guard()
+            plan_lease = (self.root / 'preparation.lock').open('a+')
+            try:
+                lock_file(plan_lease)
+                if 'diarization' in features and body.get('token'):
+                    self.token(body['token'])  # Only DPAPI storage; never include the token in the plan.
+            except Exception:
+                plan_lease.close()
+                raise
+            self.plan_owner = True
+            self.plan_cancel.clear()
+            self.plan = {'state': 'running', 'features': features, 'device': device, 'mode': mode,
+                         'model': model if 'ollama' in features else None, 'completed': [],
+                         'message': 'Согласия сохранены. Готовим выбранные функции…'}
+            try:
+                atomic(self.plan_path, self.plan)
+            except Exception:
+                self.plan_owner = False
+                self.plan['state'] = 'error'
+                plan_lease.close()
+                raise
+
+        def work():
+            try:
+                for key in ('whisper', 'diarization', 'ollama'):
+                    if key not in features:
+                        continue
+                    with self.manager._lock:
+                        if self.plan_cancel.is_set():
+                            raise RuntimeError('Подготовка остановлена. Проверенные компоненты сохранены.')
+                        operation = {'action': 'check', 'confirmed': True, 'resume': None}
+                        if key == 'whisper':
+                            operation['action'] = 'install'  # Reuses verified existing models.
+                        elif key == 'diarization':
+                            from diarization_setup import choose_device, detect_adapters
+                            target = choose_device(device, detect_adapters() if device == 'auto' else [])
+                            prepared = self.manager.value.get('diarization_device') == target and Path(self.manager.value.get('diarization_python') or '__missing__').is_file()
+                            operation.update(action='check' if prepared else 'install', device=device)
+                        else:
+                            operation.update(action='prepare' if mode == 'managed' else 'check', mode=mode, model=model, task='translation')
+                            if mode != selected(self.manager.value)['mode'] and mode != 'managed':
+                                raise ValueError('Сначала подключите выбранный внешний сервис в разделе «Локальный AI»')
+                        self.plan.update(current=key, message='Подготавливаем: ' + NAMES[key])
+                        atomic(self.plan_path, self.plan)
+                        self.action(key, operation, _planned=True)
+                    while self.active:
+                        time.sleep(.1)
+                    if self.plan_cancel.is_set():
+                        raise RuntimeError('Подготовка остановлена. Проверенные компоненты сохранены.')
+                    if self.components[key]['state'] != 'ready':
+                        raise RuntimeError(NAMES[key] + ': ' + self.components[key].get('message', 'Не удалось подготовить'))
+                    with self.manager._lock:
+                        self.plan['completed'].append(key)
+                        atomic(self.plan_path, self.plan)
+                with self.manager._lock:
+                    self.plan.update(state='ready', current=None, message='Выбранные функции готовы. Можно работать с записями.')
+                    atomic(self.plan_path, self.plan)
+            except Exception as exc:  # noqa: BLE001 — background boundary; do not persist arbitrary upstream output.
+                with self.manager._lock:
+                    self.plan.update(state='error', message=str(exc) if isinstance(exc, (ValueError, RuntimeError)) else 'Не удалось подготовить компоненты. Проверьте подключение и повторите.')
+                    atomic(self.plan_path, self.plan)
+            finally:
+                plan_lease.close()
+                self.plan_owner = False
+        threading.Thread(target=work, name='prepare-selected', daemon=True).start()
+        return {'started': True}
+
+    def action(self, key, body, *, _planned=False):
+        if body.get('action') == 'prepare_selected':
+            return self.prepare_selected(body)
+        if body.get('action') == 'cancel_selected':
+            with self.manager._lock:
+                if self.plan.get('state') == 'running' and not self.plan_owner:
+                    raise RuntimeError('Подготовка выполняется в другом экземпляре приложения. Остановите её в том окне.')
+                self.plan_cancel.set()
+                if self.active:
+                    self.cancel.set()
+                    self.update(self.active, pending_action=None)
+            return {'cancel_requested': True}
         if key not in NAMES:
             raise ValueError('Неизвестный компонент')
         action = body.get('action', 'check')
@@ -273,31 +483,52 @@ class ComponentManager:
             if self.active != key:
                 raise ValueError('У этого компонента нет активной операции')
             self.cancel.set()
+            self.plan_cancel.set()
+            self.update(key, pending_action=None)
             return {'cancel_requested': True}
-        if action not in {'install', 'check', 'pull', 'remove', 'connect', 'start_existing'}:
+        if action == 'prepare' and key != 'ollama':
+            raise ValueError('Автоматическая подготовка доступна для локального AI')
+        if action not in {'install', 'check', 'pull', 'prepare', 'remove', 'connect', 'start_existing'}:
             raise ValueError('Неизвестное действие')
-        if action in {'install', 'pull', 'remove', 'start_existing'} and body.get('confirmed') is not True:
+        if action in {'install', 'pull', 'prepare', 'remove', 'start_existing'} and body.get('confirmed') is not True:
             raise ValueError('Подтвердите загрузку или удаление управляемого компонента')
-        if key == 'ollama' and action == 'install' and body.get('mode') != 'managed':
+        if key == 'ollama' and action in {'install', 'prepare'} and body.get('mode') != 'managed':
             raise ValueError('Выберите режим «Установить управляемую Ollama» и подтвердите установку')
         if action in {'connect', 'start_existing'} and key != 'ollama':
             raise ValueError('Действие доступно только для Ollama')
         if key == 'diarization' and body.get('device', 'auto') not in {'auto', 'cpu', 'xpu'}:
-            raise ValueError('Выберите Auto, CPU или XPU')
+            raise ValueError('Выберите автоматический режим, процессор (CPU) или видеокарту (GPU). Нейропроцессор (NPU) для этой задачи не поддерживается.')
         with self.manager._lock:
+            if not _planned and self.plan.get('state') == 'running':
+                raise RuntimeError('Выполняется подготовка выбранных функций. Дождитесь завершения или остановите её.')
             self.setup.guard()
             if self.active:
                 raise RuntimeError('Дождитесь завершения текущей подготовки')
+            saved_pending = self.components[key].get('pending_action')
+            pending = body.get('resume', saved_pending if isinstance(saved_pending, dict) and saved_pending.get('workspace') == self.manager.value.get('workspace') and action != 'remove' else None)
+            if pending is not None:
+                from video_descriptor.construction import checked_folder
+                if not isinstance(pending, dict) or pending.get('task') not in {'diarize', 'translate', 'notes'}:
+                    raise ValueError('Выберите действие для записи')
+                if (key == 'diarization') != (pending['task'] == 'diarize') or key == 'whisper':
+                    raise ValueError('Действие не соответствует компоненту')
+                checked_folder(Path(self.manager.value['workspace']), pending.get('folder'))
             lease = (self.root / 'operation.lock').open('a+')
             try:
                 lock_file(lease)
             except (BlockingIOError, PermissionError):
                 lease.close()
                 raise RuntimeError('Компоненты настраиваются в другом экземпляре приложения') from None
+            if action in {'install', 'pull', 'prepare'}:
+                profile = self.manifest.get('whisper_model' if key == 'whisper' else 'diarization_model' if key == 'diarization' else 'ollama', {})
+                self.update(key, download_consent=True, consent_revision=profile.get('revision') or profile.get('sha256'))
+            self.update(key, pending_action={**pending, 'workspace': self.manager.value['workspace']} if pending else None, resumed_job=None)
             self.active = key
             self.manager.operation = 'components-' + key
             self.cancel.clear()
-            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0, operation_id=uuid.uuid4().hex)
+            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0,
+                        step_started_at=None, activity_at=None, process_running=False, preparing_device=None,
+                        progress_scope=None, progress_unit=None, operation_id=uuid.uuid4().hex)
 
         def work():
             started = time.monotonic()
@@ -311,6 +542,18 @@ class ComponentManager:
                 else:
                     proof = self.whisper(action)
                 self.check_cancel()
+                pending = self.components[key].get('pending_action')
+                if pending and pending.get('workspace') == self.manager.value['workspace'] and action != 'remove':
+                    from video_descriptor.jobs import start_worker
+                    root = Path(self.manager.value['workspace'])
+                    if pending['task'] == 'diarize':
+                        from video_descriptor.diarization_postprocess import enqueue
+                        job = enqueue(root, pending['folder'], self.manager.value)
+                    else:
+                        from video_descriptor.postprocess import enqueue
+                        job = enqueue(root, pending['folder'], pending['task'], proof['model'], self.manager.value['ollama_url'], notes_model=proof['model'])
+                    self.update(key, pending_action=None, resumed_job=job['id'])
+                    start_worker(root)
                 state = 'not_installed' if action == 'remove' else 'ready'
                 message = 'Компонент удалён' if action == 'remove' else 'Проверка выполнена'
                 if key == 'ollama' and action != 'remove' and not proof.get('generation_checked'):
@@ -479,6 +722,7 @@ class ComponentManager:
             raise
 
     def close(self):
+        self.plan_cancel.set()
         # Never stop an external service (even one explicitly started on 11434).
         if self.server and self.server.poll() is None:
             self.server.terminate()
@@ -502,14 +746,14 @@ class ComponentManager:
             return self.connect_ollama(body.get('mode'), body.get('url'))
         if action == 'start_existing':
             return self.start_existing_ollama()
-        version = self.ensure_ollama(install=action == 'install')
+        version = self.ensure_ollama(install=action in {'install', 'prepare'})
         model = body.get('model')
         if not model:
-            if action == 'pull':
+            if action in {'pull', 'prepare'}:
                 raise ValueError('Выберите модель')
             return {'api_version': version, 'generation_checked': False}
         profiles = {item['name']: item for item in self.manifest.get('ollama_models', [])}
-        if action == 'pull':
+        if action in {'pull', 'prepare'}:
             if model not in profiles:
                 raise ValueError('Выберите модель из каталога')
             if selected(self.manager.value)['mode'] == 'managed' and shutil.disk_usage(self.root).free < profiles[model]['bytes'] * 1.2:
@@ -640,7 +884,9 @@ class ComponentManager:
         from diarization_setup import choose_device, detect_adapters
         requested = body.get('device', 'auto')
         selected = choose_device(requested, detect_adapters() if requested == 'auto' else [])
-        model = self.hf_model(self.token(body.get('token'))) if action == 'install' else Path(self.manager.value.get('diarization_model_directory', ''))
+        model = Path(self.manager.value.get('diarization_model_directory', ''))
+        if action == 'install' and not self.verify_model(model, self.manifest['diarization_model']):
+            model = self.hf_model(self.token(body.get('token')))
         if not (model / 'config.yaml').is_file():
             raise ValueError('Сначала подготовьте модель диаризации')
         if action == 'install' and shutil.disk_usage(self.root).free < 8 * 1024**3:
@@ -652,14 +898,14 @@ class ComponentManager:
             self.check_cancel()
             if requested != 'auto' or selected != 'xpu':
                 raise
-            warning = 'Intel GPU обнаружен, но проверка XPU не прошла. Проверен CPU. ' + str(exc)
+            warning = 'Видеокарта (GPU) не прошла проверку. Используется проверенный процессор (CPU). ' + str(exc)
             selected = 'cpu'
             runtime, proof = self.diarization_runtime(selected, model, install=action == 'install')
         self.check_cancel()
         self.publish({'diarization_python': str(runtime), 'diarization_model_directory': str(model),
                       'diarization_device': selected, 'diarization_requested_device': requested,
                       'diarization_setup_warning': warning, 'diarization_probe': proof})
-        self.update('diarization', path=str(runtime.parent.parent), model=str(model), device=selected,
+        self.update('diarization', path=str(runtime.parent.parent), model=str(model), device=selected, requested_device=requested,
                     version=proof.get('torch', ''), fallback_reason=warning,
                     bytes_on_disk=self.size(runtime.parent.parent) + self.size(model))
         return proof
@@ -687,6 +933,7 @@ class ComponentManager:
             temporary.replace(target)
 
     def diarization_runtime(self, device, model, install):
+        self.update('diarization', preparing_device=device)
         if install:
             base = self.python()
             # venv contains absolute paths: create at its final unique path, publish only
@@ -699,19 +946,25 @@ class ComponentManager:
             # PyTorch explicitly adds this venv-local directory to DLL search.
             self.stage_python_runtime_libraries(folder / 'Library/bin')
             requirements = self.here / ('requirements-pyannote-' + device + '.lock')
-            self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--index-url',
-                      'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization')
+            self.run([python, self.here / 'install_packages.py', '--isolated', 'install', '--disable-pip-version-check', '--progress-bar', 'raw', '--index-url',
+                      'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization',
+                     failure_message='Не удалось установить пакеты для ' + ('видеокарты (GPU).' if device == 'xpu' else 'процессора (CPU).') +
+                                     ' Проверьте подключение к интернету и свободное место, затем повторите подготовку.')
             self.run([python, '-m', 'pip', 'check'], 'diarization')
         else:
             python = Path(self.manager.value.get('diarization_python', ''))
+            if device == 'xpu' and self.manager.value.get('diarization_device') == 'cpu':
+                raise ValueError('Сейчас подготовлен процессор (CPU). Для видеокарты (GPU) нажмите «Подготовить диаризацию»: требуется отдельное окружение.')
         if not python.is_file():
             raise ValueError('Окружение диаризации отсутствует. Нажмите «Подготовить диаризацию».')
         proof_dir = self.root / 'checks' / uuid.uuid4().hex
         proof_dir.mkdir(parents=True)
-        self.update('diarization', 'verifying', message='Проверяем диаризацию · ' + device.upper())
+        device_label = 'видеокарта (GPU)' if device == 'xpu' else 'процессор (CPU)'
+        self.update('diarization', 'verifying', message='Проверяем определение говорящих · ' + device_label)
         self.run([python, self.here / 'diarization_worker.py', '--model', model, '--device', device,
                   '--audio', self.here / 'samples/speech-check.wav', '--output', proof_dir / 'result.json',
-                  '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600)
+                  '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600, progress_file=proof_dir / 'progress.json',
+                 failure_message='Не удалось выполнить пробное определение говорящих: ' + device_label + '.')
         proof = read_json(proof_dir / 'result.json', {})
         requirements = self.here / ('requirements-pyannote-' + device + '.lock')
         proof['requirements_sha256'] = checksum(requirements)

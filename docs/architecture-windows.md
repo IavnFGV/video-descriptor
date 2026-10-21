@@ -540,3 +540,23 @@ venv-local `Library/bin` before dependency installation, with SHA256 checks agai
 Managed pip installation uses an explicit extended-length Windows prefix, with matching
 size/removal paths. Runtime configuration keeps normal absolute paths; no registry policy
 is changed and venvs are never relocated.
+
+## Background bootstrap and contextual preparation (21 October 2026)
+
+`SetupService.bootstrap()` runs once per server process after manager construction. It inventories the bundled runtime, imports a detected model only when no verified configuration exists, and uses `ComputeManager.prepare()` with the saved device preference. Speech and Ollama failures are isolated. Ollama discovery uses the selected connection and capability metadata only; no generation or Gemini request runs during bootstrap. Existing diagnostics inspect local diarization and saved Gemini configuration without sending recording data.
+
+The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. The `prepare` Ollama action explicitly opts into managed installation and then pulls/verifies one catalog model under the same lease.
+
+Advanced settings can save `ai_components_directory` for the next process start through the guarded SetupService API and the existing ComponentManager root argument. This does not move user data or modify live environments. Reinstalling a diarization runtime reuses an existing model when it still matches the reviewed manifest, including after a component-directory change.
+
+
+21.10.2026: пользовательские названия устройств унифицированы (CPU/GPU/NPU), внутреннее API значение `xpu` сохранено для совместимости. NPU диаризации недоступен, capability распознавания проверяется отдельно. GPU check не использует сохранённый CPU runtime; смена на GPU из записи открывает подготовку с согласием. Ошибка последней операции и ранее проверенное устройство отображаются раздельно; сообщения subprocess различают установку пакетов и пробный inference, не сохраняя сырой вывод с возможными credentials.
+
+
+21.10.2026, 0.8.2: /api/components action=prepare_selected принимает выбранные функции, устройство, режим/модель Ollama, общее согласие и отдельное HF consent. Backend сохраняет preparation.json без токена и последовательно использует существующие guarded операции. preparation.lock защищает очередь между экземплярами; компонентный lease и прежние guards сохранены. cancel_selected отменяет текущий шаг и остаток. После перезапуска незавершённая очередь становится явной ошибкой с повтором, без самовольной новой загрузки. GET /api/components.preparation возвращает общий прогресс; уход со страницы не останавливает backend.
+
+
+21.10.2026, 0.8.3: ComponentManager.run асинхронно читает bounded stdout/stderr pipe дочернего процесса. В состояние попадают только разрешённые фазы/имена пакетов/счётчики pip raw progress; неизвестный сырой вывод отбрасывается. Отдельный reader не блокирует cancel/timeout. activity_at отражает реальный вывод или изменение структурированного progress.json, step_started_at — начало subprocess, process_running — состояние дочернего процесса. diarization_worker сохраняет stage/completed/total с прежним message; родитель принимает только известные фазы и конечные счётчики. progress_scope=file означает текущий файл, stage — текущий этап; глобальный процент не синтезируется.
+
+
+21.10.2026, 0.8.4: install_packages.py запускает pip в отдельном процессе и нормализует результат wheel._record_to_fs_path через ntpath.normpath перед rehash. Причина: pip 25 после изменения shebang читает RECORD путь с ../.., а Windows extended prefix не нормализует такие сегменты и возвращает errno 22. Префикс длинных путей сохранён; pip на диске и политика Windows не изменяются. Новый helper включён в release source_paths и распознаётся ComponentManager.run для потокового прогресса.

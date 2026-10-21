@@ -38,6 +38,7 @@ def installation_id():
 
 
 class NativeHTTPServer(ThreadingHTTPServer):
+    request_queue_size = 32  # Concurrent startup checks must not drop loopback connections.
     allow_reuse_address = False
 
     def server_bind(self):
@@ -226,7 +227,9 @@ def make_handler(value, instance):
     manager = ComputeManager(value, HERE) if 'npu_worker_directory' in value else None
     setup = SetupService(manager, HERE) if manager is not None else None
     from component_manager import ComponentManager
-    components = ComponentManager(setup) if setup else None
+    components = ComponentManager(setup, root=value.get('ai_components_directory')) if setup else None
+    if setup:
+        setup.bootstrap()
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
@@ -300,7 +303,7 @@ def make_handler(value, instance):
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/component-directory', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
                     origin = self.headers.get('Origin')
@@ -331,6 +334,8 @@ def make_handler(value, instance):
                         return self.json_response(200, {'opened': True})
                     if path == '/api/components':
                         return self.json_response(202, components.action(body.get('component'), body))
+                    if path == '/api/setup/component-directory':
+                        return self.json_response(200, setup.component_directory(body.get('directory')))
                     if path == '/api/setup/refresh':
                         with manager._lock:
                             setup.guard()
@@ -419,7 +424,7 @@ def make_handler(value, instance):
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
                     if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
                         return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
-                    if components and components.active:
+                    if components and (components.active or components.plan.get('state') == 'running'):
                         return self.json_response(409, {'error': 'Остановите подготовку компонентов перед закрытием приложения'})
                     if components:
                         components.close()

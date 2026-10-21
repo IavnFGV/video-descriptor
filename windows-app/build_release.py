@@ -95,7 +95,7 @@ def source_paths():
     paths = list((ROOT / 'video_descriptor').rglob('*.py'))
     paths += [p for name in ('assets', 'prompts') for p in (ROOT / 'video_descriptor' / name).rglob('*') if p.is_file()]
     paths += [HERE / name for name in (
-        'app.py', 'compute.py', 'component_manager.py', 'setup_service.py', 'model_download.py', 'whisper_worker.py', 'release_lifecycle.py',
+        'app.py', 'compute.py', 'component_manager.py', 'install_packages.py', 'setup_service.py', 'model_download.py', 'whisper_worker.py', 'release_lifecycle.py',
         'requirements-pyannote-cpu.lock', 'requirements-pyannote-xpu.lock',
         'diarization_worker.py', 'diarization_setup.py', 'Prepare-Diarization.ps1',
         'desktop.py', 'Desktop.ps1', 'DesktopHost.cs', 'app.ico',

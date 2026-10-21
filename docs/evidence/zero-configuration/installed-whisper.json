@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "method": "real installed WebView2; native download confirmation answered by acceptance operator",
+  "network_download_bytes": 493208911,
+  "accepted_download_confirmations": 1,
+  "selected_file_preserved": true,
+  "speaker_without_consent_starts_nothing": true,
+  "transcribed_segments": 1,
+  "workspace_checks": [
+    "reply dirty Escape retained input; real save/revision and timestamps verified",
+    "stage Back, query parameters, AI round trip and unsaved title recovery",
+    "two independent prompt drafts and selected task survive AI navigation",
+    "real SRT/VTT/TXT downloads through production links",
+    "keyboard stage arrows update selection and focus",
+    "skip link focuses the active stage without losing URL context",
+    "visual-only DOM stress fixture: 1000 long RU/UK utterances; no API/mock inference claim",
+    "four requested CSS viewport sizes and 125/150 percent DPR; no horizontal overflow"
+  ],
+  "initial_harness_error": "ModuleNotFoundError: No module named 'verify_workspace_ui'"
+}
