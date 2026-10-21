@@ -433,6 +433,7 @@
   }
   $('notes-provider').onchange=()=>{$('notes-cloud-consent').checked=false;notesModels();};
   $('notes-model-refresh').onclick=notesModels;
+  $('notes-auto-context').onchange=()=>{$('notes-context').disabled=$('notes-auto-context').checked;};
   $('notes-cancel').onclick=()=>$('notes-dialog').close();
   $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';const target=$(provider==='gemini'?'gemini-key':'ollama-mode');target.closest('details').open=true;target.focus();};
   $('notes-confirm').onclick=async()=>{
@@ -441,7 +442,7 @@
     if(currentJob?.folder!==notesFolder){$('notes-choice-status').textContent='Выбрана другая запись. Закройте окно и откройте конспект для нужной записи.';return;}
     if(provider==='gemini'&&!$('notes-cloud-consent').checked){$('notes-choice-status').textContent='Подтвердите отправку текста в Google.';return;}
     $('notes-confirm').disabled=true;
-    const construction={provider,model:$('notes-model-choice').value,strategy:$('notes-strategy').value,context_tokens:Number($('notes-context').value),output_tokens:2048};
+    const construction={provider,model:$('notes-model-choice').value,strategy:$('notes-strategy').value,context_tokens:Number($('notes-context').value),auto_context:$('notes-auto-context').checked,output_tokens:2048};
     try{if(await postprocess('notes',{construction,translate_after:$('notes-translate-after').checked,cloud_confirmed:$('notes-cloud-consent').checked}))$('notes-dialog').close();else $('notes-choice-status').textContent=$('message').textContent;}finally{$('notes-confirm').disabled=false;}
   };
   let localTask=null, localFolder=null;

@@ -360,8 +360,9 @@
 <button id="notes-model-refresh" type="button" class="vd-button">Обновить модели</button>
 <details><summary>Разбиение и контекст</summary>
 <label class="vd-field">Обработка<select id="notes-strategy" class="vd-select"><option value="auto">Автоматически: целиком, если помещается</option><option value="chunks">По частям с памятью предыдущих частей</option><option value="whole">Целиком одним запросом</option></select></label>
-<label class="vd-field">Размер контекста, токенов<input id="notes-context" class="vd-input" type="number" min="8192" max="2097152" step="1024" value="16384"></label>
-<p class="footnote">Ограничивается возможностями модели. Для длинных записей части конспектируются с краткой памятью, затем объединяются.</p>
+<label class="check-label"><input id="notes-auto-context" type="checkbox" checked>Определять доступный контекст модели автоматически</label>
+<label class="vd-field">Ручной предел контекста, токенов<input id="notes-context" class="vd-input" type="number" min="8192" max="2097152" step="1024" value="16384" disabled></label>
+<p class="footnote">В автоматическом режиме вся расшифровка отправляется одним запросом генерации, если помещается в контекст модели. Для Google размер проверяется точным подсчётом токенов. На части делим только при превышении лимита; режим «По частям» можно выбрать вручную.</p>
 </details>
 <label class="check-label"><input id="notes-translate-after" type="checkbox" checked>Также перевести реплики на русский той же моделью</label>
 <label id="notes-cloud-label" class="check-label" hidden><input id="notes-cloud-consent" type="checkbox">Разрешаю отправить текст расшифровки в Google. Возможны расходы и ограничения квоты; видео не отправляется.</label>

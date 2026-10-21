@@ -47,7 +47,7 @@ PROMPTS = {
     'conversation': COMMON + "\nСохраняй ход рассуждения: тезис, обоснование, пример, возражение и вывод. Существенные истории сохраняй вместе с тем, что они иллюстрируют. Различай факты, позиции автора, предположения и чужие мнения. Возвращения к одной теме связывай в конспекте, но сохраняй хронологию оглавления. Не отбрасывай историю только потому, что она не похожа на техническое объяснение.\n",
 }
 DEFAULTS = {'input': 'speech', 'material': 'lecture', 'provider': 'ollama', 'model': 'qwen3.5:9b',
-            'strategy': 'auto', 'grouping': 'auto', 'context_tokens': 16384,
+            'strategy': 'auto', 'grouping': 'auto', 'context_tokens': 16384, 'auto_context': True,
             'output_tokens': 4096, 'chunk_seconds': 180, 'max_chunk_seconds': 600,
             'max_chunk_chars': 18000, 'prompt': PROMPTS['lecture']}
 
@@ -59,6 +59,10 @@ def validate(value):
     if extra:
         raise ValueError('Неизвестные настройки конспекта')
     config = {**DEFAULTS, **value}
+    if 'auto_context' not in value:
+        config['auto_context'] = 'context_tokens' not in value
+    if type(config['auto_context']) is not bool:
+        raise TypeError('Выберите автоматический или ручной размер контекста')
     for key, choices in {'input': {'speech', 'slides'}, 'material': {'lecture', 'conversation'}, 'provider': {'ollama', 'gemini'},
                          'strategy': {'auto', 'whole', 'chunks'},
                          'grouping': {'auto', 'slides', 'speech', 'time'}}.items():
@@ -220,12 +224,16 @@ def group_material(lines, frames, folder, config, capacity):
     return blocks, grouping
 
 
-def plan(folder, value):
+def plan(folder, value, *, root=None, token_counts=None):
     config = validate(value)
     _, lines, frames = material(folder, config)
     text = '\n'.join(row['text'] for row in lines)
     capacity = budget(config)
     fits = input_bound(text) <= capacity
+    exact = None
+    if root is not None and config['provider'] == 'gemini' and config['strategy'] in {'auto', 'whole'}:
+        exact = gemini_token_count(root, config, gemini_payload(config, text), token_counts)
+        fits = exact <= config['context_tokens'] - config['output_tokens'] - 1024
     strategy = config['strategy']
     if strategy == 'auto':
         strategy = 'whole' if fits else 'chunks'
@@ -233,7 +241,7 @@ def plan(folder, value):
         raise ValueError('Вся запись не помещается в заданный контекст. Выберите автоматический режим или обработку по частям')
     blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity - min(2048, max(128, capacity // 4)))
     return {'strategy': strategy, 'grouping': grouping, 'characters': len(text),
-            'estimated_tokens': math.ceil(len(text.encode()) / 3), 'input_upper_bound': input_bound(text),
+            'estimated_tokens': math.ceil(len(text.encode()) / 3), 'input_tokens': exact, 'input_upper_bound': input_bound(text),
             'context_tokens': config['context_tokens'], 'blocks': len(blocks),
             'generation_requests': 1 if strategy == 'whole' else len(blocks) + 1,
             'consolidation': strategy == 'chunks', 'config': config}, blocks
@@ -253,7 +261,8 @@ def enqueue_notes(root, name, value):
     folder = checked_folder(root, name)
     config = validate(value)
     validate_provider(root, config)
-    plan(folder, config)
+    if config['provider'] != 'gemini' and not config['auto_context']:
+        plan(folder, config)
     manifest = read_json(folder / 'manifest.json')
     for path in jobs_dir(root).glob('*/job.json'):
         other = read_json(path, {})
@@ -320,7 +329,7 @@ def actual_limits(root, config):
     if config['provider'] == 'gemini':
         from .gemini import BASE, call
         meta = call('GET', BASE + '/models/' + config['model'], credentials(root)['api_key'])
-        config['context_tokens'] = min(config['context_tokens'], meta['inputTokenLimit'])
+        config['context_tokens'] = min(2097152, meta['inputTokenLimit']) if config['auto_context'] else min(config['context_tokens'], meta['inputTokenLimit'])
         config['output_tokens'] = min(config['output_tokens'], meta['outputTokenLimit'])
     else:
         base = ollama_base_url(root)
@@ -330,10 +339,40 @@ def actual_limits(root, config):
             lengths = [value for key, value in response.json().get('model_info', {}).items()
                        if key.endswith('.context_length') and type(value) is int]
             if lengths:
-                config['context_tokens'] = min(config['context_tokens'], max(lengths))
+                config['context_tokens'] = min(2097152, max(lengths)) if config['auto_context'] else min(config['context_tokens'], max(lengths))
         except (requests.RequestException, ValueError):
             raise ValueError('Не удалось проверить контекст локальной модели. Проверьте Ollama и название модели') from None
     return validate(config)
+
+
+def gemini_payload(config, text, prompt=None):
+    prompt = config['prompt'] if prompt is None else prompt
+    model = config['model']
+    payload = {'systemInstruction': {'parts': [{'text': prompt}]},
+               'contents': [{'role': 'user', 'parts': [{'text': text}]}],
+               'generationConfig': {'temperature': 0, 'maxOutputTokens': config['output_tokens'],
+                                    'responseMimeType': 'text/plain'}}
+    if model == 'gemini-3.5-flash-lite':
+        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'minimal'}
+    elif model == 'gemini-3.8-flash':
+        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'low'}
+    return payload
+
+
+def gemini_token_count(root, config, payload, cache=None):
+    from .gemini import BASE, call
+    model = config['model']
+    key = hashlib.sha256(json.dumps([model, payload], sort_keys=True).encode()).hexdigest()
+    if cache is not None and key in cache:
+        return cache[key]
+    counted = call('POST', BASE + f'/models/{model}:countTokens', credentials(root)['api_key'],
+                   json={'generateContentRequest': {'model': 'models/' + model, **payload}})
+    total = counted['totalTokens']
+    if type(total) is not int or total < 0:
+        raise ValueError('Google не вернул корректный размер запроса')
+    if cache is not None:
+        cache[key] = total
+    return total
 
 
 def generate(root, config, text, log, stage='Конспект'):
@@ -341,7 +380,7 @@ def generate(root, config, text, log, stage='Конспект'):
     prompt = config['prompt']
     if stage != 'Конспект':
         prompt += '\nОбъедини приведённые промежуточные конспекты. Удали повторы, свяжи аргументы. Не добавляй новых фактов и меток времени. Сохрани все существенные темы и хронологию оглавления.\n'
-    if input_bound(text) + input_bound(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
+    if config['provider'] != 'gemini' and input_bound(text) + input_bound(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
         raise ValueError('Материал запроса превышает заданный контекст')
     if config['provider'] == 'ollama':
         from .notes import chat_json
@@ -357,16 +396,8 @@ def generate(root, config, text, log, stage='Конспект'):
     metadata = call('GET', BASE + f'/models/{model}', settings['api_key'])
     if config['output_tokens'] > metadata.get('outputTokenLimit', 0):
         raise ValueError('Лимит ответа превышает возможности выбранной Gemini-модели')
-    payload = {'systemInstruction': {'parts': [{'text': prompt}]},
-               'contents': [{'role': 'user', 'parts': [{'text': text}]}],
-               'generationConfig': {'temperature': 0, 'maxOutputTokens': config['output_tokens'],
-                                    'responseMimeType': 'text/plain'}}
-    if model == 'gemini-3.5-flash-lite':
-        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'minimal'}
-    elif model == 'gemini-3.8-flash':
-        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'low'}
-    counted = call('POST', BASE + f'/models/{model}:countTokens', settings['api_key'],
-                   json={'generateContentRequest': {'model': 'models/' + model, **payload}})
+    payload = gemini_payload(config, text, prompt)
+    counted = {'totalTokens': gemini_token_count(root, config, payload, getattr(log, 'token_counts', None))}
     if counted['totalTokens'] > min(config['context_tokens'] - config['output_tokens'] - 1024,
                                      metadata.get('inputTokenLimit', 0)):
         raise ValueError('Точный размер запроса превышает контекст Gemini. Выберите обработку по частям')
@@ -492,7 +523,12 @@ def run(root, folder, value, ask=generate):
                                       os.getenv('OCR_LANGUAGE', 'eng'), log)
         write_json(folder / 'frames.json', [frame.model_dump() for frame in frames])
     result, _, frames = material(folder, config)
-    summary, blocks = plan(folder, config)
+    log.token_counts = {}
+    summary, blocks = plan(folder, config, root=root if ask is generate else None, token_counts=log.token_counts)
+    if config['provider'] == 'ollama' and config['auto_context'] and summary['strategy'] == 'whole':
+        # Allocate only the needed local context, rather than the model's maximum KV cache.
+        config['context_tokens'] = min(config['context_tokens'], max(8192, input_bound(blocks[0]) + input_bound(config['prompt']) + config['output_tokens'] + 2048))
+    log('Расшифровка помещается целиком: один запрос генерации' if summary['strategy'] == 'whole' else f'Расшифровка превышает контекст: частей {len(blocks)}')
     write_json(folder / 'construction-plan.json', summary)
     log.update(stage='[4/5] Русский конспект', model=config['model'], provider=config['provider'])
     outputs = []

@@ -9,6 +9,7 @@
       "model": "gemini-example",
       "strategy": "auto",
       "context_tokens": 16384,
+      "auto_context": true,
       "output_tokens": 2048
     },
     "translate_after": true,
@@ -19,5 +20,13 @@
     760,
     1100
   ],
-  "validation_scope": "Isolated browser with mocked HTTP; no real Google generation or billing request. Actual production HTML/JS; test-only renderer exposure."
+  "validation_scope": "Isolated browser with mocked HTTP; no real Google generation or billing request. Actual production HTML/JS; test-only renderer exposure.",
+  "auto_context_default_and_manual_toggle": "PASS",
+  "single_generation_unit_test": {
+    "mocked_model_context": 65536,
+    "exact_input_tokens": 30000,
+    "byte_estimate_exceeds_context": true,
+    "generateContent_calls": 1,
+    "countTokens_calls": 1
+  }
 }
