@@ -289,13 +289,25 @@
 <button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button>
 <p class="footnote">Автоматический режим пробует видеокарту, затем процессор. Явно выбранное устройство не заменяется другим. Нейропроцессор (NPU) пока не поддерживается для определения говорящих.</p>
 </details>
+<details class="card ai-section"><summary>Папки хранения</summary>
+<h2>Где хранить данные</h2>
+<p class="footnote">По умолчанию используются прежние папки. Здесь можно перенести модели и записи на другой диск. Выберите новую или пустую папку. Во время переноса работа с записями приостановлена; затем потребуется полностью перезапустить приложение.</p>
+<p id="component-directory" class="footnote"></p>
+<label class="vd-field">Папка моделей и AI-компонентов<input id="component-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
+<div class="vd-actions"><button id="pick-component-root" type="button" class="vd-button">Выбрать папку…</button><button id="save-component-root" type="button" class="vd-button">Перенести модели и компоненты</button></div>
+<p class="footnote">Переносятся компоненты из указанной текущей папки: модели Whisper и говорящих, Python-окружения, загрузки и отдельная Ollama приложения. Подключённые модели из других папок остаются на месте. Ваша ранее установленная Ollama и её модели остаются на своём месте.</p>
+<p id="component-root-feedback" class="footnote" role="status"></p>
+<p id="records-directory" class="footnote"></p>
+<label class="vd-field">Папка записей<input id="records-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
+<div class="vd-actions"><button id="pick-records-root" type="button" class="vd-button">Выбрать папку…</button><button id="save-records-root" type="button" class="vd-button">Перенести записи</button></div>
+<p class="footnote">Исходные видео и аудио, расшифровки, переводы, конспекты, версии, результаты и настройки записей хранятся вместе, отдельно от моделей.</p>
+<p id="storage-feedback" class="footnote" role="status" aria-live="polite"></p>
+<progress id="storage-progress" class="vd-progress" aria-label="Перенос данных" aria-describedby="storage-feedback" hidden></progress>
+<button id="storage-cleanup" type="button" class="vd-button vd-button--danger" hidden>Очистить старую папку после переноса</button>
+</details>
 <details class="card ai-section"><summary>Дополнительно</summary>
 <h2>Компоненты и восстановление</h2>
 <div id="component-summary"></div>
-<p id="component-directory" class="footnote"></p>
-<label class="vd-field">Каталог новых компонентов<input id="component-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
-<button id="save-component-root" type="button" class="vd-button">Сохранить каталог</button>
-<p id="component-root-feedback" class="footnote" role="status"></p>
 <button id="setup-finish" type="button" class="vd-button vd-button--primary">К записям →</button>
 <p class="footnote">Вернуться можно через «Настройки AI». Для локального распознавания достаточно Whisper, CPU и FFmpeg.</p>
 </details>

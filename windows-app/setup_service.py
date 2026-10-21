@@ -112,7 +112,7 @@ def inspect_model(value, here):
             'bytes': sum((path / name).stat().st_size for name in required), 'verified': True}
 
 
-def choose_folder():
+def choose_folder(*, storage=False):
     if os.name != 'nt':
         raise ValueError('Укажите полный путь к папке модели')
     script = """Add-Type -AssemblyName System.Windows.Forms
@@ -125,6 +125,8 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 }
 $dialog.Dispose()
 """
+    if storage:
+        script = script.replace('Select the existing OpenVINO Whisper small FP16 model folder', 'Select a new or empty storage folder').replace('$dialog.ShowNewFolderButton = $false', '$dialog.ShowNewFolderButton = $true')
     result = subprocess.run([windows_powershell(), '-NoProfile', '-STA', '-Command', script],
                             capture_output=True, text=True, encoding='utf-8-sig', timeout=180,
                             check=True, env=windows_shell_environment(), creationflags=0x08000000)

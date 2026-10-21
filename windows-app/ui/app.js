@@ -1,7 +1,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   let wizardLoaded=false, setupPolling=false, ollamaConnectionLoaded=false;
-  let diarizationConfigured=false;
+  let diarizationConfigured=false, storageLocked=false;
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Ошибка обработки'};
   const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
@@ -108,7 +108,7 @@
         $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(deviceName(name),c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
         systemStatus(ready&&d.ffmpeg,c.preparing);
-        $('start').disabled=uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
+        $('start').disabled=storageLocked||uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
         $('npu-notice').textContent=ready?'Распознавание готово. Можно добавить запись.':'Подготавливаем распознавание в фоне. Выбранный файл сохраняется.';
         if(!componentBusy){$('bootstrap-message').textContent=c.preparing?'Подготавливаем распознавание…':ready?'Распознавание готово':c.error?'Не удалось подготовить распознавание. Повторите.':'Нужно подготовить распознавание';$('prepare-speech').hidden=!!ready||c.preparing;}
@@ -119,7 +119,7 @@
       $('readiness').replaceChildren(check('Распознавание · Intel NPU',d.npu.ready),check('Видео и аудио',!!d.ffmpeg),check('Ollama · перевод',d.ollama.ready));
       $('ready-dot').className='dot'+(d.npu.ready&&d.ffmpeg?' good':'');
       systemStatus(d.npu.ready&&d.ffmpeg);
-      $('start').disabled=uploading||!d.npu.ready||!d.ffmpeg;
+      $('start').disabled=storageLocked||uploading||!d.npu.ready||!d.ffmpeg;
       $('start-npu').hidden=d.npu.ready||!d.can_start_npu;
       $('npu-notice').textContent=d.npu.ready?'Модель готова. Можно добавлять запись.':'Нажмите «Подготовить распознавание», если компоненты уже установлены. Модели автоматически не скачиваются.';
       if(!d.npu.ready&&d.npu_startup?.exit_code!==undefined)$('npu-notice').textContent=`Не удалось загрузить модель (код ${d.npu_startup.exit_code}). Подробности в windows-app/runtime/logs/npu.log. Окружение автоматически не переустанавливается.`;
@@ -511,10 +511,26 @@
       if(consent)await componentAction('whisper','install',{confirmed:true});
     }catch(e){message(e.message,true);}
   };
-  $('save-component-root').onclick=async()=>{const b=$('save-component-root');b.disabled=true;try{const result=await setupPost('component-directory',{directory:$('component-root').value});$('component-root-feedback').textContent=result.message;}catch(e){$('component-root-feedback').textContent=e.message;}finally{b.disabled=false;}};
+  async function storageStatus(){
+    const data=await api('/api/storage'),t=data.transfer||{};storageLocked=data.active||data.restart_required;
+    $('records-directory').textContent='Сейчас записи хранятся в: '+data.records;
+    for(const [id,path] of [['component-root',data.components],['records-root',data.records]]){if(!$(id).dataset.storageLoaded){$(id).value=path;$(id).dataset.storageLoaded='true';}}
+    $('storage-feedback').textContent=(t.message||'')+(t.source?' Исходная папка: '+t.source+'. Новая: '+t.target+'.':'')+(data.active&&t.total?' Скопировано и проверяется: '+(t.bytes/1024**3).toFixed(2)+' из '+(t.total/1024**3).toFixed(2)+' ГиБ.':'');
+    $('storage-progress').hidden=!data.active;if(t.total){$('storage-progress').max=t.total;$('storage-progress').value=t.bytes||0;}else $('storage-progress').removeAttribute('value');
+    $('storage-cleanup').hidden=!t.cleanup_pending||data.restart_required||data.active;
+    for(const id of ['save-component-root','save-records-root','pick-component-root','pick-records-root'])$(id).disabled=data.active||data.restart_required||!!t.cleanup_pending;
+    if(data.active||data.restart_required){$('start').disabled=true;$('bootstrap-message').textContent=data.restart_required?'Данные перенесены. Полностью завершите приложение через меню трея и откройте снова.':'Переносим данные. Дождитесь завершения.';}
+    if(data.active)setTimeout(()=>storageStatus().catch(e=>message(e.message,true)),1000);
+  }
+  async function storageAction(body){try{await setupPost('storage',body);await storageStatus();}catch(e){$('storage-feedback').textContent=e.message;}}
+  for(const [kind,input,pick,save] of [['components','component-root','pick-component-root','save-component-root'],['records','records-root','pick-records-root','save-records-root']]){
+    $(pick).onclick=async()=>{try{const result=await setupPost('storage',{action:'pick'});if(result.path)$(input).value=result.path;}catch(e){$('storage-feedback').textContent=e.message;}};
+    $(save).onclick=()=>{if(window.confirm('Перенести данные в «'+$(input).value+'»? После проверки потребуется полностью перезапустить приложение. Старые файлы сохранятся до отдельной очистки.'))storageAction({action:'transfer',kind,directory:$(input).value,confirmed:true});};
+  }
+  $('storage-cleanup').onclick=()=>{if(window.confirm('Удалить проверенные файлы старой копии? Новая папка уже должна использоваться приложением.'))storageAction({action:'cleanup',confirmed:true});};
   $('cancel-preparation').onclick=async()=>{const d=await api('/api/components');if(d.active)await componentAction(d.active,'cancel');};
 
   for(const section of document.querySelectorAll('.ai-section')){const summary=section.querySelector(':scope > summary');summary.setAttribute('aria-expanded',String(section.open));section.addEventListener('toggle',()=>summary.setAttribute('aria-expanded',String(section.open)));}
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics()]));}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics(),storageStatus()]));}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

@@ -63,8 +63,12 @@ def config():
                 or parsed.path not in {'', '/'}):
             raise ValueError(f'{key}: в прототипе разрешён только локальный HTTP-сервис')
         value[key] = value[key].rstrip('/')
-    workspace = (HERE / value['workspace']).resolve()
-    workspace.relative_to((HERE / 'runtime').resolve())
+    if value.get('records_directory'):
+        from storage_service import local_folder
+        workspace = local_folder(value['records_directory'])
+    else:
+        workspace = (HERE / value['workspace']).resolve()
+        workspace.relative_to((HERE / 'runtime').resolve())
     value['workspace'] = str(workspace)
     worker = value['npu_worker_directory']
     value['npu_worker_directory'] = str(Path(worker) if worker else Path.home() / 'Downloads' / 'windows-benchmark')
@@ -228,6 +232,8 @@ def make_handler(value, instance):
     setup = SetupService(manager, HERE) if manager is not None else None
     from component_manager import ComponentManager
     components = ComponentManager(setup, root=value.get('ai_components_directory')) if setup else None
+    from storage_service import StorageService
+    storage = StorageService(setup, components) if setup else None
     if setup:
         setup.bootstrap()
     from video_descriptor.serve import RangeRequestHandler
@@ -268,6 +274,8 @@ def make_handler(value, instance):
                 return self.json_response(200, result)
             if path == '/api/compute-settings' and manager is not None:
                 return self.json_response(200, manager.snapshot())
+            if path == '/api/storage' and storage is not None:
+                return self.json_response(200, storage.snapshot())
             if path == '/api/setup' and setup is not None:
                 return self.json_response(200, setup.snapshot())
             if path == '/api/components' and components is not None:
@@ -302,8 +310,17 @@ def make_handler(value, instance):
             return super().do_GET()
 
         def do_POST(self):
+            if manager is not None:
+                with manager._lock:
+                    return self.handle_post()
+            return self.handle_post()
+
+        def handle_post(self):
             path = urlsplit(self.path).path
-            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/component-directory', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
+            if storage and storage.blocked() and path not in {'/api/setup/storage', '/api/native/stop'}:
+                self.close_connection = True
+                return self.json_response(409, {'error': 'Перенос данных: дождитесь завершения и полностью перезапустите приложение'})
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/component-directory', '/api/setup/storage', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
                     origin = self.headers.get('Origin')
@@ -326,6 +343,17 @@ def make_handler(value, instance):
                     body = json.loads(self.rfile.read(length))
                     if not isinstance(body, dict):
                         raise TypeError('Ожидается объект настроек модели')
+                    if path == '/api/setup/storage':
+                        action = body.get('action')
+                        if action == 'pick':
+                            return self.json_response(200, {'path': choose_folder(storage=True)})
+                        if action == 'cleanup':
+                            if body.get('confirmed') is not True:
+                                raise ValueError('Подтвердите очистку старой папки')
+                            return self.json_response(200, storage.cleanup())
+                        if action != 'transfer':
+                            raise ValueError('Неизвестное действие с папкой')
+                        return self.json_response(202, storage.start(body))
                     if path == '/api/setup/external':
                         pages = {'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
                         if body.get('page') not in pages:
@@ -421,6 +449,8 @@ def make_handler(value, instance):
                         return self.json_response(202, request_stop(Path(value['workspace']), job_id))
                     if path.endswith('start-npu'):
                         return self.json_response(202, start_npu(value))
+                    if storage and storage.active:
+                        return self.json_response(409, {'error': 'Дождитесь завершения переноса данных'})
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
                     if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
                         return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
@@ -454,7 +484,7 @@ def main():
         print(json.dumps(doctor(value), ensure_ascii=False, indent=2))
         return 0
     url = f'http://127.0.0.1:{value["port"]}'
-    fingerprint = hashlib.sha256(value['workspace'].encode()).hexdigest()[:16]
+    fingerprint = installation_id()[:16]
     state = HERE / 'runtime' / f'instance-{fingerprint}.json'
     if args.stop:
         recorded = json.loads(state.read_text(encoding='utf-8'))

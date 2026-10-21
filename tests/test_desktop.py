@@ -28,7 +28,7 @@ def installation(tmp_path, monkeypatch):
                     ignore=shutil.ignore_patterns('__pycache__'))
     folder = tmp_path / 'windows-app'
     folder.mkdir()
-    for name in ('app.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component_manager.py', 'model_download.py', 'component-manifest.json'):
+    for name in ('app.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component_manager.py', 'storage_service.py', 'release_lifecycle.py', 'model_download.py', 'component-manifest.json'):
         shutil.copyfile(ROOT / 'windows-app' / name, folder / name)
     shutil.copytree(ROOT / 'windows-app/ui', folder / 'ui')
     (tmp_path / 'scripts').mkdir()
@@ -145,3 +145,48 @@ def test_timeout_does_not_terminate_child(tmp_path, monkeypatch):
         port = probe.getsockname()[1]
     with pytest.raises(ValueError, match='не готов'):
         desktop.connect({'port': port}, timeout=0)
+
+
+def test_storage_api_guards_transfer_restart_and_clean(installation, tmp_path):
+    import time
+    folder, base = installation
+    result = connection(folder)
+    assert result.returncode == 0, result.stderr
+    session = json.loads(result.stdout)
+    headers = {'X-App-Instance': session['instance']}
+    source = folder / 'runtime/workspace'
+    (source / 'data/sample.mp4').write_bytes(b'my saved recording')
+    target = tmp_path / 'recordings'
+    body = {'action': 'transfer', 'kind': 'records', 'directory': str(target), 'confirmed': True}
+    assert requests.post(base + '/api/setup/storage', json=body, timeout=10).status_code == 403
+    assert requests.post(base + '/api/setup/storage', json=body,
+                         headers={**headers, 'Origin': 'https://foreign.invalid'}, timeout=10).status_code == 403
+    response = requests.post(base + '/api/setup/storage', json=body, headers=headers, timeout=30)
+    assert response.status_code == 202, response.text
+
+    def finished():
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            status = requests.get(base + '/api/storage', timeout=10).json()
+            if not status['active']:
+                assert status['transfer']['status'] == 'done', status
+                return status
+            time.sleep(.05)
+        raise AssertionError('Storage operation timeout')
+
+    assert finished()['restart_required']
+    assert (source / 'data/sample.mp4').is_file()
+    assert requests.post(base + '/api/setup/complete', json={}, headers=headers, timeout=10).status_code == 409
+    assert requests.post(base + '/api/native/stop', headers=headers, timeout=10).status_code == 200
+    # The process exits asynchronously; the next launch must use the same installation lock.
+    time.sleep(.3)
+    launched = connection(folder)
+    assert launched.returncode == 0, launched.stderr
+    current = json.loads(launched.stdout)
+    assert Path(current['workspace']) == target
+    headers = {'X-App-Instance': current['instance']}
+    response = requests.post(base + '/api/setup/storage', json={'action': 'cleanup', 'confirmed': True}, headers=headers, timeout=10)
+    assert response.status_code == 200, response.text
+    assert not finished()['transfer']['cleanup_pending']
+    assert not (source / 'data/sample.mp4').exists()
+    assert (target / 'data/sample.mp4').read_bytes() == b'my saved recording'
