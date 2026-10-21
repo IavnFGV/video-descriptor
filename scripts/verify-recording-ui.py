@@ -34,6 +34,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         write_json(folder / 'manifest.json', {'video': str(video), 'processed_duration': 2400})
         write_json(folder / 'speech.json', {'folder': name, 'status': 'done', 'engine': 'whisper-local', 'segments': rows, 'speaker_names': {'speaker_1':'Саша'}})
         write_json(folder / 'transcript.json', rows)
+        write_json(folder / 'translations.json', {'s0':'Сохранённый перевод'})
         write_json(folder / 'frames.json', [])
         if model:
             write_json(folder / 'construction-settings.json', construction.validate({'model': model}))
@@ -102,11 +103,49 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert evaluate('document.querySelector("#report-editor").src.includes("notes-b")')
         c.fill('#construction-provider','gemini')
         c.click('#construction-run')
-        assert 'Подтвердите отправку' in c.visible_text('#construction-status')
+        assert 'Подтвердите отправку' in c.visible_text('#construction-status'), c.visible_text('#construction-status')
         c.click('#cancel-new-notes')
         c.fill('#recording-speech','__new__')
         assert evaluate('document.querySelector("#speech-settings").open')
         evaluate('document.querySelector("#speech-settings").open=false;scrollTo(0,0)')
+        def quick_open():
+            point=evaluate('''(()=>{const p=document.querySelector('#speech-feed .utterance .subtitle-original');p.scrollIntoView({block:'center'});const r=p.getBoundingClientRect();return [r.x+10,r.y+r.height/2]})()''')
+            c.call('Input.dispatchMouseEvent',type='mouseMoved',x=1,y=1)
+            c.call('Input.dispatchMouseEvent',type='mouseMoved',x=point[0],y=point[1],modifiers=2)
+            wait_for(lambda:evaluate('!!document.querySelector(".quick-reply-editor textarea")'),timeout=5)
+        quick_open()
+        c.fill('.quick-reply-editor textarea','Исправлено через Ctrl')
+        evaluate('recordingSelection.refresh()')
+        assert evaluate('document.querySelector(".quick-reply-editor textarea").value')=='Исправлено через Ctrl'
+        c.call('Input.dispatchKeyEvent',type='keyDown',key='Enter',code='Enter',windowsVirtualKeyCode=13,modifiers=2)
+        c.call('Input.dispatchKeyEvent',type='keyUp',key='Enter',code='Enter',windowsVirtualKeyCode=13)
+        wait_for(lambda:evaluate('!document.querySelector(".quick-reply-editor")'),timeout=5)
+        edits=json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))
+        assert edits['segments'][0]['text']=='Исправлено через Ctrl'
+        assert edits['segments'][0]['speaker']=='speaker_1'
+        assert edits['translations']['s0']=='Сохранённый перевод'
+        quick_open();c.fill('.quick-reply-editor textarea','Несохранённый текст')
+        c.fill('#recording-speech','original')
+        wait_for(lambda:evaluate('!!document.querySelector("[data-keep-editing]")'))
+        c.click('[data-keep-editing]')
+        assert evaluate('document.querySelector(".quick-reply-editor textarea").value')=='Несохранённый текст'
+        edits['segments'][0]['text']='Изменено в другой вкладке'
+        write_json(root/'output/notes-b/transcript-edits.json',edits)
+        c.click('.quick-reply-editor button')
+        wait_for(lambda:'изменились' in c.visible_text('.quick-reply-editor [role=status]'))
+        assert evaluate('document.querySelector(".quick-reply-editor textarea").value')=='Несохранённый текст'
+        c.click('.quick-reply-editor textarea')
+        c.call('Input.dispatchKeyEvent',type='keyDown',key='Escape',code='Escape',windowsVirtualKeyCode=27)
+        c.call('Input.dispatchKeyEvent',type='keyUp',key='Escape',code='Escape',windowsVirtualKeyCode=27)
+        evaluate('recordingSelection.refresh()')
+        c.click('#speech-feed .speaker-name')
+        c.fill('#speech-feed .speaker-name-input','Новое имя')
+        c.call('Input.dispatchKeyEvent',type='keyDown',key='Enter',code='Enter',windowsVirtualKeyCode=13)
+        c.call('Input.dispatchKeyEvent',type='keyUp',key='Enter',code='Enter',windowsVirtualKeyCode=13)
+        wait_for(lambda:'Новое имя' in c.visible_text('#speech-feed .speaker-name'),timeout=8)
+        c.fill('#speech-feed .speaker-select','unknown')
+        wait_for(lambda:json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))['segments'][0]['speaker']=='unknown')
+        evaluate('recordingSelection.refresh();scrollTo(0,0)')
         c.screenshot(out/'full-hd.png')
         for width in (1100,760,360):
             c.call('Emulation.setDeviceMetricsOverride',width=width,height=900,deviceScaleFactor=1,mobile=False)
@@ -114,6 +153,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c.screenshot(out/'narrow.png')
         assert evaluate('window.uiErrors')==[], evaluate('window.uiErrors')
         evidence={'status':'PASS','scope':'Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked native health and media metadata; no inference or user data', 'checks':['native job URL opens unified workspace directly','one shared player; embedded report has no media source','side layout: speech under video, notes right','expanded layout','player identity and time preserved across report variants','speech and Markdown heading synchronization','manual scroll pause and resume','magnet off','dirty report blocks variant switch','new notes settings preserve existing report','Google generation requires consent before submission','new speech settings','1920/1100/760/360 widths fit','no browser runtime errors']}
+        evidence['checks']+=['Ctrl hover opens quick editor','polling preserves input','Ctrl+Enter saves text and preserves speaker/translation','dirty speech blocks version navigation','stale revision preserves input','Escape cancels','inline speaker rename and reassignment']
         (out/'result.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         print(json.dumps(evidence,ensure_ascii=False))
     finally:

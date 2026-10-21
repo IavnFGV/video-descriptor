@@ -17,6 +17,7 @@
     });
   };
   let editing=false;
+  window.speechReplyEditing=()=>editing;
   let hoveredReply=null,quickEdit=null;
   window.mayLeaveQuickReply=async()=>!quickEdit||(!quickEdit.saving()&&(!quickEdit.dirty()||await window.confirmDiscard('Текст реплики ещё не сохранён. Закрыть без сохранения?')));
   window.closeQuickReplyEdit=()=>quickEdit?.close();
@@ -26,6 +27,7 @@
     text.title='Ctrl + наведение — быстро исправить текст';text.tabIndex=0;
     const open=()=>{
       if(editing||!text.isConnected)return;
+      window.recordingUI?.pauseLink();
       editing=true;hoveredReply=null;
       const panel=document.createElement('div'),input=document.createElement('textarea'),actions=document.createElement('div');
       const save=document.createElement('button'),cancel=document.createElement('button'),feedback=document.createElement('p');

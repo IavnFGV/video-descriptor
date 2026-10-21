@@ -1,5 +1,12 @@
 # Сохранение поведения и контрактов
 
+22.10.2026: единая расшифровка использует существующий enableQuickReplyEdit,
+createSpeakerName/createSpeakerSelect. Live snapshot добавляет speech_edit_revision
+и speaker_options из editable_result; UI отправляет реальные index/revision без
+пересчёта версии. Polling не заменяет DOM при speechReplyEditing. Выбор версии/конспекта
+использует mayLeaveQuickReply; Ctrl+Enter сохраняет, Escape отменяет, конфликты оставляют
+введённый текст. Голос, времена и перевод сохраняют прежний API-контракт.
+
 21.10.2026: согласованная единая страница записи в отдельной ветке.
 Native выбор job ведёт непосредственно на /create?job=; старые URL сохраняются.
 GET /api/recording?folder|job возвращает только варианты той же исходной записи,

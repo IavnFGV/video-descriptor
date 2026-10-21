@@ -118,6 +118,7 @@
   $('speech-engine').onchange = () => localStorage.setItem('video-descriptor-speech-engine', $('speech-engine').value);
   $('rerun-speech').onclick = async () => {
     if (!snapshot) return;
+    if(window.speechReplyEditing?.()){$('speech-settings-status').textContent='Сначала завершите правку реплики.';return;}
     if($('report-editor').contentWindow?.notesEditorDirty?.()){$('speech-settings-status').textContent='Сохраните правки конспекта перед новым запуском.';return;}
     const button = $('rerun-speech'); button.disabled = true;
     try {

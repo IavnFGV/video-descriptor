@@ -65,6 +65,23 @@ def test_completed_transcript_remains_complete_during_other_processing(tmp_path,
     assert len(live.snapshot(tmp_path, folder)['speech']) == 100
 
 
+def test_live_edit_revision_matches_saved_speech_and_changes_after_edit(tmp_path, monkeypatch):
+    from video_descriptor import live, speech
+    folder = result(tmp_path, 'original', tmp_path / 'data' / 'one.mp4')
+    rows = [{'id': 's1', 'start': 0, 'end': 5, 'text': 'Original', 'speaker': 'unknown'}]
+    write_json(folder / 'speech.json', {'status': 'done', 'segments': rows})
+    write_json(folder / 'transcript.json', rows)
+    monkeypatch.setattr(live, 'active_video', lambda _: False)
+    initial = live.snapshot(tmp_path, folder)
+    assert initial['speech_edit_revision'] == speech.state(tmp_path, {'folder': ['original']})['result']['edit_revision']
+    speech.edit_utterance(tmp_path, {'folder': 'original', 'revision': initial['speech_edit_revision'],
+                                   'index': 0, 'action': 'edit', 'text': 'Corrected', 'speaker': 'unknown', 'translation': ''})
+    updated = live.snapshot(tmp_path, folder)
+    assert updated['speech_edit_revision'] != initial['speech_edit_revision']
+    assert updated['speech'][0]['text'] == 'Corrected'
+    assert 'unknown' in updated['speaker_options']
+
+
 def test_native_rerun_pins_device_without_copying_source_or_starting_inference(tmp_path, monkeypatch):
     from video_descriptor import jobs
     spec = importlib.util.spec_from_file_location('recording_native_app', Path(__file__).resolve().parents[1] / 'windows-app/app.py')

@@ -83,6 +83,7 @@
   };
   $('run').onclick = async () => {
     if (!selected?.has_ready_transcript || !form.reportValidity()) return;
+    if(window.speechReplyEditing?.()){$('status').textContent='Сначала завершите правку реплики.';return;}
     if(document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){$('status').textContent='Сохраните правки текущего конспекта перед новым запуском.';return;}
     const folder = selected.folder, config = settings(); busy = true; buttons();
     try {

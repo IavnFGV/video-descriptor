@@ -104,8 +104,10 @@
     if(speechSelect.value==='__new__'){speechSelect.value=snapshot?.folder||'';$('speech-settings').open=true;$('speech-engine').focus();return;}
     window.recordingSelection.select({folder:speechSelect.value});paint();
   };
-  $('recording-notes').onchange=()=>{
+  $('recording-notes').onchange=async()=>{
     const value=$('recording-notes').value;
+    if(!await window.mayLeaveQuickReply()){paint();return;}
+    window.closeQuickReplyEdit();
     if(value==='__new__'){paint();showNewNotes();return;}
     const report=data?.reports.find(item=>item.url===value);if(!report)return;
     if($('report-editor').contentWindow?.notesEditorDirty?.()){notice.textContent='Сохраните правки перед выбором другого конспекта.';paint();return;}
@@ -136,7 +138,7 @@
   async function action(task){try{const value=await postprocess(task);document.dispatchEvent(new CustomEvent('construction-started',{detail:value}));}catch(error){notice.textContent=error.message;}}
   $('recording-diarize').onclick=()=>action('diarize');$('recording-translate').onclick=()=>action('translate');
   $('recording-stop').onclick=async()=>{try{const response=await fetch('/api/native/cancel?id='+encodeURIComponent(data?.active_job?.id||job.id),{method:'POST',headers:{'X-App-Instance':window.recordingUI.instance}});const value=await response.json();if(!response.ok)throw Error(value.error);notice.textContent='Останавливаем. Готовые результаты сохранятся.';window.recordingSelection.refresh();library();}catch(error){notice.textContent=error.message;}};
-  window.recordingUI={seek,sync,linked:()=>link.checked&&!paused,pauseLink,postprocess,native:false,instance:null};
+  window.recordingUI={seek,sync,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null};
   fetch('/health').then(response=>response.json()).then(value=>{
     if(value.app!=='video-descriptor-windows')return;
     window.recordingUI.native=true;window.recordingUI.instance=value.instance;

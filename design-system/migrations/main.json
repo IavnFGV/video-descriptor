@@ -2,7 +2,7 @@
   "baseline_commit": "9ffa842",
   "approved": "Владелец согласовал направление и поручил реализацию в этом чате 19.10.2026",
   "allowed_changes": {
-    "video_descriptor/live.py": "Owner-approved unified recording workspace, 21 October 2026: retain the complete saved transcript while notes/translation run so playback synchronization can reach any saved segment. Other live snapshot contracts unchanged.",
+    "video_descriptor/live.py": "Owner-approved unified workspace, 21-22 October 2026: retain the complete saved transcript during notes/translation and add speech_edit_revision/speaker_options from the existing editable_result contract for restored Ctrl editing. Existing processing and result formats unchanged.",
     "windows-app/ui/index.html": "Перенос существующих форм и всех 75 ids в согласованную оболочку; aria, shared classes и подписи. setup-open: button -> navigation anchor.",
     "windows-app/ui/app.css": "Детерминированный bundle общих tokens/components и scoped layout; backend asset route и packaging неизменны.",
     "windows-app/ui/app.js": "Hash navigation, accessible generated controls, validation, progress, focus stability и безопасное завершение upload; прежние API/payloads и persisted job enums сохраняются. 20.10.2026: additive stop-job handler and authenticated /api/native/cancel?id=; cancelled flag maps to Остановлено.",

@@ -15,6 +15,13 @@
     "Google generation requires consent before submission",
     "new speech settings",
     "1920/1100/760/360 widths fit",
-    "no browser runtime errors"
+    "no browser runtime errors",
+    "Ctrl hover opens quick editor",
+    "polling preserves input",
+    "Ctrl+Enter saves text and preserves speaker/translation",
+    "dirty speech blocks version navigation",
+    "stale revision preserves input",
+    "Escape cancels",
+    "inline speaker rename and reassignment"
   ]
 }

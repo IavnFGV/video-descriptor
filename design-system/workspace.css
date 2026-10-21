@@ -73,4 +73,15 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace .video-expanded .stage-content{grid-column:2;grid-row:2}
 .recording-workspace .video-expanded .player-card video{max-height:60vh;aspect-ratio:auto}
 .recording-actions{margin-top:var(--vd-space-3)}
+.recording-workspace .reply-heading,.recording-workspace .reply-tools,.recording-workspace .speaker-controls{display:flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap;min-width:0}
+.recording-workspace .reply-heading{margin-bottom:var(--vd-space-2)}
+.recording-workspace .reply-tools{margin-left:auto;max-width:100%}
+.recording-workspace .edit-subtitle{float:none}
+.recording-workspace .speaker-name,.recording-workspace .speaker-assignment{display:inline-flex;align-items:center;gap:var(--vd-space-1)}
+.recording-workspace .speaker-name-input{width:180px;max-width:100%;min-height:var(--vd-compact-height)}
+.recording-workspace .speaker-controls>.vd-help:empty{display:none}
+.recording-workspace .quick-reply-editor{margin-top:var(--vd-space-3)}
+.recording-workspace .quick-reply-editor textarea{width:100%;min-height:120px;font-size:var(--vd-reading);line-height:1.65}
+.recording-workspace .quick-reply-editor .vd-actions{margin-top:var(--vd-space-2)}
+.recording-workspace .utterance>p[tabindex]:hover{cursor:text}
 @media(max-width:1000px){.recording-workspace .studio-layout,.recording-workspace .studio-layout.video-expanded{grid-template-columns:1fr}.recording-workspace .video-expanded #stage-speech{grid-column:1;grid-row:2}.recording-workspace .video-expanded .stage-content{grid-column:1;grid-row:3}}

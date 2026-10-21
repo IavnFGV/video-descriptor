@@ -159,6 +159,12 @@ def snapshot(root, folder):
                   for index, row in enumerate(edits["segments"], 1)]
     translations = {**read_json(folder / "translations.json", {}), **edits.get("translations", {})}
     speech = [{**row, "translation": translations.get(row["id"])} for row in speech]
+    edit_state = {}
+    if speech_result.get('status') == 'done' or (folder / 'transcript.json').is_file():
+        from .speech import editable_result, subtitle_result
+        editable = subtitle_result(folder)
+        if editable.get('status') == 'done' and 'segments' in editable:
+            edit_state = editable_result(folder, editable)
     frames = read_json(folder / "frames.json")
     if frames is None:
         frames = read_json(folder / "frames.partial.json", [])
@@ -295,6 +301,8 @@ def snapshot(root, folder):
             "skipped_steps": [{"phase": 3, "reason": "Пропущено для этой записи: анализ изображения отключён."}] if manifest.get("mode") == "audio" else [],
             "skip_images": manifest.get("mode") == "audio",
             "speaker_names": speech_result.get("speaker_names", {}),
+            "speech_edit_revision": edit_state.get('edit_revision'),
+            "speaker_options": edit_state.get('speaker_options', []),
             "speech_editor_url": "/create?folder=" + quote(folder.name) if speech else None,
             "subtitle_url": "/api/subtitles?folder=" + quote(folder.name) + "&language=original" if speech else None,
             "translation_url": "/api/subtitles?folder=" + quote(folder.name) + "&language=ru" if translations else None,

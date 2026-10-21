@@ -292,7 +292,9 @@
     if (!response.ok) throw new Error(result.error || 'Не удалось получить данные');
     return result;
   }
-  function select(value, updateUrl=true) {
+  async function select(value, updateUrl=true) {
+    if(!await window.mayLeaveQuickReply()){window.recordingUI?.restoreChoices();return;}
+    window.closeQuickReplyEdit();
     if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; return; }
     selected = value; lastSnapshot = null; namesFolder = null;
     input.value = ''; $('source-file').value = ''; fileLabel();
@@ -353,6 +355,12 @@
     const signature = JSON.stringify(value);
     if (rendered[id] === signature) return;
     rendered[id] = signature; build($(id));
+  }
+  function savedSpeech(saved, folder) {
+    if(lastSnapshot?.folder!==folder)return;
+    delete rendered['speech-feed'];
+    show({...lastSnapshot,speech:saved.segments.map(row=>({...row,translation:saved.translations?.[row.id]})),
+      speaker_names:saved.speaker_names||{},speech_edit_revision:saved.edit_revision,speaker_options:saved.speaker_options||[]});
   }
   function show(snapshot, job) {
     job = job || snapshot.job;
@@ -430,15 +438,27 @@
     $('subtitle-mode-label').hidden = !snapshot.translation_url;
     document.body.dataset.subtitles = snapshot.translation_url ? $('subtitle-mode').value : 'original';
     $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик';
-    changed('speech-feed', [snapshot.speech, snapshot.speaker_names, Boolean(snapshot.speech_editor_url)], node => {
+    changed('speech-feed', [snapshot.speech, snapshot.speaker_names, snapshot.speech_edit_revision, snapshot.speaker_options, Boolean(snapshot.speech_editor_url)], node => {
+      // Polling must not replace a user's open quick editor or inline speaker field.
+      if(window.speechReplyEditing?.()){delete rendered['speech-feed'];return;}
       node.replaceChildren();
       if (!snapshot.speech.length) node.append(text('p', 'Обработчик речи ещё не вернул реплики.', 'empty'));
-      for (const source of snapshot.speech) {
-        const row = text('div', '', 'utterance'); row.append(stamp(source.start)); if (source.speaker) row.append(text('strong', ' · ' + (snapshot.speaker_names[source.speaker] || source.speaker))); row.append(text('p', source.text, 'subtitle-original')); if (source.translation != null) row.append(text('p', source.translation, 'subtitle-ru'));
+      const original={folder:snapshot.folder,segments:snapshot.speech.map(row=>({...row,speaker:row.speaker||'unknown'})),speaker_names:snapshot.speaker_names,
+        edit_revision:snapshot.speech_edit_revision,speaker_options:snapshot.speaker_options,translations:Object.fromEntries(snapshot.speech.filter(row=>row.translation!=null).map(row=>[row.id,row.translation])),has_translation:Boolean(snapshot.translation_url)};
+      for (const [index,source] of snapshot.speech.entries()) {
+        const row = text('div', '', 'utterance'),heading=text('div','','reply-heading'),tools=text('div','','reply-tools');
+        const editable=Boolean(original.edit_revision),onSave=saved=>savedSpeech(saved,snapshot.folder);
+        heading.append(stamp(source.start));
+        if(editable){heading.append(window.createSpeakerName(original,source.speaker||'unknown',onSave));tools.append(window.createSpeakerSelect(original,index,onSave));}
+        else if(source.speaker)heading.append(text('strong',snapshot.speaker_names[source.speaker]||source.speaker));
+        const content=text('p',source.text,'subtitle-original');
+        if(editable)window.enableQuickReplyEdit(content,original,index,onSave);
+        heading.append(tools);row.append(heading,content);
+        if(source.translation!=null)row.append(text('p',source.translation,'subtitle-ru'));
         if (snapshot.speech_editor_url) {
           const edit = text('button', '✎', 'edit-subtitle'); edit.type = 'button';
           edit.title = 'Редактировать реплику'; edit.setAttribute('aria-label', 'Редактировать реплику ' + clock(source.start));
-          edit.onclick = () => editSubtitle(source, edit); row.prepend(edit);
+          edit.onclick = () => editSubtitle(source, edit); tools.append(edit);
         }
         node.append(row);
       }
