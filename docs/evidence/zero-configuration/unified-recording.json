@@ -1,7 +1,8 @@
 {
   "status": "PASS",
-  "scope": "Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked media metadata; no inference or user data",
+  "scope": "Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked native health and media metadata; no inference or user data",
   "checks": [
+    "native job URL opens unified workspace directly",
     "one shared player; embedded report has no media source",
     "side layout: speech under video, notes right",
     "expanded layout",
