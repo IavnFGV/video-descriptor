@@ -77,11 +77,13 @@ def main():
     import numpy as np
     torch.set_num_threads(4)
 
-    def progress(message):
-        save(args.progress, {'message': message})
+    def progress(message, stage=None, completed=None, total=None):
+        save(args.progress, {'message': message, 'stage': stage,
+                             'completed': float(completed) if completed is not None else None,
+                             'total': float(total) if total is not None else None})
         print(message, flush=True)
 
-    progress(f'Говорящие · {args.device.upper()} · загружаем локальную модель; скачивания нет')
+    progress(f'Говорящие · {args.device.upper()} · загружаем локальную модель; скачивания нет', 'model_load')
     load_started = time.monotonic()
     pipeline = Pipeline.from_pretrained(str(args.model))
     pipeline.to(torch.device(args.device))
@@ -103,7 +105,7 @@ def main():
         if last.get(step_name, -1) != percent:
             last[step_name] = percent
             progress(f'Говорящие · {args.device.upper()} · {stages.get(step_name, "обработка голосов")}' +
-                     (f' · {percent}%' if percent is not None else ''))
+                     (f' · {percent}%' if percent is not None else ''), step_name, completed, total)
 
     if args.device == 'xpu':
         torch.xpu.synchronize()
@@ -125,7 +127,7 @@ def main():
                        'load_seconds': load_seconds,
                        'powerset_device': 'cpu',
                        'inference_seconds': time.monotonic() - started})
-    progress('Голоса определены; сохраняем отдельную версию')
+    progress('Голоса определены; сохраняем отдельную версию', 'complete')
 
 
 if __name__ == '__main__':

@@ -14,6 +14,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'windows-app'))
 cm = importlib.import_module('component_manager')
 
 
+def test_package_progress_reports_real_file_bytes_without_raw_output():
+    metadata = cm.package_progress('Downloading torch-2.14.1+xpu-cp312-cp312-win_amd64.whl (1.5 GB)')
+    assert metadata['package'] == 'torch'
+    assert cm.package_progress('Progress 1048576 of 2097152', 'torch')['bytes'] == 1048576
+    assert cm.package_progress('Progress 1048576 of 2097152', 'torch')['progress_scope'] == 'file'
+    for raw in ['Progress 8 of 0', 'Progress 20 of 10', 'Downloading https://hf_secret@example.org/token.whl', 'ERROR: hf_secret']:
+        assert cm.package_progress(raw) is None
+    assert 'hf_secret' not in json.dumps(cm.package_progress('Collecting torch==2.14 (from https://hf_secret@example.org)'))
+
+
+def test_model_progress_uses_only_known_stages_and_finite_counters():
+    progress = cm.model_progress({'stage': 'embeddings', 'completed': 1, 'total': 4, 'message': 'hf_secret'})
+    assert progress['total'] == 4 and progress['bytes'] == 1
+    assert 'hf_secret' not in json.dumps(progress)
+    assert cm.model_progress({'stage': 'unknown', 'message': 'secret'}) is None
+    assert cm.model_progress({'stage': 'embeddings', 'completed': float('nan'), 'total': 4})['total'] == 0
+
+
 @pytest.fixture
 def manager(tmp_path):
     here = tmp_path / 'Приложение с пробелами'
@@ -31,6 +49,55 @@ def wait(manager):
             return
         time.sleep(.01)
     raise AssertionError('operation did not finish')
+
+
+def test_real_child_streams_progress_but_never_persists_raw_output(manager, monkeypatch):
+    updates = []
+    original = manager.update
+    def update(key, state=None, **fields):
+        updates.append((state, fields.copy()))
+        original(key, state, **fields)
+    monkeypatch.setattr(manager, 'update', update)
+    script = ("import time; print('Downloading torch-2.14.1-py3-none-any.whl',flush=True); "
+              "print('Progress 1024 of 2048',flush=True); time.sleep(.8); "
+              "print('Installing collected packages: torch',flush=True); time.sleep(.8); "
+              "print('ERROR: https://hf_secret@example.org/private',flush=True)")
+    manager.run([sys.executable, '-u', '-c', script, 'pip', 'install'], 'diarization')
+    assert any(state == 'downloading' and fields.get('bytes') == 1024 for state, fields in updates)
+    assert any(fields.get('message') == 'Распаковываем и устанавливаем скачанные пакеты' for _, fields in updates)
+    assert manager.components['diarization']['activity_at'] >= manager.components['diarization']['step_started_at']
+    assert not manager.components['diarization']['process_running']
+    assert 'hf_secret' not in manager.path.read_text()
+
+
+def test_silent_child_can_be_cancelled_without_blocking_pipe_reader(manager):
+    failures = []
+    def run():
+        try:
+            manager.run([sys.executable, '-c', 'import time; time.sleep(20)'], 'diarization')
+        except RuntimeError as exc:
+            failures.append(str(exc))
+    thread = threading.Thread(target=run)
+    thread.start()
+    deadline = time.monotonic() + 3
+    while manager.process is None and time.monotonic() < deadline:
+        time.sleep(.01)
+    assert manager.process is not None
+    owned_child = manager.process
+    manager.cancel.set()
+    thread.join(timeout=4)
+    assert not thread.is_alive() and owned_child.poll() is not None
+    assert failures and not manager.components['diarization']['process_running']
+
+
+def test_real_child_reads_structured_model_progress_without_trusting_messages(manager, tmp_path):
+    progress_file = tmp_path / 'progress.json'
+    script = ("import pathlib,sys,time; pathlib.Path(sys.argv[1]).write_text("
+              "'{\"stage\":\"embeddings\",\"completed\":1,\"total\":2,\"message\":\"hf_secret\"}'); time.sleep(.8)")
+    manager.run([sys.executable, '-c', script, str(progress_file)], 'diarization', progress_file=progress_file)
+    assert manager.components['diarization']['total'] == 2
+    assert 'сравниваем голоса' in manager.components['diarization']['message']
+    assert 'hf_secret' not in manager.path.read_text()
 
 
 @pytest.mark.parametrize('action', ['install', 'pull', 'remove'])

@@ -290,6 +290,7 @@
   let componentTimer, componentProfiles={}, componentBusy=false;
   const deviceNames={AUTO:'Автоматически',auto:'Автоматически',CPU:'Процессор (CPU)',cpu:'Процессор (CPU)',GPU:'Видеокарта (GPU)',xpu:'Видеокарта (GPU)',NPU:'Нейропроцессор (NPU)',npu:'Нейропроцессор (NPU)'};
   const deviceName=value=>deviceNames[value]||value;
+  const durationText=seconds=>{const value=Math.max(0,Math.floor(seconds));return Math.floor(value/60)+' мин '+String(value%60).padStart(2,'0')+' с';};
   const deviceMessage=value=>String(value||'').replace(/PyTorch XPU|Intel GPU|XPU/g,'видеокарта (GPU)');
   const componentNames={not_installed:'Не установлен',installed:'Установлен · нужна проверка',downloading:'Загрузка',installing:'Установка',verifying:'Проверка',ready:'Готово',error:'Ошибка · можно повторить',update_available:'Доступно обновление'};
   async function componentAction(component,action,extra={}) {
@@ -312,6 +313,7 @@
     for(const id of ['prepare-consent','prepare-whisper','prepare-diarization','prepare-ollama','settings-speech-device','diarization-device'])$(id).disabled=preparing;
     $('prepare-selected-stop').hidden=!preparing;
     $('preparation-status').textContent=(plan.message||'')+(preparing?' · Готово '+(plan.completed||[]).length+' из '+plan.features.length:'');
+    if(preparing&&data.active){const active=data.components.find(c=>c.id===data.active);if(active)$('preparation-status').textContent+=' · '+deviceMessage(active.message);}
     $('preparation-status').dataset.tone=plan.state==='error'?'danger':plan.state==='ready'?'success':'info';
     $('setup-callout').dataset.complete=String(plan.state==='ready');
     $('setup-callout').hidden=location.hash==='#settings'||plan.state==='ready';
@@ -326,17 +328,25 @@
       if(item.id==='diarization'&&!box.deviceLoaded){$('diarization-device').value=plan.device||item.requested_device||'auto';box.deviceLoaded=true;}
       if(item.id==='diarization'&&!$('diarization-consent').loaded){$('diarization-consent').checked=item.download_consent===true&&item.consent_revision===data.profiles.diarization_model?.revision;$('diarization-consent').loaded=true;}
       if(!box.componentControls){
-        const state=document.createElement('p'),details=document.createElement('p'),progress=document.createElement('progress'),button=document.createElement('button'),remove=document.createElement('button');
+        const state=document.createElement('p'),details=document.createElement('p'),progress=document.createElement('progress'),caption=document.createElement('p'),activity=document.createElement('p'),button=document.createElement('button'),remove=document.createElement('button');
         state.className='vd-status';state.setAttribute('role','status');details.className='footnote';progress.className='vd-progress';button.type='button';button.className='vd-button';remove.type='button';remove.className='vd-button vd-button--danger';
+        caption.className='footnote';activity.className='footnote';caption.id='progress-caption-'+item.id;progress.setAttribute('aria-describedby',caption.id);
         const actions=document.createElement('div');actions.className='vd-actions';actions.append(button,remove);
-        box.replaceChildren(state,details,progress,actions);box.componentControls={state,details,progress,button,remove};
+        box.replaceChildren(state,details,progress,caption,activity,actions);box.componentControls={state,details,progress,caption,activity,button,remove};
       }
-      const {state,details,progress,button,remove}=box.componentControls;
+      const {state,details,progress,caption,activity,button,remove}=box.componentControls;
       state.dataset.tone=item.state==='error'?'danger':item.state==='ready'?'success':'info';
       state.textContent=(componentNames[item.state]||item.state)+' · '+deviceMessage(item.message)+(item.state==='ready'&&item.fallback_reason?' · '+deviceMessage(item.fallback_reason):'');
+      if(data.active===item.id&&item.preparing_device)state.textContent+=' · '+deviceName(item.preparing_device);
       details.textContent=[item.version?'Версия: '+item.version:'',item.device?(item.state==='error'?'Последняя успешная проверка: ':['installing','downloading','verifying'].includes(item.state)?'Ранее подготовлено: ':'Устройство: ')+deviceName(item.device):'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
       progress.hidden=data.active!==item.id;progress.setAttribute('aria-label',item.name);
       if(item.total){progress.max=item.total;progress.value=item.bytes||0;if(data.active===item.id)state.textContent+=' · '+Math.floor(100*(item.bytes||0)/item.total)+'%';}else progress.removeAttribute('value');
+      caption.hidden=data.active!==item.id;
+      caption.textContent=item.total?(item.progress_unit==='steps'?'Прогресс текущего этапа: '+Math.floor(100*(item.bytes||0)/item.total)+'%':(item.progress_scope==='file'?'Текущий файл: ':'Загрузка компонента: ')+((item.bytes||0)/1024**2).toFixed(1)+' из '+(item.total/1024**2).toFixed(1)+' МиБ'):'Этот этап выполняется без оценки процента.';
+      activity.hidden=data.active!==item.id||!item.process_running||!item.step_started_at;
+      const quiet=Math.max(0,Date.now()/1000-(item.activity_at||item.step_started_at));
+      activity.textContent='Выполняется: '+durationText(Date.now()/1000-item.step_started_at)+'. '+(quiet>=60?'Новых сообщений нет уже '+durationText(quiet)+'. Процесс ещё запущен.':'Последняя активность: '+durationText(quiet)+' назад.');
+      activity.classList.toggle('warning',quiet>=60);
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
       if(item.id==='diarization'&&data.active!==item.id&&$('diarization-device').value==='xpu'&&item.device==='cpu'){button.disabled=true;button.textContent='Для видеокарты нужна подготовка';}
       button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:$('ollama-model').value,task:$('ollama-task').value}:{});

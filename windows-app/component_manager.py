@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -30,6 +31,45 @@ STATES = {'not_installed', 'installed', 'downloading', 'installing', 'verifying'
 BUSY = {'downloading', 'installing', 'verifying'}
 NAMES = {'whisper': 'Whisper · распознавание', 'ollama': 'Ollama · языковые модели',
          'diarization': 'pyannote · говорящие'}
+
+
+def package_progress(line, package=''):
+    """Whitelist progress fields only. Never return raw pip text, URLs or credentials."""
+    match = re.fullmatch(r'Progress (\d+) of (\d+)', line.strip())
+    if match:
+        done, total = map(int, match.groups())
+        if 0 < total <= 2**63 - 1 and 0 <= done <= total:
+            return {'state': 'downloading', 'message': 'Скачиваем пакет' + (': ' + package if package else ''),
+                    'bytes': done, 'total': total, 'progress_scope': 'file', 'progress_unit': 'bytes'}
+    match = re.match(r'\s*(Downloading|Using cached) ([A-Za-z0-9][A-Za-z0-9_.+\-]{0,180}\.whl)(?:\s|$)', line)
+    if match:
+        name = match[2].split('-')[0][:80]
+        return {'state': 'downloading' if match[1] == 'Downloading' else 'installing', 'package': name,
+                'message': ('Скачиваем пакет: ' if match[1] == 'Downloading' else 'Используем кэш пакета: ') + name,
+                'bytes': 0, 'total': 0, 'progress_scope': 'file', 'progress_unit': 'bytes'}
+    match = re.match(r'Collecting ([A-Za-z0-9][A-Za-z0-9_.\-]{0,79})(?=[\s=<>!~\[]|$)', line)
+    if match:
+        return {'state': 'installing', 'package': match[1], 'message': 'Подбираем зависимости: ' + match[1], 'bytes': 0, 'total': 0}
+    if line.startswith('Installing collected packages:'):
+        return {'state': 'installing', 'message': 'Распаковываем и устанавливаем скачанные пакеты', 'bytes': 0, 'total': 0}
+    if line.startswith('Successfully installed '):
+        return {'state': 'verifying', 'message': 'Пакеты установлены. Переходим к проверке окружения', 'bytes': 0, 'total': 0}
+    return None
+
+
+def model_progress(value):
+    stages = {'model_load': 'Загружаем локальную модель в память — скачивания нет',
+              'segmentation': 'Пробная запись: ищем смены голосов', 'embeddings': 'Пробная запись: сравниваем голоса',
+              'discrete_diarization': 'Пробная запись: размечаем говорящих', 'clustering': 'Пробная запись: объединяем голоса',
+              'complete': 'Пробная запись обработана. Проверяем результат'}
+    if not isinstance(value, dict) or not isinstance(value.get('stage'), str) or value['stage'] not in stages:
+        return None
+    result = {'state': 'verifying', 'message': stages[value['stage']], 'bytes': 0, 'total': 0,
+              'progress_scope': 'stage', 'progress_unit': 'steps'}
+    done, total = value.get('completed'), value.get('total')
+    if isinstance(done, (int, float)) and isinstance(total, (int, float)) and math.isfinite(total) and math.isfinite(done) and 0 <= done <= total and total > 0:
+        result.update(bytes=done, total=total)
+    return result
 
 
 class Cancelled(RuntimeError):
@@ -223,33 +263,77 @@ class ComponentManager:
         temporary.replace(target)
         return target
 
-    def run(self, command, key, timeout=1800, env=None, failure_message=None):
+    def run(self, command, key, timeout=1800, env=None, failure_message=None, progress_file=None):
         self.check_cancel()
         installing = 'pip' in command or 'venv' in command
+        message = ('Создаём отдельное окружение Python' if 'venv' in command else
+                   'Подбираем зависимости и готовим загрузку пакетов' if 'install' in command else
+                   'Проверяем совместимость установленных пакетов' if 'pip' in command else
+                   'Запускаем пробное определение говорящих')
         self.update(key, 'installing' if installing else 'verifying',
-                    message='Подготавливаем окружение' if installing else 'Проверяем компонент')
-        # Never persist subprocess output: pip/upstream diagnostics can contain credentials.
-        with open(os.devnull, 'wb') as output:
-            process = subprocess.Popen([str(arg) for arg in command], stdin=subprocess.DEVNULL,
-                                       stdout=output, stderr=output, env=env or {**{k: v for k, v in os.environ.items() if k.upper() not in {'PYTHONPATH', 'PYTHONHOME'}},
-                                                    'PYTHONUTF8': '1', 'PIP_NO_INPUT': '1'},
-                                       creationflags=0x08000000 if os.name == 'nt' else 0)
-            self.process = process
-            started = time.monotonic()
-            try:
-                while process.poll() is None:
-                    self.check_cancel()
-                    if time.monotonic() - started > timeout:
-                        raise RuntimeError('Превышено время подготовки. Проверьте сеть и повторите.')
-                    self.cancel.wait(.2)
-                if process.returncode:
-                    raise RuntimeError((failure_message or 'Проверка/установка не завершена.') +
-                                       f' Код: {process.returncode}. Последняя рабочая конфигурация сохранена.')
-            finally:
-                if process.poll() is None:
-                    process.terminate()  # Only this exact owned child; never taskkill/python/ollama by name.
-                    process.wait(timeout=15)
-                self.process = None
+                    message=message, bytes=0, total=0, progress_scope='stage', progress_unit=None,
+                    step_started_at=time.time(), activity_at=time.time(), process_running=False)
+        process = subprocess.Popen([str(arg) for arg in command], stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                   encoding='utf-8', errors='replace', bufsize=1,
+                                   env=env or {**{k: v for k, v in os.environ.items() if k.upper() not in {'PYTHONPATH', 'PYTHONHOME'}},
+                                                'PYTHONUTF8': '1', 'PYTHONUNBUFFERED': '1', 'PIP_NO_INPUT': '1'},
+                                   creationflags=0x08000000 if os.name == 'nt' else 0)
+        self.process = process
+        self.update(key, process_running=True)
+        observed, output_lock = {}, threading.Lock()
+
+        def read_output():
+            package = ''
+            while line := process.stdout.readline(4096):
+                progress = package_progress(line, package) if 'pip' in command else None
+                if progress:
+                    package = progress.pop('package', package)
+                with output_lock:
+                    observed['activity_at'] = time.time()
+                    if progress:
+                        observed.update(progress)
+                # Raw output is discarded, including unknown warnings and errors.
+        reader = threading.Thread(target=read_output, name='component-progress', daemon=True)
+        reader.start()
+        started, published, last_model = time.monotonic(), {}, None
+
+        def publish_progress():
+            nonlocal last_model
+            with output_lock:
+                fields = dict(observed)
+            if progress_file:
+                progress = model_progress(read_json(progress_file, {}))
+                if progress and progress != last_model:
+                    last_model = progress
+                    fields.update(progress, activity_at=time.time())
+                    with output_lock:
+                        observed.update(fields)
+            if fields != published:
+                self.update(key, **fields)
+                published.clear()
+                published.update(fields)
+        try:
+            while process.poll() is None:
+                self.check_cancel()
+                publish_progress()
+                if time.monotonic() - started > timeout:
+                    raise RuntimeError('Превышено время подготовки. Проверьте сеть и повторите.')
+                self.cancel.wait(.5)
+            reader.join(timeout=2)
+            publish_progress()
+            if process.returncode:
+                raise RuntimeError((failure_message or 'Проверка/установка не завершена.') +
+                                   f' Код: {process.returncode}. Последняя рабочая конфигурация сохранена.')
+        finally:
+            if process.poll() is None:
+                process.terminate()  # Only this exact owned child; never taskkill/python/ollama by name.
+                process.wait(timeout=15)
+            reader.join(timeout=2)
+            if not reader.is_alive():
+                process.stdout.close()
+            self.process = None
+            self.update(key, process_running=False)
 
     def publish(self, changes):
         self.check_cancel()
@@ -441,7 +525,9 @@ class ComponentManager:
             self.active = key
             self.manager.operation = 'components-' + key
             self.cancel.clear()
-            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0, operation_id=uuid.uuid4().hex)
+            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0,
+                        step_started_at=None, activity_at=None, process_running=False, preparing_device=None,
+                        progress_scope=None, progress_unit=None, operation_id=uuid.uuid4().hex)
 
         def work():
             started = time.monotonic()
@@ -846,6 +932,7 @@ class ComponentManager:
             temporary.replace(target)
 
     def diarization_runtime(self, device, model, install):
+        self.update('diarization', preparing_device=device)
         if install:
             base = self.python()
             # venv contains absolute paths: create at its final unique path, publish only
@@ -858,7 +945,7 @@ class ComponentManager:
             # PyTorch explicitly adds this venv-local directory to DLL search.
             self.stage_python_runtime_libraries(folder / 'Library/bin')
             requirements = self.here / ('requirements-pyannote-' + device + '.lock')
-            self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--index-url',
+            self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--progress-bar', 'raw', '--index-url',
                       'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization',
                      failure_message='Не удалось установить пакеты для ' + ('видеокарты (GPU).' if device == 'xpu' else 'процессора (CPU).') +
                                      ' Проверьте подключение к интернету и свободное место, затем повторите подготовку.')
@@ -875,7 +962,7 @@ class ComponentManager:
         self.update('diarization', 'verifying', message='Проверяем определение говорящих · ' + device_label)
         self.run([python, self.here / 'diarization_worker.py', '--model', model, '--device', device,
                   '--audio', self.here / 'samples/speech-check.wav', '--output', proof_dir / 'result.json',
-                  '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600,
+                  '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600, progress_file=proof_dir / 'progress.json',
                  failure_message='Не удалось выполнить пробное определение говорящих: ' + device_label + '.')
         proof = read_json(proof_dir / 'result.json', {})
         requirements = self.here / ('requirements-pyannote-' + device + '.lock')
