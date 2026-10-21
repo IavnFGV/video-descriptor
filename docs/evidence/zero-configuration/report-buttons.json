@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "scope": "Actual report-embed.js in a same-origin iframe, mocked media metadata; no user video modified",
+  "checks": [
+    "heading play button nested click seeks shared player to 00:44:28",
+    "outline still seeks correctly",
+    "rebuilt preview button seeks to 01:00:37",
+    "negative timestamp ignored",
+    "seek waits for media metadata",
+    "manual seek disables follow"
+  ]
+}

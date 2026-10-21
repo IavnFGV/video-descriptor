@@ -13,6 +13,13 @@
     if (player.readyState === 0) { player.addEventListener('loadedmetadata', seek, {once:true}); player.preload = 'auto'; player.load(); }
     else seek();
   };
+  // Preview headings are rebuilt after Markdown edits; handle their buttons by delegation.
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('button[data-time]');
+    if (!button) return;
+    const time = Number(button.dataset.time);
+    if (Number.isFinite(time) && time >= 0) window.seekTo(time);
+  });
   window.addEventListener('keydown', event => {
     if (event.key === 'Escape') parent.document.getElementById('tab-notes').focus();
   });
