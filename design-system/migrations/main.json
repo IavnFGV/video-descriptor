@@ -40,7 +40,8 @@
     "video_descriptor/diarization_postprocess.py": "Owner request 21 October: expose saved requested device for inline speaker processing; preserve explicit CPU/XPU choice.",
     "windows-app/config.example.json": "Owner request 21 October: new profiles choose a compatible installed Ollama model instead of pinning a nonexistent default; saved local configuration is preserved.",
     "windows-app/desktop.py": "21.10.2026: пользователь запросил перенос записей. Имя instance-state теперь зависит от установки, чтобы смена workspace не обходила блокировку экземпляра и корректно работала остановка/повторное подключение. Identity, Origin и instance guards сохраняются.",
-    "video_descriptor/translate.py": "21.10.2026: выбранная в диалоге Google-модель закрепляется через --gemini-model для задания; локальные задания сохраняют --local-model. Глобальные настройки и ключи не меняются; добавлены счётчики обработанных частей."
+    "video_descriptor/translate.py": "21.10.2026: выбранная в диалоге Google-модель закрепляется через --gemini-model для задания; локальные задания сохраняют --local-model. Глобальные настройки и ключи не меняются; добавлены счётчики обработанных частей.",
+    "video_descriptor/progress.py": "21.10.2026: пользователь поручил исправить локальный WinError 5 при обновлении progress.json. Добавлены bounded retry, нефатальная ошибка только снимка прогресса и безопасная очистка временного файла. Ошибки результатов, сериализации и генерации не скрываются; UI/API и формат progress сохранены."
   },
   "validation": "Baseline retained. Desktop and every migrated HTML/JS preserve original ids, direct handler targets, API literals and assigned handlers, except explicitly reviewed additive exports. Python changes limited to HTML generation. Existing backend tests and real installed acceptance required. Subsequent explicitly requested backend fixes are listed individually above; immutable UI baseline and handler/API checks remain in force."
 }

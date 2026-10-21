@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "platform": "Windows",
+  "checks": [
+    "real file handle without FILE_SHARE_DELETE: snapshot remains valid, generation is not aborted",
+    "brief real reader lock: atomic replacement succeeds on retry",
+    "persistent mocked lock: one warning, next publication recovers",
+    "Gemini with mocked API: one successful generation despite denied snapshot replacement",
+    "serialization errors remain fatal and temporary files are cleaned"
+  ],
+  "google_generation": "mocked; no paid API calls",
+  "fast_suite": {
+    "passed": 411,
+    "skipped": 2
+  },
+  "ci_policy_tests": 21
+}
