@@ -265,10 +265,11 @@ class ComponentManager:
 
     def run(self, command, key, timeout=1800, env=None, failure_message=None, progress_file=None):
         self.check_cancel()
-        installing = 'pip' in command or 'venv' in command
+        pip_command = 'pip' in command or len(command) > 1 and Path(command[1]).name == 'install_packages.py'
+        installing = pip_command and 'install' in command or 'venv' in command
         message = ('Создаём отдельное окружение Python' if 'venv' in command else
                    'Подбираем зависимости и готовим загрузку пакетов' if 'install' in command else
-                   'Проверяем совместимость установленных пакетов' if 'pip' in command else
+                   'Проверяем совместимость установленных пакетов' if pip_command else
                    'Запускаем пробное определение говорящих')
         self.update(key, 'installing' if installing else 'verifying',
                     message=message, bytes=0, total=0, progress_scope='stage', progress_unit=None,
@@ -286,7 +287,7 @@ class ComponentManager:
         def read_output():
             package = ''
             while line := process.stdout.readline(4096):
-                progress = package_progress(line, package) if 'pip' in command else None
+                progress = package_progress(line, package) if pip_command else None
                 if progress:
                     package = progress.pop('package', package)
                 with output_lock:
@@ -945,7 +946,7 @@ class ComponentManager:
             # PyTorch explicitly adds this venv-local directory to DLL search.
             self.stage_python_runtime_libraries(folder / 'Library/bin')
             requirements = self.here / ('requirements-pyannote-' + device + '.lock')
-            self.run([python, '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--progress-bar', 'raw', '--index-url',
+            self.run([python, self.here / 'install_packages.py', '--isolated', 'install', '--disable-pip-version-check', '--progress-bar', 'raw', '--index-url',
                       'https://pypi.org/simple', '--prefix', native_path(folder), '-r', requirements], 'diarization',
                      failure_message='Не удалось установить пакеты для ' + ('видеокарты (GPU).' if device == 'xpu' else 'процессора (CPU).') +
                                      ' Проверьте подключение к интернету и свободное место, затем повторите подготовку.')

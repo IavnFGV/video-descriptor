@@ -557,3 +557,6 @@ Advanced settings can save `ai_components_directory` for the next process start 
 
 
 21.10.2026, 0.8.3: ComponentManager.run асинхронно читает bounded stdout/stderr pipe дочернего процесса. В состояние попадают только разрешённые фазы/имена пакетов/счётчики pip raw progress; неизвестный сырой вывод отбрасывается. Отдельный reader не блокирует cancel/timeout. activity_at отражает реальный вывод или изменение структурированного progress.json, step_started_at — начало subprocess, process_running — состояние дочернего процесса. diarization_worker сохраняет stage/completed/total с прежним message; родитель принимает только известные фазы и конечные счётчики. progress_scope=file означает текущий файл, stage — текущий этап; глобальный процент не синтезируется.
+
+
+21.10.2026, 0.8.4: install_packages.py запускает pip в отдельном процессе и нормализует результат wheel._record_to_fs_path через ntpath.normpath перед rehash. Причина: pip 25 после изменения shebang читает RECORD путь с ../.., а Windows extended prefix не нормализует такие сегменты и возвращает errno 22. Префикс длинных путей сохранён; pip на диске и политика Windows не изменяются. Новый helper включён в release source_paths и распознаётся ComponentManager.run для потокового прогресса.
