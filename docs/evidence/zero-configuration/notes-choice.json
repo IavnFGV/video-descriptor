@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "cloud_confirmation_blocks_submit": true,
+  "pinned_request": {
+    "folder": "source",
+    "task": "notes",
+    "construction": {
+      "provider": "gemini",
+      "model": "gemini-example",
+      "strategy": "auto",
+      "context_tokens": 16384,
+      "output_tokens": 2048
+    },
+    "translate_after": true,
+    "cloud_confirmed": true
+  },
+  "progress": "2/8 = 25% current phase",
+  "viewports": [
+    760,
+    1100
+  ],
+  "validation_scope": "Isolated browser with mocked HTTP; no real Google generation or billing request. Actual production HTML/JS; test-only renderer exposure."
+}

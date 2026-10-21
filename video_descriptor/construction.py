@@ -231,7 +231,7 @@ def plan(folder, value):
         strategy = 'whole' if fits else 'chunks'
     if strategy == 'whole' and not fits:
         raise ValueError('Вся запись не помещается в заданный контекст. Выберите автоматический режим или обработку по частям')
-    blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity)
+    blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity - min(2048, max(128, capacity // 4)))
     return {'strategy': strategy, 'grouping': grouping, 'characters': len(text),
             'estimated_tokens': math.ceil(len(text.encode()) / 3), 'input_upper_bound': input_bound(text),
             'context_tokens': config['context_tokens'], 'blocks': len(blocks),
@@ -376,6 +376,7 @@ def generate(root, config, text, log, stage='Конспект'):
     journal = RequestJournal(log.journal_dir, BASE + f'/models/{model}:generateContent',
                              {'model': model, **payload}, log.snapshot(), 'construction')
     update_status(log, request_log=str(journal.folder), task=stage)
+    log('Google: отправляем текст и ожидаем ответ модели')
     try:
         data = call('POST', BASE + f'/models/{model}:generateContent', settings['api_key'], json=payload)
         candidate = (data.get('candidates') or [{}])[0]
@@ -414,8 +415,12 @@ def consolidate(root, config, texts, log, ask=generate):
         outputs = []
         for index, batch in enumerate(batches, 1):
             update_status(log, task='Объединение конспекта', chunk=f'{index}/{len(batches)}',
-                          message=f'Объединение конспекта, проход {level + 1}')
+                          message=f'Объединение конспекта, проход {level + 1}',
+                          phase='consolidation', completed=index - 1, total=len(batches), request_started=None, received=0)
+            log(f'Объединяем части: проход {level + 1}, группа {index} из {len(batches)}')
             outputs.append(ask(root, config, batch, log, 'Объединение конспекта'))
+            update_status(log, completed=index, request_started=None, request_state='группа сохранена')
+            log(f'Объединение: обработано {index} из {len(batches)}, проход {level + 1}')
         if len(outputs) == 1:
             return outputs[0]
         if sum(input_bound(text) for text in outputs) >= sum(input_bound(text) for text in texts):
@@ -491,17 +496,29 @@ def run(root, folder, value, ask=generate):
     write_json(folder / 'construction-plan.json', summary)
     log.update(stage='[4/5] Русский конспект', model=config['model'], provider=config['provider'])
     outputs = []
+    memory = ''
+    memory_limit = min(2048, max(128, budget(config) // 4))
     for index, block in enumerate(blocks, 1):
-        digest = hashlib.sha256(json.dumps([config, block], sort_keys=True).encode()).hexdigest()[:16]
+        digest = hashlib.sha256(json.dumps([config, block, memory, 'sequential-context-v1'], sort_keys=True).encode()).hexdigest()[:16]
         path = folder / f'construction-part-{digest}.md'
         update_status(log, task='конспект', chunk=f'{index}/{len(blocks)}',
-                      message=f'Конспект: {index}/{len(blocks)}', position=0)
+                      message=f'Конспект: {index}/{len(blocks)}', position=0,
+                      phase='notes', completed=index - 1, total=len(blocks), request_started=None, received=0, request_state='подготовка запроса')
+        log(f'Конспект: часть {index} из {len(blocks)}; готово {index - 1}')
         if path.exists():
             answer = path.read_text(encoding='utf-8')
         else:
-            answer = ask(root, config, block, log)
+            context = ('Память предыдущих частей — только для связности, не повторяй её как новый материал:\n' + memory + '\n\nТекущая часть:\n') if memory else ''
+            answer = ask(root, config, context + block, log)
             path.write_text(answer, encoding='utf-8')
         outputs.append(answer)
+        # Keep a bounded excerpt of the preceding notes plus recent topic headings.
+        headings = [line for text in outputs[-5:] for line in text.splitlines() if line.startswith('### ')]
+        recent = '\n'.join(headings[-10:])
+        excerpt = '\n'.join(line for line in answer.splitlines() if line.strip() and not line.startswith('#'))
+        memory = (recent + '\nПоследняя часть: ' + excerpt).encode('utf-8')[:max(0, memory_limit - 256)].decode('utf-8', errors='ignore')
+        update_status(log, completed=index, request_started=None, request_state='часть сохранена')
+        log(f'Сохранено частей конспекта: {index} из {len(blocks)}')
     answer = outputs[0] if summary['strategy'] == 'whole' else consolidate(root, config, outputs, log, ask)
     (folder / 'construction-result.md').write_text(answer, encoding='utf-8')
     sources = [Source(id=row.get('id', f's{index}'), start=row['start'], end=row['end'], text=row['text'])
@@ -518,6 +535,7 @@ def run(root, folder, value, ask=generate):
     (folder / 'notes.md').write_text(answer, encoding='utf-8')
     update_status(log, stage='[5/5] Сохранение отчёта', message='Конспект и оглавление готовы',
                   request_state='готово', chunk=f'{len(blocks)}/{len(blocks)}')
+    log('Конспект и оглавление сохранены')
 
 
 if __name__ == '__main__':

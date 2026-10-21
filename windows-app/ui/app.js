@@ -145,7 +145,7 @@
     $('video').pause();$('video').hidden=true;$('timing-note').textContent='';
   }
   async function select(id) { if(!await window.mayLeaveQuickReply())return;if(id!==selected)resetResult();selected=id;const url=new URL(location.href);url.searchParams.set('job',id);url.hash='records';history.pushState(null,'',url);showView(true);$('result-panel').hidden=false;clearTimeout(timer);poll(); }
-  function render(result,job) {
+  function render(result,job,progress={}) {
     currentJob=job;
     if(!['new','settings','diagnostics'].includes(location.hash.slice(1)))$('main-heading').textContent=job.title||job.filename||'Запись';
     $('result-panel').hidden=false;$('result-title').textContent=job.title||job.filename;
@@ -168,8 +168,17 @@
     else $('progress').removeAttribute('value');
     if(['postprocess','notes'].includes(job.mode)){
       const phases={queued:'В очереди',notes:'Создаём конспект',translation:'Переводим реплики',done:'Готово'};
-      $('progress-text').textContent=job.task==='diarize'?(job.error||result?.message||'Определяем говорящих'):(job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.translation_model||job.construction?.model||'Ollama'}`);
-      if(['queued','running'].includes(job.status))$('progress').removeAttribute('value');
+      $('progress-text').textContent=job.task==='diarize'?(job.error||result?.message||'Определяем говорящих'):(job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.stage==='translation'?job.translation_model:job.construction?.model||job.translation_model||'Ollama'}`);
+      if(['queued','running'].includes(job.status)){
+        $('progress').removeAttribute('value');
+        if(job.status==='running'&&job.task!=='diarize'){
+          const phase={notes:'Конспект',consolidation:'Объединение частей',translation:'Перевод реплик'}[progress.phase];
+          if(phase&&((job.stage==='translation')===(progress.phase==='translation'))){$('progress-text').textContent+=' · '+phase+': обработано '+(progress.completed||0)+' из '+progress.total+' · '+(progress.chunk?'часть '+progress.chunk+' · ':'')+(progress.request_state||progress.message||'');if(progress.total>0)$('progress').value=100*(progress.completed||0)/progress.total;}
+          $('progress-text').textContent+=' · Выполняется '+durationText(Date.now()/1000-(job.started||job.created));
+          if(progress.request_started)$('progress-text').textContent+=' · Текущий запрос '+durationText((progress.request_seconds||0)+Math.max(0,Date.now()/1000-(progress.updated||Date.now()/1000)));
+          if(progress.received)$('progress-text').textContent+=' · Получено '+progress.received+' символов ответа';
+        }
+      }
     }
     $('retry').hidden=job.status!=='error';
     $('retry').textContent=job.task==='diarize'?'Повторить определение говорящих':result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
@@ -204,7 +213,7 @@
   async function poll() {
     if(!selected)return;
     const id=selected;
-    try{const {job,result}=await api('/api/speech?job='+id);if(id!==selected)return;render(result,job);if(['queued','running'].includes(job.status)){timer=setTimeout(poll,2000);}else{await jobs();}}catch(e){if(id!==selected)return;message(e.message,true);timer=setTimeout(poll,5000);}
+    try{const {job,result,progress}=await api('/api/speech?job='+id);if(id!==selected)return;render(result,job,progress);if(['queued','running'].includes(job.status)){timer=setTimeout(poll,2000);}else{await jobs();}}catch(e){if(id!==selected)return;message(e.message,true);timer=setTimeout(poll,5000);}
   }
   function fileProblem(files, probe=false) {
     const file=files[0], allowed=['mp4','mkv','mov','webm','wav','mp3','m4a','flac','ogg'];
@@ -238,14 +247,14 @@
   $('settings-speech-device').onchange=async()=>{try{$('speech-device').value=$('settings-speech-device').value;await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('settings-speech-device').value})});}catch(e){message(e.message,true);}};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
-  async function postprocess(task) {
+  async function postprocess(task,options={}) {
     if(!currentJob?.folder||processing)return;
     processing=true;$('translate-run').disabled=true;$('notes-run').disabled=true;
-    try{const job=await api('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({folder:currentJob.folder,task})});message('Создана отдельная версия. Исходная расшифровка сохранена.');select(job.id);await jobs();}catch(e){message(e.message,true);}finally{processing=false;$('translate-run').disabled=false;$('notes-run').disabled=false;}
+    try{const job=await api('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({folder:currentJob.folder,task,...options})});message('Создана отдельная версия. Исходная расшифровка сохранена.');select(job.id);await jobs();return true;}catch(e){message(e.message,true);return false;}finally{processing=false;$('translate-run').disabled=false;$('notes-run').disabled=false;}
   }
   $('diarize-run').onclick=openSpeakers;
   $('translate-run').onclick=()=>localAI('translate');
-  $('notes-run').onclick=()=>localAI('notes');
+  $('notes-run').onclick=openNotes;
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;$('setup-toggle').setAttribute('aria-expanded',String(!$('setup-form').hidden));};
   $('ollama-refresh').onclick=ollamaStatus;
   $('ollama-form').onsubmit=async e=>{e.preventDefault();$('ollama-feedback').textContent='Проверяем генерацию перед сохранением модели…';await componentAction('ollama','check',{model:$('ollama-model').value,task:$('ollama-task').value});};
@@ -399,6 +408,42 @@
   $('diarization-install').onclick=()=>{const token=$('hf-token').value;$('hf-token').value='';componentAction('diarization','install',{confirmed:$('diarization-consent').checked,device:$('diarization-device').value,token});};
   for(const [id,page] of [['hf-terms','terms'],['hf-tokens','tokens']])$(id).onclick=()=>setupPost('external',{page}).catch(e=>message(e.message,true));
 
+  let notesFolder=null,notesDefaults={},notesModelsLoading=false,notesRequest=0;
+  async function openNotes(){
+    if(!currentJob?.folder||processing)return;
+    notesFolder=currentJob.folder;$('notes-provider').disabled=true;$('notes-confirm').disabled=true;$('notes-choice-status').textContent='Загружаем настройки подключения…';$('notes-cloud-consent').checked=false;
+    $('notes-dialog').showModal();
+    try{notesDefaults=await api('/api/translation-settings');$('notes-provider').disabled=false;$('notes-provider').value=notesDefaults.provider==='gemini'&&notesDefaults.has_key?'gemini':'ollama';await notesModels();}catch(e){$('notes-provider').disabled=false;$('notes-choice-status').textContent=e.message;}
+  }
+  async function notesModels(){
+    const provider=$('notes-provider').value,request=++notesRequest;
+    notesModelsLoading=true;$('notes-confirm').disabled=true;$('notes-model-choice').replaceChildren();$('notes-cloud-label').hidden=provider!=='gemini';$('notes-choice-status').textContent='Получаем список моделей…';
+    try{
+      let models,chosen;
+      if(provider==='gemini'){
+        if(!notesDefaults.has_key)throw Error('Сначала сохраните API-ключ Google в настройках AI.');
+        const r=await setupPost('gemini',{check:true});models=r.models.map(m=>m.id);chosen=notesDefaults.model;
+      }else{const r=await api('/api/setup/ollama');models=r.models.map(m=>m.name);chosen=r.selected;}
+      if(request!==notesRequest)return;
+      $('notes-model-choice').replaceChildren(...models.map(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;return o;}));
+      if(models.includes(chosen))$('notes-model-choice').value=chosen;
+      $('notes-choice-status').textContent=models.length?(provider==='gemini'?'Google получит текст расшифровки и краткую память предыдущих частей.':'Текст останется на вашем компьютере.'):'Нет доступных моделей. Настройте подключение AI.';
+    }catch(e){if(request===notesRequest)$('notes-choice-status').textContent=e.message;}
+    finally{if(request===notesRequest){notesModelsLoading=false;$('notes-confirm').disabled=!$('notes-model-choice').value;}}
+  }
+  $('notes-provider').onchange=()=>{$('notes-cloud-consent').checked=false;notesModels();};
+  $('notes-model-refresh').onclick=notesModels;
+  $('notes-cancel').onclick=()=>$('notes-dialog').close();
+  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';const target=$(provider==='gemini'?'gemini-key':'ollama-mode');target.closest('details').open=true;target.focus();};
+  $('notes-confirm').onclick=async()=>{
+    if(notesModelsLoading||processing)return;
+    const provider=$('notes-provider').value;
+    if(currentJob?.folder!==notesFolder){$('notes-choice-status').textContent='Выбрана другая запись. Закройте окно и откройте конспект для нужной записи.';return;}
+    if(provider==='gemini'&&!$('notes-cloud-consent').checked){$('notes-choice-status').textContent='Подтвердите отправку текста в Google.';return;}
+    $('notes-confirm').disabled=true;
+    const construction={provider,model:$('notes-model-choice').value,strategy:$('notes-strategy').value,context_tokens:Number($('notes-context').value),output_tokens:2048};
+    try{if(await postprocess('notes',{construction,translate_after:$('notes-translate-after').checked,cloud_confirmed:$('notes-cloud-consent').checked}))$('notes-dialog').close();else $('notes-choice-status').textContent=$('message').textContent;}finally{$('notes-confirm').disabled=false;}
+  };
   let localTask=null, localFolder=null;
   async function localAI(task){
     try{

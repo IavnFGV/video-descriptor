@@ -353,6 +353,22 @@
 </main>
 </div>
 </div>
+<dialog id="notes-dialog" class="vd-dialog" aria-labelledby="notes-heading">
+<h2 id="notes-heading">Создать конспект</h2>
+<label class="vd-field">Где обрабатывать<select id="notes-provider" class="vd-select"><option value="ollama">На компьютере · Ollama</option><option value="gemini">В облаке Google · Gemini</option></select></label>
+<label class="vd-field">Модель<select id="notes-model-choice" class="vd-select"></select></label>
+<button id="notes-model-refresh" type="button" class="vd-button">Обновить модели</button>
+<details><summary>Разбиение и контекст</summary>
+<label class="vd-field">Обработка<select id="notes-strategy" class="vd-select"><option value="auto">Автоматически: целиком, если помещается</option><option value="chunks">По частям с памятью предыдущих частей</option><option value="whole">Целиком одним запросом</option></select></label>
+<label class="vd-field">Размер контекста, токенов<input id="notes-context" class="vd-input" type="number" min="8192" max="2097152" step="1024" value="16384"></label>
+<p class="footnote">Ограничивается возможностями модели. Для длинных записей части конспектируются с краткой памятью, затем объединяются.</p>
+</details>
+<label class="check-label"><input id="notes-translate-after" type="checkbox" checked>Также перевести реплики на русский той же моделью</label>
+<label id="notes-cloud-label" class="check-label" hidden><input id="notes-cloud-consent" type="checkbox">Разрешаю отправить текст расшифровки в Google. Возможны расходы и ограничения квоты; видео не отправляется.</label>
+<p id="notes-choice-status" class="footnote" role="status" aria-live="polite"></p>
+<button id="notes-open-settings" type="button" class="vd-button">Настроить подключение AI</button>
+<div class="vd-actions"><button id="notes-confirm" type="button" class="vd-button vd-button--primary">Создать конспект</button><button id="notes-cancel" type="button" class="vd-button">Отмена</button></div>
+</dialog>
 <dialog id="speech-download-dialog" class="vd-dialog" aria-labelledby="speech-download-heading">
 <h2 id="speech-download-heading">Подготовить распознавание</h2>
 <p id="speech-download-info"></p>

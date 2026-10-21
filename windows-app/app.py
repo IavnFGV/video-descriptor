@@ -387,14 +387,23 @@ def make_handler(value, instance):
                             start_worker(Path(value['workspace']))
                             return self.json_response(202, job)
                         from video_descriptor.postprocess import enqueue as enqueue_postprocess
-                        status = ollama_status(value)
+                        config = body.get('construction') if body.get('task') == 'notes' else None
+                        if config is not None:
+                            from video_descriptor.construction import validate, validate_provider
+                            config = validate({**config, 'input': 'speech'})
+                            validate_provider(Path(value['workspace']), config)
+                            if config['provider'] == 'gemini' and body.get('cloud_confirmed') is not True:
+                                raise ValueError('Подтвердите отправку текста в Google и возможные расходы')
+                        status = ollama_status(value) if config is None else {'selected': config['model']}
                         model = status['selected']
                         notes_model = read_json(Path(value['workspace']) / '.devcontainer/notes-settings.json', {}).get('ollama_model') or model
-                        validate_ollama_model(value, model)
-                        if body.get('task') == 'notes' and notes_model != model:
+                        if config is None or config['provider'] == 'ollama':
+                            validate_ollama_model(value, model)
+                        if config is None and body.get('task') == 'notes' and notes_model != model:
                             validate_ollama_model(value, notes_model)
                         job = enqueue_postprocess(Path(value['workspace']), body.get('folder'),
-                                                  body.get('task'), model, value['ollama_url'], notes_model=notes_model)
+                                                  body.get('task'), model, value['ollama_url'], notes_model=notes_model,
+                                                  construction=config, translate_after=body.get('translate_after', True))
                         start_worker(Path(value['workspace']))
                         return self.json_response(202, job)
                     if path == '/api/setup/ollama':

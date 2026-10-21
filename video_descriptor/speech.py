@@ -199,7 +199,7 @@ def state(root, params):
         job = {**job, 'status': 'running', 'error': None}
     if result.get('status') == 'done':
         result = editable_result(root / 'output' / folder, result)
-    return {'job': job, 'result': result}
+    return {'job': job, 'result': result, 'progress': read_json(resolved / 'progress.json', {})}
 
 
 def inventory(root):

@@ -85,6 +85,7 @@ def main():
     parser.add_argument("folder", type=Path, help="Папка с transcript.json и manifest.json")
     parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", ""))
     parser.add_argument('--local-model', help='Зафиксированная локальная модель задания, независимо от текущих настроек')
+    parser.add_argument("--gemini-model", help="Зафиксированная Google-модель этого задания")
     parser.add_argument("--base-url", default=os.getenv(
         "OLLAMA_BASE_URL", "http://host.docker.internal:11434"))
     parser.add_argument("--refresh-only", action="store_true",
@@ -120,7 +121,7 @@ def main():
                 from .prompt_settings import effective, overrides
                 log.prompt_settings = overrides()
                 settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
-                            if args.local_model else translation_settings())
+                            if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model} if args.gemini_model else translation_settings())
                 log.translation_settings = settings
                 active_model = settings["model"] if settings["provider"] == "gemini" else (settings.get("ollama_model") or args.model)
                 active_base = "gemini" if settings["provider"] == "gemini" else args.base_url
@@ -129,7 +130,8 @@ def main():
                 update_status(log, chunk=f"{index}/{len(groups)}",
                               span=f"{min(s.start for s in group):.0f}–"
                                    f"{max(s.end for s in group):.0f} сек",
-                              sources=f"речь {len(group)}, кадры 0", task="перевод")
+                              sources=f"речь {len(group)}, кадры 0", task="перевод",
+                              phase="translation", completed=index - 1, total=len(groups))
                 key = hashlib.sha256(json.dumps(
                     [effective('translate', PROMPT, log), active_model, active_base, [item.model_dump() for item in group]],
                     sort_keys=True,
@@ -156,6 +158,8 @@ def main():
                         save(target, batch)
                     translations.update(batch)
                     save(folder / "translations.json", translations)
+                    update_status(log, completed=index, request_started=None, request_state='перевод сохранён')
+                    log(f'Перевод: обработано {index} из {len(groups)} частей')
                 except GeminiServiceError:
                     raise
                 except (RuntimeError, ValueError, requests.RequestException) as exc:
