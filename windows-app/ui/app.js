@@ -19,6 +19,7 @@
     const view=['new','settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
     $('readiness-panel').hidden=view!=='diagnostics';
     $('bootstrap-notice').hidden=view==='settings';
+    $('setup-callout').hidden=view==='settings'||$('setup-callout').dataset.complete==='true';
     $('page-workspace').classList.toggle('workspace--single',view!=='diagnostics');
     $('new-record-view').hidden=view!=='new';
     $('jobs-panel').hidden=!!selected;
@@ -29,7 +30,7 @@
     }
     $('view-label').textContent={new:'Новая запись',records:'Записи',settings:'Настройки AI',diagnostics:'Диагностика'}[view];
     $('main-heading').textContent={new:'Новая запись',records:selected?(currentJob?.title||currentJob?.filename||'Запись'):'Записи',settings:'Настройки AI',diagnostics:'Диагностика'}[view];
-    $('view-description').textContent={new:'Добавьте файл и выберите параметры распознавания.',records:selected?'Проверьте расшифровку по записи. Здесь доступны обработка и результаты.':'Откройте запись, чтобы продолжить работу с её текстом и результатами.',settings:'Сначала подготовьте распознавание. Перевод и конспект можно подключить позже.',diagnostics:'Проверьте компоненты, доступность устройств и историю действий.'}[view];
+    $('view-description').textContent={new:'Добавьте файл и выберите параметры распознавания.',records:selected?'Проверьте расшифровку по записи. Здесь доступны обработка и результаты.':'Откройте запись, чтобы продолжить работу с её текстом и результатами.',settings:'Выберите нужные функции и разрешите автоматическую подготовку.',diagnostics:'Проверьте компоненты, доступность устройств и историю действий.'}[view];
     if(focus)$('main-heading').focus();
   }
   window.addEventListener('hashchange',()=>showView(true));
@@ -233,7 +234,7 @@
   $('retry').onclick=async()=>{try{await api('/api/retry?id='+selected,{method:'POST'});poll();}catch(e){message(e.message,true);}};
   $('start-npu').onclick=async()=>{message('Запускаем распознавание: загружаем модель с диска в память устройства. Скачивание не требуется.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
   $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await readiness();}catch(e){message(e.message,true);}};
-  $('settings-speech-device').onchange=()=>{$('speech-device').value=$('settings-speech-device').value;$('speech-device').onchange();};
+  $('settings-speech-device').onchange=async()=>{try{$('speech-device').value=$('settings-speech-device').value;await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('settings-speech-device').value})});}catch(e){message(e.message,true);}};
   $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
   async function postprocess(task) {
@@ -300,12 +301,30 @@
     }catch(e){message(e.message,true);componentBusy=false;await componentStatus().catch(()=>{});}
   }
   async function componentStatus() {
-    const data=await api('/api/components');componentProfiles=data.profiles;componentBusy=!!data.active;
+    const data=await api('/api/components');componentProfiles=data.profiles;
+    $('hf-token').placeholder=data.has_hf_token?'Токен сохранён — повторно вводить не нужно':'Токен чтения Hugging Face для первой загрузки';
+    const plan=data.preparation||{},preparing=plan.state==='running';componentBusy=!!data.active||preparing;
+    if(!$('prepare-selected').loaded){
+      if(plan.features)for(const key of ['whisper','diarization','ollama'])$('prepare-'+key).checked=plan.features.includes(key);
+      $('prepare-selected').loaded=true;
+    }
+    $('prepare-selected').disabled=componentBusy;
+    for(const id of ['prepare-consent','prepare-whisper','prepare-diarization','prepare-ollama','settings-speech-device','diarization-device'])$(id).disabled=preparing;
+    $('prepare-selected-stop').hidden=!preparing;
+    $('preparation-status').textContent=(plan.message||'')+(preparing?' · Готово '+(plan.completed||[]).length+' из '+plan.features.length:'');
+    $('preparation-status').dataset.tone=plan.state==='error'?'danger':plan.state==='ready'?'success':'info';
+    $('setup-callout').dataset.complete=String(plan.state==='ready');
+    $('setup-callout').hidden=location.hash==='#settings'||plan.state==='ready';
+    $('setup-callout-message').textContent=plan.message||'Откройте настройки, выберите нужные функции и разрешите загрузки. Приложение само подготовит выбранные компоненты.';
+    $('setup-open').classList.toggle('needs-setup',plan.state!=='ready');
+    const whisper=data.profiles.whisper_model,ollama=data.profiles.ollama;
+    $('prepare-sources').textContent='Источники: '+(whisper?whisper.source+' (распознавание ≈'+Math.ceil((whisper.recorded_download_bytes||whisper.files.reduce((sum,file)=>sum+file.bytes,0))/1024**2)+' МиБ); ':'')+'Hugging Face / PyPI / PyTorch (говорящие: несколько ГиБ, требуется 8 ГиБ свободного места); '+(ollama?ollama.source+' (Ollama)':'Ollama')+'. Размер языковой модели указан в каталоге ниже. Загружаются только компоненты выбранных функций.';
     $('cancel-preparation').hidden=!data.active;
     if(data.active){const active=data.components.find(c=>c.id===data.active);$('bootstrap-message').textContent=deviceMessage(active.message)+(active.total?' · '+Math.floor(100*(active.bytes||0)/active.total)+'%':'');$('prepare-speech').hidden=true;}
     for(const item of data.components){
       const box=$('component-'+item.id);
-      if(item.id==='diarization'&&!box.deviceLoaded){$('diarization-device').value=item.requested_device||'auto';box.deviceLoaded=true;}
+      if(item.id==='diarization'&&!box.deviceLoaded){$('diarization-device').value=plan.device||item.requested_device||'auto';box.deviceLoaded=true;}
+      if(item.id==='diarization'&&!$('diarization-consent').loaded){$('diarization-consent').checked=item.download_consent===true&&item.consent_revision===data.profiles.diarization_model?.revision;$('diarization-consent').loaded=true;}
       if(!box.componentControls){
         const state=document.createElement('p'),details=document.createElement('p'),progress=document.createElement('progress'),button=document.createElement('button'),remove=document.createElement('button');
         state.className='vd-status';state.setAttribute('role','status');details.className='footnote';progress.className='vd-progress';button.type='button';button.className='vd-button';remove.type='button';remove.className='vd-button vd-button--danger';
@@ -315,7 +334,7 @@
       const {state,details,progress,button,remove}=box.componentControls;
       state.dataset.tone=item.state==='error'?'danger':item.state==='ready'?'success':'info';
       state.textContent=(componentNames[item.state]||item.state)+' · '+deviceMessage(item.message)+(item.state==='ready'&&item.fallback_reason?' · '+deviceMessage(item.fallback_reason):'');
-      details.textContent=[item.version?'Версия: '+item.version:'',item.device?(item.state==='error'?'Последняя успешная проверка: ':'Устройство: ')+deviceName(item.device):'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
+      details.textContent=[item.version?'Версия: '+item.version:'',item.device?(item.state==='error'?'Последняя успешная проверка: ':['installing','downloading','verifying'].includes(item.state)?'Ранее подготовлено: ':'Устройство: ')+deviceName(item.device):'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
       progress.hidden=data.active!==item.id;progress.setAttribute('aria-label',item.name);
       if(item.total){progress.max=item.total;progress.value=item.bytes||0;if(data.active===item.id)state.textContent+=' · '+Math.floor(100*(item.bytes||0)/item.total)+'%';}else progress.removeAttribute('value');
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
@@ -333,8 +352,25 @@
     for(const id of ['ollama-install','ollama-pull','diarization-install','ollama-use-connection','ollama-start-existing','ollama-connect'])$(id).disabled=!!data.active;
     if(!$('ollama-model').value)$('ollama-connect').disabled=true;
     clearTimeout(componentTimer);
-    if(data.active)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){ollamaStatus();readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
+    if(data.active||preparing)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){ollamaStatus();readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
   }
+  for(const [button,field] of [['open-hf-settings','hf-token'],['open-local-settings','ollama-mode']])$(button).onclick=()=>{const target=$(field);target.closest('details').open=true;target.focus();};
+  for(const key of ['whisper','diarization','ollama'])$('prepare-'+key).onchange=()=>{$('prepare-consent').checked=false;};
+  $('prepare-consent').onchange=()=>{$('preparation-status').textContent=$('prepare-consent').checked?'Разрешение отмечено. Нажмите «Сохранить и подготовить».':'Для автоматической подготовки отметьте разрешение на загрузку.';$('preparation-status').dataset.tone='info';};
+  $('prepare-selected').onclick=async()=>{
+    const button=$('prepare-selected');button.disabled=true;
+    try{
+      const features=['whisper','diarization','ollama'].filter(key=>$('prepare-'+key).checked);
+      if(!features.length)throw Error('Выберите хотя бы одну функцию.');
+      if(!$('prepare-consent').checked){$('prepare-consent').focus();throw Error('Отметьте разрешение на загрузку и установку выбранных компонентов. Для GPU нужно это же разрешение.');}
+      if(features.includes('diarization')&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для говорящих примите условия community-1 и отметьте согласие в разделе «Говорящие».');}
+      const mode=$('ollama-mode').value,model=mode==='managed'?$('ollama-catalog').value:$('ollama-model').value;
+      if(features.includes('ollama')&&!model){$('ollama-mode').closest('details').open=true;$('ollama-mode').focus();throw Error('Выберите подключение и языковую модель в разделе «Локальный AI».');}
+      await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'prepare_selected',features,device:$('diarization-device').value,mode,model,token:$('hf-token').value,hf_consent:$('diarization-consent').checked,confirmed:true})});
+      $('hf-token').value='';await componentStatus();
+    }catch(e){$('preparation-status').textContent=e.message;$('preparation-status').dataset.tone='danger';button.disabled=false;}
+  };
+  $('prepare-selected-stop').onclick=async()=>{try{await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'cancel_selected'})});await componentStatus();}catch(e){message(e.message,true);}};
   function catalogInfo(){const model=componentProfiles.ollama_models?.find(m=>m.name===$('ollama-catalog').value);if(model)$('ollama-catalog-info').textContent=model.purpose+' Около '+model.memory_gib+' ГиБ памяти; нужно ≈'+(model.bytes*1.2/1024**3).toFixed(1)+' ГиБ свободного места. Размер ориентировочный, точный прогресс покажет Ollama.';}
   function connectionMode(){
     const mode=$('ollama-mode').value;

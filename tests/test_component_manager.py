@@ -195,6 +195,113 @@ def test_npu_diarization_rejected_before_start(manager):
     assert manager.active is None
 
 
+def wait_plan(manager):
+    for _ in range(300):
+        if manager.plan.get('state') != 'running':
+            return
+        time.sleep(.01)
+    raise AssertionError('preparation plan did not finish')
+
+
+@pytest.mark.parametrize('body', [
+    {'features': []},
+    {'features': ['whisper']},
+    {'features': ['diarization'], 'confirmed': True},
+    {'features': ['ollama'], 'confirmed': True},
+    {'features': ['whisper', 'whisper'], 'confirmed': True},
+])
+def test_preparation_validates_all_consents_before_start(manager, body):
+    with pytest.raises(ValueError):
+        manager.action(None, {'action': 'prepare_selected', **body})
+    assert manager.active is None
+    assert not manager.plan_path.exists()
+
+
+def test_preparation_runs_selected_components_in_order_without_saving_token(manager, monkeypatch):
+    manager.manager.value['workspace'] = str(manager.root / 'workspace')
+    calls = []
+    monkeypatch.setattr(manager, 'token', lambda token: calls.append('token-protected'))
+    monkeypatch.setattr(manager, 'whisper', lambda action: calls.append('whisper') or {'verified': True})
+    monkeypatch.setattr(manager, 'diarization', lambda body, action: calls.append('diarization') or {'verified': True})
+    monkeypatch.setattr(manager, 'ollama', lambda body, action: calls.append('ollama') or {'generation_checked': True})
+    manager.action(None, {'action': 'prepare_selected', 'features': ['ollama', 'diarization', 'whisper'],
+                          'device': 'cpu', 'model': 'test-model', 'confirmed': True,
+                          'hf_consent': True, 'token': 'hf_fixture-secret'})
+    wait_plan(manager)
+    assert manager.plan['state'] == 'ready'
+    assert calls == ['token-protected', 'whisper', 'diarization', 'ollama']
+    assert manager.plan['completed'] == ['whisper', 'diarization', 'ollama']
+    assert 'hf_fixture-secret' not in manager.plan_path.read_text()
+
+
+def test_preparation_stops_on_failure_and_keeps_completed_components(manager, monkeypatch):
+    manager.manager.value['workspace'] = str(manager.root / 'workspace')
+    monkeypatch.setattr(manager, 'whisper', lambda action: {'verified': True})
+    monkeypatch.setattr(manager, 'diarization', lambda *args: (_ for _ in ()).throw(ValueError('GPU unavailable')))
+    monkeypatch.setattr(manager, 'ollama', lambda *args: pytest.fail('Must not start after failed component'))
+    manager.prepare_selected({'features': ['whisper', 'diarization', 'ollama'], 'device': 'cpu',
+                              'model': 'test-model', 'confirmed': True, 'hf_consent': True})
+    wait_plan(manager)
+    assert manager.plan['state'] == 'error'
+    assert manager.plan['completed'] == ['whisper']
+    assert 'GPU unavailable' in manager.plan['message']
+    assert manager.components['whisper']['state'] == 'ready'
+
+
+def test_preparation_cancel_does_not_continue_queue_or_allow_parallel_action(manager, monkeypatch):
+    manager.manager.value['workspace'] = str(manager.root / 'workspace')
+    started = threading.Event()
+    def probe(action):
+        started.set()
+        manager.cancel.wait(3)
+        manager.check_cancel()
+    monkeypatch.setattr(manager, 'whisper', probe)
+    monkeypatch.setattr(manager, 'ollama', lambda *args: pytest.fail('Must not start after cancel'))
+    manager.prepare_selected({'features': ['whisper', 'ollama'], 'model': 'test', 'confirmed': True})
+    assert started.wait(2)
+    with pytest.raises(RuntimeError, match='подготовка выбранных'):
+        manager.action('ollama', {'action': 'check'})
+    manager.action(None, {'action': 'cancel_selected'})
+    wait_plan(manager)
+    assert manager.plan['state'] == 'error'
+    assert manager.plan['completed'] == []
+
+
+def test_preparation_restart_reports_interruption_without_downloads(manager):
+    cm.atomic(manager.plan_path, {'state': 'running', 'features': ['whisper'], 'completed': []})
+    restored = cm.ComponentManager(manager.setup, manager.root)
+    assert restored.plan['state'] == 'error'
+    assert restored.active is None
+
+
+def test_preparation_requires_missing_hf_token_before_any_download(manager):
+    manager.manifest['diarization_model'] = {'revision': 'test-revision'}
+    with pytest.raises(ValueError, match='токен чтения Hugging Face'):
+        manager.prepare_selected({'features': ['whisper', 'diarization'], 'confirmed': True, 'hf_consent': True})
+    assert manager.active is None
+    assert not manager.plan_path.exists()
+
+
+def test_second_instance_cannot_recover_or_cancel_live_preparation(manager, monkeypatch):
+    manager.manager.value['workspace'] = str(manager.root / 'workspace')
+    started = threading.Event()
+    def probe(action):
+        started.set()
+        manager.cancel.wait(3)
+        manager.check_cancel()
+    monkeypatch.setattr(manager, 'whisper', probe)
+    manager.prepare_selected({'features': ['whisper'], 'confirmed': True})
+    assert started.wait(2)
+    try:
+        second = cm.ComponentManager(manager.setup, manager.root)
+        assert second.snapshot()['preparation']['state'] == 'running'
+        with pytest.raises(RuntimeError, match='другом экземпляре'):
+            second.action(None, {'action': 'cancel_selected'})
+    finally:
+        manager.action(None, {'action': 'cancel_selected'})
+        wait_plan(manager)
+
+
 def test_gated_model_message_does_not_expose_token(manager, monkeypatch):
     manager.manifest['diarization_model'] = {'revision': 'a' * 40, 'source': 'https://huggingface.co/pyannote/test',
                                                'files': [{'name': 'config.yaml', 'bytes': 3}]}

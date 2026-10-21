@@ -102,6 +102,20 @@ class ComponentManager:
         self.active = None
         self.process = None
         self.server = None
+        self.plan_cancel = threading.Event()
+        self.plan_owner = False
+        self.plan_path = self.root / 'preparation.json'
+        self.plan = read_json(self.plan_path, {})
+        self.plan = self.plan if isinstance(self.plan, dict) else {}
+        with (self.root / 'preparation.lock').open('a+') as plan_lease:
+            try:
+                lock_file(plan_lease)
+            except (BlockingIOError, PermissionError):
+                pass
+            else:
+                if self.plan.get('state') == 'running':
+                    self.plan.update(state='error', message='Подготовка прервана закрытием приложения. Нажмите «Сохранить и подготовить»: проверенные компоненты будут использованы повторно.')
+                    atomic(self.plan_path, self.plan)
         saved = read_json(self.path, {})
         saved = saved if isinstance(saved, dict) else {}
         self.components = {key: saved[key] if isinstance(saved.get(key), dict) and saved[key].get('state') in STATES
@@ -138,6 +152,10 @@ class ComponentManager:
 
     def snapshot(self):
         with self.lock:
+            if not self.plan_owner:
+                saved_plan = read_json(self.plan_path, self.plan)
+                if isinstance(saved_plan, dict):
+                    self.plan = saved_plan
             if not self.active:
                 saved = read_json(self.path, {})
                 if isinstance(saved, dict):
@@ -157,8 +175,8 @@ class ComponentManager:
                 if key == 'ollama':
                     item.update(selected(self.manager.value))
                 rows.append({'id': key, 'name': title, **item})
-            return {'components': rows, 'active': self.active or next((key for key in NAMES if self.components[key]['state'] in BUSY), None), 'root': str(self.root),
-                    'profiles': {key: self.manifest.get(key) for key in ('managed_python', 'ollama', 'diarization_model', 'ollama_models')},
+            return {'components': rows, 'preparation': dict(self.plan), 'active': self.active or next((key for key in NAMES if self.components[key]['state'] in BUSY), None), 'root': str(self.root),
+                    'profiles': {key: self.manifest.get(key) for key in ('whisper_model', 'managed_python', 'ollama', 'diarization_model', 'ollama_models')},
                     'has_hf_token': (self.root / 'hf-token.dpapi').is_file(),
                     'ollama_connection': {**selected(self.manager.value), 'executable': self.existing_executable(),
                                           'service_url': self.manager.value.get('ollama_service_url', DEFAULT_URL)}}
@@ -268,7 +286,111 @@ class ComponentManager:
                 self.connection = connection
                 os.environ['OLLAMA_BASE_URL'] = connection['url']
 
-    def action(self, key, body):
+    def prepare_selected(self, body):
+        features = body.get('features')
+        if not isinstance(features, list) or not features or any(not isinstance(key, str) or key not in NAMES for key in features) or len(set(features)) != len(features):
+            raise ValueError('Выберите нужные функции: распознавание, говорящие, локальный AI')
+        if body.get('confirmed') is not True:
+            raise ValueError('Разрешите загрузку и установку выбранных AI-компонентов')
+        device = body.get('device', 'auto')
+        if device not in {'auto', 'cpu', 'xpu'}:
+            raise ValueError('Выберите поддерживаемое устройство для определения говорящих')
+        if 'diarization' in features and body.get('hf_consent') is not True:
+            raise ValueError('Для говорящих примите условия community-1 и отметьте согласие Hugging Face в разделе «Говорящие»')
+        if 'diarization' in features and not body.get('token') and not (self.root / 'hf-token.dpapi').is_file():
+            profile = self.manifest.get('diarization_model', {})
+            model_path = Path(self.manager.value.get('diarization_model_directory') or '__missing__')
+            cached = self.root / ('community-1-' + str(profile.get('revision', '')))
+            if profile.get('revision') and not (model_path / 'config.yaml').is_file() and not (cached / 'config.yaml').is_file():
+                raise ValueError('Для первой загрузки говорящих укажите токен чтения Hugging Face в разделе «Говорящие»')
+        mode = body.get('mode', 'existing')
+        if mode not in {'existing', 'service', 'managed'}:
+            raise ValueError('Выберите подключение локального AI')
+        model = body.get('model')
+        if 'ollama' in features and (not isinstance(model, str) or not model.strip()):
+            raise ValueError('Выберите языковую модель в разделе «Локальный AI»')
+        with self.manager._lock:
+            if self.plan.get('state') == 'running' or self.active:
+                raise RuntimeError('Подготовка уже выполняется')
+            self.setup.guard()
+            plan_lease = (self.root / 'preparation.lock').open('a+')
+            try:
+                lock_file(plan_lease)
+                if 'diarization' in features and body.get('token'):
+                    self.token(body['token'])  # Only DPAPI storage; never include the token in the plan.
+            except Exception:
+                plan_lease.close()
+                raise
+            self.plan_owner = True
+            self.plan_cancel.clear()
+            self.plan = {'state': 'running', 'features': features, 'device': device, 'mode': mode,
+                         'model': model if 'ollama' in features else None, 'completed': [],
+                         'message': 'Согласия сохранены. Готовим выбранные функции…'}
+            try:
+                atomic(self.plan_path, self.plan)
+            except Exception:
+                self.plan_owner = False
+                self.plan['state'] = 'error'
+                plan_lease.close()
+                raise
+
+        def work():
+            try:
+                for key in ('whisper', 'diarization', 'ollama'):
+                    if key not in features:
+                        continue
+                    with self.manager._lock:
+                        if self.plan_cancel.is_set():
+                            raise RuntimeError('Подготовка остановлена. Проверенные компоненты сохранены.')
+                        operation = {'action': 'check', 'confirmed': True, 'resume': None}
+                        if key == 'whisper':
+                            operation['action'] = 'install'  # Reuses verified existing models.
+                        elif key == 'diarization':
+                            from diarization_setup import choose_device, detect_adapters
+                            target = choose_device(device, detect_adapters() if device == 'auto' else [])
+                            prepared = self.manager.value.get('diarization_device') == target and Path(self.manager.value.get('diarization_python') or '__missing__').is_file()
+                            operation.update(action='check' if prepared else 'install', device=device)
+                        else:
+                            operation.update(action='prepare' if mode == 'managed' else 'check', mode=mode, model=model, task='translation')
+                            if mode != selected(self.manager.value)['mode'] and mode != 'managed':
+                                raise ValueError('Сначала подключите выбранный внешний сервис в разделе «Локальный AI»')
+                        self.plan.update(current=key, message='Подготавливаем: ' + NAMES[key])
+                        atomic(self.plan_path, self.plan)
+                        self.action(key, operation, _planned=True)
+                    while self.active:
+                        time.sleep(.1)
+                    if self.plan_cancel.is_set():
+                        raise RuntimeError('Подготовка остановлена. Проверенные компоненты сохранены.')
+                    if self.components[key]['state'] != 'ready':
+                        raise RuntimeError(NAMES[key] + ': ' + self.components[key].get('message', 'Не удалось подготовить'))
+                    with self.manager._lock:
+                        self.plan['completed'].append(key)
+                        atomic(self.plan_path, self.plan)
+                with self.manager._lock:
+                    self.plan.update(state='ready', current=None, message='Выбранные функции готовы. Можно работать с записями.')
+                    atomic(self.plan_path, self.plan)
+            except Exception as exc:  # noqa: BLE001 — background boundary; do not persist arbitrary upstream output.
+                with self.manager._lock:
+                    self.plan.update(state='error', message=str(exc) if isinstance(exc, (ValueError, RuntimeError)) else 'Не удалось подготовить компоненты. Проверьте подключение и повторите.')
+                    atomic(self.plan_path, self.plan)
+            finally:
+                plan_lease.close()
+                self.plan_owner = False
+        threading.Thread(target=work, name='prepare-selected', daemon=True).start()
+        return {'started': True}
+
+    def action(self, key, body, *, _planned=False):
+        if body.get('action') == 'prepare_selected':
+            return self.prepare_selected(body)
+        if body.get('action') == 'cancel_selected':
+            with self.manager._lock:
+                if self.plan.get('state') == 'running' and not self.plan_owner:
+                    raise RuntimeError('Подготовка выполняется в другом экземпляре приложения. Остановите её в том окне.')
+                self.plan_cancel.set()
+                if self.active:
+                    self.cancel.set()
+                    self.update(self.active, pending_action=None)
+            return {'cancel_requested': True}
         if key not in NAMES:
             raise ValueError('Неизвестный компонент')
         action = body.get('action', 'check')
@@ -276,6 +398,7 @@ class ComponentManager:
             if self.active != key:
                 raise ValueError('У этого компонента нет активной операции')
             self.cancel.set()
+            self.plan_cancel.set()
             self.update(key, pending_action=None)
             return {'cancel_requested': True}
         if action == 'prepare' and key != 'ollama':
@@ -291,6 +414,8 @@ class ComponentManager:
         if key == 'diarization' and body.get('device', 'auto') not in {'auto', 'cpu', 'xpu'}:
             raise ValueError('Выберите автоматический режим, процессор (CPU) или видеокарту (GPU). Нейропроцессор (NPU) для этой задачи не поддерживается.')
         with self.manager._lock:
+            if not _planned and self.plan.get('state') == 'running':
+                raise RuntimeError('Выполняется подготовка выбранных функций. Дождитесь завершения или остановите её.')
             self.setup.guard()
             if self.active:
                 raise RuntimeError('Дождитесь завершения текущей подготовки')
@@ -510,6 +635,7 @@ class ComponentManager:
             raise
 
     def close(self):
+        self.plan_cancel.set()
         # Never stop an external service (even one explicitly started on 11434).
         if self.server and self.server.poll() is None:
             self.server.terminate()

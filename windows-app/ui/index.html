@@ -42,6 +42,11 @@
 <p id="view-description">Откройте запись, чтобы продолжить работу с её текстом и результатами.</p>
 </div>
 <p id="message" class="feedback" role="status" aria-live="polite"></p>
+<section class="card setup-callout" id="setup-callout" hidden aria-labelledby="setup-callout-heading">
+<h2 id="setup-callout-heading">Подготовьте AI один раз</h2>
+<p id="setup-callout-message">Откройте настройки, выберите нужные функции и разрешите загрузки. Приложение само подготовит выбранные компоненты.</p>
+<a class="vd-button vd-button--primary" href="#settings">Открыть настройки и разрешить подготовку</a>
+</section>
 <section class="card" id="bootstrap-notice" aria-label="Готовность приложения"><p id="bootstrap-message" role="status" aria-live="polite">Проверяем AI-компоненты…</p><button id="prepare-speech" class="vd-button" type="button" hidden>Скачать и подготовить</button><button id="cancel-preparation" class="vd-button" type="button" hidden>Остановить подготовку</button></section>
 <div class="workspace" id="page-workspace">
 <div>
@@ -142,7 +147,21 @@
 </section>
 <div id="setup-wizard" hidden>
 <section class="card">
-<h2>Готовность AI</h2>
+<h2>Выберите функции — остальное подготовим сами</h2>
+<p>Один раз выберите нужные функции и устройства, разрешите загрузки и нажмите «Сохранить и подготовить». Установка, проверка и переход к следующему компоненту выполняются автоматически. Можно уйти со страницы настроек и вернуться за прогрессом.</p>
+<label class="check-label"><input type="checkbox" id="prepare-whisper" checked> Распознавание речи</label>
+<label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор (CPU)</option><option value="GPU">Видеокарта (GPU)</option><option value="NPU">Нейропроцессор (NPU)</option></select></label>
+<label class="check-label"><input type="checkbox" id="prepare-diarization"> Определение говорящих</label>
+<label class="vd-field">Устройство для определения говорящих<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
+<button type="button" id="open-hf-settings" class="vd-button vd-button--quiet">Условия Hugging Face и токен →</button>
+<p class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для говорящих также примите условия и укажите токен Hugging Face в разделе «Говорящие».</p>
+<label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальный перевод и конспекты через Ollama</label>
+<button type="button" id="open-local-settings" class="vd-button vd-button--quiet">Подключение и языковая модель →</button>
+<p class="footnote">Подключение и модель выбираются в разделе «Локальный AI». Существующий сервер используем как есть; отдельная установка выполняется только в управляемом режиме.</p>
+<p id="prepare-sources" class="footnote"></p>
+<label class="check-label"><input type="checkbox" id="prepare-consent"> Разрешаю скачивание моделей и установку окружений для выбранных функций, включая выбранную видеокарту (GPU). Проверенные компоненты будут использованы повторно.</label>
+<div class="setup-actions"><button type="button" id="prepare-selected" class="vd-button vd-button--primary">Сохранить и подготовить</button><button type="button" id="prepare-selected-stop" class="vd-button" hidden>Остановить подготовку</button></div>
+<p id="preparation-status" class="feedback" role="status" aria-live="polite"></p>
 <p id="ai-summary" role="status">Проверяем компоненты…</p>
 <a class="vd-link" href="#diagnostics">Проверить компоненты в диагностике →</a>
 </section>
@@ -151,7 +170,7 @@
 <h2>Модель и устройство</h2>
 <button id="setup-toggle" class="vd-button vd-button--quiet" type="button" aria-controls="setup-form" aria-expanded="false">Настроить модель</button>
 </div>
-<label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор (CPU)</option><option value="GPU">Видеокарта (GPU)</option><option value="NPU">Нейропроцессор (NPU)</option></select></label>
+
 <div id="component-whisper"></div>
 <p id="setup-summary" class="footnote">Проверяем установленную модель…</p>
 <form id="setup-form" hidden>
@@ -257,11 +276,11 @@
 </p>
 </form>
 </details>
-<details class="card ai-section"><summary>Говорящие</summary>
+<details class="card ai-section"><summary>Говорящие · условия доступа Hugging Face</summary>
 <h2>Определение говорящих</h2>
 <p class="footnote">Автоматически подготовим отдельное окружение и модель community-1. Системный Python не нужен. Требуется не менее 8 ГиБ свободного места; загрузка пакетов может занять несколько гигабайт. Распознавание остаётся в своём окружении.</p>
 <div id="component-diarization"></div>
-<label class="vd-field">Устройство диаризации<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
+
 <p class="footnote">Для community-1 требуется принять условия Hugging Face и предоставить токен чтения. Токен защищается Windows DPAPI; в отчёты не попадает.</p>
 <button type="button" id="hf-terms" class="vd-button">Открыть условия community-1</button>
 <button type="button" id="hf-tokens" class="vd-button">Получить токен Hugging Face</button>

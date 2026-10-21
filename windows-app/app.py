@@ -424,7 +424,7 @@ def make_handler(value, instance):
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
                     if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
                         return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
-                    if components and components.active:
+                    if components and (components.active or components.plan.get('state') == 'running'):
                         return self.json_response(409, {'error': 'Остановите подготовку компонентов перед закрытием приложения'})
                     if components:
                         components.close()
