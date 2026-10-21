@@ -202,17 +202,6 @@ def run(args, evidence):
                      lambda row: row['state'] == 'ready' and row.get('proof', {}).get('model') == args.model
                      and row.get('proof', {}).get('task') == task, timeout=240)
 
-        def download_consent(accept):
-            def respond():
-                try:
-                    cdp.call('Page.handleJavaScriptDialog', accept=accept)
-                    return True
-                except RuntimeError as exc:
-                    if 'No dialog is showing' not in str(exc):
-                        raise
-                    return False
-            wait_for(respond, timeout=30)
-
         def completed():
             value = cdp.visible_text('#status')
             if value == 'Нужна проверка':
@@ -250,16 +239,14 @@ def run(args, evidence):
                 wait_for(lambda:not cdp.evaluate('document.querySelector("#prepare-speech").hidden'))
                 cdp.call('Page.enable')
                 cdp.click('#prepare-speech')
-                if args.manual_download_consent:
-                    evidence['consent_method'] = 'native WebView2 confirmation; acceptance operator responds in the guest'
-                    wait_for(lambda:api('/api/components')['active'] == 'whisper', timeout=180)
-                else:
-                    download_consent(False)
-                    assert api('/api/components')['active'] is None
-                    assert cdp.evaluate('document.querySelector("#file").files[0]?.name') == 'speech-check.mp4'
-                    evidence['download_refusal_preserved_file_and_started_nothing'] = True
-                    cdp.click('#prepare-speech')
-                    download_consent(True)
+                wait_for(lambda:cdp.evaluate('document.querySelector("#speech-download-dialog").open'))
+                cdp.click('#speech-download-cancel')
+                assert api('/api/components')['active'] is None
+                assert cdp.evaluate('document.querySelector("#file").files[0]?.name') == 'speech-check.mp4'
+                evidence['download_refusal_preserved_file_and_started_nothing'] = True
+                cdp.click('#prepare-speech')
+                wait_for(lambda:cdp.evaluate('document.querySelector("#speech-download-dialog").open'))
+                cdp.click('#speech-download-confirm')
                 operation = wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'whisper'),
                                      lambda op: op['state'] in {'ready', 'error'}, timeout=900)
                 if operation['state'] != 'ready':
@@ -427,7 +414,6 @@ def main():
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--reports', type=Path, required=True)
     parser.add_argument('--model', required=True)
-    parser.add_argument('--manual-download-consent', action='store_true', help='Native WebView2 confirmation is answered by the acceptance operator')
     parser.add_argument('--reuse-expensive-proof', action='store_true')
     args = parser.parse_args()
     if os.name != 'nt' or os.environ.get('USERNAME', '').lower() != 'wdagutilityaccount':

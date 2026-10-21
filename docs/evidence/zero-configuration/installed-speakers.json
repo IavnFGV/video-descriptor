@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "method": "real WebView2 pointer/form input",
+  "installed": true,
+  "device": "cpu",
+  "original_preserved": true,
+  "result_device": "cpu",
+  "segments": 1,
+  "resumed_job": "3b4b3063831e40d68468ab744dffecd1",
+  "seconds": 108.78
+}

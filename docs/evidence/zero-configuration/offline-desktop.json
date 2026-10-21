@@ -1,0 +1,123 @@
+{
+  "status": "PASS",
+  "run_id": "20261021-011547-845-functional",
+  "stages": [
+    {
+      "name": "preflight",
+      "status": "PASS",
+      "reason": "",
+      "started_at": "2026-10-20T22:26:23.7951136Z",
+      "finished_at": "2026-10-20T22:26:29.0883055Z",
+      "seconds": 5.165,
+      "evidence": [
+        "initial-citool.json",
+        "initial-sac.json"
+      ],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "installer",
+      "status": "PASS",
+      "reason": "Fresh guest silent install and file presence; full lifecycle not requested",
+      "started_at": "2026-10-20T22:26:29.1502851Z",
+      "finished_at": "2026-10-20T22:27:56.8973394Z",
+      "seconds": 87.696,
+      "evidence": [
+        "installer.log"
+      ],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "desktop",
+      "status": "PASS",
+      "reason": "",
+      "started_at": "2026-10-20T22:27:56.9747332Z",
+      "finished_at": "2026-10-20T22:28:13.2922085Z",
+      "seconds": 16.234,
+      "evidence": [
+        "desktop.json"
+      ],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "whisper",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "ollama-install",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "ollama-model",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "ollama-inference",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "translation",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "notes",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    },
+    {
+      "name": "cleanup",
+      "status": "NOT_TESTED",
+      "reason": "Not selected",
+      "started_at": null,
+      "finished_at": null,
+      "seconds": 0,
+      "evidence": [],
+      "checks": [],
+      "previous_run": null
+    }
+  ]
+}

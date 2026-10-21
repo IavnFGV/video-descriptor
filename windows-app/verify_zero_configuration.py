@@ -21,7 +21,7 @@ def main():
     args = parser.parse_args()
     if not (args.root / '.acceptance-installation.json').is_file():
         raise SystemExit('Only marked disposable test installations are supported')
-    pages = json.loads(read_http(f'http://127.0.0.1:{args.debug_port}/json/list'))
+    pages = wait_for(lambda: json.loads(read_http(f'http://127.0.0.1:{args.debug_port}/json/list')))
     page = next(item for item in pages if item['type'] == 'page' and item['url'].startswith('http://127.0.0.1:'))
     cdp = CDP(page['webSocketDebuggerUrl'])
     report = {'status': 'FAIL', 'method': 'real WebView2 pointer/form input', 'installed': args.installed, 'device': args.device}

@@ -361,6 +361,7 @@
     try{
       const d=await api('/api/components'), model=d.profiles.ollama_models[0];
       await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component:'ollama',action:'prepare',mode:'managed',model:model.name,task:localTask==='notes'?'notes':'translation',resume:{folder:localFolder,task:localTask},confirmed:$('local-ai-consent').checked})});
+      await componentStatus();
       const folder=localFolder;
       const wait=async()=>{
         const d=await api('/api/components'),item=d.components.find(c=>c.id==='ollama');
@@ -413,6 +414,7 @@
       const previous=saved.components.find(c=>c.id==='diarization');
       const cached=health.diarization?.state==='configured'&&previous.proof?.turns?.length&&health.diarization.requested_device===device;
       if(!cached)await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component:'diarization',action:speakerNeedsInstall?'install':'check',device,token,resume:{folder,task:'diarize'},confirmed:$('speaker-consent').checked})});
+      await componentStatus();
       $('speaker-token').value='';
       $('speaker-status').textContent='Подготавливаем определение говорящих… Можно закрыть это окно.';
       const wait=async()=>{
@@ -430,12 +432,23 @@
     }catch(e){fail(e);}
     function fail(e){speakerPending=false;$('speaker-device').disabled=false;speakerNeedsInstall=true;$('speaker-install-fields').hidden=false;$('speaker-install-fields').open=true;$('speaker-go').textContent='Подготовить и повторить';$('speaker-go').disabled=false;$('speaker-status').textContent=e.message;message(e.message,true);}
   };
+  function speechDownloadConsent(profile){
+    const dialog=$('speech-download-dialog');
+    if(dialog.open)return Promise.resolve(false);
+    $('speech-download-info').textContent='Источник: '+profile.source+' · Объём: '+Math.ceil(profile.download_bytes/1024**2)+' МиБ.';
+    dialog.returnValue='';
+    const result=new Promise(resolve=>dialog.addEventListener('close',()=>{resolve(dialog.returnValue==='download');$('prepare-speech').focus();},{once:true}));
+    dialog.showModal();
+    return result;
+  }
+  $('speech-download-confirm').onclick=()=>$('speech-download-dialog').close('download');
+  $('speech-download-cancel').onclick=()=>$('speech-download-dialog').close('cancel');
   $('prepare-speech').onclick=async()=>{
     try{
       const s=await api('/api/setup');
       if(s.model_present){await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await readiness();return;}
       const data=await api('/api/components'), item=data.components.find(c=>c.id==='whisper');
-      const consent=(item.download_consent===true&&item.consent_revision===s.download.revision)||window.confirm('Скачать и подготовить распознавание?\nИсточник: '+s.download.source+'\nОбъём: '+Math.ceil(s.download.download_bytes/1024**2)+' МиБ. Файлы проверяются перед установкой.');
+      const consent=(item.download_consent===true&&item.consent_revision===s.download.revision)||await speechDownloadConsent(s.download);
       if(consent)await componentAction('whisper','install',{confirmed:true});
     }catch(e){message(e.message,true);}
   };
