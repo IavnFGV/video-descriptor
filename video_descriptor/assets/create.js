@@ -438,6 +438,7 @@
     $('subtitle-mode-label').hidden = !snapshot.translation_url;
     document.body.dataset.subtitles = snapshot.translation_url ? $('subtitle-mode').value : 'original';
     $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик';
+    if(snapshot.speech_edit_revision)window.bindSpeechHistory($('stage-speech'),snapshot.folder,saved=>savedSpeech(saved,snapshot.folder));
     changed('speech-feed', [snapshot.speech, snapshot.speaker_names, snapshot.speech_edit_revision, snapshot.speaker_options, Boolean(snapshot.speech_editor_url)], node => {
       // Polling must not replace a user's open quick editor or inline speaker field.
       if(window.speechReplyEditing?.()){delete rendered['speech-feed'];return;}
@@ -452,7 +453,7 @@
         if(editable){heading.append(window.createSpeakerName(original,source.speaker||'unknown',onSave));tools.append(window.createSpeakerSelect(original,index,onSave));}
         else if(source.speaker)heading.append(text('strong',snapshot.speaker_names[source.speaker]||source.speaker));
         const content=text('p',source.text,'subtitle-original');
-        if(editable)window.enableQuickReplyEdit(content,original,index,onSave);
+        if(editable)window.enableQuickReplyEdit(content,original,index,saved=>{onSave(saved);$('speech-feed').children[index]?.querySelector('.subtitle-original')?.focus({preventScroll:true});});
         heading.append(tools);row.append(heading,content);
         if(source.translation!=null)row.append(text('p',source.translation,'subtitle-ru'));
         if (snapshot.speech_editor_url) {

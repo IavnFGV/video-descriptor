@@ -64,7 +64,12 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c.call('Page.addScriptToEvaluateOnNewDocument',source="""window.uiErrors=[];addEventListener('error',e=>uiErrors.push(e.message));Object.defineProperties(HTMLMediaElement.prototype,{readyState:{get:()=>2},duration:{get:()=>2400},currentTime:{get(){return this._time||0},set(v){this._time=v;this.dispatchEvent(new Event('timeupdate'))}}});HTMLMediaElement.prototype.load=function(){};""")
         c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
         c.call('Page.navigate',url=f'http://127.0.0.1:{server.server_port}/?job={identity}')
-        wait_for(lambda:c.evaluate('!!document.querySelector("#recording-notes")?.options.length && !!document.querySelector("#report-editor")?.contentDocument?.querySelector("#personal-preview [data-note-time]")'),timeout=35)
+        def workspace_ready():
+            try:return c.evaluate('!!document.querySelector("#recording-notes")?.options.length && !!document.querySelector("#report-editor")?.contentDocument?.querySelector("#personal-preview [data-note-time]")')
+            except RuntimeError as error:
+                if 'navigated' in str(error) or 'context' in str(error):return False
+                raise
+        wait_for(workspace_ready,timeout=35)
         def evaluate(script): return c.evaluate(script)
         assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
         assert evaluate('location.pathname==="/create" && recordingUI.native')
@@ -102,18 +107,54 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert not evaluate('document.querySelector("#recording-notes-settings").hidden')
         assert evaluate('document.querySelector("#report-editor").src.includes("notes-b")')
         c.fill('#construction-provider','gemini')
+        wait_for(lambda:evaluate('!document.querySelector("#construction-run").disabled'),timeout=8)
         c.click('#construction-run')
-        assert 'Подтвердите отправку' in c.visible_text('#construction-status'), c.visible_text('#construction-status')
+        wait_for(lambda:'Подтвердите отправку' in c.visible_text('#construction-status'),timeout=5)
         c.click('#cancel-new-notes')
         c.fill('#recording-speech','__new__')
         assert evaluate('document.querySelector("#speech-settings").open')
         evaluate('document.querySelector("#speech-settings").open=false;scrollTo(0,0)')
+        def frame_eval(expression):
+            return evaluate('(()=>{const doc=document.querySelector("#report-editor").contentDocument;return '+expression+'})()')
+        def frame_click(selector):
+            point=evaluate('''(()=>{const frame=document.querySelector('#report-editor'),e=frame.contentDocument.querySelector('''+json.dumps(selector)+''');e.scrollIntoView({block:'center'});frame.scrollIntoView({block:'center'});const r=e.getBoundingClientRect(),f=frame.getBoundingClientRect();return [f.x+r.x+r.width/2,f.y+r.y+r.height/2]})()''')
+            for kind in ('mousePressed','mouseReleased'):c.call('Input.dispatchMouseEvent',type=kind,x=point[0],y=point[1],button='left',clickCount=1)
+        def frame_fill(selector,value):
+            evaluate('(()=>{const e=document.querySelector("#report-editor").contentDocument.querySelector('+json.dumps(selector)+');e.value='+json.dumps(value)+';e.dispatchEvent(new Event("input",{bubbles:true}));})()')
+        def key(name,modifiers=0):
+            for kind in ('keyDown','keyUp'):c.call('Input.dispatchKeyEvent',type=kind,key=name,modifiers=modifiers,windowsVirtualKeyCode={'Escape':27,'Enter':13,'z':90}.get(name,0))
+        initial_notes=frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')
+        frame_click('#add-section');frame_click('.notes-section-editor [data-cancel]')
+        assert frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')==initial_notes
+        frame_click('#add-section');key('Escape')
+        wait_for(lambda:frame_eval('!doc.querySelector(".notes-section-editor")'),timeout=5)
+        assert frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')==initial_notes
+        frame_click('#add-section');frame_fill('.notes-section-editor [name=heading]','[00:03:00] Новый раздел');frame_fill('.notes-section-editor [name=body]','Уникальная правка раздела')
+        frame_click('.notes-section-editor [type=submit]')
+        assert 'Уникальная правка раздела' in frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')
+        key('z',2)
+        assert frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')==initial_notes
+        key('z',10)
+        assert 'Уникальная правка раздела' in frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')
+        frame_click('#reset-notes');frame_click('[data-discard]')
+        wait_for(lambda:frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')==initial_notes,timeout=5)
+        # Section Ctrl-hover invokes the same local draft dialog without saving to disk.
+        point=evaluate('''(()=>{const f=document.querySelector('#report-editor'),e=f.contentDocument.querySelector('#personal-preview h2');e.scrollIntoView({block:'center'});f.scrollIntoView({block:'center'});const r=e.getBoundingClientRect(),p=f.getBoundingClientRect();return [p.x+r.x+100,p.y+r.y+r.height/2]})()''')
+        c.call('Input.dispatchMouseEvent',type='mouseMoved',x=1,y=1)
+        c.call('Input.dispatchMouseEvent',type='mouseMoved',x=point[0],y=point[1],modifiers=2)
+        assert frame_eval('!!doc.querySelector(".notes-section-editor")')
+        frame_fill('.notes-section-editor [name=body]','Локальная правка');frame_click('.notes-section-editor [data-cancel]')
+        assert frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')==initial_notes
         def quick_open():
             point=evaluate('''(()=>{const p=document.querySelector('#speech-feed .utterance .subtitle-original');p.scrollIntoView({block:'center'});const r=p.getBoundingClientRect();return [r.x+10,r.y+r.height/2]})()''')
             c.call('Input.dispatchMouseEvent',type='mouseMoved',x=1,y=1)
             c.call('Input.dispatchMouseEvent',type='mouseMoved',x=point[0],y=point[1],modifiers=2)
             wait_for(lambda:evaluate('!!document.querySelector(".quick-reply-editor textarea")'),timeout=5)
         quick_open()
+        initial_input=evaluate('document.querySelector(".quick-reply-editor textarea").value')
+        c.call('Input.insertText',text=' Временный ввод')
+        key('z',2)
+        assert evaluate('document.querySelector(".quick-reply-editor textarea").value')==initial_input
         c.fill('.quick-reply-editor textarea','Исправлено через Ctrl')
         evaluate('recordingSelection.refresh()')
         assert evaluate('document.querySelector(".quick-reply-editor textarea").value')=='Исправлено через Ctrl'
@@ -124,6 +165,14 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert edits['segments'][0]['text']=='Исправлено через Ctrl'
         assert edits['segments'][0]['speaker']=='speaker_1'
         assert edits['translations']['s0']=='Сохранённый перевод'
+        c.click('#speech-feed .subtitle-original')
+        c.call('Input.dispatchKeyEvent',type='keyDown',key='Control',windowsVirtualKeyCode=17,modifiers=2)
+        wait_for(lambda:evaluate('!!document.querySelector(".quick-reply-editor")'),timeout=5)
+        key('z',2)
+        c.call('Input.dispatchKeyEvent',type='keyUp',key='Control',windowsVirtualKeyCode=17)
+        wait_for(lambda:json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))['segments'][0]['text'].startswith('Реплика 0'),timeout=6)
+        c.click('#speech-feed .subtitle-original');key('z',10)
+        wait_for(lambda:json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))['segments'][0]['text']=='Исправлено через Ctrl',timeout=6)
         quick_open();c.fill('.quick-reply-editor textarea','Несохранённый текст')
         c.fill('#recording-speech','original')
         wait_for(lambda:evaluate('!!document.querySelector("[data-keep-editing]")'))
@@ -154,6 +203,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert evaluate('window.uiErrors')==[], evaluate('window.uiErrors')
         evidence={'status':'PASS','scope':'Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked native health and media metadata; no inference or user data', 'checks':['native job URL opens unified workspace directly','one shared player; embedded report has no media source','side layout: speech under video, notes right','expanded layout','player identity and time preserved across report variants','speech and Markdown heading synchronization','manual scroll pause and resume','magnet off','dirty report blocks variant switch','new notes settings preserve existing report','Google generation requires consent before submission','new speech settings','1920/1100/760/360 widths fit','no browser runtime errors']}
         evidence['checks']+=['Ctrl hover opens quick editor','polling preserves input','Ctrl+Enter saves text and preserves speaker/translation','dirty speech blocks version navigation','stale revision preserves input','Escape cancels','inline speaker rename and reassignment']
+        evidence['checks']+=['notes new section Cancel/Escape','notes applied section is one undo step','notes redo and reset to last saved','notes Ctrl-hover local edit cancel','subtitle Ctrl+Z and Ctrl+Shift+Z persist undo/redo']
         (out/'result.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         print(json.dumps(evidence,ensure_ascii=False))
     finally:

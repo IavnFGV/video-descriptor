@@ -30,7 +30,7 @@
     "windows-app/setup_service.py": "Expose configured native diarization environment separately from recognition hardware readiness.",
     "windows-app/build_release.py": "Include the native diarization worker, optional setup script, pinned dependency requirements and guide in the existing explicit release source allowlist; no models or extra runtime dependencies bundled.",
     "windows-app/Prepare-Diarization.ps1": "User-requested GPU-aware preparation defaults to Auto, delegates isolated installation and mandatory hardware/model validation to diarization_setup.py; preserves active jobs and NPU environment.",
-    "video_descriptor/speech.py": "20.10.2026 user-requested manual speaker creation: named speaker IDs are available options and accepted for utterance edits; revisions and source text unchanged.",
+    "video_descriptor/speech.py": "20-22 October: manual named speakers plus owner-requested undo/redo via validated atomic restore of segments/translations under the existing EDIT_LOCK and revision guard. Existing edit/split payloads and user data formats retained.",
     "windows-app/component-manifest.json": "AI Component Manager: additive pinned profiles, owned setup operation and verified download reuse; existing recognition contracts retained.",
     "windows-app/compute.py": "AI Component Manager: additive pinned profiles, owned setup operation and verified download reuse; existing recognition contracts retained.",
     "windows-app/model_download.py": "AI Component Manager: additive pinned profiles, owned setup operation and verified download reuse; existing recognition contracts retained.",

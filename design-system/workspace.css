@@ -1,4 +1,5 @@
 /* Recording workspace: no API or data state is encoded in layout. */
+.subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
 .studio-header p{color:var(--vd-muted)}.studio-header h1{margin-bottom:var(--vd-space-2)}
 #open-connections{float:right}.record-toolbar{display:flex;align-items:center;gap:var(--vd-space-4);margin:var(--vd-space-4) 0;flex-wrap:wrap}
 .record-toolbar label{flex:1}.record-menu{position:relative;margin-left:auto}.record-menu>summary{padding:var(--vd-space-2) var(--vd-space-3)}.record-menu>button{position:absolute;right:0;top:100%;z-index:var(--vd-layer-sticky);width:max-content;max-width:70vw}

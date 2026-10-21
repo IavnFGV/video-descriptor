@@ -68,6 +68,33 @@ def edit_utterance(root, value):
         result = editable_result(folder, original)
         if value.get('revision') != result['edit_revision']:
             raise ValueError('Реплики изменились. Обновите страницу перед сохранением')
+        if value.get('action') == 'restore':
+            rows = value.get('segments')
+            translations = value.get('translations')
+            if not isinstance(rows, list) or not rows or len(rows) > 100000 or not isinstance(translations, dict):
+                raise ValueError('Некорректный снимок расшифровки')
+            known = {row['speaker'] for row in original['segments']} | set(original.get('speaker_names', {})) | {'unknown'}
+            identifiers = set()
+            for index, row in enumerate(rows):
+                if not isinstance(row, dict):
+                    raise TypeError('Некорректная реплика')
+                identity, start, end = row.get('id', f'@{index}'), row.get('start'), row.get('end')
+                if not isinstance(identity, str) or not identity or len(identity) > 200 or identity in identifiers:
+                    raise ValueError('Некорректный идентификатор реплики')
+                identifiers.add(identity)
+                unknown_end = end == -1 and any(item.get('start') == start and item.get('end') == -1 for item in original['segments'])
+                if (type(start) not in (int, float) or type(end) not in (int, float) or not math.isfinite(start) or not math.isfinite(end)
+                        or not (start >= 0 and (unknown_end or start < end <= original.get('duration', float('inf')) + .01))):
+                    raise ValueError('Некорректные границы реплики')
+                if not isinstance(row.get('text'), str) or not row['text'].strip() or len(row['text']) > 100000 or row.get('speaker') not in known:
+                    raise ValueError('Некорректный текст или говорящий')
+            if any(not isinstance(key, str) or not isinstance(text, str) or len(text) > 100000 for key, text in translations.items()):
+                raise ValueError('Некорректный перевод')
+            write_json(folder / 'transcript-edits.json', {'segments': rows, 'translations': translations, 'updated': time.time()})
+            if (folder / 'manifest.json').is_file() and (folder / 'notes.json').is_file():
+                from .translate import refresh_reports
+                refresh_reports(folder)
+            return editable_result(folder, original)
         index = value.get('index')
         if type(index) is not int or not 0 <= index < len(result['segments']):
             raise ValueError('Реплика не найдена')

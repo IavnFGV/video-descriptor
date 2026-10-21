@@ -49,7 +49,8 @@
   try { sectionsOpen = localStorage.getItem(sectionsKey) === 'true'; } catch (_) {}
   const draftKey = 'video-descriptor-draft:' + location.pathname;
   let revision = null, savedText = '', dirty = false, loading = true, saving = false;
-  window.notesEditorDirty = () => dirty;
+  let sectionDialog=null, sectionDirty=()=>false;
+  window.notesEditorDirty = () => dirty || sectionDirty();
   let editing = false, timer;
   const editor = new EasyMDE({
     element: document.getElementById('notes-editor'),
@@ -67,6 +68,46 @@
       {name: 'redo', action: EasyMDE.redo, text: '↷', title: 'Повторить'},
     ],
   });
+  const actions=saveButton.parentElement;
+  const undo=document.createElement('button'),redo=document.createElement('button'),reset=document.createElement('button');
+  undo.id='undo-notes';redo.id='redo-notes';reset.id='reset-notes';
+  for(const button of [undo,redo,reset])button.type='button';
+  undo.textContent='↶ Отменить';redo.textContent='↷ Повторить';reset.textContent='Сбросить несохранённые правки';
+  undo.title='Ctrl+Z';redo.title='Ctrl+Shift+Z';actions.insertBefore(undo,saveButton);actions.insertBefore(redo,saveButton);actions.insertBefore(reset,document.getElementById('add-section'));
+  function historyButtons(){const size=editor.codemirror.historySize();undo.disabled=loading||saving||Boolean(sectionDialog)||!size.undo;redo.disabled=loading||saving||Boolean(sectionDialog)||!size.redo;reset.disabled=loading||saving||!dirty;}
+  function undoNotes(){if(saving||sectionDialog)return;editor.codemirror.undo();updatePreview();historyButtons();}
+  function redoNotes(){if(saving||sectionDialog)return;editor.codemirror.redo();updatePreview();historyButtons();}
+  undo.onclick=undoNotes;redo.onclick=redoNotes;
+  reset.onclick=async()=>{if(!dirty||saving)return;if(await window.confirmDiscard('Вернуть конспект к последнему сохранению? Все несохранённые правки будут сброшены.')){editor.codemirror.changeGeneration(true);editor.value(savedText);editor.codemirror.changeGeneration(true);updatePreview();historyButtons();}};
+  function openSection(index,creating=false){
+    if(sectionDialog||saving||loading)return;
+    const cm=editor.codemirror,all=headings(editor.value()),section=all[index];if(!section)return;
+    window.recordingUI?.pauseLink();if(parent!==window)parent.recordingUI?.pauseLink();
+    const lines=editor.value().split('\n'),next=all.slice(index+1).find(item=>item.depth<=section.depth);
+    const stop=next?.line??lines.length,body=lines.slice(section.line+1,stop).join('\n');
+    const dialog=document.createElement('dialog');sectionDialog=dialog;dialog.className='vd-dialog notes-section-editor';
+    dialog.setAttribute('aria-label',creating?'Новый раздел конспекта':'Правка раздела конспекта');
+    dialog.innerHTML='<form><h2>Правка раздела</h2><label>Заголовок с временной меткой<input name="heading" required></label><label>Текст раздела · Markdown<textarea name="body" rows="12"></textarea></label><p role="status">«Применить» меняет черновик. Для записи на диск нажмите «Сохранить».</p><div class="vd-actions"><button type="submit">Применить</button><button type="button" data-cancel>Отмена</button></div></form>';
+    const form=dialog.querySelector('form');form.elements.heading.value=section.title;form.elements.body.value=body;
+    let localTouched=false;form.addEventListener('input',()=>{localTouched=true;});
+    sectionDirty=()=>form.elements.heading.value!==section.title||form.elements.body.value!==body;
+    const close=()=>{sectionDialog=null;sectionDirty=()=>false;dialog.close();dialog.remove();updatePreview();historyButtons();};
+    const cancel=()=>{if(creating)cm.undo();close();};
+    dialog.querySelector('[data-cancel]').onclick=cancel;dialog.addEventListener('cancel',event=>{event.preventDefault();cancel();});
+    form.onsubmit=event=>{
+      event.preventDefault();if(!form.reportValidity())return;
+      const heading=form.elements.heading.value.trim();if(!heading||/[\r\n]/.test(heading))return;
+      const replacement='#'.repeat(section.depth)+' '+heading+'\n'+form.elements.body.value.replace(/\s*$/,'')+'\n\n';
+      if(creating){cm.undo();cm.changeGeneration(true);const last=cm.lastLine();cm.replaceRange('\n\n'+replacement,{line:last,ch:cm.getLine(last).length});}
+      else{cm.changeGeneration(true);cm.replaceRange(replacement,{line:section.line,ch:0},next?{line:stop,ch:0}:{line:lines.length-1,ch:lines.at(-1).length});}
+      cm.changeGeneration(true);close();
+    };
+    dialog.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'&&!sectionDirty()&&(creating||!localTouched)){event.preventDefault();event.stopPropagation();if(creating)cancel();else{close();if(event.shiftKey)redoNotes();else undoNotes();}}if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();form.requestSubmit();}});
+    document.body.append(dialog);dialog.showModal();historyButtons();form.elements.heading.focus();
+  }
+  let hoveredSection=null;
+  let controlTimer;
+  document.addEventListener('keyup',event=>{if(event.key==='Control')clearTimeout(controlTimer);});
   function notify(text) { message.textContent = text; }
   function download(text, name = 'notes.user.md') {
     const url = URL.createObjectURL(new Blob([text], {type: 'text/markdown;charset=utf-8'}));
@@ -90,6 +131,7 @@
     return result;
   }
   function updatePreview() {
+    hoveredSection=null;
     const text = editor.value();
     preview.innerHTML = DOMPurify.sanitize(editor.markdown(text), {
       FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button', 'img'],
@@ -99,6 +141,9 @@
     const rendered = preview.querySelectorAll('h1,h2,h3,h4,h5,h6');
     rendered.forEach((heading, index) => {
       heading.id = 'personal-heading-' + index;
+      const bind=node=>{node.title='Ctrl + наведение — правка раздела';node.tabIndex=0;node.onpointerenter=event=>{hoveredSection=index;if(event.ctrlKey)openSection(index);};node.onpointerleave=()=>{if(hoveredSection===index)hoveredSection=null;};node.onkeydown=event=>{if(event.ctrlKey&&event.key==='Enter'){event.preventDefault();openSection(index);}};};
+      bind(heading);
+      let sibling=heading.nextElementSibling;while(sibling&&!sibling.matches('h1,h2,h3,h4,h5,h6')){bind(sibling);sibling=sibling.nextElementSibling;}
       const time = timeOf(heading.textContent);
       if (time !== null) {
         heading.dataset.noteTime = time;
@@ -125,11 +170,13 @@
       const remove = document.createElement('button'); remove.className = 'outline-delete';
       remove.textContent = 'Удалить'; remove.title = 'Удалить раздел; можно отменить ↶';
       remove.addEventListener('click', () => {
+        editor.codemirror.changeGeneration(true);
         const lines = editor.value().split('\n');
         const next = sections.slice(index + 1).find(item => item.depth <= section.depth);
         editor.codemirror.replaceRange('', {line: section.line, ch: 0},
           next ? {line: next.line, ch: 0} : {line: lines.length - 1, ch: lines.at(-1).length});
         updatePreview();
+        editor.codemirror.changeGeneration(true);historyButtons();
       });
       row.append(jump, remove); outline.append(row);
     });
@@ -162,6 +209,7 @@
   editor.codemirror.on('change', () => {
     if (loading) return;
     dirty = editor.value() !== savedText; saveButton.disabled = !dirty || revision === null || saving;
+    historyButtons();
     rememberDraft(); notify(dirty ? 'Есть несохранённые правки' : 'Сохранено');
     clearTimeout(timer); timer = setTimeout(updatePreview, 250);
   });
@@ -181,6 +229,7 @@
     button.addEventListener('click', () => view(button.dataset.notesView));
   });
   async function save() {
+    if(sectionDialog){notify('Сначала примените или отмените правку раздела.');return;}
     if (revision === null || saving || !dirty) return;
     saving = true; saveButton.disabled = true; notify('Сохраняем…');
     const text = editor.value();
@@ -192,7 +241,7 @@
       revision = result.revision; savedText = text; dirty = editor.value() !== savedText;
       rememberDraft(); notify(dirty ? 'Сохранено; есть новые правки' : 'Сохранено в notes.user.md');
     } catch (error) { notify(error.message + ' Правки можно скачать кнопкой Markdown.'); }
-    finally { saving = false; saveButton.disabled = !dirty || revision === null; }
+    finally { saving = false; saveButton.disabled = !dirty || revision === null; historyButtons(); }
   }
   saveButton.addEventListener('click', save);
   document.getElementById('download-notes').addEventListener('click', () => download(editor.value()));
@@ -209,16 +258,21 @@
     const stamp = [Math.floor(time / 3600), Math.floor(time / 60) % 60, time % 60]
       .map(part => String(part).padStart(2, '0')).join(':');
     const cm = editor.codemirror, last = cm.lastLine();
+    if(sectionDialog||saving)return;
+    cm.changeGeneration(true);
     cm.replaceRange('\n\n## [' + stamp + '] Новый раздел\n\n', {line: last, ch: cm.getLine(last).length});
-    view('edit'); cm.setCursor(cm.lastLine(), 0); cm.focus(); updatePreview();
+    cm.changeGeneration(true);updatePreview();openSection(headings(editor.value()).length-1,true);
   });
   document.addEventListener('keydown', event => {
+    clearTimeout(controlTimer);
+    if(event.key==='Control'&&!event.repeat&&hoveredSection!==null&&!sectionDialog)controlTimer=setTimeout(()=>{if(hoveredSection!==null&&!sectionDialog)openSection(hoveredSection);},220);
+    if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'&&!event.target.closest('input,textarea,.CodeMirror')&&!sectionDialog){event.preventDefault();if(event.shiftKey)redoNotes();else undoNotes();}
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
       event.preventDefault(); save();
     }
   });
   window.addEventListener('beforeunload', event => {
-    if (dirty) { event.preventDefault(); event.returnValue = ''; }
+    if (window.notesEditorDirty()) { event.preventDefault(); event.returnValue = ''; }
   });
   async function load() {
     try {
@@ -240,7 +294,7 @@
       editor.value(document.getElementById('editor-seed').textContent);
       notify(error.message + '. Доступно редактирование и скачивание Markdown.');
     }
-    loading = false; saveButton.disabled = !dirty || revision === null;
+    editor.codemirror.clearHistory();loading = false; saveButton.disabled = !dirty || revision === null;historyButtons();
     updatePreview(); view('read');
   }
   load();

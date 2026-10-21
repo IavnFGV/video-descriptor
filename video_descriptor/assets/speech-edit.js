@@ -1,6 +1,36 @@
 (() => {
   const stamp=s=>{s=Math.floor(s);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>String(n).padStart(2,'0')).join(':');};
-  async function post(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const x=await r.json();if(!r.ok)throw Error(x.error||'Не удалось сохранить');return x;}
+  const speechHistories=new Map(),historyBindings=new Map();
+  let lastHistoryRoot=null;
+  const historyFor=folder=>{if(!speechHistories.has(folder))speechHistories.set(folder,{undo:[],redo:[],revision:null,busy:false});return speechHistories.get(folder);};
+  async function post(url,payload){
+    let before=null;
+    if(url==='/api/speech-edit'&&['edit','split'].includes(payload.action)){
+      const response=await fetch('/api/speech?'+new URLSearchParams({folder:payload.folder}),{cache:'no-store'}),data=await response.json();
+      if(!response.ok)throw Error(data.error||'Не удалось проверить версию расшифровки');before=data.result;
+      if(before.edit_revision!==payload.revision)throw Error('Реплики изменились. Обновите страницу перед сохранением');
+    }
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const x=await r.json();if(!r.ok)throw Error(x.error||'Не удалось сохранить');
+    if(before){const state=historyFor(payload.folder);if(state.revision&&state.revision!==before.edit_revision)state.undo=[];state.undo.push({before,after:x});if(state.undo.length>20)state.undo.shift();state.redo=[];state.revision=x.edit_revision;updateHistoryButtons();}
+    return x;
+  }
+  function updateHistoryButtons(){for(const binding of historyBindings.values()){const state=historyFor(binding.folder);binding.undo.disabled=state.busy||editing||!state.undo.length;binding.redo.disabled=state.busy||editing||!state.redo.length;}}
+  async function speechHistoryStep(binding,redo=false){
+    const state=historyFor(binding.folder),stack=redo?state.redo:state.undo,item=stack.at(-1);if(!item||state.busy||editing)return;
+    state.busy=true;editing=true;updateHistoryButtons();binding.feedback.textContent='Сохраняем '+(redo?'повтор':'отмену')+'…';
+    try{const target=redo?item.after:item.before;const saved=await post('/api/speech-edit',{folder:binding.folder,revision:state.revision,action:'restore',segments:target.segments,translations:target.translations||{}});stack.pop();(redo?state.undo:state.redo).push(item);state.revision=saved.edit_revision;editing=false;binding.onSave(saved);binding.feedback.textContent=redo?'Действие повторено и сохранено.':'Действие отменено и сохранено.';}
+    catch(error){binding.feedback.textContent=error.message+' Отмена не сохранена.';}finally{editing=false;state.busy=false;updateHistoryButtons();}
+  }
+  window.bindSpeechHistory=(root,folder,onSave)=>{
+    let binding=historyBindings.get(root);
+    if(!binding){const toolbar=document.createElement('div'),undo=document.createElement('button'),redo=document.createElement('button'),feedback=document.createElement('span');toolbar.className='subtitle-history vd-actions';undo.type=redo.type='button';undo.textContent='↶ Отменить';redo.textContent='↷ Повторить';undo.title='Ctrl+Z';redo.title='Ctrl+Shift+Z';feedback.setAttribute('role','status');toolbar.append(undo,redo,feedback);(root.querySelector('.subtitle-tools')||root).append(toolbar);binding={undo,redo,feedback};historyBindings.set(root,binding);undo.onclick=()=>speechHistoryStep(binding);redo.onclick=()=>speechHistoryStep(binding,true);}
+    binding.folder=folder;binding.onSave=onSave;updateHistoryButtons();
+    if(!root.dataset.historyBound){root.dataset.historyBound='true';root.addEventListener('focusin',()=>{lastHistoryRoot=root;});root.addEventListener('pointerdown',()=>{lastHistoryRoot=root;});}
+  };
+  document.addEventListener('keydown',event=>{
+    if(!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='z'||event.target.closest('input,textarea,[contenteditable=true],.CodeMirror'))return;
+    for(const [root,binding] of historyBindings){if(root.contains(event.target)||event.target===document.body&&root===lastHistoryRoot){event.preventDefault();speechHistoryStep(binding,event.shiftKey);break;}}
+  });
   let discardDialog=null;
   window.confirmDiscard = message => {
     if(discardDialog)return Promise.resolve(false);
@@ -21,7 +51,9 @@
   let hoveredReply=null,quickEdit=null;
   window.mayLeaveQuickReply=async()=>!quickEdit||(!quickEdit.saving()&&(!quickEdit.dirty()||await window.confirmDiscard('Текст реплики ещё не сохранён. Закрыть без сохранения?')));
   window.closeQuickReplyEdit=()=>quickEdit?.close();
-  document.addEventListener('keydown',e=>{if(e.key==='Control'&&!e.repeat)hoveredReply?.();});
+  let controlTimer;
+  document.addEventListener('keydown',e=>{clearTimeout(controlTimer);if(e.key==='Control'&&!e.repeat)controlTimer=setTimeout(()=>hoveredReply?.(),220);});
+  document.addEventListener('keyup',e=>{if(e.key==='Control')clearTimeout(controlTimer);});
   window.enableQuickReplyEdit = function(text, original, index, onSave){
     const row=original.segments[index];
     text.title='Ctrl + наведение — быстро исправить текст';text.tabIndex=0;
@@ -36,6 +68,7 @@
       save.type=cancel.type='button';save.className='vd-button vd-button--primary';cancel.className='vd-button';
       save.textContent='Сохранить';cancel.textContent='Отмена';feedback.setAttribute('role','status');feedback.className='vd-error';
       let saving=false;
+      let localTouched=false;input.addEventListener('input',()=>{localTouched=true;});
       const beforeUnload=e=>{if(input.value!==row.text){e.preventDefault();e.returnValue='';}};
       window.addEventListener('beforeunload',beforeUnload);
       const close=()=>{editing=false;quickEdit=null;window.removeEventListener('beforeunload',beforeUnload);panel.replaceWith(text);text.focus({preventScroll:true});};
@@ -51,7 +84,13 @@
         }catch(e){feedback.textContent=e.message;}
         finally{saving=false;save.disabled=cancel.disabled=false;input.disabled=false;panel.removeAttribute('aria-busy');}
       };
-      input.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();cancel.click();}if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();save.click();}};
+      input.onkeydown=e=>{
+        if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!localTouched&&!saving){
+          const binding=[...historyBindings].find(([root])=>root.contains(panel))?.[1],state=binding&&historyFor(binding.folder);
+          if(state&&(e.shiftKey?state.redo:state.undo).length){e.preventDefault();e.stopPropagation();close();speechHistoryStep(binding,e.shiftKey);return;}
+        }
+        if(e.key==='Escape'){e.preventDefault();cancel.click();}if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();save.click();}
+      };
       actions.append(save,cancel);panel.append(input,actions,feedback);text.replaceWith(panel);input.focus({preventScroll:true});
     };
     text.onpointerenter=e=>{hoveredReply=open;if(e.ctrlKey)open();};

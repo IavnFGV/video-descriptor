@@ -137,6 +137,7 @@ body:has(>.vd-global-nav){max-width:calc(var(--vd-content-width) + var(--vd-nav-
 
 /* Source: design-system/editor.css */
 /* Exported report and the embedded notes editor share production primitives. */
+.notes-section-editor{width:min(760px,calc(100% - 32px))}.notes-section-editor label{display:grid;gap:var(--vd-space-2);margin-bottom:var(--vd-space-4)}.notes-section-editor textarea{min-height:220px}.subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:var(--vd-space-6);align-items:start}.watch-pane{position:sticky;top:var(--vd-space-4);min-width:0}.read-pane{min-width:0}.player{padding:0;position:static}.player video{max-height:45vh}
 #caption{padding:var(--vd-space-3);background:var(--vd-surface);border-radius:var(--vd-radius-control)}#caption p{margin:var(--vd-space-1) 0}.transcript{max-height:32vh;overflow:auto;border:1px solid var(--vd-border)}
 #title-form{display:flex;gap:var(--vd-space-2);flex-wrap:wrap;align-items:center;margin:var(--vd-space-3) 0}#title-input{width:min(100%,300px)}#title-status,#editor-status{color:var(--vd-muted);min-height:1.6em}

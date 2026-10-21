@@ -66,7 +66,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             return
         if path == "/create" or path.startswith("/studio-assets/"):
             name = "create.html" if path == "/create" else path.removeprefix("/studio-assets/")
-            if name not in ("create.html", "create.js", "create.css", "studio.js", "studio-drafts.js", "report-embed.js", "editor.js", "speech-edit.js", 'construction.js', 'recording.js'):
+            if name not in ("create.html", "create.js", "create.css", "studio.js", "studio-drafts.js", "report-embed.js", "editor.js", "editor.css", "speech-edit.js", 'construction.js', 'recording.js'):
                 return self.send_error(404)
             body = files("video_descriptor").joinpath("assets", name).read_bytes()
             self.send_response(200)
@@ -205,6 +205,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     page = re.sub(r"<script>.*?</script>", '<script src="/studio-assets/report-embed.js"></script>', page, flags=re.DOTALL)
                     # Older generated reports retain their local assets; serve the current editor.
                     page = page.replace('src="assets/editor.js"', 'src="/studio-assets/editor.js"')
+                    page = page.replace('href="assets/editor.css"', 'href="/studio-assets/editor.css"')
                     body = page.encode()
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")

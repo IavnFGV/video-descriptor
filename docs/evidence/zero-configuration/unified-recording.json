@@ -22,6 +22,11 @@
     "dirty speech blocks version navigation",
     "stale revision preserves input",
     "Escape cancels",
-    "inline speaker rename and reassignment"
+    "inline speaker rename and reassignment",
+    "notes new section Cancel/Escape",
+    "notes applied section is one undo step",
+    "notes redo and reset to last saved",
+    "notes Ctrl-hover local edit cancel",
+    "subtitle Ctrl+Z and Ctrl+Shift+Z persist undo/redo"
   ]
 }
