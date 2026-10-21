@@ -77,10 +77,11 @@
   async function ollamaStatus() {
     try {
       const s=await api('/api/setup/ollama'), list=$('ollama-model');
-      $('ollama-connection-current').textContent='Текущее подключение: '+({existing:'Существующая Ollama',service:'Свой сервис',managed:'Управляемая Ollama'}[s.mode]||s.mode)+' · '+s.url+' · '+(s.ownership==='managed'?'Управляется Video Descriptor':'Внешний')+' · '+(s.version?'версия '+s.version:'Сервер недоступен');
+      $('ollama-connection-current').textContent='Текущее подключение: '+({existing:'Ваша Ollama',service:'Ваш сервер Ollama',managed:'Отдельная Ollama для Video Descriptor'}[s.mode]||s.mode)+' · '+s.url+' · '+(s.ownership==='managed'?'Запускается и останавливается приложением':'Работает отдельно от Video Descriptor')+' · '+(s.version?'версия '+s.version:'Сервер недоступен');
       if(!ollamaConnectionLoaded){$('ollama-mode').value=s.mode;$('ollama-service-url').value=s.mode==='service'?s.url:'http://127.0.0.1:11434';ollamaConnectionLoaded=true;connectionMode();}
       const detected=s.mode==='existing'?s:await api('/api/setup/ollama?discover=1');
-      $('ollama-existing-info').textContent=detected.service_ready?'Существующая Ollama: '+detected.url+' · '+detected.version+' · модели: '+(detected.models.map(m=>m.name).join(', ')||'нет моделей'):detected.message;
+      const mode=$('ollama-mode').value;
+      $('ollama-existing-info').textContent=mode==='managed'?'Это отдельная копия Ollama с собственным каталогом моделей. Video Descriptor скачает и запустит её после вашего разрешения.':mode==='service'?'Запустите ваш сервер самостоятельно, затем проверьте подключение по указанному адресу.':(detected.executable?'Найдена ваша Ollama: '+detected.executable+'. ':'')+(detected.service_ready?'Сервер работает: '+detected.url+' · модели: '+(detected.models.map(m=>m.name).join(', ')||'нет моделей'):detected.detected?'Сервер выключен. Кнопка «Запустить мою Ollama» запустит найденную программу на этом компьютере. Отдельная копия скачиваться не будет.':'Ваша Ollama не найдена. Если она установлена, запустите её самостоятельно. Или выберите отдельную Ollama для Video Descriptor.');
       $('ollama-start-existing').hidden=$('ollama-mode').value!=='existing'||!detected.detected||detected.service_ready;
       const options=s.models.map(m=>{const o=document.createElement('option');o.value=m.name;o.textContent=`${m.name} · ${(m.bytes/1024**3).toFixed(1)} ГиБ`;return o;});
       if(!options.length){const o=document.createElement('option');o.value='';o.textContent='Нет доступных моделей';options.push(o);}
@@ -336,7 +337,7 @@
       }
       const {state,details,progress,caption,activity,button,remove}=box.componentControls;
       state.dataset.tone=item.state==='error'?'danger':item.state==='ready'?'success':'info';
-      state.textContent=(componentNames[item.state]||item.state)+' · '+deviceMessage(item.message)+(item.state==='ready'&&item.fallback_reason?' · '+deviceMessage(item.fallback_reason):'');
+      state.textContent=(item.id==='ollama'?'Ollama · ':'')+(componentNames[item.state]||item.state)+' · '+deviceMessage(item.message)+(item.state==='ready'&&item.fallback_reason?' · '+deviceMessage(item.fallback_reason):'');
       if(data.active===item.id&&item.preparing_device)state.textContent+=' · '+deviceName(item.preparing_device);
       details.textContent=[item.version?'Версия: '+item.version:'',item.device?(item.state==='error'?'Последняя успешная проверка: ':['installing','downloading','verifying'].includes(item.state)?'Ранее подготовлено: ':'Устройство: ')+deviceName(item.device):'',item.model?'Модель: '+item.model:'',item.bytes_on_disk?'На диске: '+(item.bytes_on_disk/1024**3).toFixed(2)+' ГиБ':''].filter(Boolean).join(' · ');
       progress.hidden=data.active!==item.id;progress.setAttribute('aria-label',item.name);
@@ -385,7 +386,7 @@
   function connectionMode(){
     const mode=$('ollama-mode').value;
     $('ollama-service-fields').hidden=mode!=='service';$('ollama-managed-install').hidden=mode!=='managed';
-    $('ollama-use-connection').textContent={existing:'Использовать существующую Ollama',service:'Проверить и использовать сервис',managed:'Подключить установленную управляемую Ollama'}[mode];
+    $('ollama-use-connection').textContent={existing:'Подключить мою Ollama',service:'Проверить и подключить мой сервер',managed:'Подключить копию Video Descriptor'}[mode];
     if(mode!=='existing')$('ollama-start-existing').hidden=true;
   }
   $('ollama-mode').onchange=()=>{connectionMode();ollamaStatus().catch(e=>message(e.message,true));};

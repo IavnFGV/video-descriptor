@@ -526,7 +526,7 @@ class ComponentManager:
             self.active = key
             self.manager.operation = 'components-' + key
             self.cancel.clear()
-            self.update(key, 'verifying' if action == 'check' else 'installing', message='Начинаем подготовку', bytes=0, total=0,
+            self.update(key, 'verifying' if action == 'check' else 'installing', message=({'start_existing': 'Запускаем вашу Ollama на 127.0.0.1:11434 — без скачивания отдельной копии', 'connect': 'Проверяем подключение: ' + {'existing': 'ваша Ollama', 'managed': 'копия Video Descriptor', 'service': 'ваш сервер'}.get(body.get('mode'), 'выбранная Ollama'), 'install': 'Скачиваем и настраиваем отдельную Ollama для Video Descriptor', 'pull': 'Загружаем модель в выбранную Ollama', 'check': 'Проверяем выбранную Ollama'}.get(action, 'Подготавливаем выбранную Ollama') if key == 'ollama' else 'Начинаем подготовку'), bytes=0, total=0,
                         step_started_at=None, activity_at=None, process_running=False, preparing_device=None,
                         progress_scope=None, progress_unit=None, operation_id=uuid.uuid4().hex)
 

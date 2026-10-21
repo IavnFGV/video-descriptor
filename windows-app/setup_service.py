@@ -48,7 +48,7 @@ def ollama_status(value, *, discover=False):
                            'Выберите установленную модель для перевода'}
     except (requests.RequestException, ValueError, KeyError, TypeError):
         return {**details, 'version': '', 'ready': False, 'service_ready': False, 'selected': selected, 'models': [],
-                'message': ('Ollama установлена, но сервер выключен. Запустите её отдельным действием.' if executable and connection['mode'] == 'existing' else 'Выбранный сервер недоступен. Повторите подключение. Автоматическое переключение отключено.')}
+                'message': ('Ваша Ollama установлена, но сервер выключен. Нажмите «Запустить мою Ollama».' if executable and connection['mode'] == 'existing' else 'Выбранный сервер недоступен. Повторите подключение. Автоматическое переключение отключено.')}
 
 
 
