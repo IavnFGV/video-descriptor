@@ -14,6 +14,7 @@ import requests
 from .chapters import build_chapters
 from .gemini import GeminiServiceError
 from .jobs import read_json
+from .local_tokens import load_counter
 from .models import Chapter, Notes, Source
 from .notes import chat_json, group_sources
 from .progress import ProgressLog, update_status
@@ -24,6 +25,23 @@ PROMPT = files("video_descriptor").joinpath("prompts/translate_markers_ru.txt").
     encoding="utf-8")
 LEGACY_PROMPT = files("video_descriptor").joinpath("prompts/translate_ru.txt").read_text(
     encoding="utf-8")
+
+
+def translation_groups(sources, count):
+    """Pack short/sparse speech by text cost, leaving room for Russian expansion."""
+    if count.mode == 'byte-bound':
+        return group_sources(sources, 0, 90)
+    groups, pending = [], []
+    for source in sorted(sources, key=lambda item: (item.start, item.id)):
+        text = '\n\n'.join(f'[[s{i:04d}]]\n{row.text}'
+                           for i, row in enumerate([*pending, source], 1))
+        if pending and (count(text) > 1256 or len(pending) >= 96):
+            groups.append(pending)
+            pending = []
+        pending.append(source)
+    if pending:
+        groups.append(pending)
+    return groups
 
 
 def translate_batch(sources, model, base_url, log=None):
@@ -109,7 +127,13 @@ def main():
     try:
         speech = [Source.model_validate(item) for item in
                   json.loads((folder / "transcript.json").read_text())]
-        groups = group_sources(speech, 0, 90)
+        settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
+                    if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model}
+                    if args.gemini_model else translation_settings())
+        active_model = settings['model'] if settings['provider'] == 'gemini' else (settings.get('ollama_model') or args.model)
+        count = load_counter(args.base_url, active_model) if settings['provider'] == 'ollama' else None
+        groups = translation_groups(speech, count) if count else group_sources(speech, 0, 90)
+        log(f'Перевод: {len(groups)} частей; подсчёт: {count.mode if count else "cloud"}')
         translation_path = folder / "translations.json"
         translations = (json.loads(translation_path.read_text())
                         if translation_path.exists() else {})
@@ -154,8 +178,14 @@ def main():
                         batch = json.loads(cached.read_text())
                         log("Перевод блока загружен из кэша")
                     else:
-                        batch = translate_resilient(group, active_model, active_base, log)
+                        pending = [source for source in group if source.id not in translations]
+                        batch = {source.id: translations[source.id] for source in group if source.id in translations}
+                        batch.update(translate_resilient(pending, active_model, active_base, log))
                         save(target, batch)
+                    # Regrouping or a block checkpoint must not overwrite a newer
+                    # saved translation, including intentionally empty merge rows.
+                    batch.update({source.id: translations[source.id]
+                                  for source in group if source.id in translations})
                     translations.update(batch)
                     save(folder / "translations.json", translations)
                     update_status(log, completed=index, request_started=None, request_state='перевод сохранён')

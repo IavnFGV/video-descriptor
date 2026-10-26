@@ -14,6 +14,7 @@ from pathlib import Path
 import requests
 
 from .jobs import jobs_dir, read_json, write_json
+from .local_tokens import byte_bound, load_counter
 from .models import Chapter, Note, Notes, Source, VideoSection
 from .ollama_connection import base_url as ollama_base_url
 from .progress import ProgressLog, update_status
@@ -151,29 +152,32 @@ def material(folder, config):
 
 def input_bound(text):
     # Conservative bound for byte-based local tokenizers, including message overhead.
-    return len(text.encode('utf-8')) + 256
+    return byte_bound(text)
 
 
-def budget(config):
-    available = config['context_tokens'] - config['output_tokens'] - input_bound(config['prompt']) - 2048
+def budget(config, count=input_bound):
+    available = config['context_tokens'] - config['output_tokens'] - count(config['prompt']) - 2048
     if available < 512:
         raise ValueError('Промпт слишком большой для выбранного контекста')
     return available
 
 
-def split_text(text, limit):
+def split_text(text, limit, count=input_bound, *, char_limit=None):
     """Prefer paragraphs and sentences; keep every word when a sentence is huge."""
+    def fits(value):
+        return count(value) <= limit and (char_limit is None or len(value) <= char_limit)
+
     pieces = re.split(r'(?<=[.!?])\s+|\n+', text)
     output, current = [], ''
     for piece in pieces:
-        units = [piece] if input_bound(piece) <= limit else piece.split()
+        units = [piece] if fits(piece) else piece.split()
         for unit in units:
             joined = (current + '\n' + unit).strip()
-            if current and input_bound(joined) > limit:
+            if current and not fits(joined):
                 output.append(current)
                 current = ''
                 joined = unit
-            if input_bound(joined) > limit:
+            if not fits(joined):
                 raise ValueError('Один фрагмент текста превышает контекст; увеличьте размер контекста')
             current = joined
     if current:
@@ -181,7 +185,7 @@ def split_text(text, limit):
     return output
 
 
-def group_material(lines, frames, folder, config, capacity):
+def group_material(lines, frames, folder, config, capacity, count=input_bound):
     grouping = config['grouping']
     if grouping == 'auto':
         grouping = 'slides' if frames else 'speech'
@@ -198,7 +202,8 @@ def group_material(lines, frames, folder, config, capacity):
     for row in lines:
         # Time labels are repeated when a single long utterance needs splitting.
         prefix = re.match(r'^\[[^\]]+\](?: [^:\n]+:)?', row['text']).group(0)
-        parts = split_text(row['text'], min(capacity, config['max_chunk_chars']) - input_bound(prefix))
+        parts = split_text(row['text'], capacity - count(prefix), count,
+                           char_limit=config['max_chunk_chars'] - len(prefix) - 1)
         for part in parts:
             if not part.startswith('['):
                 part = prefix + ' ' + part
@@ -210,10 +215,10 @@ def group_material(lines, frames, folder, config, capacity):
                         elapsed >= config['chunk_seconds'] and
                         (grouping == 'time' or grouping == 'speech' and pause or grouping == 'slides' and slide))
             joined = '\n'.join([*pending, part])
-            if pending and (boundary or input_bound(joined) > capacity or len(joined) > config['max_chunk_chars']):
+            if pending and (boundary or count(joined) > capacity or len(joined) > config['max_chunk_chars']):
                 blocks.append('\n'.join(pending))
                 pending, start = [], None
-            if input_bound(part) > capacity:
+            if count(part) > capacity:
                 raise ValueError('Реплика с меткой времени не помещается в контекст')
             if start is None:
                 start = row['start']
@@ -224,12 +229,12 @@ def group_material(lines, frames, folder, config, capacity):
     return blocks, grouping
 
 
-def plan(folder, value, *, root=None, token_counts=None):
+def plan(folder, value, *, root=None, token_counts=None, count=input_bound):
     config = validate(value)
     _, lines, frames = material(folder, config)
     text = '\n'.join(row['text'] for row in lines)
-    capacity = budget(config)
-    fits = input_bound(text) <= capacity
+    capacity = budget(config, count)
+    fits = count(text) <= capacity
     exact = None
     if root is not None and config['provider'] == 'gemini' and config['strategy'] in {'auto', 'whole'}:
         exact = gemini_token_count(root, config, gemini_payload(config, text), token_counts)
@@ -239,9 +244,11 @@ def plan(folder, value, *, root=None, token_counts=None):
         strategy = 'whole' if fits else 'chunks'
     if strategy == 'whole' and not fits:
         raise ValueError('Вся запись не помещается в заданный контекст. Выберите автоматический режим или обработку по частям')
-    blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity - min(2048, max(128, capacity // 4)))
+    blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity - min(2048, max(128, capacity // 4)), count)
     return {'strategy': strategy, 'grouping': grouping, 'characters': len(text),
             'estimated_tokens': math.ceil(len(text.encode()) / 3), 'input_tokens': exact, 'input_upper_bound': input_bound(text),
+            'token_counting': getattr(count, 'mode', 'byte-bound'),
+            'planned_input_tokens': count(text),
             'context_tokens': config['context_tokens'], 'blocks': len(blocks),
             'generation_requests': 1 if strategy == 'whole' else len(blocks) + 1,
             'consolidation': strategy == 'chunks', 'config': config}, blocks
@@ -262,7 +269,7 @@ def enqueue_notes(root, name, value):
     config = validate(value)
     validate_provider(root, config)
     if config['provider'] != 'gemini' and not config['auto_context']:
-        plan(folder, config)
+        plan(folder, config, count=load_counter(ollama_base_url(root), config['model']))
     manifest = read_json(folder / 'manifest.json')
     for path in jobs_dir(root).glob('*/job.json'):
         other = read_json(path, {})
@@ -377,10 +384,11 @@ def gemini_token_count(root, config, payload, cache=None):
 
 def generate(root, config, text, log, stage='Конспект'):
     """No source JSON or JSON response schema is sent to either model."""
+    count = getattr(log, 'token_counter', input_bound)
     prompt = config['prompt']
     if stage != 'Конспект':
         prompt += '\nОбъедини приведённые промежуточные конспекты. Удали повторы, свяжи аргументы. Не добавляй новых фактов и меток времени. Сохрани все существенные темы и хронологию оглавления.\n'
-    if config['provider'] != 'gemini' and input_bound(text) + input_bound(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
+    if config['provider'] != 'gemini' and count(text) + count(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
         raise ValueError('Материал запроса превышает заданный контекст')
     if config['provider'] == 'ollama':
         from .notes import chat_json
@@ -430,13 +438,14 @@ def generate(root, config, text, log, stage='Конспект'):
 
 
 def consolidate(root, config, texts, log, ask=generate):
-    capacity = budget(config) - 1024
+    count = getattr(log, 'token_counter', input_bound)
+    capacity = budget(config, count) - 1024
     for level in range(12):
         batches, current = [], ''
         for text in texts:
-            for part in split_text(text, capacity):
+            for part in split_text(text, capacity, count):
                 joined = (current + '\n\n' + part).strip()
-                if current and input_bound(joined) > capacity:
+                if current and count(joined) > capacity:
                     batches.append(current)
                     current = part
                 else:
@@ -454,7 +463,7 @@ def consolidate(root, config, texts, log, ask=generate):
             log(f'Объединение: обработано {index} из {len(batches)}, проход {level + 1}')
         if len(outputs) == 1:
             return outputs[0]
-        if sum(input_bound(text) for text in outputs) >= sum(input_bound(text) for text in texts):
+        if sum(count(text) for text in outputs) >= sum(count(text) for text in texts):
             raise ValueError('Объединение не сокращает материал. Уменьшите подробность промпта или увеличьте контекст; части сохранены')
         texts = outputs
     raise ValueError('Не удалось объединить конспект за 12 проходов; части сохранены')
@@ -523,17 +532,26 @@ def run(root, folder, value, ask=generate):
                                       os.getenv('OCR_LANGUAGE', 'eng'), log)
         write_json(folder / 'frames.json', [frame.model_dump() for frame in frames])
     result, _, frames = material(folder, config)
+    log.token_counter = (load_counter(ollama_base_url(root), config['model'])
+                         if ask is generate and config['provider'] == 'ollama' else input_bound)
+    count = log.token_counter
     log.token_counts = {}
-    summary, blocks = plan(folder, config, root=root if ask is generate else None, token_counts=log.token_counts)
-    if config['provider'] == 'ollama' and config['auto_context'] and summary['strategy'] == 'whole':
-        # Allocate only the needed local context, rather than the model's maximum KV cache.
-        config['context_tokens'] = min(config['context_tokens'], max(8192, input_bound(blocks[0]) + input_bound(config['prompt']) + config['output_tokens'] + 2048))
+    if config['provider'] == 'ollama':
+        log('Подсчёт текста: ' + getattr(count, 'mode', 'byte-bound'))
+    summary, blocks = plan(folder, config, root=root if ask is generate else None, token_counts=log.token_counts, count=count)
+    if config['provider'] == 'ollama' and config['auto_context']:
+        # Chunked requests need bounded memory too: a model's advertised 262K
+        # context is not a sensible KV allocation for a few minutes of speech.
+        memory_reserve = min(2048, max(128, budget(config, count) // 4)) if summary['consolidation'] else 0
+        needed = max(count(block) for block in blocks) + count(config['prompt']) + config['output_tokens'] + 2048 + memory_reserve
+        config['context_tokens'] = min(config['context_tokens'], max(8192, needed))
+    summary['effective_context_tokens'] = config['context_tokens']
     log('Расшифровка помещается целиком: один запрос генерации' if summary['strategy'] == 'whole' else f'Расшифровка превышает контекст: частей {len(blocks)}')
     write_json(folder / 'construction-plan.json', summary)
     log.update(stage='[4/5] Русский конспект', model=config['model'], provider=config['provider'])
     outputs = []
     memory = ''
-    memory_limit = min(2048, max(128, budget(config) // 4))
+    memory_limit = min(2048, max(128, budget(config, count) // 4))
     for index, block in enumerate(blocks, 1):
         digest = hashlib.sha256(json.dumps([config, block, memory, 'sequential-context-v1'], sort_keys=True).encode()).hexdigest()[:16]
         path = folder / f'construction-part-{digest}.md'
