@@ -3,23 +3,23 @@
   "version": "0.8.18",
   "end_to_end": {
     "state": "ready",
-    "commit": "6e1059be53323c648b590372d7b1d33005443853",
-    "started": "2026-11-07T15:54:20.639798+00:00",
-    "output": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\artifacts",
-    "log": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\build.log",
+    "commit": "9f63b0c6cc15a18d4641f9c01d63cd47d85c7114",
+    "started": "2026-11-07T16:04:27.580543+00:00",
+    "output": "D:\\projects\\video-descriptor\\dist\\local\\0.8.18",
+    "log": "D:\\projects\\video-descriptor\\.git\\local-build\\runs\\9f63b0c6cc15-20261107T160427580543Z\\build.log",
     "stage": "done",
     "version": "0.8.18",
-    "finished": "2026-11-07T16:00:13.166997+00:00",
+    "finished": "2026-11-07T16:10:40.014639+00:00",
     "artifacts": [
       {
-        "path": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\artifacts\\VideoDescriptor-0.8.18-windows-x64.zip",
-        "sha256": "c622b97d98e573f6d5cf05c9a3b76fb4a3f49c7fdb294464abb1715e9aa00301",
-        "bytes": 265849040
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.18\\VideoDescriptor-0.8.18-windows-x64.zip",
+        "sha256": "e812d90a3f74ad09a52b033b30aec5f0eaac2a4ccf3b67e286597b04caa6a872",
+        "bytes": 265849275
       },
       {
-        "path": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\artifacts\\VideoDescriptor-0.8.18-windows-x64-setup.exe",
-        "sha256": "beb49d5dd98d87c3574ff2a37014e09fff3b136c224a4618de0d99fa69531f10",
-        "bytes": 224019210
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.18\\VideoDescriptor-0.8.18-windows-x64-setup.exe",
+        "sha256": "6ef9347a7147897424d7e9a746cf200beaeba814baaf1de4d0af120f02bcf67c",
+        "bytes": 224019542
       }
     ],
     "limits": [
@@ -28,11 +28,11 @@
     ]
   },
   "local_checks": {
-    "passed": 457,
+    "passed": 459,
     "skipped": 2
   },
   "targeted_local_build_checks": {
-    "passed": 11,
+    "passed": 13,
     "includes": "actual Windows post-merge hook, queue, OS lock, failure status, corrupt artifact reuse, cleanup boundaries, transient status file lock"
   },
   "manual_acceptance": {
@@ -60,5 +60,11 @@
     "No clean VM installer lifecycle",
     "Working installation unchanged",
     "End-to-end artifact source commit is recorded in end_to_end.commit; subsequent build-script hardening tested separately"
-  ]
+  ],
+  "version_folder_publication": {
+    "status": "PASS",
+    "path": "dist/local/0.8.18",
+    "technical_runs_hidden": true,
+    "legacy_download_folder_migrated": true
+  }
 }
