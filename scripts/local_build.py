@@ -25,7 +25,15 @@ def write_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + f'.{os.getpid()}.tmp')
     temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    os.replace(temporary, path)
+    for attempt in range(20):
+        try:
+            os.replace(temporary, path)
+            break
+        except PermissionError:
+            if attempt == 19:
+                temporary.unlink(missing_ok=True)
+                raise
+            time.sleep(.05)
 
 
 @contextlib.contextmanager
@@ -183,6 +191,7 @@ def install_hook(repo):
 # video-descriptor-local-build
 [ "$(git symbolic-ref --quiet --short HEAD)" = "main" ] || exit 0
 root=$(git rev-parse --show-toplevel) || exit 0
+unset $(git rev-parse --local-env-vars)
 if [ -f "$root/scripts/Build-Local.ps1" ]; then
   powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$root/scripts/Build-Local.ps1" -Background
 fi

@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-07",
+  "version": "0.8.18",
+  "end_to_end": {
+    "state": "ready",
+    "commit": "6e1059be53323c648b590372d7b1d33005443853",
+    "started": "2026-11-07T15:54:20.639798+00:00",
+    "output": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\artifacts",
+    "log": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\build.log",
+    "stage": "done",
+    "version": "0.8.18",
+    "finished": "2026-11-07T16:00:13.166997+00:00",
+    "artifacts": [
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\artifacts\\VideoDescriptor-0.8.18-windows-x64.zip",
+        "sha256": "c622b97d98e573f6d5cf05c9a3b76fb4a3f49c7fdb294464abb1715e9aa00301",
+        "bytes": 265849040
+      },
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\6e1059be5332-20261107T155420639798Z\\artifacts\\VideoDescriptor-0.8.18-windows-x64-setup.exe",
+        "sha256": "beb49d5dd98d87c3574ff2a37014e09fff3b136c224a4618de0d99fa69531f10",
+        "bytes": 224019210
+      }
+    ],
+    "limits": [
+      "No automatic installation or publication",
+      "Portable smoke only; no clean VM installer lifecycle or hardware inference"
+    ]
+  },
+  "local_checks": {
+    "passed": 457,
+    "skipped": 2
+  },
+  "targeted_local_build_checks": {
+    "passed": 11,
+    "includes": "actual Windows post-merge hook, queue, OS lock, failure status, corrupt artifact reuse, cleanup boundaries, transient status file lock"
+  },
+  "manual_acceptance": {
+    "background_command_started": true,
+    "duplicate_request_did_not_build_twice": true,
+    "completed_sha_reused_after_hash_verification": true,
+    "cleanup_refused_during_build": true,
+    "cleanup_applied": false,
+    "cleanup_preview_bytes": 38839226855,
+    "cleanup_preview_targets": 185,
+    "post_merge_hook_installed": true,
+    "main_merged_or_pulled": false
+  },
+  "postprocess_ui": {
+    "isolated_browser": "PASS",
+    "checks": [
+      "immediate pending status",
+      "duplicate submit blocked",
+      "HTTP 409 error visible",
+      "button restored after failure"
+    ],
+    "real_api_observation": "Installed app rejected earlier click with HTTP 409; no active user job was stopped or automatically retried"
+  },
+  "limits": [
+    "No clean VM installer lifecycle",
+    "Working installation unchanged",
+    "End-to-end artifact source commit is recorded in end_to_end.commit; subsequent build-script hardening tested separately"
+  ]
+}

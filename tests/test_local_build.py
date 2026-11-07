@@ -74,6 +74,23 @@ def test_reuse_requires_exact_artifact_hash(modules, tmp_path):
     assert not build.reusable(record)
 
 
+def test_status_publish_retries_transient_windows_file_lock(modules, tmp_path, monkeypatch):
+    build, _ = modules
+    replace = build.os.replace
+    calls = []
+
+    def transient(source, destination):
+        calls.append(1)
+        if len(calls) == 1:
+            raise PermissionError('reader holds status file')
+        replace(source, destination)
+
+    monkeypatch.setattr(build.os, 'replace', transient)
+    build.write_json(tmp_path / 'status.json', {'state': 'ready'})
+    assert len(calls) == 2
+    assert json.loads((tmp_path / 'status.json').read_text()) == {'state': 'ready'}
+
+
 def test_failed_checks_do_not_build_or_claim_success(modules, tmp_path, monkeypatch):
     build, _ = modules
     sdk = tmp_path / 'sdk'
@@ -117,7 +134,9 @@ def test_actual_post_merge_hook_runs_only_on_local_main(modules, repo):
     scripts = repo / 'scripts'
     scripts.mkdir()
     (scripts / 'Build-Local.ps1').write_text(
-        'param([switch]$Background)\nSet-Content -LiteralPath (Join-Path $PSScriptRoot "../.git/hook-fired") -Value yes\n')
+        'param([switch]$Background)\n'
+        'if ($env:GIT_DIR -or $env:GIT_INDEX_FILE) { throw "Inherited Git state" }\n'
+        'Set-Content -LiteralPath (Join-Path $PSScriptRoot "../.git/hook-fired") -Value yes\n')
     subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True)
     subprocess.run(['git', '-C', str(repo), 'commit', '-m', 'hook fixture'], check=True, capture_output=True)
     build.install_hook(repo)
@@ -141,6 +160,8 @@ def test_cleanup_preserves_latest_versions_models_and_tracked_files(modules, rep
         packages.append(package)
     log = repo / 'old.log'
     log.write_text('untracked')
+    private = repo / '.env.private.log'
+    private.write_text('preserve configuration')
     cache = tmp_path / 'cache'
     payload = cache / 'payload-fixture'
     payload.mkdir(parents=True)
@@ -149,7 +170,7 @@ def test_cleanup_preserves_latest_versions_models_and_tracked_files(modules, rep
     model.parent.mkdir()
     model.write_bytes(b'keep')
     old = time.time() - 30 * 86400
-    for path in (log, repo / 'keep.log', payload):
+    for path in (log, private, repo / 'keep.log', payload):
         os.utime(path, (old, old))
     report = clean.plan(repo, {'cache': str(cache)})
     assert report['preserved_versions'] == ['0.8.3', '0.8.4', '0.8.5']
@@ -158,6 +179,7 @@ def test_cleanup_preserves_latest_versions_models_and_tracked_files(modules, rep
     assert not packages[0].exists() and not packages[1].exists()
     assert all(p.exists() for p in packages[2:])
     assert model.exists() and (repo / 'keep.log').exists()
+    assert private.exists()
     assert not payload.exists() and not log.exists()
 
 

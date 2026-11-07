@@ -63,7 +63,7 @@ def plan(repo, config, keep=3, days=7):
             candidates += [(p, local_output, 'historical automated build artifact')
                            for p in (run / 'artifacts').iterdir() if PACKAGE.fullmatch(p.name)]
     candidates += [(p, repo, 'old untracked root log') for p in repo.glob('*.log')
-                   if p.name not in tracked and p.stat().st_mtime < cutoff]
+                   if p.name not in tracked and not p.name.startswith('.env') and p.stat().st_mtime < cutoff]
     cache = Path(config.get('cache', repo / 'windows-app/runtime/build-cache')).resolve()
     # Only disposable builder directories. Keep wheels, downloads, SDK, models and tools.
     for pattern in ('payload-*', 'vcrt-*'):
@@ -143,7 +143,12 @@ def main():
         stamp = dt.datetime.now(dt.UTC).strftime('%Y%m%dT%H%M%S%fZ')
         evidence = state / ('cleanup-' + stamp + '.json')
         evidence.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-        print(json.dumps(report, ensure_ascii=False, indent=2))
+        print('Preserved versions:', ', '.join(report['preserved_versions']))
+        for reason in sorted({entry['reason'] for entry in report['files']}):
+            items = [entry for entry in report['files'] if entry['reason'] == reason]
+            print(f"{reason}: {len(items)} targets, {sum(item['bytes'] for item in items) / 1024**3:.2f} GiB")
+        if report['skipped']:
+            print('Skipped unsafe/unreadable targets:', len(report['skipped']))
         print(f"{report['mode']}: {len(report['files'])} targets, {report['bytes'] / 1024**3:.2f} GiB. Report: {evidence}")
 
 
