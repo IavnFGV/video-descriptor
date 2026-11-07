@@ -36,6 +36,9 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
            write_markdown: bool = True) -> None:
     translations = translations or {}
     speech_folder = folder if (folder / "manifest.json").is_file() else folder.parent
+    from .jobs import read_json
+    result_kind = 'article' if read_json(speech_folder / 'construction-settings.json', {}).get('result_kind') == 'article' else 'notes'
+    result_label = 'Статья' if result_kind == 'article' else 'Конспект'
     edits_file = speech_folder / "transcript-edits.json"
     if edits_file.is_file():
         edits = json.loads(edits_file.read_text(encoding="utf-8"))
@@ -209,8 +212,8 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
                 page += f'<p class="subtitle-ru">{html.escape(translations[source.id])}</p>'
             page += '</div>'
         page += '</div></section>'
-    page += '</aside><main class="read-pane"><section id="personal-notes" data-editing="false">'
-    page += '<div class="notes-toolbar"><button data-notes-view="read">Конспект</button>'
+    page += f'</aside><main class="read-pane"><section id="personal-notes" data-editing="false" data-result-kind="{result_kind}">'
+    page += f'<div class="notes-toolbar"><button data-notes-view="read">{result_label}</button>'
     page += '<button data-notes-view="edit">Редактировать</button>'
     page += '<button data-notes-view="model">Материал модели</button></div>'
     page += '<div class="notes-actions"><button id="save-notes" disabled>Сохранить</button>'
@@ -222,7 +225,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     page += '<div id="personal-outline" aria-label="Оглавление конспекта"></div></details>'
     page += '<div id="personal-preview"></div><div id="editor-pane" hidden>'
     page += '<p>Заголовки с временем, например <code>## [00:05:30] Тема</code>, связываются с видео.</p>'
-    page += '<textarea id="notes-editor" aria-label="Редактор конспекта"></textarea></div>'
+    page += '<textarea id="notes-editor" aria-label="' + ('Редактор статьи' if result_kind == 'article' else 'Редактор конспекта') + '"></textarea></div>'
     page += f'<textarea id="editor-seed" hidden>{html.escape(editor_seed)}</textarea></section>'
     page += '<div id="model-material" hidden>'
     if navigation:
@@ -232,8 +235,8 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
         page += "<ul>" + "".join(navigation) + "</ul></nav>"
         page += "".join(chapter_cards)
         page += '</details>'
-    page += "<h2>Конспект</h2>"
-    page += "".join(sections)
+    page += f'<h2>{result_label}</h2>'
+    page += '<pre>' + html.escape(editor_seed) + '</pre>' if result_kind == 'article' else "".join(sections)
     page += '</div></main></div>'
     page += """<script>
 const video=document.getElementById('video');

@@ -94,6 +94,32 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--article-only' in sys.argv:
+            wait_for(lambda:not evaluate('document.querySelector("#construction-article").disabled'))
+            wait_for(lambda:evaluate('!document.querySelector("#construction-model").disabled'))
+            evaluate("window.articleCalls=[];window.originalFetch=window.fetch;window.fetch=(url,options)=>url==='/api/native/postprocess'?(articleCalls.push(JSON.parse(options.body)),new Promise(resolve=>{window.replyArticle=resolve})):originalFetch(url,options)")
+            evaluate('window.originalEditing=speechReplyEditing;window.speechReplyEditing=()=>true')
+            c.click('#construction-article')
+            assert 'Сначала сохраните' in c.visible_text('#article-status')
+            assert evaluate('articleCalls.length')==0
+            evaluate('window.speechReplyEditing=originalEditing')
+            c.click('#construction-article')
+            wait_for(lambda:evaluate('articleCalls.length===1'))
+            payload=evaluate('articleCalls[0]')
+            assert payload['task']=='notes' and payload['construction']['result_kind']=='article'
+            assert payload['translate_after'] is False and payload['construction']['model']=='model-a'
+            assert evaluate('document.querySelector("#construction-article").disabled')
+            assert evaluate('document.querySelector("#construction-article").getAttribute("aria-busy")==="true"')
+            evaluate('document.querySelector("#construction-article").click()')
+            assert evaluate('articleCalls.length')==1
+            evaluate("replyArticle(new Response(JSON.stringify({error:'Эта запись уже находится в обработке'}),{status:409,headers:{'Content-Type':'application/json'}}))")
+            wait_for(lambda:'уже находится' in c.visible_text('#article-status'))
+            assert evaluate('document.querySelector("#article-status").classList.contains("vd-error")')
+            assert not evaluate('document.querySelector("#construction-article").disabled')
+            c.screenshot(out/'article-action.png')
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: article action sends chosen model, full-transcript result kind, no translation; dirty/busy/error guards preserved',flush=True)
+            sys.exit(0)
         if '--toolbar-only' in sys.argv:
             assert evaluate('document.querySelector("#recording-translate").closest("#translation-settings-panel")!==null')
             assert evaluate('document.querySelector("#transcript-disclosure").open')
@@ -401,6 +427,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         print(json.dumps(evidence,ensure_ascii=False))
     finally:
         # Only the isolated browser tree launched above, never the user's Edge.
+        if child.poll() is None and browser_process.is_running():
+            subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'],
+                           creationflags=0x08000000, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=20, check=False)
         try:
             targets=[*browser_process.children(recursive=True),browser_process]
         except psutil.NoSuchProcess:
@@ -413,4 +443,4 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             try: process.kill()
             except psutil.NoSuchProcess: pass
         psutil.wait_procs(alive,timeout=5)
-        child.wait(timeout=5);server.shutdown();server.server_close()
+        child.wait(timeout=15);server.shutdown();server.server_close()

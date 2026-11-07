@@ -275,3 +275,5 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 #translation-settings-panel>#recording-translate{margin-top:var(--vd-space-3)}
 
 .recording-workspace #report-editor{resize:vertical;overflow:auto}
+
+#construction-article{margin-top:var(--vd-space-2)}

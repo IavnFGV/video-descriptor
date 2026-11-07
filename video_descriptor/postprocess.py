@@ -30,6 +30,8 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None, construction
     config = validate(construction) if task == 'notes' and construction is not None else None
     if config:
         validate_provider(root, config)
+        if config['result_kind'] == 'article':
+            translate_after = False
     source = checked_folder(root, name)
     manifest = read_json(source / 'manifest.json')
     result = editable_result(source, subtitle_result(source))
@@ -58,6 +60,8 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None, construction
                'mode': 'postprocess', 'task': task, 'folder': version.name, 'source_folder': name,
                'translation_model': model, 'translation_base_url': base_url.rstrip('/'),
                'status': 'queued', 'created': time.time(), 'stage': 'queued'}
+        if config and config['result_kind'] == 'article':
+            job['title'] = 'Статья · ' + Path(video).name
         if task == 'notes':
             job['construction'] = config or validate({'input': 'speech', 'provider': 'ollama', 'model': notes_model or model,
                                             'context_tokens': 8192, 'output_tokens': 2048})
@@ -88,7 +92,8 @@ def run(root, folder, job, log):
                               stdin=subprocess.DEVNULL, check=False, env=job_environment(job['translation_base_url'])).returncode
         if code:
             detail = read_json(result / 'construction-error.json', {}).get('error')
-            raise RuntimeError('Не удалось создать конспект. ' +
+            label = 'статью' if job['construction'].get('result_kind') == 'article' else 'конспект'
+            raise RuntimeError('Не удалось создать ' + label + '. ' +
                                (detail[:1000] + ' ' if isinstance(detail, str) else '') +
                                'Исходная расшифровка сохранена.' +
                                (' Ответ модели также сохранён.' if (result / 'construction-result.md').is_file() else ''))
