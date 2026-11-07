@@ -86,3 +86,15 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace .quick-reply-editor .vd-actions{margin-top:var(--vd-space-2)}
 .recording-workspace .utterance>p[tabindex]:hover{cursor:text}
 @media(max-width:1000px){.recording-workspace .studio-layout,.recording-workspace .studio-layout.video-expanded{grid-template-columns:1fr}.recording-workspace .video-expanded #stage-speech{grid-column:1;grid-row:2}.recording-workspace .video-expanded .stage-content{grid-column:1;grid-row:3}}
+
+/* Reading-first reply header: assignment is local; global names live above the feed. */
+.recording-workspace .reply-heading .timestamp,
+.recording-workspace .reply-heading .speaker-select,
+.recording-workspace .reply-heading .edit-subtitle{min-height:var(--vd-compact-height);background:transparent;border-color:transparent;box-shadow:none;font-size:var(--vd-label);font-weight:var(--vd-normal);padding:var(--vd-space-1);color:var(--vd-muted)}
+.recording-workspace .reply-heading .speaker-select{width:auto;max-width:100%}
+.recording-workspace .reply-heading .speaker-controls{max-width:100%}
+.recording-workspace .reply-heading .edit-subtitle{min-width:var(--vd-compact-height)}
+.recording-workspace .reply-heading .timestamp{color:var(--vd-accent);font-variant-numeric:tabular-nums}
+.recording-workspace .reply-heading .timestamp:hover,
+.recording-workspace .reply-heading .speaker-select:hover,
+.recording-workspace .reply-heading .edit-subtitle:hover{background:var(--vd-subtle);border-color:var(--vd-border)}

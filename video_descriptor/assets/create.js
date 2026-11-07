@@ -78,9 +78,10 @@
       if (lastSnapshot?.folder !== folder) return;
       const result = data.result;
       if (!result || result.status !== 'done') throw Error('Имена доступны после завершения распознавания');
-      const names = [...new Set(result.segments.map(row => row.speaker).filter(Boolean))];
+      const names = [...new Set([...result.segments.map(row => row.speaker).filter(Boolean), ...Object.keys(result.speaker_names || {})])];
       $('speaker-names').replaceChildren(...names.map(speaker => {
-        const label = text('label', speaker), input = document.createElement('input');
+        const count=result.segments.filter(row=>row.speaker===speaker).length;
+        const label = text('label', (result.speaker_names?.[speaker] || (speaker==='unknown'?'Говорящий не указан':speaker))+' · реплик: '+count), input = document.createElement('input');
         input.dataset.speaker = speaker; input.maxLength = 100; input.placeholder = 'Имя говорящего';
         input.value = result.speaker_names?.[speaker] || ''; label.append(input); return label;
       }));
@@ -96,7 +97,7 @@
     const expanded = $('speaker-settings').hidden;
     $('speaker-settings').hidden = !expanded;
     $('toggle-speaker-names').setAttribute('aria-expanded', String(expanded));
-    if (expanded) loadSpeakerNames();
+    if (expanded) { namesFolder=null; loadSpeakerNames(); }
   };
   $('speaker-names-form').onsubmit = async event => {
     event.preventDefault();
@@ -450,7 +451,7 @@
         const row = text('div', '', 'utterance'),heading=text('div','','reply-heading'),tools=text('div','','reply-tools');
         const editable=Boolean(original.edit_revision),onSave=saved=>savedSpeech(saved,snapshot.folder);
         heading.append(stamp(source.start));
-        if(editable){heading.append(window.createSpeakerName(original,source.speaker||'unknown',onSave));tools.append(window.createSpeakerSelect(original,index,onSave));}
+        if(editable)heading.append(window.createSpeakerSelect(original,index,onSave,true));
         else if(source.speaker)heading.append(text('strong',snapshot.speaker_names[source.speaker]||source.speaker));
         const content=text('p',source.text,'subtitle-original');
         if(editable)window.enableQuickReplyEdit(content,original,index,saved=>{onSave(saved);$('speech-feed').children[index]?.querySelector('.subtitle-original')?.focus({preventScroll:true});});

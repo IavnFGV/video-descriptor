@@ -139,3 +139,5 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 
 21.10.2026: report-embed.js делегирует клики по button[data-time] к существующему window.seekTo общего плеера. Это восстанавливает кнопки динамического Markdown-превью после удаления inline report scripts при embedded=1, включая повторный рендер после правок. Самостоятельный отчёт и оглавление сохраняют прежние обработчики.
+
+07.11.2026: createSpeakerSelect compact=true в unified workspace скрывает отдельное добавление и включает пункт создания с назначением текущей реплике через прежние /api/speech-names и /api/speech-edit revision. Глобальное переименование остаётся в speaker-names-form; createSpeakerName сохранён для прежних поверхностей. API и dirty guards не меняются.

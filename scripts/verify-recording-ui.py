@@ -80,6 +80,46 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--speakers-only' in sys.argv:
+            def saved_rows():
+                return json.loads((root/'output/notes-a/transcript-edits.json').read_text(encoding='utf-8'))
+            assert not evaluate('!!document.querySelector("#speech-feed .speaker-name")')
+            assert evaluate('getComputedStyle(document.querySelector("#speech-feed .speaker-select")).minHeight')=='32px'
+            c.click('#toggle-speaker-names')
+            wait_for(lambda:evaluate('!!document.querySelector("#speaker-names input")'))
+            c.fill('#speaker-names input','Алекс')
+            c.click('#speaker-names-form button')
+            wait_for(lambda:'Алекс' in c.visible_text('#speech-feed .speaker-select'))
+            assert evaluate('[...document.querySelectorAll("#speech-feed .speaker-select")].every(s=>s.selectedOptions[0].textContent==="Алекс")')
+            c.click('#toggle-speaker-names')
+            c.fill('#speech-feed .speaker-select','__new_speaker__')
+            wait_for(lambda:evaluate('!document.querySelector("#speech-feed .speaker-name-input").hidden'))
+            c.fill('#speech-feed .speaker-name-input','Мария')
+            c.call('Input.dispatchKeyEvent',type='keyDown',key='Enter',windowsVirtualKeyCode=13)
+            c.call('Input.dispatchKeyEvent',type='keyUp',key='Enter',windowsVirtualKeyCode=13)
+            wait_for(lambda:(root/'output/notes-a/transcript-edits.json').exists())
+            assert saved_rows()['segments'][0]['speaker']!='speaker_1'
+            assert saved_rows()['segments'][1]['speaker']=='speaker_1'
+            assert saved_rows()['segments'][0]['text']=='Реплика 0. Проверка синхронизации и правок.'
+            assert saved_rows()['segments'][0]['start']==0 and saved_rows()['segments'][0]['end']==30
+            assert saved_rows()['translations']['s0']=='Сохранённый перевод'
+            wait_for(lambda:'Мария' in c.visible_text('#speech-feed .speaker-select'))
+            c.fill('#speech-feed .speaker-select','unknown')
+            wait_for(lambda:saved_rows()['segments'][0]['speaker']=='unknown')
+            c.fill('#speech-feed .speaker-select','__new_speaker__')
+            c.fill('#speech-feed .speaker-name-input','Не сохранять')
+            c.call('Input.dispatchKeyEvent',type='keyDown',key='Escape',windowsVirtualKeyCode=27)
+            c.call('Input.dispatchKeyEvent',type='keyUp',key='Escape',windowsVirtualKeyCode=27)
+            assert evaluate('document.querySelector("#speech-feed .speaker-name-input").hidden')
+            evaluate('document.querySelector("#speech-feed").scrollIntoView({block:"center"});document.activeElement.blur()')
+            c.screenshot(out/'speakers-full.png')
+            for width in (1100,760,360):
+                c.call('Emulation.setDeviceMetricsOverride',width=width,height=900,deviceScaleFactor=1,mobile=False)
+                assert evaluate('document.documentElement.scrollWidth<=innerWidth'), width
+            c.screenshot(out/'speakers-narrow.png')
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: global rename; create and assign one reply; reassignment; Escape; text, times and translation preserved; 1920/1100/760/360 layouts',flush=True)
+            sys.exit(0)
         evaluate('window.originalPlayer=document.querySelector("#process-video");recordingUI.seek(75)')
         assert evaluate('document.querySelector("#process-video").currentTime')==75
         assert evaluate('document.querySelector("#speech-feed .active").textContent.includes("Реплика 2")')
@@ -187,11 +227,22 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c.call('Input.dispatchKeyEvent',type='keyDown',key='Escape',code='Escape',windowsVirtualKeyCode=27)
         c.call('Input.dispatchKeyEvent',type='keyUp',key='Escape',code='Escape',windowsVirtualKeyCode=27)
         evaluate('recordingSelection.refresh()')
-        c.click('#speech-feed .speaker-name')
-        c.fill('#speech-feed .speaker-name-input','Новое имя')
-        c.call('Input.dispatchKeyEvent',type='keyDown',key='Enter',code='Enter',windowsVirtualKeyCode=13)
-        c.call('Input.dispatchKeyEvent',type='keyUp',key='Enter',code='Enter',windowsVirtualKeyCode=13)
-        wait_for(lambda:'Новое имя' in c.visible_text('#speech-feed .speaker-name'),timeout=8)
+        assert not evaluate('!!document.querySelector("#speech-feed .speaker-name")')
+        c.click('#toggle-speaker-names')
+        wait_for(lambda:evaluate('!!document.querySelector("#speaker-names input")'))
+        c.fill('#speaker-names input','Новое имя')
+        c.click('#speaker-names-form button')
+        wait_for(lambda:'Новое имя' in c.visible_text('#speech-feed .speaker-select'),timeout=8)
+        assert evaluate('[...document.querySelectorAll("#speech-feed .speaker-select")].every(s=>s.selectedOptions[0].textContent==="Новое имя")')
+        c.click('#toggle-speaker-names')
+        c.fill('#speech-feed .speaker-select','__new_speaker__')
+        c.fill('#speech-feed .speaker-name-input','Мария')
+        key('Enter')
+        wait_for(lambda:json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))['segments'][0]['speaker']!='speaker_1')
+        edits=json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))
+        assert edits['segments'][1]['speaker']=='speaker_1'
+        assert edits['segments'][0]['text']=='Изменено в другой вкладке'
+        assert edits['translations']['s0']=='Сохранённый перевод'
         c.fill('#speech-feed .speaker-select','unknown')
         wait_for(lambda:json.loads((root/'output/notes-b/transcript-edits.json').read_text(encoding='utf-8'))['segments'][0]['speaker']=='unknown')
         evaluate('recordingSelection.refresh();scrollTo(0,0)')
@@ -202,7 +253,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c.screenshot(out/'narrow.png')
         assert evaluate('window.uiErrors')==[], evaluate('window.uiErrors')
         evidence={'status':'PASS','scope':'Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked native health and media metadata; no inference or user data', 'checks':['native job URL opens unified workspace directly','one shared player; embedded report has no media source','side layout: speech under video, notes right','expanded layout','player identity and time preserved across report variants','speech and Markdown heading synchronization','manual scroll pause and resume','magnet off','dirty report blocks variant switch','new notes settings preserve existing report','Google generation requires consent before submission','new speech settings','1920/1100/760/360 widths fit','no browser runtime errors']}
-        evidence['checks']+=['Ctrl hover opens quick editor','polling preserves input','Ctrl+Enter saves text and preserves speaker/translation','dirty speech blocks version navigation','stale revision preserves input','Escape cancels','inline speaker rename and reassignment']
+        evidence['checks']+=['Ctrl hover opens quick editor','polling preserves input','Ctrl+Enter saves text and preserves speaker/translation','dirty speech blocks version navigation','stale revision preserves input','Escape cancels','global rename, create-and-assign only one reply, reassignment']
         evidence['checks']+=['notes new section Cancel/Escape','notes applied section is one undo step','notes redo and reset to last saved','notes Ctrl-hover local edit cancel','subtitle Ctrl+Z and Ctrl+Shift+Z persist undo/redo']
         (out/'result.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         print(json.dumps(evidence,ensure_ascii=False))

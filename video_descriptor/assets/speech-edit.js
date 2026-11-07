@@ -132,18 +132,20 @@
     input.onblur=()=>{if(active&&!saving)save();};
     holder.append(button,input,feedback);return holder;
   };
-  window.createSpeakerSelect = function(original, index, onSave){
+  window.createSpeakerSelect = function(original, index, onSave, compact=false){
     const row=original.segments[index], holder=document.createElement('span');holder.className='speaker-controls';
     const select=document.createElement('select'), feedback=document.createElement('span');
     select.className='vd-select speaker-select';
     select.setAttribute('aria-label','Назначить говорящего только этой реплике '+stamp(row.start));
-    select.title='Назначить говорящего только этой реплике';
+    select.title='Кто говорит в этой реплике?';
     const speakers=[...new Set([...(original.speaker_options||[]),...original.segments.map(s=>s.speaker),'unknown'])];
     select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||(s==='unknown'?'Не определён':s))));
+    if(compact)select.append(option('__new_speaker__','＋ Создать и назначить…'));
     select.value=row.speaker;
     feedback.className='vd-help';feedback.setAttribute('role','status');
     select.onchange=async()=>{
       if(editing){select.value=row.speaker;feedback.textContent='Сначала завершите текущую правку.';return;}
+      if(compact&&select.value==='__new_speaker__'){select.value=row.speaker;add.click();return;}
       if(select.value===row.speaker)return;
       editing=true;select.disabled=true;select.setAttribute('aria-busy','true');feedback.textContent='Сохраняем…';
       try{
@@ -157,9 +159,9 @@
     add.type='button';add.className='vd-button vd-button--compact';add.title='Добавить нового говорящего в эту запись';
     add.setAttribute('aria-label','Добавить говорящего');
     add.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z M2 10v1a6 6 0 0 0 12 0v-1 M8 17v4 M5 21h6 M19 5v8 M15 9h8"/></svg>';
-    name.className='vd-input speaker-name-input';name.maxLength=100;name.hidden=true;name.placeholder='Имя нового говорящего';name.setAttribute('aria-label','Имя нового говорящего');
+    name.className='vd-input speaker-name-input';name.maxLength=100;name.hidden=true;name.placeholder=compact?'Имя · Enter — создать и назначить':'Имя нового говорящего';name.setAttribute('aria-label','Имя нового говорящего');
     let adding=false,publishing=false;
-    const cancel=()=>{adding=false;editing=false;name.hidden=true;add.hidden=false;feedback.textContent='';add.focus();};
+    const cancel=()=>{adding=false;editing=false;name.hidden=true;add.hidden=compact;feedback.textContent='';(compact?select:add).focus();};
     add.onclick=()=>{if(editing)return;editing=true;adding=true;name.value='';name.hidden=false;add.hidden=true;name.focus();};
     const create=async()=>{
       if(!adding||publishing)return;
@@ -168,7 +170,15 @@
       try{
         const id='speaker_'+crypto.randomUUID().replaceAll('-',''),names={...original.speaker_names,[id]:label};
         await post('/api/speech-names',{folder:original.folder,speaker_names:names});
-        adding=false;editing=false;onSave({...original,speaker_names:names,speaker_options:[...speakers,id]});
+        if(compact){
+          // Registration and assignment are separate existing API operations.
+          // Keep the new speaker available if a concurrent edit blocks assignment.
+          original={...original,speaker_names:names,speaker_options:[...speakers,id]};
+          select.insertBefore(option(id,label),select.lastElementChild);
+          const saved=await post('/api/speech-edit',{folder:original.folder,revision:original.edit_revision,index,
+            action:'edit',text:row.text,speaker:id,translation:original.translations?.[row.id||`s${index+1}`]||''});
+          adding=false;editing=false;onSave(saved);
+        }else{adding=false;editing=false;onSave({...original,speaker_names:names,speaker_options:[...speakers,id]});}
       }catch(e){feedback.textContent=e.message;}
       finally{publishing=false;name.disabled=false;}
     };
@@ -176,6 +186,7 @@
     name.onblur=()=>{if(adding&&!publishing){if(name.value.trim())create();else cancel();}};
     const assignment=document.createElement('label');assignment.className='speaker-assignment';assignment.title='Назначить говорящего только этой реплике';
     assignment.append(select);
+    add.hidden=compact;
     holder.append(assignment,add,name,feedback);return holder;
   };
   window.editSpeechReply = function(original, index, video, onSave){
