@@ -103,9 +103,11 @@ def validate_turns(turns, duration):
 
 
 def run(root, folder, job, log):
+    from .diarization_progress import progress_state
     target = root / 'output' / job['folder']
     result = read_json(target / 'speech.json')
-    result.update(status='running', message='Говорящие: подготавливаем аудио без повторного распознавания')
+    result.update(status='running', message='Говорящие: подготавливаем аудио без повторного распознавания',
+                  diarization_progress=progress_state('audio'))
     publish(target / 'speech.json', result)
     video = source_path(root, job['video'])
     stat = video.stat()
@@ -117,9 +119,12 @@ def run(root, folder, job, log):
         extract_audio(video, audio, 0, result['duration'])
     output, progress = target / 'diarization-result.json', target / 'diarization-progress.json'
     try:
+        result['diarization_progress'] = progress_state('model_load')
+        publish(target / 'speech.json', result)
         if model_digest(Path(job['diarization_model_directory'])) != job['diarization_model_sha256']:
             raise ValueError('Модель диаризации изменилась после запуска. Создайте новую версию с говорящими.')
         if not output.exists():
+            progress.unlink(missing_ok=True)
             errors = target / 'diarization-error.log'
             command = [job['diarization_python'], '-X', 'utf8', '-u', str(WORKER),
                        '--audio', str(audio), '--model', job['diarization_model_directory'],
@@ -129,7 +134,15 @@ def run(root, folder, job, log):
                                            **subprocess_options())
                 while process.poll() is None:
                     check_stop(folder, process)
-                    result.update(message=read_json(progress, {}).get('message', result['message']))
+                    update = read_json(progress, {})
+                    if isinstance(update, dict) and update.get('stage'):
+                        details = {key: update[key] for key in (
+                            'stage', 'label', 'completed', 'total', 'updated_at', 'stage_started_at') if key in update}
+                        previous = result.get('diarization_progress', {})
+                        if previous.get('stage') == details['stage'] and 'stage_started_at' in previous:
+                            details['stage_started_at'] = previous['stage_started_at']
+                        result.update(message=update.get('message', result['message']),
+                                      diarization_progress=details)
                     publish(target / 'speech.json', result)
                     time.sleep(.5)
             check_stop(folder)
@@ -154,9 +167,13 @@ def run(root, folder, job, log):
             raise ValueError('Разметка голосов относится к другому аудио. Исходный текст сохранён.')
         if report.get('device') != job['diarization_device'] or abs(report.get('duration', -1) - result['duration']) > .1:
             raise ValueError('Ответ диаризации не совпал с записью или выбранным устройством.')
+        result['diarization_progress'] = progress_state('assignment', result.get('diarization_progress'))
+        publish(target / 'speech.json', result)
         turns = validate_turns(report.get('turns'), result['duration'])
         result['segments'] = assign_speakers([dict(row) for row in result['segments']], turns)
         speakers = sorted({row['speaker'] for row in result['segments']} - {'unknown'})
+        result['diarization_progress'] = progress_state('saving')
+        publish(target / 'speech.json', result)
         result.update(status='done', message='Говорящие определены' if speakers else
                       'Голоса не определены; реплики оставлены без говорящего. Доступна ручная разметка.', stage='done',
                       speaker_names={speaker: f'Говорящий {index}' for index, speaker in enumerate(speakers, 1)},
@@ -164,6 +181,7 @@ def run(root, folder, job, log):
                       speaker_notice='Говорящий назначен по наибольшему пересечению с репликой. '
                                      'Смена голоса внутри одной реплики может потребовать ручной правки.')
         write_json(target / 'diarization.json', turns)
+        result['diarization_progress'] = progress_state('complete')
         publish(target / 'speech.json', result)
     except (OSError, ValueError, TypeError, RuntimeError) as exc:
         result.update(status='error', message=str(exc))

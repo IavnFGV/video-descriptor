@@ -21,6 +21,30 @@
   const detail=document.createElement('details');detail.id='recording-processing';
   const summary=document.createElement('summary');summary.textContent='Подробности обработки';detail.append(summary);
   const workspace=$('workspace'); workspace.append(detail);
+  const diarizationProgress=document.createElement('div');diarizationProgress.id='diarization-progress';diarizationProgress.className='diarization-progress';diarizationProgress.hidden=true;
+  diarizationProgress.innerHTML='<span class="diarization-ring" role="progressbar" aria-label="Определение говорящих"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="diarization-ring-track" cx="16" cy="16" r="13"/><circle class="diarization-ring-value" cx="16" cy="16" r="13" pathLength="100"/></svg></span><div><p class="diarization-progress-label" role="status"></p><p class="diarization-progress-time"></p></div>';
+  workspace.insertBefore(diarizationProgress,$('stage-progress'));
+  function renderDiarizationProgress(){
+    const value=snapshot?.diarization_progress,active=job?.task==='diarize'&&['queued','running'].includes(job.status);
+    diarizationProgress.hidden=!active;
+    $('stage-progress').hidden=active;
+    if(!active)return;
+    $('stage-label').textContent='Определение говорящих';
+    const queued=job.status==='queued',label=queued?'Говорящие: ожидаем запуска':value?.label||'Определяем говорящих',ring=diarizationProgress.querySelector('.diarization-ring');
+    const measured=!queued&&Number.isFinite(value?.completed)&&Number.isFinite(value?.total)&&value.total>0&&value.completed>=0&&value.completed<=value.total;
+    const percent=measured?Math.floor(value.completed/value.total*100):null;
+    ring.classList.toggle('indeterminate',!measured);ring.setAttribute('aria-label',label);
+    ring.setAttribute('aria-valuemin','0');ring.setAttribute('aria-valuemax','100');
+    if(measured)ring.setAttribute('aria-valuenow',String(percent));else ring.removeAttribute('aria-valuenow');
+    ring.setAttribute('aria-valuetext',measured?percent+'%':'Выполняется, процент недоступен');
+    const arc=ring.querySelector('.diarization-ring-value');arc.setAttribute('stroke-dasharray',measured?'100':'24 76');arc.setAttribute('stroke-dashoffset',measured?String(100-percent):'0');
+    const title=diarizationProgress.querySelector('.diarization-progress-label'),message=label+(measured?' · '+percent+'%':'');
+    if(title.textContent!==message)title.textContent=message;
+    const now=Date.now()/1000,elapsed=Number.isFinite(value?.stage_started_at)?Math.max(0,Math.floor(now-value.stage_started_at)):null;
+    const age=Number.isFinite(value?.updated_at)?Math.max(0,Math.floor(now-value.updated_at)):null;
+    diarizationProgress.querySelector('.diarization-progress-time').textContent=[measured?value.completed+' из '+value.total:null,elapsed!==null?'На этапе: '+Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0'):null,age>=60?'Новых данных от модели нет '+age+' с':null].filter(Boolean).join(' · ');
+  }
+  setInterval(renderDiarizationProgress,1000);
   const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,detail);
   for(const id of ['run-message','translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false, pendingReport=null,epoch=0;
@@ -130,9 +154,9 @@
     const stateInfo=snapshot.status||{},active=snapshot.running||['queued','running'].includes(job?.status);
     requestStatus.hidden=!active;
     requestStatus.textContent=active?[stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
-    paint();sync();
+    renderDiarizationProgress();paint();sync();
   });
-  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';library();});
+  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';renderDiarizationProgress();library();});
   async function postprocess(task,extra={}){
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;

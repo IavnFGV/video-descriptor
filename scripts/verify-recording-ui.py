@@ -4,6 +4,9 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
+
+import psutil
 import threading
 from functools import partial
 from http.server import ThreadingHTTPServer
@@ -57,6 +60,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     threading.Thread(target=server.serve_forever, daemon=True).start()
     with socket.socket() as probe: probe.bind(('127.0.0.1',0)); debug=probe.getsockname()[1]
     child=subprocess.Popen([r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe','--headless=new','--disable-gpu','--no-first-run',f'--user-data-dir={root / "edge"}',f'--remote-debugging-port={debug}','about:blank'],creationflags=0x08000000,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    browser_process=psutil.Process(child.pid)
+    browser_process.create_time()
     try:
         tabs=wait_for(lambda:json.loads(read_http(f'http://127.0.0.1:{debug}/json/list')),timeout=30)
         c=CDP(next(tab for tab in tabs if tab.get('type')=='page')['webSocketDebuggerUrl'])
@@ -80,6 +85,28 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--diarization-progress-only' in sys.argv:
+            fixture=live.snapshot(root,root/'output/notes-a')
+            evaluate('window.progressFixture='+json.dumps(fixture,ensure_ascii=False))
+            def show_progress(value, status='running'):
+                return evaluate('''(()=>{const value='''+json.dumps(value,ensure_ascii=False)+''';document.dispatchEvent(new CustomEvent('recording-snapshot',{detail:{snapshot:{...progressFixture,diarization_progress:value},job:{id:"fixture",task:"diarize",status:'''+json.dumps(status)+'''}}}));const node=document.querySelector('#diarization-progress'),ring=node.querySelector('[role=progressbar]');return {hidden:node.hidden,indeterminate:ring.classList.contains('indeterminate'),percent:ring.getAttribute('aria-valuenow'),offset:ring.querySelector('.diarization-ring-value').getAttribute('stroke-dashoffset'),text:node.textContent,barHidden:document.querySelector('#stage-progress').hidden}})()''')
+            stamp=time.time()
+            result=show_progress({'stage':'model_load','label':'Загружаем локальную модель','updated_at':stamp,'stage_started_at':stamp})
+            assert not result['hidden'] and result['indeterminate'] and result['percent'] is None and result['barHidden']
+            result=show_progress({'stage':'embeddings','label':'Сравниваем голоса','completed':3,'total':10,'updated_at':stamp,'stage_started_at':stamp})
+            assert not result['indeterminate'] and result['percent']=='30' and result['offset']=='70'
+            assert '30%' in result['text'] and '3 из 10' in result['text']
+            result=show_progress({'stage':'clustering','label':'Объединяем одинаковые голоса','updated_at':stamp-70,'stage_started_at':stamp-80})
+            assert result['indeterminate'] and result['percent'] is None and 'Новых данных' in result['text']
+            c.screenshot(out/'diarization-progress.png')
+            result=show_progress({'stage':'complete','label':'Готово'},'done')
+            assert result['hidden'] and not result['barHidden']
+            result=show_progress({'stage':'embeddings','label':'Сравниваем голоса','completed':3,'total':0})
+            assert result['indeterminate'] and result['percent'] is None
+            assert show_progress({},'error')['hidden']
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: current stage only; spinner; measured 30% ring; stale event age; unknown total; completion/error hide progress',flush=True)
+            sys.exit(0)
         if '--speakers-only' in sys.argv:
             evaluate("""window.postCalls=0;window.originalFetch=window.fetch;window.fetch=(url,options)=>url==='/api/native/postprocess'?(postCalls++,new Promise(resolve=>{window.replyPost=resolve})):originalFetch(url,options)""")
             c.click('#recording-diarize')
@@ -270,4 +297,17 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         (out/'result.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         print(json.dumps(evidence,ensure_ascii=False))
     finally:
-        child.terminate();child.wait(timeout=15);server.shutdown();server.server_close()
+        # Only the isolated browser tree launched above, never the user's Edge.
+        try:
+            targets=[*browser_process.children(recursive=True),browser_process]
+        except psutil.NoSuchProcess:
+            targets=[]
+        for process in targets:
+            try: process.terminate()
+            except psutil.NoSuchProcess: pass
+        _,alive=psutil.wait_procs(targets,timeout=10)
+        for process in alive:
+            try: process.kill()
+            except psutil.NoSuchProcess: pass
+        psutil.wait_procs(alive,timeout=5)
+        child.wait(timeout=5);server.shutdown();server.server_close()

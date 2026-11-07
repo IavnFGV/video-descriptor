@@ -111,3 +111,51 @@ def test_progress_publish_retries_windows_read_handle(tmp_path, monkeypatch):
     diarization.publish(path, {'message': 'running'})
     assert jobs.read_json(path) == {'message': 'running'}
     assert len(attempts) == 2
+
+
+@pytest.mark.parametrize('completed,total', [(None,10),(1,0),(1,None),(float('nan'),10),(1,float('inf')),(-1,10),(11,10),(True,10)])
+def test_progress_never_invents_denominator_or_clamps_invalid_counts(completed, total):
+    from video_descriptor.diarization_progress import progress_state
+    value = progress_state('embeddings', completed=completed, total=total, at=100)
+    assert 'completed' not in value and 'total' not in value
+
+
+def test_progress_preserves_stage_start_but_not_previous_stage_percentage():
+    from video_descriptor.diarization_progress import progress_state
+    first = progress_state('embeddings', completed=3, total=10, at=100)
+    next_value = progress_state('embeddings', first, 4, 10, at=105)
+    assert next_value['stage_started_at'] == 100 and next_value['updated_at'] == 105
+    clustering = progress_state('clustering', next_value, at=110)
+    assert clustering['stage_started_at'] == 110 and 'completed' not in clustering
+
+
+def test_measured_worker_progress_reaches_live_snapshot(recording, monkeypatch):
+    from video_descriptor import live
+    from video_descriptor.diarization_progress import progress_state
+    root, _, video, settings = recording
+    job = diarization.enqueue(root, 'source', settings)
+    observed = []
+    publish = diarization.publish
+
+    def capture(path, result):
+        publish(path, result)
+        if path.name == 'speech.json' and result.get('diarization_progress', {}).get('stage') == 'embeddings':
+            observed.append(live.snapshot(root, path.parent)['diarization_progress'])
+
+    def process(command, **kwargs):
+        output = Path(command[command.index('--output')+1])
+        progress = Path(command[command.index('--progress')+1])
+        jobs.write_json(progress, {**progress_state('embeddings', completed=3, total=10, at=100), 'message':'measured'})
+        jobs.write_json(output, {'device':'cpu', 'duration':5,
+            'audio_sha256':hashlib.sha256(video.read_bytes()).hexdigest(),
+            'turns':[{'start':0,'end':5,'speaker':'a'}]})
+        return Mock(poll=Mock(side_effect=[None,0]), returncode=0)
+
+    monkeypatch.setattr(diarization, 'publish', capture)
+    monkeypatch.setattr(diarization, 'extract_audio', lambda source,target,start,duration: target.write_bytes(video.read_bytes()))
+    monkeypatch.setattr(diarization.subprocess, 'Popen', process)
+    monkeypatch.setattr(diarization.time, 'sleep', lambda seconds: None)
+    diarization.run(root, root/'output/jobs'/job['id'], job, Mock())
+    assert observed and observed[0]['completed'] == 3 and observed[0]['total'] == 10
+    assert observed[0]['updated_at'] == 100
+    assert live.snapshot(root, root/'output'/job['folder'])['diarization_progress']['stage'] == 'complete'

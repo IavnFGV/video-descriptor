@@ -295,6 +295,7 @@ def snapshot(root, folder):
             "video_url": video_url(root, manifest["video"]), "duration": duration,
             "start": manifest.get("start", 0), "position": position,
             "translation_progress": translation_progress,
+            "diarization_progress": speech_result.get('diarization_progress'),
             "phase": phase, "done": done, "running": running, "status": state,
             "processing": processing_details(phase, state, speech_result, request_payload,
                                              read_json(folder / "recognition-settings.json", {})),

@@ -98,3 +98,15 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace .reply-heading .timestamp:hover,
 .recording-workspace .reply-heading .speaker-select:hover,
 .recording-workspace .reply-heading .edit-subtitle:hover{background:var(--vd-subtle);border-color:var(--vd-border)}
+.diarization-progress{display:flex;align-items:center;gap:var(--vd-space-3);margin:var(--vd-space-3) 0}
+.diarization-progress p{margin:0}
+.diarization-progress-label{font-weight:var(--vd-medium)}
+.diarization-progress-time{font-size:var(--vd-caption);color:var(--vd-muted);font-variant-numeric:tabular-nums}
+.diarization-ring{display:block;flex:0 0 var(--vd-compact-height);width:var(--vd-compact-height);height:var(--vd-compact-height)}
+.diarization-ring svg{display:block;width:100%;height:100%;transform:rotate(-90deg)}
+.diarization-ring circle{fill:none;stroke-width:3}
+.diarization-ring-track{stroke:var(--vd-border)}
+.diarization-ring-value{stroke:var(--vd-accent);stroke-linecap:round}
+.diarization-ring.indeterminate svg{animation:vd-diarization-spin 1.2s linear infinite}
+@keyframes vd-diarization-spin{to{transform:rotate(270deg)}}
+@media(prefers-reduced-motion:reduce){.diarization-ring.indeterminate svg{animation:none}}
