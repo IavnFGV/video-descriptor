@@ -10,6 +10,14 @@
   const actions=document.createElement('div');actions.className='recording-actions';
   actions.innerHTML='<button id="recording-diarize" type="button" hidden>Разделить по участникам</button><button id="recording-translate" type="button" hidden>Перевести на русский</button><button id="recording-stop" type="button" hidden>Остановить обработку</button>';
   speechHeading.append(actions);
+  const translationPanel=$('translation-settings-panel');
+  translationPanel.insertBefore($('recording-translate'),$('translation-settings-form'));
+  const transcriptSection=$('speech-feed').closest('section');
+  const transcriptDisclosure=document.createElement('details');transcriptDisclosure.id='transcript-disclosure';transcriptDisclosure.open=true;
+  const transcriptSummary=document.createElement('summary');transcriptSummary.textContent='Текст расшифровки';
+  transcriptDisclosure.append(transcriptSummary);
+  while(transcriptSection.firstChild)transcriptDisclosure.append(transcriptSection.firstChild);
+  transcriptSection.append(transcriptDisclosure);
   const notice=document.createElement('p');notice.id='recording-status';notice.className='hint';notice.setAttribute('role','status');speechHeading.append(notice);
   const actionNotice=document.createElement('p');actionNotice.id='recording-action-status';actionNotice.className='feedback';actionNotice.setAttribute('role','status');actionNotice.setAttribute('aria-live','polite');speechHeading.append(actionNotice);
   let actionPending=false;

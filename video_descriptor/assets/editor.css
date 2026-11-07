@@ -150,3 +150,7 @@ body:has(>.vd-global-nav){max-width:calc(var(--vd-content-width) + var(--vd-nav-
 nav ul{list-style:none;padding:0}nav li{margin:var(--vd-space-3) 0}nav li.active{background:var(--vd-accent-tint)}
 section[role=alert]{border-color:var(--vd-warning);background:var(--vd-warning-bg)}
 @media(max-width:900px){.workspace{grid-template-columns:1fr}.watch-pane{position:static}.player video{max-height:40vh}}
+
+#personal-preview [data-note-time]{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
+#personal-preview .note-time{min-height:var(--vd-compact-height);padding:var(--vd-space-1);border-color:transparent;background:transparent;color:var(--vd-accent);font-size:var(--vd-label);font-weight:var(--vd-normal);font-variant-numeric:tabular-nums;vertical-align:baseline}
+#personal-preview .note-time:hover{background:var(--vd-accent-tint);text-decoration:underline}

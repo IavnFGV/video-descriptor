@@ -214,25 +214,34 @@ def snapshot(root, folder):
         running = True
     translation_progress = None
     if phase == 6:
-        from .models import Source
-        from .notes import group_sources
-        groups = group_sources([Source.model_validate(item) for item in speech], 0, 90)
-        current = int(state.get("chunk", "0/0").split("/")[0])
+        plan = read_json(folder / 'translation-plan.json', {})
+        planned = plan.get('blocks') if isinstance(plan, dict) else None
+        chunk_match = re.fullmatch(r"(\d+)/(\d+)", str(state.get("chunk", "")))
+        current = int(chunk_match[1]) if chunk_match else 0
         failed = {item["block"] for item in translation_errors}
         historical = set(read_json(folder / "translation-error-history.json", [])) | failed
         blocks = []
-        for index, group in enumerate(groups, 1):
-            complete = all(item.id in translations for item in group)
+        for index, group in enumerate(planned or [], 1):
+            complete = bool(group['source_ids']) and all(identity in translations for identity in group['source_ids'])
             status = ("ready" if complete else "active" if running and index == current
                       else "error" if index in failed else "retry" if index in historical else "pending")
             blocks.append({"block": index, "status": status,
                            "retry": index in historical,
-                           "start": min(item.start for item in group),
-                           "end": max(item.end for item in group)})
-        completed = sum(item["status"] == "ready" for item in blocks)
-        translation_progress = {"total": len(blocks), "completed": completed,
-                                "remaining": len(blocks) - completed,
-                                "current": current, "blocks": blocks}
+                           "start": group['start'], "end": group['end']})
+        if planned is not None:
+            total = len(blocks)
+            completed = sum(item["status"] == "ready" for item in blocks)
+        else:
+            # Older/in-flight runs have no saved plan. Trust their own counters,
+            # not a newly guessed 90-second grouping (which can disagree entirely).
+            fraction = str(state.get('chunk', '0/0')).split('/')
+            total = int(state.get('total') or (fraction[1] if len(fraction) == 2 else 0))
+            processed = min(total, max(0, int(state.get('completed') or 0)))
+            completed = max(0, processed - sum(index <= processed for index in failed))
+        translation_progress = {"total": total, "completed": completed,
+                                "remaining": max(0, total - completed),
+                                "current": current, "blocks": blocks,
+                                "details_available": planned is not None}
     ready = (folder / "report.html").is_file() and (not speech_result or (folder / "notes.json").is_file())
     done = ready and not running
     if done:

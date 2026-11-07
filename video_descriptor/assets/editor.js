@@ -148,7 +148,14 @@
       if (time !== null) {
         heading.dataset.noteTime = time;
         const jump = document.createElement('button');
-        jump.textContent = '▶'; jump.dataset.time = time;
+        const stamp=heading.textContent.match(/^\s*\[(\d{2,}:\d{2}:\d{2})(?:\s*[-–—]\s*\d{2,}:\d{2}:\d{2})?\]\s*/);
+        jump.textContent=stamp?stamp[1]:new Date(time*1000).toISOString().slice(11,19);
+        jump.className='note-time';jump.dataset.time=time;
+        if(stamp){
+          const walker=document.createTreeWalker(heading,NodeFilter.SHOW_TEXT);
+          let remaining=stamp[0].length,node;
+          while(remaining&&(node=walker.nextNode())){const count=Math.min(remaining,node.textContent.length);node.textContent=node.textContent.slice(count);remaining-=count;}
+        }
         jump.title = 'Перейти к этому месту видео'; heading.prepend(jump, ' ');
       }
     });

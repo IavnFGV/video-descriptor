@@ -60,6 +60,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
                 body=(ROOT/'windows-app/ui'/name).read_bytes()
                 self.send_response(200);self.send_header('Content-Type',{'html':'text/html','js':'text/javascript','css':'text/css'}[name.rsplit('.',1)[1]]+'; charset=utf-8');self.end_headers();self.wfile.write(body);return
             return super().do_GET()
+    ThreadingHTTPServer.request_queue_size=128
     server = ThreadingHTTPServer(('127.0.0.1',0), partial(Handler, directory=str(root)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     with socket.socket() as probe: probe.bind(('127.0.0.1',0)); debug=probe.getsockname()[1]
@@ -78,7 +79,11 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             except RuntimeError as error:
                 if 'navigated' in str(error) or 'context' in str(error):return False
                 raise
-        wait_for(workspace_ready,timeout=35)
+        try:
+            wait_for(workspace_ready,timeout=35)
+        except TimeoutError:
+            print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
+            raise
         def evaluate(script): return c.evaluate(script)
         assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
         assert evaluate('location.pathname==="/create" && recordingUI.native')
@@ -89,6 +94,36 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--toolbar-only' in sys.argv:
+            assert evaluate('document.querySelector("#recording-translate").closest("#translation-settings-panel")!==null')
+            assert evaluate('document.querySelector("#transcript-disclosure").open')
+            evaluate('document.querySelector("#transcript-disclosure").open=false')
+            assert evaluate('!document.querySelector("#speech-feed").checkVisibility()')
+            evaluate('document.querySelector("#transcript-disclosure").open=true')
+            assert evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".note-time").textContent==="00:00:00"')
+            print('Notes font:',evaluate('(()=>{const d=document.querySelector("#report-editor").contentDocument;return {html:d.defaultView.getComputedStyle(d.documentElement).fontFamily,body:d.defaultView.getComputedStyle(d.body).fontFamily}})()'),flush=True)
+            dimensions=evaluate('(()=>{const f=document.querySelector("#report-editor"),d=f.contentDocument,p=d.querySelector("#personal-preview");return {frame:f.clientHeight,body:d.body.scrollHeight,width:d.body.clientWidth,viewport:d.documentElement.clientWidth,overflow:p.scrollHeight-p.clientHeight}})()')
+            assert abs(dimensions['width']-dimensions['viewport'])<3,dimensions
+            assert evaluate('getComputedStyle(document.querySelector("#report-editor")).resize==="vertical"')
+            before=evaluate('document.querySelector("#report-editor").clientHeight')
+            evaluate('document.querySelector("#report-editor").style.height="1000px"')
+            assert evaluate('document.querySelector("#report-editor").clientHeight')>before
+            evaluate('document.querySelector("#report-editor").style.height=""')
+            evaluate('document.querySelector("#speech-feed").scrollIntoView({block:"center"})')
+            geometry=evaluate("""(()=>{const nodes=['#subtitle-mode','#toggle-speaker-names','#download-srt','.subtitle-history button'].map(s=>document.querySelector(s));return nodes.map(n=>{const r=n.getBoundingClientRect();return {bottom:r.bottom,top:r.top,height:r.height}})})()""")
+            assert abs(geometry[0]['bottom']-geometry[1]['bottom'])<2, geometry
+            assert geometry[2]['top']>=geometry[0]['top'], geometry
+            assert all(30<=x['height']<=34 for x in geometry), geometry
+            evaluate('document.querySelector("#stage-notes").scrollIntoView({block:"start"})')
+            c.screenshot(out/'notes-layout.png')
+            evaluate('document.querySelector("#speech-feed").scrollIntoView({block:"center"})')
+            c.screenshot(out/'transcript-toolbar.png')
+            for width in (1100,760,360):
+                c.call('Emulation.setDeviceMetricsOverride',width=width,height=900,deviceScaleFactor=1,mobile=False)
+                assert evaluate('document.documentElement.scrollWidth<=innerWidth'), width
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: toolbar controls aligned and compact; grouped exports wrap; 1920/1100/760/360 fit',flush=True)
+            sys.exit(0)
         if '--job-errors-only' in sys.argv:
             fixture_job=json.loads((job_folder/'job.json').read_text(encoding='utf-8'))
             fixture_job.update(status='error',stage='notes',error='См. журнал',cancelled=False)
@@ -269,6 +304,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             evaluate('(()=>{const e=document.querySelector("#report-editor").contentDocument.querySelector('+json.dumps(selector)+');e.value='+json.dumps(value)+';e.dispatchEvent(new Event("input",{bubbles:true}));})()')
         def key(name,modifiers=0):
             for kind in ('keyDown','keyUp'):c.call('Input.dispatchKeyEvent',type=kind,key=name,modifiers=modifiers,windowsVirtualKeyCode={'Escape':27,'Enter':13,'z':90}.get(name,0))
+        wait_for(lambda:frame_eval('!!doc.querySelector(".CodeMirror")'))
         initial_notes=frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')
         frame_click('#add-section');frame_click('.notes-section-editor [data-cancel]')
         assert frame_eval('doc.querySelector(".CodeMirror").CodeMirror.getValue()')==initial_notes

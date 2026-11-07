@@ -403,12 +403,13 @@
     if (done) progress = 100;
     const translation = snapshot.translation_progress;
     $('translation-summary').hidden = !translation;
-    $('translation-blocks-panel').hidden = !translation;
+    $('translation-blocks-panel').hidden = !translation || !translation.blocks.length;
     if (translation) {
       progress = translation.total ? translation.completed / translation.total * 100 : 0;
-      $('translation-summary').textContent = 'Готово: ' + translation.completed + '/' + translation.total +
-        ' блоков (включая кэш). Осталось: ' + translation.remaining +
-        (snapshot.running ? '. Сейчас обрабатывается блок ' + translation.current + '.' : '. Обработка остановлена.');
+      $('translation-summary').textContent = translation.total ? 'Переведено: ' + translation.completed + ' из ' + translation.total +
+        ' частей (включая кэш). Осталось: ' + translation.remaining +
+        (translation.remaining===0?'. Перевод готов.':snapshot.running?(translation.current>0?'. Сейчас обрабатывается часть '+translation.current+'.':'. Подготавливаем перевод.'):
+          job?.cancelled?'. Перевод остановлен.':job?.status==='error'?'. Перевод прерван.':'. Перевод не активен.') : 'Подготавливаем перевод: ожидаем данные о разбиении.';
       changed('translation-blocks', translation.blocks, node => {
         node.replaceChildren();
         const labels = {ready: 'Готово', active: 'Обрабатывается', error: 'Ошибка', retry: 'Повтор после сбоя', pending: 'Ожидает обработки'};
