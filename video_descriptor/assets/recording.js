@@ -11,6 +11,8 @@
   actions.innerHTML='<button id="recording-diarize" type="button" hidden>Определить говорящих</button><button id="recording-translate" type="button" hidden>Перевести на русский</button><button id="recording-stop" type="button" hidden>Остановить обработку</button>';
   speechHeading.append(actions);
   const notice=document.createElement('p');notice.id='recording-status';notice.className='hint';notice.setAttribute('role','status');speechHeading.append(notice);
+  const actionNotice=document.createElement('p');actionNotice.id='recording-action-status';actionNotice.className='feedback';actionNotice.setAttribute('role','status');actionNotice.setAttribute('aria-live','polite');speechHeading.append(actionNotice);
+  let actionPending=false;
   const newNotes=$('notes-settings').closest('section');newNotes.id='recording-notes-settings';
   if(location.search.includes('folder=')||location.search.includes('job='))newNotes.hidden=true;
   const notesMenu=document.createElement('details'),notesSummary=document.createElement('summary');notesSummary.textContent='Действия с конспектом';notesMenu.append(notesSummary,$('delete-notes'));$('stage-notes').append(notesMenu);
@@ -79,7 +81,7 @@
     $('recording-notes').value=own?.url||'';
     $('recording-notes-origin').textContent=own?'По расшифровке: '+speechName(data.speech.find(item=>item.folder===own.speech_folder)||{created:own.created}):'Создайте конспект по выбранной расшифровке.';
     $('recording-stop').hidden=!window.recordingUI.native||!(data.active_job||['queued','running'].includes(job?.status));
-    for(const id of ['recording-diarize','recording-translate'])$(id).disabled=!snapshot?.has_ready_transcript||Boolean(data.active_job)||['queued','running'].includes(job?.status);
+    for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot?.has_ready_transcript||Boolean(data.active_job)||['queued','running'].includes(job?.status);
   }
   async function library(){
     if(loading){requested=true;return;}loading=true;
@@ -123,7 +125,7 @@
     if(!snapshot.has_ready_transcript&&!snapshot.running&&!['queued','running'].includes(job?.status))$('speech-settings').open=true;
     if(!snapshot.report_variants?.length)$('notes-feed').querySelector('.empty')?.replaceChildren(document.createTextNode('Конспект ещё не создан. Выберите «Создать новый конспект…» в списке выше.'));
     $('recording-stop').hidden=!window.recordingUI.native||!['queued','running'].includes(job?.status);
-    for(const id of ['recording-diarize','recording-translate'])$(id).disabled=!snapshot.has_ready_transcript||snapshot.running||['queued','running'].includes(job?.status);
+    for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot.has_ready_transcript||snapshot.running||['queued','running'].includes(job?.status);
     if(changed)detail.open=job?.status==='error';
     const stateInfo=snapshot.status||{},active=snapshot.running||['queued','running'].includes(job?.status);
     requestStatus.hidden=!active;
@@ -135,7 +137,20 @@
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;
   }
-  async function action(task){try{const value=await postprocess(task);document.dispatchEvent(new CustomEvent('construction-started',{detail:value}));}catch(error){notice.textContent=error.message;}}
+  async function action(task){
+    if(actionPending)return;
+    const folder=snapshot?.folder,button=$(task==='diarize'?'recording-diarize':'recording-translate'),label=button.textContent;
+    actionPending=true;paint();button.setAttribute('aria-busy','true');button.textContent='Запускаем…';
+    actionNotice.classList.remove('vd-error');actionNotice.textContent=task==='diarize'?'Запускаем определение говорящих… Проверяем запись и готовим задание.':'Запускаем перевод…';
+    try{
+      const value=await postprocess(task);
+      actionNotice.textContent='Задание добавлено в очередь. Прогресс появится в новом варианте записи.';
+      if(snapshot?.folder===folder)document.dispatchEvent(new CustomEvent('construction-started',{detail:value}));
+      await library();
+    }catch(error){
+      actionNotice.classList.add('vd-error');actionNotice.textContent='Не удалось запустить: '+error.message;
+    }finally{actionPending=false;button.removeAttribute('aria-busy');button.textContent=label;paint();}
+  }
   $('recording-diarize').onclick=()=>action('diarize');$('recording-translate').onclick=()=>action('translate');
   $('recording-stop').onclick=async()=>{try{const response=await fetch('/api/native/cancel?id='+encodeURIComponent(data?.active_job?.id||job.id),{method:'POST',headers:{'X-App-Instance':window.recordingUI.instance}});const value=await response.json();if(!response.ok)throw Error(value.error);notice.textContent='Останавливаем. Готовые результаты сохранятся.';window.recordingSelection.refresh();library();}catch(error){notice.textContent=error.message;}};
   window.recordingUI={seek,sync,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null};

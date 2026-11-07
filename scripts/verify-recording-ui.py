@@ -81,6 +81,17 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
         if '--speakers-only' in sys.argv:
+            evaluate("""window.postCalls=0;window.originalFetch=window.fetch;window.fetch=(url,options)=>url==='/api/native/postprocess'?(postCalls++,new Promise(resolve=>{window.replyPost=resolve})):originalFetch(url,options)""")
+            c.click('#recording-diarize')
+            assert evaluate('document.querySelector("#recording-diarize").disabled && document.querySelector("#recording-diarize").getAttribute("aria-busy")==="true"')
+            assert 'Запускаем' in c.visible_text('#recording-action-status')
+            evaluate('document.querySelector("#recording-diarize").click()')
+            assert evaluate('postCalls')==1
+            evaluate("replyPost(new Response(JSON.stringify({error:'Дождитесь завершения обработки или настройки'}),{status:409,headers:{'Content-Type':'application/json'}}))")
+            wait_for(lambda:'Не удалось запустить' in c.visible_text('#recording-action-status'))
+            assert evaluate('document.querySelector("#recording-action-status").classList.contains("vd-error")')
+            assert not evaluate('document.querySelector("#recording-diarize").disabled')
+            evaluate('window.fetch=originalFetch')
             def saved_rows():
                 return json.loads((root/'output/notes-a/transcript-edits.json').read_text(encoding='utf-8'))
             assert not evaluate('!!document.querySelector("#speech-feed .speaker-name")')
