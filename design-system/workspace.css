@@ -91,7 +91,7 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace .reply-heading .timestamp,
 .recording-workspace .reply-heading .speaker-select,
 .recording-workspace .reply-heading .edit-subtitle{min-height:var(--vd-compact-height);background:transparent;border-color:transparent;box-shadow:none;font-size:var(--vd-label);font-weight:var(--vd-normal);padding:var(--vd-space-1);color:var(--vd-muted)}
-.recording-workspace .reply-heading .speaker-select{width:auto;max-width:100%}
+.recording-workspace .reply-heading .speaker-select{field-sizing:content;width:auto;min-width:0;max-width:100%}
 .recording-workspace .reply-heading .speaker-controls{max-width:100%}
 .recording-workspace .reply-heading .edit-subtitle{min-width:var(--vd-compact-height)}
 .recording-workspace .reply-heading .timestamp{color:var(--vd-accent);font-variant-numeric:tabular-nums}

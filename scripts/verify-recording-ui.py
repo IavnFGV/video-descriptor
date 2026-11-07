@@ -91,6 +91,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             c.click('#speaker-names-form button')
             wait_for(lambda:'Алекс' in c.visible_text('#speech-feed .speaker-select'))
             assert evaluate('[...document.querySelectorAll("#speech-feed .speaker-select")].every(s=>s.selectedOptions[0].textContent==="Алекс")')
+            assert evaluate('document.querySelector("#speech-feed .speaker-select").getBoundingClientRect().width < 100'), 'Speaker arrow is detached from its short name'
             c.click('#toggle-speaker-names')
             c.fill('#speech-feed .speaker-select','__new_speaker__')
             wait_for(lambda:evaluate('!document.querySelector("#speech-feed .speaker-name-input").hidden'))
