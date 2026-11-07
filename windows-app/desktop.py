@@ -1,7 +1,6 @@
 """Desktop connection policy. Reuses app.py; never terminates a backend process."""
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import socket
@@ -13,7 +12,7 @@ import app
 
 
 def state_path(value):
-    fingerprint = hashlib.sha256(value['workspace'].encode()).hexdigest()[:16]
+    fingerprint = app.installation_id()[:16]
     return app.HERE / 'runtime' / f'instance-{fingerprint}.json'
 
 

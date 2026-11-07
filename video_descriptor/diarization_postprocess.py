@@ -42,7 +42,7 @@ def status(settings):
     model = Path(settings.get('diarization_model_directory') or '__missing__')
     configured = python.is_file() and (model / 'config.yaml').is_file()
     device = settings.get('diarization_device', 'cpu')
-    return {'state': 'configured' if configured else 'setup_required', 'device': device,
+    return {'state': 'configured' if configured else 'setup_required', 'device': device, 'requested_device': settings.get('diarization_requested_device', 'auto'),
             'message': (f'Настроено · {device.upper()} · запускается по запросу' +
                         (' · ' + settings['diarization_setup_warning'] if settings.get('diarization_setup_warning') else '')) if configured else
                        'Нужны отдельное Python-окружение и локальная модель pyannote community-1.'}
@@ -54,7 +54,7 @@ def enqueue(root, name, settings):
         raise ValueError(status(settings)['message'])
     device = settings.get('diarization_device', 'cpu')
     if device not in {'cpu', 'xpu'}:
-        raise ValueError('Для говорящих выберите CPU или Intel GPU/XPU; NPU не поддерживается.')
+        raise ValueError('Для участников выберите CPU или Intel GPU/XPU; NPU не поддерживается.')
     source = checked_folder(root, name)
     result = editable_result(source, subtitle_result(source))
     if result.get('status') != 'done' or not result.get('segments'):
@@ -74,12 +74,12 @@ def enqueue(root, name, settings):
         write_json(target / 'manifest.json', {**manifest, 'version_of': name, 'mode': 'audio'})
         write_json(target / 'speech.json', {**result, 'folder': target.name, 'job_id': identity,
                                            'segments': segments, 'status': 'queued',
-                                           'message': 'Говорящие: ожидаем запуска', 'stage': 'diarization'})
+                                           'message': 'Участники: ожидаем запуска', 'stage': 'diarization'})
         write_json(target / 'transcript.json', [{k: row[k] for k in ('id', 'start', 'end', 'text')}
                                                for row in segments])
         write_json(target / 'translations.json', result.get('translations', {}))
         job = {'id': identity, 'video': str(video), 'filename': video.name,
-               'title': 'Говорящие · ' + (result.get('title') or video.name), 'mode': 'postprocess',
+               'title': 'Участники · ' + (result.get('title') or video.name), 'mode': 'postprocess',
                'task': 'diarize', 'stage': 'diarization', 'source_folder': name, 'folder': target.name,
                'diarization_python': str(Path(settings['diarization_python']).resolve()),
                'diarization_model_directory': str(Path(settings['diarization_model_directory']).resolve()),
@@ -93,19 +93,21 @@ def enqueue(root, name, settings):
 
 def validate_turns(turns, duration):
     if not isinstance(turns, list):
-        raise TypeError('Сервис не вернул разметку говорящих. Исходный текст сохранён.')
+        raise TypeError('Сервис не вернул разметку участников. Исходный текст сохранён.')
     for row in turns:
         if (not isinstance(row, dict) or not isinstance(row.get('speaker'), str) or
                 any(type(row.get(k)) not in (int, float) or not math.isfinite(row[k]) for k in ('start', 'end')) or
                 not 0 <= row['start'] <= row['end'] <= duration + .1):
-            raise ValueError('Неверные границы говорящих. Исходный текст сохранён.')
+            raise ValueError('Неверные границы участников. Исходный текст сохранён.')
     return turns
 
 
 def run(root, folder, job, log):
+    from .diarization_progress import progress_state
     target = root / 'output' / job['folder']
     result = read_json(target / 'speech.json')
-    result.update(status='running', message='Говорящие: подготавливаем аудио без повторного распознавания')
+    result.update(status='running', message='Участники: подготавливаем аудио без повторного распознавания',
+                  diarization_progress=progress_state('audio'))
     publish(target / 'speech.json', result)
     video = source_path(root, job['video'])
     stat = video.stat()
@@ -117,9 +119,12 @@ def run(root, folder, job, log):
         extract_audio(video, audio, 0, result['duration'])
     output, progress = target / 'diarization-result.json', target / 'diarization-progress.json'
     try:
+        result['diarization_progress'] = progress_state('model_load')
+        publish(target / 'speech.json', result)
         if model_digest(Path(job['diarization_model_directory'])) != job['diarization_model_sha256']:
-            raise ValueError('Модель диаризации изменилась после запуска. Создайте новую версию с говорящими.')
+            raise ValueError('Модель диаризации изменилась после запуска. Создайте новую версию с участниками.')
         if not output.exists():
+            progress.unlink(missing_ok=True)
             errors = target / 'diarization-error.log'
             command = [job['diarization_python'], '-X', 'utf8', '-u', str(WORKER),
                        '--audio', str(audio), '--model', job['diarization_model_directory'],
@@ -129,7 +134,15 @@ def run(root, folder, job, log):
                                            **subprocess_options())
                 while process.poll() is None:
                     check_stop(folder, process)
-                    result.update(message=read_json(progress, {}).get('message', result['message']))
+                    update = read_json(progress, {})
+                    if isinstance(update, dict) and update.get('stage'):
+                        details = {key: update[key] for key in (
+                            'stage', 'label', 'completed', 'total', 'updated_at', 'stage_started_at') if key in update}
+                        previous = result.get('diarization_progress', {})
+                        if previous.get('stage') == details['stage'] and 'stage_started_at' in previous:
+                            details['stage_started_at'] = previous['stage_started_at']
+                        result.update(message=update.get('message', result['message']),
+                                      diarization_progress=details)
                     publish(target / 'speech.json', result)
                     time.sleep(.5)
             check_stop(folder)
@@ -147,23 +160,28 @@ def run(root, folder, job, log):
                                    ' Исходная расшифровка сохранена.')
         report = read_json(output)
         if not isinstance(report, dict):
-            raise TypeError('Кэш голосов повреждён. Создайте новую версию с говорящими; исходный текст сохранён.')
+            raise TypeError('Кэш голосов повреждён. Создайте новую версию с участниками; исходный текст сохранён.')
         with audio.open('rb') as stream:
             audio_sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
         if report.get('audio_sha256') != audio_sha256:
             raise ValueError('Разметка голосов относится к другому аудио. Исходный текст сохранён.')
         if report.get('device') != job['diarization_device'] or abs(report.get('duration', -1) - result['duration']) > .1:
             raise ValueError('Ответ диаризации не совпал с записью или выбранным устройством.')
+        result['diarization_progress'] = progress_state('assignment', result.get('diarization_progress'))
+        publish(target / 'speech.json', result)
         turns = validate_turns(report.get('turns'), result['duration'])
         result['segments'] = assign_speakers([dict(row) for row in result['segments']], turns)
         speakers = sorted({row['speaker'] for row in result['segments']} - {'unknown'})
-        result.update(status='done', message='Говорящие определены' if speakers else
-                      'Голоса не определены; реплики оставлены без говорящего. Доступна ручная разметка.', stage='done',
-                      speaker_names={speaker: f'Говорящий {index}' for index, speaker in enumerate(speakers, 1)},
+        result['diarization_progress'] = progress_state('saving')
+        publish(target / 'speech.json', result)
+        result.update(status='done', message='Участники определены' if speakers else
+                      'Голоса не определены; реплики оставлены без участника. Доступна ручная разметка.', stage='done',
+                      speaker_names={speaker: f'Участник {index}' for index, speaker in enumerate(speakers, 1)},
                       diarization_device=job['diarization_device'],
-                      speaker_notice='Говорящий назначен по наибольшему пересечению с репликой. '
+                      speaker_notice='Участник назначен по наибольшему пересечению с репликой. '
                                      'Смена голоса внутри одной реплики может потребовать ручной правки.')
         write_json(target / 'diarization.json', turns)
+        result['diarization_progress'] = progress_state('complete')
         publish(target / 'speech.json', result)
     except (OSError, ValueError, TypeError, RuntimeError) as exc:
         result.update(status='error', message=str(exc))

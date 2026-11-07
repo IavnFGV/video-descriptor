@@ -14,6 +14,7 @@ import requests
 from .chapters import build_chapters
 from .gemini import GeminiServiceError
 from .jobs import read_json
+from .local_tokens import load_counter
 from .models import Chapter, Notes, Source
 from .notes import chat_json, group_sources
 from .progress import ProgressLog, update_status
@@ -24,6 +25,23 @@ PROMPT = files("video_descriptor").joinpath("prompts/translate_markers_ru.txt").
     encoding="utf-8")
 LEGACY_PROMPT = files("video_descriptor").joinpath("prompts/translate_ru.txt").read_text(
     encoding="utf-8")
+
+
+def translation_groups(sources, count):
+    """Pack short/sparse speech by text cost, leaving room for Russian expansion."""
+    if count.mode == 'byte-bound':
+        return group_sources(sources, 0, 90)
+    groups, pending = [], []
+    for source in sorted(sources, key=lambda item: (item.start, item.id)):
+        text = '\n\n'.join(f'[[s{i:04d}]]\n{row.text}'
+                           for i, row in enumerate([*pending, source], 1))
+        if pending and (count(text) > 1256 or len(pending) >= 96):
+            groups.append(pending)
+            pending = []
+        pending.append(source)
+    if pending:
+        groups.append(pending)
+    return groups
 
 
 def translate_batch(sources, model, base_url, log=None):
@@ -85,6 +103,7 @@ def main():
     parser.add_argument("folder", type=Path, help="Папка с transcript.json и manifest.json")
     parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", ""))
     parser.add_argument('--local-model', help='Зафиксированная локальная модель задания, независимо от текущих настроек')
+    parser.add_argument("--gemini-model", help="Зафиксированная Google-модель этого задания")
     parser.add_argument("--base-url", default=os.getenv(
         "OLLAMA_BASE_URL", "http://host.docker.internal:11434"))
     parser.add_argument("--refresh-only", action="store_true",
@@ -108,7 +127,13 @@ def main():
     try:
         speech = [Source.model_validate(item) for item in
                   json.loads((folder / "transcript.json").read_text())]
-        groups = group_sources(speech, 0, 90)
+        settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
+                    if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model}
+                    if args.gemini_model else translation_settings())
+        active_model = settings['model'] if settings['provider'] == 'gemini' else (settings.get('ollama_model') or args.model)
+        count = load_counter(args.base_url, active_model) if settings['provider'] == 'ollama' else None
+        groups = translation_groups(speech, count) if count else group_sources(speech, 0, 90)
+        log(f'Перевод: {len(groups)} частей; подсчёт: {count.mode if count else "cloud"}')
         translation_path = folder / "translations.json"
         translations = (json.loads(translation_path.read_text())
                         if translation_path.exists() else {})
@@ -120,7 +145,7 @@ def main():
                 from .prompt_settings import effective, overrides
                 log.prompt_settings = overrides()
                 settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
-                            if args.local_model else translation_settings())
+                            if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model} if args.gemini_model else translation_settings())
                 log.translation_settings = settings
                 active_model = settings["model"] if settings["provider"] == "gemini" else (settings.get("ollama_model") or args.model)
                 active_base = "gemini" if settings["provider"] == "gemini" else args.base_url
@@ -129,7 +154,8 @@ def main():
                 update_status(log, chunk=f"{index}/{len(groups)}",
                               span=f"{min(s.start for s in group):.0f}–"
                                    f"{max(s.end for s in group):.0f} сек",
-                              sources=f"речь {len(group)}, кадры 0", task="перевод")
+                              sources=f"речь {len(group)}, кадры 0", task="перевод",
+                              phase="translation", completed=index - 1, total=len(groups))
                 key = hashlib.sha256(json.dumps(
                     [effective('translate', PROMPT, log), active_model, active_base, [item.model_dump() for item in group]],
                     sort_keys=True,
@@ -152,10 +178,18 @@ def main():
                         batch = json.loads(cached.read_text())
                         log("Перевод блока загружен из кэша")
                     else:
-                        batch = translate_resilient(group, active_model, active_base, log)
+                        pending = [source for source in group if source.id not in translations]
+                        batch = {source.id: translations[source.id] for source in group if source.id in translations}
+                        batch.update(translate_resilient(pending, active_model, active_base, log))
                         save(target, batch)
+                    # Regrouping or a block checkpoint must not overwrite a newer
+                    # saved translation, including intentionally empty merge rows.
+                    batch.update({source.id: translations[source.id]
+                                  for source in group if source.id in translations})
                     translations.update(batch)
                     save(folder / "translations.json", translations)
+                    update_status(log, completed=index, request_started=None, request_state='перевод сохранён')
+                    log(f'Перевод: обработано {index} из {len(groups)} частей')
                 except GeminiServiceError:
                     raise
                 except (RuntimeError, ValueError, requests.RequestException) as exc:

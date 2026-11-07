@@ -170,6 +170,14 @@ def _chat_json_once(prompt, evidence, schema, model, base_url, log=None, context
                 limited = event.get("done_reason") == "length"
                 update_status(log, input_tokens=event.get("prompt_eval_count"),
                               output_tokens=event.get("eval_count"))
+                if log:
+                    load_s = event.get('load_duration', 0) / 1e9
+                    read_s = event.get('prompt_eval_duration', 0) / 1e9
+                    write_s = event.get('eval_duration', 0) / 1e9
+                    rate = event.get('eval_count', 0) / write_s if write_s else 0
+                    log(f'Ollama: загрузка {load_s:.1f} с; чтение {read_s:.1f} с; '
+                        f'генерация {write_s:.1f} с, {rate:.1f} токенов/с; '
+                        f'контекст {payload["options"]["num_ctx"]}')
                 break
     except BaseException as exc:
         error = str(exc)

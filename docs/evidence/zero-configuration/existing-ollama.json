@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "method": "existing localhost Ollama, real packaged WebView2; no install, copied models or lifecycle operations",
+  "model": "gpt-oss:20b",
+  "job": "bcfc53a4aed140bdb2e2066e4c9c49df"
+}

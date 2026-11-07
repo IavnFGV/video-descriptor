@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "scope": "Disposable real Windows processes; no user services stopped",
+  "checks": [
+    "check-only preserves orphan",
+    "external Python referencing installation is refused",
+    "all identities checked before termination",
+    "confirmed orphan terminated",
+    "installation unblocked",
+    "Unicode installation path"
+  ],
+  "installer_dialog_clicked": false
+}

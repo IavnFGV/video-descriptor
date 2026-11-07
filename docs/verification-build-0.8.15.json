@@ -1,0 +1,40 @@
+{
+  "zip_sha256": "934d4e14582128f721bf6c1eca57cb91c43611783046164c780bd1493b45497f",
+  "zip_files_verified": 4439,
+  "portable": {
+    "imports": true,
+    "loopback_ui": true,
+    "no_system_python_path": true,
+    "no_model": true,
+    "graceful_stop": true,
+    "setup_wizard": true
+  },
+  "clean_vm": false,
+  "hardware_recognition": false,
+  "date": "2026-11-07",
+  "version": "0.8.15",
+  "source_commit": "79de121",
+  "local_checks": {
+    "passed": 440,
+    "skipped": 2,
+    "browser_speaker_controls": "PASS",
+    "browser_full_recording": "PASS"
+  },
+  "artifacts": [
+    {
+      "file": "VideoDescriptor-0.8.15-windows-x64-setup.exe",
+      "bytes": 224014473,
+      "sha256": "968248acea1b31c8cf9ed2b015cbe7b59e19741a34bbc9f260a9801b669cf0e1"
+    },
+    {
+      "file": "VideoDescriptor-0.8.15-windows-x64.zip",
+      "bytes": 265846192,
+      "sha256": "934d4e14582128f721bf6c1eca57cb91c43611783046164c780bd1493b45497f"
+    }
+  ],
+  "limits": [
+    "Installer built; no install/upgrade/uninstall lifecycle for this build",
+    "No clean Windows VM or hardware inference run",
+    "Existing installation unchanged"
+  ]
+}

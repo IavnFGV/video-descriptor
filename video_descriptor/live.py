@@ -69,11 +69,11 @@ def processing_details(phase, state, speech_result, payload=None, recognition_se
         speech_stage = speech_result.get("stage")
         details["task"] = speech_result.get("message", "Распознавание речи")
         if speech_stage == "diarization":
-            details.update(title="Распознавание говорящих",
-                           message="Для распознавания говорящих параметры не нужны.")
+            details.update(title="Распознавание участников",
+                           message="Для распознавания участников параметры не нужны.")
         elif speech_stage == "parallel":
-            details.update(title="Распознавание речи и говорящих",
-                           message="Для распознавания говорящих параметры не нужны.")
+            details.update(title="Распознавание речи и участников",
+                           message="Для распознавания участников параметры не нужны.")
         elif speech_stage == "preparation":
             details["title"] = "Подготовка аудио"
         if speech_result.get("engine"):
@@ -82,7 +82,7 @@ def processing_details(phase, state, speech_result, payload=None, recognition_se
             settings = recognition_settings or speech_result.get("recognition_parameters", {})
             details["parameters"] = [{"name": name, "value": value} for name, value in settings.items()]
             if settings:
-                details["message"] = ("Параметры распознавания речи. Для распознавания говорящих параметры не нужны."
+                details["message"] = ("Параметры распознавания речи. Для распознавания участников параметры не нужны."
                                       if speech_stage == "parallel" else "Параметры текущего распознавания речи.")
             elif speech_stage != "parallel":
                 details["message"] = "Обработчик ещё не опубликовал параметры распознавания речи."
@@ -159,6 +159,12 @@ def snapshot(root, folder):
                   for index, row in enumerate(edits["segments"], 1)]
     translations = {**read_json(folder / "translations.json", {}), **edits.get("translations", {})}
     speech = [{**row, "translation": translations.get(row["id"])} for row in speech]
+    edit_state = {}
+    if speech_result.get('status') == 'done' or (folder / 'transcript.json').is_file():
+        from .speech import editable_result, subtitle_result
+        editable = subtitle_result(folder)
+        if editable.get('status') == 'done' and 'segments' in editable:
+            edit_state = editable_result(folder, editable)
     frames = read_json(folder / "frames.json")
     if frames is None:
         frames = read_json(folder / "frames.partial.json", [])
@@ -231,7 +237,7 @@ def snapshot(root, folder):
     done = ready and not running
     if done:
         position = manifest.get("start", 0) + duration
-    visible_speech = speech if not running or construction_job and construction_job.get('status') == 'queued' else speech[-80:]
+    visible_speech = speech if speech_result.get('status') == 'done' or (folder / 'transcript.json').is_file() or not running or construction_job and construction_job.get('status') == 'queued' else speech[-80:]
     visible_frames = frames[-12:]
     if phase in (4, 6) and block_end is not None and running and not (construction_job and construction_job.get('status') == 'queued'):
         visible_speech = [s for s in speech if s["end"] > position and s["start"] < block_end][-80:]
@@ -289,12 +295,17 @@ def snapshot(root, folder):
             "video_url": video_url(root, manifest["video"]), "duration": duration,
             "start": manifest.get("start", 0), "position": position,
             "translation_progress": translation_progress,
+            "diarization_progress": speech_result.get('diarization_progress'),
+            "construction_error": read_json(folder / "construction-error.json", {}).get("error"),
+            "construction_answer_saved": (folder / "construction-result.md").is_file(),
             "phase": phase, "done": done, "running": running, "status": state,
             "processing": processing_details(phase, state, speech_result, request_payload,
                                              read_json(folder / "recognition-settings.json", {})),
             "skipped_steps": [{"phase": 3, "reason": "Пропущено для этой записи: анализ изображения отключён."}] if manifest.get("mode") == "audio" else [],
             "skip_images": manifest.get("mode") == "audio",
             "speaker_names": speech_result.get("speaker_names", {}),
+            "speech_edit_revision": edit_state.get('edit_revision'),
+            "speaker_options": edit_state.get('speaker_options', []),
             "speech_editor_url": "/create?folder=" + quote(folder.name) if speech else None,
             "subtitle_url": "/api/subtitles?folder=" + quote(folder.name) + "&language=original" if speech else None,
             "translation_url": "/api/subtitles?folder=" + quote(folder.name) + "&language=ru" if translations else None,

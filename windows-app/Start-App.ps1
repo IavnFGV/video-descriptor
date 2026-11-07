@@ -18,7 +18,7 @@ $settings = Get-Content -LiteralPath (Join-Path $appDirectory 'config.example.js
 $localPath = Join-Path $appDirectory 'config.local.json'
 if (Test-Path -LiteralPath $localPath) { $localSettings = Get-Content -LiteralPath $localPath -Raw | ConvertFrom-Json; foreach ($property in $localSettings.PSObject.Properties) { $settings | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value -Force } }
 $url = 'http://127.0.0.1:' + $settings.port
-$expectedWorkspace = [IO.Path]::GetFullPath((Join-Path $appDirectory $settings.workspace))
+$expectedWorkspace = if ($settings.records_directory) { [IO.Path]::GetFullPath($settings.records_directory) } else { [IO.Path]::GetFullPath((Join-Path $appDirectory $settings.workspace)) }
 $logsPath = Join-Path $appDirectory 'runtime\logs'
 New-Item -ItemType Directory -Path $logsPath -Force | Out-Null
 $launchId = [guid]::NewGuid().ToString('N')

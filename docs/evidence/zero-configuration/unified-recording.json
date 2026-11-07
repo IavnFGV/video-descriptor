@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "scope": "Isolated Edge, real production HTML/JS, temporary speech/report artifacts, mocked native health and media metadata; no inference or user data",
+  "checks": [
+    "native job URL opens unified workspace directly",
+    "one shared player; embedded report has no media source",
+    "side layout: speech under video, notes right",
+    "expanded layout",
+    "player identity and time preserved across report variants",
+    "speech and Markdown heading synchronization",
+    "manual scroll pause and resume",
+    "magnet off",
+    "dirty report blocks variant switch",
+    "new notes settings preserve existing report",
+    "Google generation requires consent before submission",
+    "new speech settings",
+    "1920/1100/760/360 widths fit",
+    "no browser runtime errors",
+    "Ctrl hover opens quick editor",
+    "polling preserves input",
+    "Ctrl+Enter saves text and preserves speaker/translation",
+    "dirty speech blocks version navigation",
+    "stale revision preserves input",
+    "Escape cancels",
+    "inline speaker rename and reassignment",
+    "notes new section Cancel/Escape",
+    "notes applied section is one undo step",
+    "notes redo and reset to last saved",
+    "notes Ctrl-hover local edit cancel",
+    "subtitle Ctrl+Z and Ctrl+Shift+Z persist undo/redo"
+  ]
+}

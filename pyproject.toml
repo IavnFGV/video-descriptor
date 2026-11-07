@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "video-descriptor"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2.6,<3", "requests>=2.32,<3", "faster-whisper>=1.1,<2", "av>=11,<19", "opencv-python-headless>=4.10,<5"]
+dependencies = ["pydantic>=2.6,<3", "requests>=2.32,<3", "faster-whisper>=1.1,<2", "tokenizers>=0.21,<1", "av>=11,<19", "opencv-python-headless>=4.10,<5"]
 
 [project.optional-dependencies]
 windows = ["psutil>=6,<8", "imageio-ffmpeg==0.6.0"]

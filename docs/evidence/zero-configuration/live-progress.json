@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "scope": "real isolated packaged WebView2, real CPU model probe; no dependency/model downloads",
+  "observed": [
+    {
+      "state": "verifying",
+      "message": "Начинаем подготовку",
+      "bytes": 0,
+      "total": 0,
+      "progress_scope": null,
+      "process_running": false
+    },
+    {
+      "state": "verifying",
+      "message": "Запускаем пробное определение говорящих",
+      "bytes": 0,
+      "total": 0,
+      "progress_scope": "stage",
+      "process_running": true
+    },
+    {
+      "state": "verifying",
+      "message": "Загружаем локальную модель в память — скачивания нет",
+      "bytes": 0,
+      "total": 0,
+      "progress_scope": "stage",
+      "process_running": true
+    },
+    {
+      "state": "verifying",
+      "message": "Пробная запись обработана. Проверяем результат",
+      "bytes": 0,
+      "total": 0,
+      "progress_scope": "stage",
+      "process_running": true
+    },
+    {
+      "state": "ready",
+      "message": "Проверка выполнена",
+      "bytes": 0,
+      "total": 0,
+      "progress_scope": "stage",
+      "process_running": false
+    }
+  ],
+  "turns": 3
+}

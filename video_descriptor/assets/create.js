@@ -78,10 +78,11 @@
       if (lastSnapshot?.folder !== folder) return;
       const result = data.result;
       if (!result || result.status !== 'done') throw Error('Имена доступны после завершения распознавания');
-      const names = [...new Set(result.segments.map(row => row.speaker).filter(Boolean))];
+      const names = [...new Set([...result.segments.map(row => row.speaker).filter(Boolean), ...Object.keys(result.speaker_names || {})])];
       $('speaker-names').replaceChildren(...names.map(speaker => {
-        const label = text('label', speaker), input = document.createElement('input');
-        input.dataset.speaker = speaker; input.maxLength = 100; input.placeholder = 'Имя говорящего';
+        const count=result.segments.filter(row=>row.speaker===speaker).length;
+        const label = text('label', (result.speaker_names?.[speaker] || (speaker==='unknown'?'Участник не указан':speaker))+' · реплик: '+count), input = document.createElement('input');
+        input.dataset.speaker = speaker; input.maxLength = 100; input.placeholder = 'Имя участника';
         input.value = result.speaker_names?.[speaker] || ''; label.append(input); return label;
       }));
       namesFolder = folder;
@@ -96,7 +97,7 @@
     const expanded = $('speaker-settings').hidden;
     $('speaker-settings').hidden = !expanded;
     $('toggle-speaker-names').setAttribute('aria-expanded', String(expanded));
-    if (expanded) loadSpeakerNames();
+    if (expanded) { namesFolder=null; loadSpeakerNames(); }
   };
   $('speaker-names-form').onsubmit = async event => {
     event.preventDefault();
@@ -292,7 +293,9 @@
     if (!response.ok) throw new Error(result.error || 'Не удалось получить данные');
     return result;
   }
-  function select(value, updateUrl=true) {
+  async function select(value, updateUrl=true) {
+    if(!await window.mayLeaveQuickReply()){window.recordingUI?.restoreChoices();return;}
+    window.closeQuickReplyEdit();
     if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; return; }
     selected = value; lastSnapshot = null; namesFolder = null;
     input.value = ''; $('source-file').value = ''; fileLabel();
@@ -305,7 +308,8 @@
     window.constructionUI?.select(null);
     requestUrl = null; loadedRequest = null;
     $('request-feed').replaceChildren(text('p', 'Запрос появится после обращения к модели.', 'empty'));
-    video.removeAttribute('src'); video.load(); follow.checked = true;
+    // Preserve the one player when switching results of the same recording.
+    follow.checked = false;
     Object.keys(rendered).forEach(key => delete rendered[key]);
     $('workspace').hidden = false;
     $('processing-title').textContent = 'Текущий этап';
@@ -324,6 +328,7 @@
     query.set('stage', document.querySelector('[role=tab][aria-selected=true]').dataset.stage);
     if (value.folder === params.get('folder') && params.has('report')) query.set('report', params.get('report'));
     if(updateUrl)history.replaceState(null, '', '/create?' + query);
+    document.dispatchEvent(new CustomEvent('recording-selection',{detail:value}));
     poll();
   }
   let activeReply = null;
@@ -336,11 +341,13 @@
     activeReply?.classList.remove('active'); activeReply = row;
     if (row) {
       row.classList.add('active');
-      const feed = $('speech-feed');
-      feed.scrollTop += row.getBoundingClientRect().top - feed.getBoundingClientRect().top;
+      if (window.recordingUI?.linked()) {
+        const feed = $('speech-feed');
+        feed.scrollTop += row.getBoundingClientRect().top - feed.getBoundingClientRect().top - 24;
+      }
     }
   }
-  function jump(time) { follow.checked = false; video.currentTime = time; syncPlayback(); }
+  function jump(time) { if(window.recordingUI)window.recordingUI.seek(time);else { follow.checked = false; video.currentTime = time; syncPlayback(); } }
   function stamp(time) {
     const button = text('button', clock(time), 'timestamp');
     button.type = 'button'; button.addEventListener('click', () => jump(time)); return button;
@@ -349,6 +356,12 @@
     const signature = JSON.stringify(value);
     if (rendered[id] === signature) return;
     rendered[id] = signature; build($(id));
+  }
+  function savedSpeech(saved, folder) {
+    if(lastSnapshot?.folder!==folder)return;
+    delete rendered['speech-feed'];
+    show({...lastSnapshot,speech:saved.segments.map(row=>({...row,translation:saved.translations?.[row.id]})),
+      speaker_names:saved.speaker_names||{},speech_edit_revision:saved.edit_revision,speaker_options:saved.speaker_options||[]});
   }
   function show(snapshot, job) {
     job = job || snapshot.job;
@@ -379,7 +392,7 @@
     const done = !snapshot.needs_notes && (job ? job.status === 'done' : snapshot.done);
     const error = job?.status === 'error' && !snapshot.notes_deleted;
     const gaps = snapshot.errors.length;
-    const label = error ? 'Остановлено' : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
+    const label = error ? (job?.cancelled?'Остановлено':'Ошибка') : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
     $('run-state').textContent = label;
     $('run-state').className = 'badge ' + (error || gaps ? 'error' : done ? 'done' : '');
     $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !snapshot.running && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено · можно построить конспект' : phases[snapshot.phase - 1] + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');
@@ -409,6 +422,7 @@
       });
     }
     $('stage-progress').value = progress;
+    document.body.classList.toggle('recording-busy', Boolean(snapshot.running || ['queued','running'].includes(job?.status)));
     $('run-message').textContent = (!snapshot.notes_deleted && job?.error) || (job?.status === 'queued' ? 'Задание в очереди. Готовые версии остаются доступны.' : !snapshot.running && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Речь готова к просмотру и правке. Постройте конспект, когда закончите проверку.' : status.message || 'Ожидаем следующий результат.');
     if (snapshot.video_url && video.getAttribute('src') !== snapshot.video_url) video.src = snapshot.video_url;
     if (follow.checked) {
@@ -425,15 +439,28 @@
     $('subtitle-mode-label').hidden = !snapshot.translation_url;
     document.body.dataset.subtitles = snapshot.translation_url ? $('subtitle-mode').value : 'original';
     $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик';
-    changed('speech-feed', [snapshot.speech, snapshot.speaker_names, Boolean(snapshot.speech_editor_url)], node => {
+    if(snapshot.speech_edit_revision)window.bindSpeechHistory($('stage-speech'),snapshot.folder,saved=>savedSpeech(saved,snapshot.folder));
+    changed('speech-feed', [snapshot.speech, snapshot.speaker_names, snapshot.speech_edit_revision, snapshot.speaker_options, Boolean(snapshot.speech_editor_url)], node => {
+      // Polling must not replace a user's open quick editor or inline speaker field.
+      if(window.speechReplyEditing?.()){delete rendered['speech-feed'];return;}
       node.replaceChildren();
       if (!snapshot.speech.length) node.append(text('p', 'Обработчик речи ещё не вернул реплики.', 'empty'));
-      for (const source of snapshot.speech) {
-        const row = text('div', '', 'utterance'); row.append(stamp(source.start)); if (source.speaker) row.append(text('strong', ' · ' + (snapshot.speaker_names[source.speaker] || source.speaker))); row.append(text('p', source.text, 'subtitle-original')); if (source.translation != null) row.append(text('p', source.translation, 'subtitle-ru'));
+      const original={folder:snapshot.folder,segments:snapshot.speech.map(row=>({...row,speaker:row.speaker||'unknown'})),speaker_names:snapshot.speaker_names,
+        edit_revision:snapshot.speech_edit_revision,speaker_options:snapshot.speaker_options,translations:Object.fromEntries(snapshot.speech.filter(row=>row.translation!=null).map(row=>[row.id,row.translation])),has_translation:Boolean(snapshot.translation_url)};
+      for (const [index,source] of snapshot.speech.entries()) {
+        const row = text('div', '', 'utterance'),heading=text('div','','reply-heading'),tools=text('div','','reply-tools');
+        const editable=Boolean(original.edit_revision),onSave=saved=>savedSpeech(saved,snapshot.folder);
+        heading.append(stamp(source.start));
+        if(editable)heading.append(window.createSpeakerSelect(original,index,onSave,true));
+        else if(source.speaker)heading.append(text('strong',snapshot.speaker_names[source.speaker]||source.speaker));
+        const content=text('p',source.text,'subtitle-original');
+        if(editable)window.enableQuickReplyEdit(content,original,index,saved=>{onSave(saved);$('speech-feed').children[index]?.querySelector('.subtitle-original')?.focus({preventScroll:true});});
+        heading.append(tools);row.append(heading,content);
+        if(source.translation!=null)row.append(text('p',source.translation,'subtitle-ru'));
         if (snapshot.speech_editor_url) {
           const edit = text('button', '✎', 'edit-subtitle'); edit.type = 'button';
           edit.title = 'Редактировать реплику'; edit.setAttribute('aria-label', 'Редактировать реплику ' + clock(source.start));
-          edit.onclick = () => editSubtitle(source, edit); row.prepend(edit);
+          edit.onclick = () => editSubtitle(source, edit); tools.append(edit);
         }
         node.append(row);
       }
@@ -513,6 +540,7 @@
           $('workspace').hidden = false; $('run-title').textContent = data.job.title || data.job.filename;
           $('run-state').textContent = data.job.status === 'error' ? 'Ошибка' : 'В очереди';
           $('run-message').textContent = data.job.error || 'Запись сохранена. Начнём, когда завершится текущая обработка.';
+          if(data.job.status==='error'&&$('recording-processing'))$('recording-processing').open=true;
           $('retry-job').hidden = data.job.status !== 'error';
         }
       } else {
@@ -687,7 +715,7 @@
     try { await json('/api/retry?' + new URLSearchParams({id}), {method: 'POST'}); poll(); listJobs(); }
     catch (error) { $('run-message').textContent = error.message; }
   });
-  $('existing-runs').addEventListener('change', event => { if (event.target.value) select({folder: event.target.value}); });
+  $('existing-runs').addEventListener('change', event => { if (event.target.value === '__new__') { renderVersions(); $('speech-settings').open=true; $('speech-engine').focus(); } else if (event.target.value) select({folder: event.target.value}); });
   document.addEventListener('construction-started', event => { select({job:event.detail.id}); listJobs(); });
   video.addEventListener('pointerdown', () => { follow.checked = false; });
   video.addEventListener('timeupdate', () => { if (!follow.checked) { $('video-clock').textContent = clock(video.currentTime); syncPlayback(); } });
@@ -698,6 +726,7 @@
     if(value&&JSON.stringify(value)!==JSON.stringify(selected))select(value,false);
   });
   loadInventory();
+  window.recordingSelection = {select, refresh:poll};
   listJobs(); if (selected) select(selected);
   setInterval(poll, 2000);
 })();

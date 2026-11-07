@@ -1,5 +1,40 @@
 # Сохранение поведения и контрактов
 
+22.10.2026: конспект использует одну CodeMirror history для полного редактора,
+локальных разделов и действий чтения. Ctrl+Z/Ctrl+Shift+Z и ↶/↷ отменяют/повторяют;
+сброс несохранённых правок подтверждается и возвращает savedText. Новый раздел —
+одна операция, Escape/Отмена до применения удаляет вставленный черновик. Локальная
+правка раздела учитывается notesEditorDirty и beforeunload, «Применить» не пишет на диск.
+Субтитры: POST /api/speech-edit action=restore принимает segments/translations только
+при совпадении актуального revision, под прежним EDIT_LOCK и в пределах прежнего
+лимита тела. Проверяются ID, текст, интервалы, голоса и перевод; сохранение атомарно.
+Новый backend enum job не добавлен. История клиента по folder хранит до 20 действий
+edit/split (без переименования реестра голосов), очищает redo при новой правке и не
+переносится между документами/перезапусками. В полях ввода Ctrl+Z остаётся локальным;
+на расшифровке вне ввода отменяет сохранённую правку с revision guard.
+
+22.10.2026: единая расшифровка использует существующий enableQuickReplyEdit,
+createSpeakerName/createSpeakerSelect. Live snapshot добавляет speech_edit_revision
+и speaker_options из editable_result; UI отправляет реальные index/revision без
+пересчёта версии. Polling не заменяет DOM при speechReplyEditing. Выбор версии/конспекта
+использует mayLeaveQuickReply; Ctrl+Enter сохраняет, Escape отменяет, конфликты оставляют
+введённый текст. Голос, времена и перевод сохраняют прежний API-контракт.
+
+21.10.2026: согласованная единая страница записи в отдельной ветке.
+Native выбор job ведёт непосредственно на /create?job=; старые URL сохраняются.
+GET /api/recording?folder|job возвращает только варианты той же исходной записи,
+их статусы, названия моделей, точную папку снимка речи и активное задание; без ключей.
+Списки результатов независимы, выбор конспекта выбирает его сохранённую речь.
+В DOM один process-video: положение и выбор варианта не заменяют его и не сбрасывают
+время при неизменном source. Магнитик — независимый playback-link; follow остаётся
+отдельным следованием обработке. Таймкоды идут через recordingUI.seek; wheel/touch
+приостанавливают прокрутку до явного возврата. Dirty guard конспекта сохраняется
+также перед новым запуском. Native POST /api/speech-run закрепляет make_plan для
+существующего источника, speech_only=true, отклоняет параллельный запуск той же
+записи; Origin/Host и storage guards сохранены. Native notes используют прежний
+postprocess с instance header, construction snapshot и cloud_confirmed, лимит JSON
+расширен до 400000 байт для существующего редактируемого промпта.
+
 Финальный перенос 19.10.2026: migrations/main.json разрешает точные UI-модули,
 HTML-generators library/report и единственное дополнение static asset allowlist.
 Baseline SHA не менялись. Guard теперь проверяет также исходные workspace IDs,
@@ -86,3 +121,33 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 20.10.2026: AI Component Manager adds GET/POST /api/components with existing X-App-Instance and Origin guards. POST component=whisper|ollama|diarization, action=install|check|pull|cancel|remove; install/pull/remove require confirmed=true. Existing setup endpoints/ids/handlers remain. HF links use POST /api/setup/external with fixed terms|tokens allowlist. Operations persist separately from job enums; bytes/total are real, cancellation retains verified cache. No credentials in GET responses. Standard Whisper download/probe controls now run the unified manager; custom WAV API remains.
 
 20.10.2026, PR #5: Ollama modes existing/service/managed, explicit connect and start_existing actions on /api/components; managed install additionally requires mode=managed. Read-only /api/setup/ollama?discover=1 probes 11434 without changing selection. Selected endpoint, ownership, version and models are visible; polling preserves mode/URL drafts. External check/pull never install, launch, stop or switch endpoints. Notes and translation snapshot one selected endpoint, including actual context checks.
+
+
+21.10.2026: однократная подготовка — top-level выбор функций/устройств и один submit после общего download consent; для community-1 отдельное HF consent. POST /api/components action=prepare_selected|cancel_selected; существующие операции/IDs сохранены. Главное окно подсвечивает настройки без принудительного перехода; общий прогресс доступен после ухода/возврата. Ошибка шага не отменяет готовые компоненты.
+
+
+21.10.2026: прогресс подготовки имеет текстовую подпись и aria-describedby. Процент относится к текущему файлу/этапу с реальным знаменателем. Неопределённая полоса подписана; рядом длительность subprocess и давность фактического вывода. После 60 с тишины показывается отсутствие новых сообщений и факт запуска процесса, без заявления о зависании.
+
+
+21.10.2026: хранение — GET /api/storage возвращает текущие независимые roots и прогресс; POST /api/setup/storage (instance/Origin guards) action=pick|transfer|cleanup. Перенос выполняется в фоне только без активных jobs/подготовки, с leases worker/components, в пустую непересекающуюся локальную папку. Старые данные сохраняются до явной очистки после полного перезапуска; config публикуется атомарно после SHA256 и исправления путей/venv. records_directory переопределяет workspace; стандартный runtime/workspace и LOCALAPPDATA/VideoDescriptor/ai-components сохраняются по умолчанию. Пока выполняется перенос или ожидается перезапуск, мутации HTTP заблокированы; остановка во время копирования запрещена. Внешняя Ollama не переносится и не останавливается. Очистка проверяет маркеры, набор файлов и хеши; новые/изменённые исходные файлы не удаляются.
+
+
+21.10.2026: перед конспектом native dialog выбирает Ollama/Gemini, модель, strategy, context_tokens и translate_after. POST /api/native/postprocess принимает construction; cloud_confirmed=true обязателен для Gemini, API-ключ остаётся в защищённых настройках. Provider/model закрепляются в job, глобальные настройки не меняются. GET /api/translation-settings возвращает только public preferences. /api/speech дополнительно возвращает progress из progress.json: phase, completed/total, chunk, request_state, received. Последовательные части конспекта получают ограниченную выдержку предыдущей части и недавние заголовки; план учитывает резерв памяти. Cache key включает эту память, поэтому возобновление восстанавливает тот же контекст из сохранённых ответов. Объединение — отдельный этап, процент показывается только для текущего этапа.
+
+
+21.10.2026: auto_context=true выбирает реальный лимит модели, false сохраняет ручной context_tokens. Старые конфигурации с явным context_tokens без флага остаются ручными. Для Gemini strategy=auto|whole планируется по countTokens полного payload (включая system prompt), с резервом ответа и 1024 токена; результат переиспользуется при генерации без повторного countTokens. Если помещается, один блок и один generateContent, без consolidation. Байтовая оценка применяется к локальным моделям и безопасному разбиению. Ручное strategy=chunks сохраняется. Локальная обработка целиком ограничивает num_ctx фактически нужным размером, не выделяя максимальный KV cache без необходимости.
+
+
+21.10.2026: report-embed.js делегирует клики по button[data-time] к существующему window.seekTo общего плеера. Это восстанавливает кнопки динамического Markdown-превью после удаления inline report scripts при embedded=1, включая повторный рендер после правок. Самостоятельный отчёт и оглавление сохраняют прежние обработчики.
+
+07.11.2026: createSpeakerSelect compact=true в unified workspace скрывает отдельное добавление и включает пункт создания с назначением текущей реплике через прежние /api/speech-names и /api/speech-edit revision. Глобальное переименование остаётся в speaker-names-form; createSpeakerName сохранён для прежних поверхностей. API и dirty guards не меняются.
+
+07.11.2026: unified recording action устанавливает actionPending до POST /api/native/postprocess, показывает aria-busy и явный статус запуска, блокирует повтор до ответа и выводит ошибку в отдельном recording-action-status (vd-error), не перезаписываемом polling списка вариантов. Backend guard, API и состояния job сохранены.
+
+07.11.2026: диаризация публикует diarization_progress {stage,label,completed?,total?,updated_at,stage_started_at} из реальных hooks pyannote. Parent сохраняет структуру в speech.json и live snapshot. На экране один текущий этап с SVG-кольцом: unknown total — вращение без aria-valuenow, известный положительный total — измеренный процент; при reduced-motion вращения нет. Длительность этапа и давность последнего события не объявляются ETA/heartbeat модели. Стандартная линейная полоса скрыта только на активной диаризации; завершение/ошибка убирают кольцо. Unique speaker counts до clustering не показываются.
+
+07.11.2026: construction-model — native select с автоматическим /api/construction-models?provider=. Исходные IDs и API сохранены; construction-models datalist остаётся совместимым скрытым inventory. Refresh рядом с полем, модель не переключается молча. Список провайдера проверяется перед Save/Run; stale-response guard modelRequest, недоступная сохранённая модель показана и блокирует запуск. Черновик model сохраняется до асинхронного inventory.
+
+07.11.2026: error/cancelled различаются в presentation и recording inventory; error alert и явный retry находятся вне disclosure. Старые notes failures используют construction-error.json через live.construction_error; новые job.error сохраняют конкретную причину из этого файла. Retry вызывает прежний /api/retry, учитывает dirty guards и не запускается автоматически. parsed_notes допускает ### [start - end] как формат заголовка, проверяя обе границы по start/end исходных реплик и прежние ограничения ссылок/хронологии. Исходный Markdown и неизвестные end_ts не изменяются.
+
+07.11.2026: пользователь согласовал терминологию «Участники» и действие «Разделить по участникам». Это текстовые изменения интерфейса/статусов и новых имён по умолчанию; speaker IDs, сохранённые имена, API и алгоритм неизменны.

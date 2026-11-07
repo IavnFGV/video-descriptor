@@ -14,6 +14,7 @@ from pathlib import Path
 import requests
 
 from .jobs import jobs_dir, read_json, write_json
+from .local_tokens import byte_bound, load_counter
 from .models import Chapter, Note, Notes, Source, VideoSection
 from .ollama_connection import base_url as ollama_base_url
 from .progress import ProgressLog, update_status
@@ -47,7 +48,7 @@ PROMPTS = {
     'conversation': COMMON + "\nСохраняй ход рассуждения: тезис, обоснование, пример, возражение и вывод. Существенные истории сохраняй вместе с тем, что они иллюстрируют. Различай факты, позиции автора, предположения и чужие мнения. Возвращения к одной теме связывай в конспекте, но сохраняй хронологию оглавления. Не отбрасывай историю только потому, что она не похожа на техническое объяснение.\n",
 }
 DEFAULTS = {'input': 'speech', 'material': 'lecture', 'provider': 'ollama', 'model': 'qwen3.5:9b',
-            'strategy': 'auto', 'grouping': 'auto', 'context_tokens': 16384,
+            'strategy': 'auto', 'grouping': 'auto', 'context_tokens': 16384, 'auto_context': True,
             'output_tokens': 4096, 'chunk_seconds': 180, 'max_chunk_seconds': 600,
             'max_chunk_chars': 18000, 'prompt': PROMPTS['lecture']}
 
@@ -59,6 +60,10 @@ def validate(value):
     if extra:
         raise ValueError('Неизвестные настройки конспекта')
     config = {**DEFAULTS, **value}
+    if 'auto_context' not in value:
+        config['auto_context'] = 'context_tokens' not in value
+    if type(config['auto_context']) is not bool:
+        raise TypeError('Выберите автоматический или ручной размер контекста')
     for key, choices in {'input': {'speech', 'slides'}, 'material': {'lecture', 'conversation'}, 'provider': {'ollama', 'gemini'},
                          'strategy': {'auto', 'whole', 'chunks'},
                          'grouping': {'auto', 'slides', 'speech', 'time'}}.items():
@@ -147,29 +152,32 @@ def material(folder, config):
 
 def input_bound(text):
     # Conservative bound for byte-based local tokenizers, including message overhead.
-    return len(text.encode('utf-8')) + 256
+    return byte_bound(text)
 
 
-def budget(config):
-    available = config['context_tokens'] - config['output_tokens'] - input_bound(config['prompt']) - 2048
+def budget(config, count=input_bound):
+    available = config['context_tokens'] - config['output_tokens'] - count(config['prompt']) - 2048
     if available < 512:
         raise ValueError('Промпт слишком большой для выбранного контекста')
     return available
 
 
-def split_text(text, limit):
+def split_text(text, limit, count=input_bound, *, char_limit=None):
     """Prefer paragraphs and sentences; keep every word when a sentence is huge."""
+    def fits(value):
+        return count(value) <= limit and (char_limit is None or len(value) <= char_limit)
+
     pieces = re.split(r'(?<=[.!?])\s+|\n+', text)
     output, current = [], ''
     for piece in pieces:
-        units = [piece] if input_bound(piece) <= limit else piece.split()
+        units = [piece] if fits(piece) else piece.split()
         for unit in units:
             joined = (current + '\n' + unit).strip()
-            if current and input_bound(joined) > limit:
+            if current and not fits(joined):
                 output.append(current)
                 current = ''
                 joined = unit
-            if input_bound(joined) > limit:
+            if not fits(joined):
                 raise ValueError('Один фрагмент текста превышает контекст; увеличьте размер контекста')
             current = joined
     if current:
@@ -177,7 +185,7 @@ def split_text(text, limit):
     return output
 
 
-def group_material(lines, frames, folder, config, capacity):
+def group_material(lines, frames, folder, config, capacity, count=input_bound):
     grouping = config['grouping']
     if grouping == 'auto':
         grouping = 'slides' if frames else 'speech'
@@ -194,7 +202,8 @@ def group_material(lines, frames, folder, config, capacity):
     for row in lines:
         # Time labels are repeated when a single long utterance needs splitting.
         prefix = re.match(r'^\[[^\]]+\](?: [^:\n]+:)?', row['text']).group(0)
-        parts = split_text(row['text'], min(capacity, config['max_chunk_chars']) - input_bound(prefix))
+        parts = split_text(row['text'], capacity - count(prefix), count,
+                           char_limit=config['max_chunk_chars'] - len(prefix) - 1)
         for part in parts:
             if not part.startswith('['):
                 part = prefix + ' ' + part
@@ -206,10 +215,10 @@ def group_material(lines, frames, folder, config, capacity):
                         elapsed >= config['chunk_seconds'] and
                         (grouping == 'time' or grouping == 'speech' and pause or grouping == 'slides' and slide))
             joined = '\n'.join([*pending, part])
-            if pending and (boundary or input_bound(joined) > capacity or len(joined) > config['max_chunk_chars']):
+            if pending and (boundary or count(joined) > capacity or len(joined) > config['max_chunk_chars']):
                 blocks.append('\n'.join(pending))
                 pending, start = [], None
-            if input_bound(part) > capacity:
+            if count(part) > capacity:
                 raise ValueError('Реплика с меткой времени не помещается в контекст')
             if start is None:
                 start = row['start']
@@ -220,20 +229,26 @@ def group_material(lines, frames, folder, config, capacity):
     return blocks, grouping
 
 
-def plan(folder, value):
+def plan(folder, value, *, root=None, token_counts=None, count=input_bound):
     config = validate(value)
     _, lines, frames = material(folder, config)
     text = '\n'.join(row['text'] for row in lines)
-    capacity = budget(config)
-    fits = input_bound(text) <= capacity
+    capacity = budget(config, count)
+    fits = count(text) <= capacity
+    exact = None
+    if root is not None and config['provider'] == 'gemini' and config['strategy'] in {'auto', 'whole'}:
+        exact = gemini_token_count(root, config, gemini_payload(config, text), token_counts)
+        fits = exact <= config['context_tokens'] - config['output_tokens'] - 1024
     strategy = config['strategy']
     if strategy == 'auto':
         strategy = 'whole' if fits else 'chunks'
     if strategy == 'whole' and not fits:
         raise ValueError('Вся запись не помещается в заданный контекст. Выберите автоматический режим или обработку по частям')
-    blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity)
+    blocks, grouping = ([text], 'whole') if strategy == 'whole' else group_material(lines, frames, folder, config, capacity - min(2048, max(128, capacity // 4)), count)
     return {'strategy': strategy, 'grouping': grouping, 'characters': len(text),
-            'estimated_tokens': math.ceil(len(text.encode()) / 3), 'input_upper_bound': input_bound(text),
+            'estimated_tokens': math.ceil(len(text.encode()) / 3), 'input_tokens': exact, 'input_upper_bound': input_bound(text),
+            'token_counting': getattr(count, 'mode', 'byte-bound'),
+            'planned_input_tokens': count(text),
             'context_tokens': config['context_tokens'], 'blocks': len(blocks),
             'generation_requests': 1 if strategy == 'whole' else len(blocks) + 1,
             'consolidation': strategy == 'chunks', 'config': config}, blocks
@@ -253,7 +268,8 @@ def enqueue_notes(root, name, value):
     folder = checked_folder(root, name)
     config = validate(value)
     validate_provider(root, config)
-    plan(folder, config)
+    if config['provider'] != 'gemini' and not config['auto_context']:
+        plan(folder, config, count=load_counter(ollama_base_url(root), config['model']))
     manifest = read_json(folder / 'manifest.json')
     for path in jobs_dir(root).glob('*/job.json'):
         other = read_json(path, {})
@@ -320,7 +336,7 @@ def actual_limits(root, config):
     if config['provider'] == 'gemini':
         from .gemini import BASE, call
         meta = call('GET', BASE + '/models/' + config['model'], credentials(root)['api_key'])
-        config['context_tokens'] = min(config['context_tokens'], meta['inputTokenLimit'])
+        config['context_tokens'] = min(2097152, meta['inputTokenLimit']) if config['auto_context'] else min(config['context_tokens'], meta['inputTokenLimit'])
         config['output_tokens'] = min(config['output_tokens'], meta['outputTokenLimit'])
     else:
         base = ollama_base_url(root)
@@ -330,18 +346,49 @@ def actual_limits(root, config):
             lengths = [value for key, value in response.json().get('model_info', {}).items()
                        if key.endswith('.context_length') and type(value) is int]
             if lengths:
-                config['context_tokens'] = min(config['context_tokens'], max(lengths))
+                config['context_tokens'] = min(2097152, max(lengths)) if config['auto_context'] else min(config['context_tokens'], max(lengths))
         except (requests.RequestException, ValueError):
             raise ValueError('Не удалось проверить контекст локальной модели. Проверьте Ollama и название модели') from None
     return validate(config)
 
 
+def gemini_payload(config, text, prompt=None):
+    prompt = config['prompt'] if prompt is None else prompt
+    model = config['model']
+    payload = {'systemInstruction': {'parts': [{'text': prompt}]},
+               'contents': [{'role': 'user', 'parts': [{'text': text}]}],
+               'generationConfig': {'temperature': 0, 'maxOutputTokens': config['output_tokens'],
+                                    'responseMimeType': 'text/plain'}}
+    if model == 'gemini-3.5-flash-lite':
+        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'minimal'}
+    elif model == 'gemini-3.8-flash':
+        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'low'}
+    return payload
+
+
+def gemini_token_count(root, config, payload, cache=None):
+    from .gemini import BASE, call
+    model = config['model']
+    key = hashlib.sha256(json.dumps([model, payload], sort_keys=True).encode()).hexdigest()
+    if cache is not None and key in cache:
+        return cache[key]
+    counted = call('POST', BASE + f'/models/{model}:countTokens', credentials(root)['api_key'],
+                   json={'generateContentRequest': {'model': 'models/' + model, **payload}})
+    total = counted['totalTokens']
+    if type(total) is not int or total < 0:
+        raise ValueError('Google не вернул корректный размер запроса')
+    if cache is not None:
+        cache[key] = total
+    return total
+
+
 def generate(root, config, text, log, stage='Конспект'):
     """No source JSON or JSON response schema is sent to either model."""
+    count = getattr(log, 'token_counter', input_bound)
     prompt = config['prompt']
     if stage != 'Конспект':
         prompt += '\nОбъедини приведённые промежуточные конспекты. Удали повторы, свяжи аргументы. Не добавляй новых фактов и меток времени. Сохрани все существенные темы и хронологию оглавления.\n'
-    if input_bound(text) + input_bound(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
+    if config['provider'] != 'gemini' and count(text) + count(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
         raise ValueError('Материал запроса превышает заданный контекст')
     if config['provider'] == 'ollama':
         from .notes import chat_json
@@ -357,16 +404,8 @@ def generate(root, config, text, log, stage='Конспект'):
     metadata = call('GET', BASE + f'/models/{model}', settings['api_key'])
     if config['output_tokens'] > metadata.get('outputTokenLimit', 0):
         raise ValueError('Лимит ответа превышает возможности выбранной Gemini-модели')
-    payload = {'systemInstruction': {'parts': [{'text': prompt}]},
-               'contents': [{'role': 'user', 'parts': [{'text': text}]}],
-               'generationConfig': {'temperature': 0, 'maxOutputTokens': config['output_tokens'],
-                                    'responseMimeType': 'text/plain'}}
-    if model == 'gemini-3.5-flash-lite':
-        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'minimal'}
-    elif model == 'gemini-3.8-flash':
-        payload['generationConfig']['thinkingConfig'] = {'thinkingLevel': 'low'}
-    counted = call('POST', BASE + f'/models/{model}:countTokens', settings['api_key'],
-                   json={'generateContentRequest': {'model': 'models/' + model, **payload}})
+    payload = gemini_payload(config, text, prompt)
+    counted = {'totalTokens': gemini_token_count(root, config, payload, getattr(log, 'token_counts', None))}
     if counted['totalTokens'] > min(config['context_tokens'] - config['output_tokens'] - 1024,
                                      metadata.get('inputTokenLimit', 0)):
         raise ValueError('Точный размер запроса превышает контекст Gemini. Выберите обработку по частям')
@@ -376,6 +415,7 @@ def generate(root, config, text, log, stage='Конспект'):
     journal = RequestJournal(log.journal_dir, BASE + f'/models/{model}:generateContent',
                              {'model': model, **payload}, log.snapshot(), 'construction')
     update_status(log, request_log=str(journal.folder), task=stage)
+    log('Google: отправляем текст и ожидаем ответ модели')
     try:
         data = call('POST', BASE + f'/models/{model}:generateContent', settings['api_key'], json=payload)
         candidate = (data.get('candidates') or [{}])[0]
@@ -398,13 +438,14 @@ def generate(root, config, text, log, stage='Конспект'):
 
 
 def consolidate(root, config, texts, log, ask=generate):
-    capacity = budget(config) - 1024
+    count = getattr(log, 'token_counter', input_bound)
+    capacity = budget(config, count) - 1024
     for level in range(12):
         batches, current = [], ''
         for text in texts:
-            for part in split_text(text, capacity):
+            for part in split_text(text, capacity, count):
                 joined = (current + '\n\n' + part).strip()
-                if current and input_bound(joined) > capacity:
+                if current and count(joined) > capacity:
                     batches.append(current)
                     current = part
                 else:
@@ -414,11 +455,15 @@ def consolidate(root, config, texts, log, ask=generate):
         outputs = []
         for index, batch in enumerate(batches, 1):
             update_status(log, task='Объединение конспекта', chunk=f'{index}/{len(batches)}',
-                          message=f'Объединение конспекта, проход {level + 1}')
+                          message=f'Объединение конспекта, проход {level + 1}',
+                          phase='consolidation', completed=index - 1, total=len(batches), request_started=None, received=0)
+            log(f'Объединяем части: проход {level + 1}, группа {index} из {len(batches)}')
             outputs.append(ask(root, config, batch, log, 'Объединение конспекта'))
+            update_status(log, completed=index, request_started=None, request_state='группа сохранена')
+            log(f'Объединение: обработано {index} из {len(batches)}, проход {level + 1}')
         if len(outputs) == 1:
             return outputs[0]
-        if sum(input_bound(text) for text in outputs) >= sum(input_bound(text) for text in texts):
+        if sum(count(text) for text in outputs) >= sum(count(text) for text in texts):
             raise ValueError('Объединение не сокращает материал. Уменьшите подробность промпта или увеличьте контекст; части сохранены')
         texts = outputs
     raise ValueError('Не удалось объединить конспект за 12 проходов; части сохранены')
@@ -426,6 +471,19 @@ def consolidate(root, config, texts, log, ask=generate):
 
 def parsed_notes(markdown, sources):
     """Translate timestamped Markdown into existing navigation artifacts locally."""
+    # Models sometimes use source-grounded time ranges instead of a single anchor.
+    # Accept this formatting variant only when both boundaries exist in the input.
+    anchors = {int(source.start) for source in sources} | {int(source.end) for source in sources if source.end >= 0}
+    ranges = re.compile(r'^###\s+\[(\d{2,}:[0-5]\d:[0-5]\d)\s*[-–—]\s*(\d{2,}:[0-5]\d:[0-5]\d)\]\s+(.+)$', re.MULTILINE)
+
+    def single_anchor(match):
+        start, stop = [sum(int(part) * scale for part, scale in zip(value.split(':'), (3600, 60, 1), strict=True))
+                       for value in (match[1], match[2])]
+        if start not in anchors or stop not in anchors or stop <= start:
+            raise ValueError('Заголовок содержит неизвестный или неверный диапазон времени; исходный ответ сохранён')
+        return f'### [{match[1]}] {match[3]}'
+
+    markdown = ranges.sub(single_anchor, markdown)
     heading = re.compile(r'^###\s+\[(\d{2,}):([0-5]\d):([0-5]\d)\]\s+(.+)$', re.MULTILINE)
     if '## Оглавление' not in markdown or '## Конспект' not in markdown:
         raise ValueError('Ответ не содержит разделов «Оглавление» и «Конспект»; исходный ответ сохранён')
@@ -487,21 +545,47 @@ def run(root, folder, value, ask=generate):
                                       os.getenv('OCR_LANGUAGE', 'eng'), log)
         write_json(folder / 'frames.json', [frame.model_dump() for frame in frames])
     result, _, frames = material(folder, config)
-    summary, blocks = plan(folder, config)
+    log.token_counter = (load_counter(ollama_base_url(root), config['model'])
+                         if ask is generate and config['provider'] == 'ollama' else input_bound)
+    count = log.token_counter
+    log.token_counts = {}
+    if config['provider'] == 'ollama':
+        log('Подсчёт текста: ' + getattr(count, 'mode', 'byte-bound'))
+    summary, blocks = plan(folder, config, root=root if ask is generate else None, token_counts=log.token_counts, count=count)
+    if config['provider'] == 'ollama' and config['auto_context']:
+        # Chunked requests need bounded memory too: a model's advertised 262K
+        # context is not a sensible KV allocation for a few minutes of speech.
+        memory_reserve = min(2048, max(128, budget(config, count) // 4)) if summary['consolidation'] else 0
+        needed = max(count(block) for block in blocks) + count(config['prompt']) + config['output_tokens'] + 2048 + memory_reserve
+        config['context_tokens'] = min(config['context_tokens'], max(8192, needed))
+    summary['effective_context_tokens'] = config['context_tokens']
+    log('Расшифровка помещается целиком: один запрос генерации' if summary['strategy'] == 'whole' else f'Расшифровка превышает контекст: частей {len(blocks)}')
     write_json(folder / 'construction-plan.json', summary)
     log.update(stage='[4/5] Русский конспект', model=config['model'], provider=config['provider'])
     outputs = []
+    memory = ''
+    memory_limit = min(2048, max(128, budget(config, count) // 4))
     for index, block in enumerate(blocks, 1):
-        digest = hashlib.sha256(json.dumps([config, block], sort_keys=True).encode()).hexdigest()[:16]
+        digest = hashlib.sha256(json.dumps([config, block, memory, 'sequential-context-v1'], sort_keys=True).encode()).hexdigest()[:16]
         path = folder / f'construction-part-{digest}.md'
         update_status(log, task='конспект', chunk=f'{index}/{len(blocks)}',
-                      message=f'Конспект: {index}/{len(blocks)}', position=0)
+                      message=f'Конспект: {index}/{len(blocks)}', position=0,
+                      phase='notes', completed=index - 1, total=len(blocks), request_started=None, received=0, request_state='подготовка запроса')
+        log(f'Конспект: часть {index} из {len(blocks)}; готово {index - 1}')
         if path.exists():
             answer = path.read_text(encoding='utf-8')
         else:
-            answer = ask(root, config, block, log)
+            context = ('Память предыдущих частей — только для связности, не повторяй её как новый материал:\n' + memory + '\n\nТекущая часть:\n') if memory else ''
+            answer = ask(root, config, context + block, log)
             path.write_text(answer, encoding='utf-8')
         outputs.append(answer)
+        # Keep a bounded excerpt of the preceding notes plus recent topic headings.
+        headings = [line for text in outputs[-5:] for line in text.splitlines() if line.startswith('### ')]
+        recent = '\n'.join(headings[-10:])
+        excerpt = '\n'.join(line for line in answer.splitlines() if line.strip() and not line.startswith('#'))
+        memory = (recent + '\nПоследняя часть: ' + excerpt).encode('utf-8')[:max(0, memory_limit - 256)].decode('utf-8', errors='ignore')
+        update_status(log, completed=index, request_started=None, request_state='часть сохранена')
+        log(f'Сохранено частей конспекта: {index} из {len(blocks)}')
     answer = outputs[0] if summary['strategy'] == 'whole' else consolidate(root, config, outputs, log, ask)
     (folder / 'construction-result.md').write_text(answer, encoding='utf-8')
     sources = [Source(id=row.get('id', f's{index}'), start=row['start'], end=row['end'], text=row['text'])
@@ -518,6 +602,7 @@ def run(root, folder, value, ask=generate):
     (folder / 'notes.md').write_text(answer, encoding='utf-8')
     update_status(log, stage='[5/5] Сохранение отчёта', message='Конспект и оглавление готовы',
                   request_state='готово', chunk=f'{len(blocks)}/{len(blocks)}')
+    log('Конспект и оглавление сохранены')
 
 
 if __name__ == '__main__':

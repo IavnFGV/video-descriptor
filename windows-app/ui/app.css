@@ -111,6 +111,11 @@ main{max-width:var(--vd-content-width);margin:auto;padding:var(--vd-space-8);min
 .footnote{margin-top:var(--vd-space-3)}
 .check{display:grid;gap:var(--vd-space-2);padding:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border);font-size:var(--vd-label)}
 .check .vd-status{white-space:normal;justify-self:start;overflow-wrap:anywhere}
+[id^="component-"]>.vd-status{display:block;white-space:normal;overflow-wrap:anywhere;max-width:100%;border-radius:var(--vd-radius-control)}
+[id^="component-"] .vd-actions{margin-bottom:var(--vd-space-4)}
+.setup-callout{border-left:4px solid var(--vd-accent)}
+.needs-setup::after{content:'Нужна настройка';font-size:var(--vd-caption);color:var(--vd-warning)}
+.nav-item.needs-setup{flex-wrap:wrap}
 .dot{width:8px;height:8px;border-radius:var(--vd-radius-pill);background:var(--vd-control)}.dot.good{background:var(--vd-success)}
 .good{color:var(--vd-success)}.warning{color:var(--vd-warning)}
 details>summary{cursor:pointer;font-size:var(--vd-label);font-weight:var(--vd-medium)}

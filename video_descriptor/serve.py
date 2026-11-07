@@ -66,7 +66,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             return
         if path == "/create" or path.startswith("/studio-assets/"):
             name = "create.html" if path == "/create" else path.removeprefix("/studio-assets/")
-            if name not in ("create.html", "create.js", "create.css", "studio.js", "studio-drafts.js", "report-embed.js", "editor.js", "speech-edit.js", 'construction.js'):
+            if name not in ("create.html", "create.js", "create.css", "studio.js", "studio-drafts.js", "report-embed.js", "editor.js", "editor.css", "speech-edit.js", 'construction.js', 'recording.js'):
                 return self.send_error(404)
             body = files("video_descriptor").joinpath("assets", name).read_bytes()
             self.send_response(200)
@@ -126,6 +126,10 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     return self.json_response(200, gemini_models(translation_settings.load(root)["api_key"]))
                 if path == "/api/runs":
                     return self.json_response(200, runs(root))
+                if path == '/api/recording':
+                    from .recording import variants
+                    return self.json_response(200, variants(root, folder=params.get('folder', [''])[0],
+                                                           job=params.get('job', [''])[0]))
                 if path == "/api/jobs":
                     return self.json_response(200, [job for p in jobs_dir(root).glob("*/job.json") if (job := read_json(p, {})).get("status") != "deleted"])
                 if path == "/api/job":
@@ -194,9 +198,14 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                         self.end_headers()
                         return
                     page = report.read_text(encoding="utf-8")
+                    # The recording owns the media element. Remove sources before parsing
+                    # the embedded HTML so the hidden legacy player cannot preload video.
+                    page = re.sub(r'<(?:video|source|track)\b[^>]*>',
+                                  lambda match: re.sub(r'\s+src\s*=\s*(?:"[^"]*"|\'[^\']*\')', '', match[0]), page)
                     page = re.sub(r"<script>.*?</script>", '<script src="/studio-assets/report-embed.js"></script>', page, flags=re.DOTALL)
                     # Older generated reports retain their local assets; serve the current editor.
                     page = page.replace('src="assets/editor.js"', 'src="/studio-assets/editor.js"')
+                    page = page.replace('href="assets/editor.css"', 'href="/studio-assets/editor.css"')
                     body = page.encode()
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")

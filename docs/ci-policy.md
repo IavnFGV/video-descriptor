@@ -115,6 +115,10 @@ tag publication уже прошла Full. Release-event проверка пок�
 
 ## Локальная проверка
 
+Локальная последовательная сборка ZIP/EXE с очередью, post-merge hook для локального
+main, provenance и preview очистки: [команды и границы](local-build.md).
+Это не заменяет Full Acceptance и не устанавливает приложение автоматически.
+
 `python scripts/check-fast.py` использует уже установленное dev окружение и Node;
 не устанавливает AI-компоненты и не скачивает модели. Нужные dev dependencies
 описаны lockfiles и requirements-ci.txt. Единственная небольшая tool-загрузка —

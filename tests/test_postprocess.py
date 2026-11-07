@@ -123,3 +123,79 @@ def test_notes_and_translation_use_separately_selected_models(recording):
                               notes_model='writer:9b')
     assert job['translation_model'] == 'translator:9b'
     assert job['construction']['model'] == 'writer:9b'
+
+
+def test_selected_cloud_model_is_pinned_and_optional_translation_uses_google(recording, monkeypatch):
+    from video_descriptor import construction
+    root, _ = recording
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'billing_mode': 'paid'})
+    config = {'provider': 'gemini', 'model': 'gemini-chosen', 'context_tokens': 16384, 'output_tokens': 2048}
+    job = postprocess.enqueue(root, 'source', 'notes', 'gemini-chosen', 'http://127.0.0.1:11434', construction=config)
+    assert job['construction']['provider'] == 'gemini'
+    assert job['construction']['model'] == job['translation_model'] == 'gemini-chosen'
+    assert 'private' not in str(job)
+    commands = []
+    monkeypatch.setattr(postprocess, 'run_process', lambda folder, command, **kw: commands.append(command) or Mock(returncode=0))
+    jobs.run_job(root, root / 'output/jobs' / job['id'], job)
+    assert commands[-1][commands[-1].index('--gemini-model') + 1] == 'gemini-chosen'
+    assert '--local-model' not in commands[-1]
+
+
+def test_notes_only_does_not_start_translation(recording, monkeypatch):
+    root, _ = recording
+    job = postprocess.enqueue(root, 'source', 'notes', 'writer:9b', 'http://127.0.0.1:11434',
+                              construction={'provider': 'ollama', 'model': 'writer:9b'}, translate_after=False)
+    commands = []
+    monkeypatch.setattr(postprocess, 'run_process', lambda folder, command, **kw: commands.append(command) or Mock(returncode=0))
+    jobs.run_job(root, root / 'output/jobs' / job['id'], job)
+    assert [command[3] for command in commands] == ['video_descriptor.construction']
+    assert job['status'] == 'done' and job['stage'] == 'done'
+
+
+def test_native_cloud_choice_requires_confirmation_without_contacting_ollama(recording, monkeypatch):
+    import setup_service
+
+    from video_descriptor import construction
+    root, _ = recording
+    spec = importlib.util.spec_from_file_location('cloud_notes_app', Path(__file__).resolve().parents[1] / 'windows-app/app.py')
+    app = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(app)
+    monkeypatch.setattr(setup_service.SetupService, 'bootstrap', lambda self: None)
+    monkeypatch.setattr(setup_service, 'ollama_status', Mock(side_effect=AssertionError('Ollama must not be contacted')))
+    monkeypatch.setattr(setup_service, 'validate_ollama_model', Mock(side_effect=AssertionError('No local model validation')))
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'test-private', 'billing_mode': 'paid'})
+    start = Mock()
+    monkeypatch.setattr(jobs, 'start_worker', start)
+    value = {'workspace': str(root), 'npu_worker_directory': str(root / 'benchmark'), 'ollama_url': 'http://127.0.0.1:11434'}
+    with ThreadingHTTPServer(('127.0.0.1', 0), app.make_handler(value, 'instance')) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        url = f'http://127.0.0.1:{server.server_port}/api/native/postprocess'
+        body = {'folder': 'source', 'task': 'notes', 'translate_after': False,
+                'construction': {'provider': 'gemini', 'model': 'gemini-selected'}}
+        headers = {'X-App-Instance': 'instance'}
+        try:
+            assert requests.post(url, json=body, headers=headers, timeout=5).status_code == 400
+            start.assert_not_called()
+            response = requests.post(url, json={**body, 'cloud_confirmed': True}, headers=headers, timeout=5)
+            assert response.status_code == 202, response.text
+            assert response.json()['construction']['model'] == 'gemini-selected'
+            assert 'test-private' not in response.text
+            assert not response.json()['translate_after']
+            start.assert_called_once()
+        finally:
+            server.shutdown()
+            thread.join()
+
+
+
+def test_notes_failure_exposes_structured_reason_and_preserves_source(recording, monkeypatch):
+    root, source = recording
+    original = (source/'speech.json').read_bytes()
+    job = postprocess.enqueue(root,'source','notes','qwen:9b','http://127.0.0.1:11434')
+    result = root/'output'/job['folder']
+    jobs.write_json(result/'construction-error.json', {'error':'Нужны заголовки с таймкодами'})
+    monkeypatch.setattr(postprocess,'run_process',lambda *a,**kw: Mock(returncode=1))
+    jobs.run_job(root, root/'output/jobs'/job['id'],job)
+    assert 'Нужны заголовки с таймкодами' in job['error']
+    assert (source/'speech.json').read_bytes() == original

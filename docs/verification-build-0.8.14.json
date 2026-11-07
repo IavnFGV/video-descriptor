@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-26",
+  "version": "0.8.14",
+  "source_change_commit": "46b9471",
+  "local_checks": {
+    "command": "python scripts/check-fast.py",
+    "passed": 440,
+    "skipped": 2
+  },
+  "package": {
+    "version": "0.8.14",
+    "manifest_files_verified": 4439,
+    "optimized_sources_match": true,
+    "private_data_excluded": true,
+    "zip_sha256": "01ed1e964215ccc5a513b1caf7cbf19e4fa7d4d559fe802b897b75949c93ce67"
+  },
+  "smoke": {
+    "imports": true,
+    "loopback_ui": true,
+    "no_system_python_path": true,
+    "no_model": true,
+    "graceful_stop": true,
+    "setup_wizard": true,
+    "version": "0.8.14",
+    "manifest_files": 4439,
+    "environment": "existing Windows host; isolated test copy",
+    "installer_lifecycle_tested": false,
+    "long_recording_benchmarked": false
+  },
+  "artifacts": [
+    {
+      "file": "VideoDescriptor-0.8.14-windows-x64-setup.exe",
+      "bytes": 224013266,
+      "sha256": "d1afa1b8e9d21beeee4eb1d644976a4105f896d8625e0f9c71513f4820fa37a0"
+    },
+    {
+      "file": "VideoDescriptor-0.8.14-windows-x64.zip",
+      "bytes": 265845313,
+      "sha256": "01ed1e964215ccc5a513b1caf7cbf19e4fa7d4d559fe802b897b75949c93ce67"
+    }
+  ],
+  "limits": [
+    "No clean VM installer lifecycle run for this build",
+    "No full long-recording inference benchmark",
+    "Existing installation was not upgraded"
+  ]
+}

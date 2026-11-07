@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-07",
+  "version": "0.8.20",
+  "package": {
+    "state": "ready",
+    "commit": "5ef64abad4b000c27596b0c38459bd5f761869dc",
+    "started": "2026-11-07T16:51:55.945149+00:00",
+    "output": "D:\\projects\\video-descriptor\\dist\\local\\0.8.20",
+    "log": "D:\\projects\\video-descriptor\\.git\\local-build\\runs\\5ef64abad4b0-20261107T165155945149Z\\build.log",
+    "stage": "done",
+    "version": "0.8.20",
+    "finished": "2026-11-07T16:57:23.662555+00:00",
+    "artifacts": [
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.20\\VideoDescriptor-0.8.20-windows-x64.zip",
+        "sha256": "7a432814d3e72ca4d00a080875203543ca4ef2beae8af8b5d924c61d20b671d8",
+        "bytes": 265853620
+      },
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.20\\VideoDescriptor-0.8.20-windows-x64-setup.exe",
+        "sha256": "a78d8df7e51825e8e8e3ec2d9697a6865e5aca465faa3ea8a663d23e55cda332",
+        "bytes": 224022055
+      }
+    ],
+    "limits": [
+      "No automatic installation or publication",
+      "Portable smoke only; no clean VM installer lifecycle or hardware inference"
+    ]
+  },
+  "checks": {
+    "passed": 469,
+    "skipped": 2,
+    "model_picker_browser": "PASS",
+    "full_recording_browser": "PASS"
+  },
+  "model_picker_cases": [
+    "automatic provider inventory load",
+    "visible native select",
+    "refresh preserves selection",
+    "Ollama/Gemini selections isolated",
+    "connection error beside field and retry",
+    "missing saved model remains visible and blocks run",
+    "record drafts preserved"
+  ],
+  "includes": "Current-stage measured/indeterminate diarization ring from 0.8.19",
+  "limits": [
+    "No clean VM installer lifecycle",
+    "No new hardware inference or LLM generation run",
+    "Working application and model selections unchanged"
+  ]
+}

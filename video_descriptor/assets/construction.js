@@ -6,6 +6,14 @@
   const numeric = new Set(['context_tokens','output_tokens','chunk_seconds','max_chunk_seconds','max_chunk_chars']);
   let ready = false, selected = null, prompts = {}, lastMaterial = null, drafts = {}, previewVersion = 0, busy = false;
   const providerValues = {};
+  let modelRequest=0, modelLoading=false;
+  const modelLists={};
+  const validModel=()=>!modelLoading&&(modelLists[$('provider').value]||[]).some(model=>model.id===$('model').value);
+  function setModel(value){
+    const select=$('model');
+    if(value&&![...select.options].some(option=>option.value===value)){const option=document.createElement('option');option.value=value;option.textContent=value;select.append(option);}
+    select.value=value||'';
+  }
   let lastProvider = null;
   async function api(url, options) {
     const response = await fetch(url, options);
@@ -15,20 +23,21 @@
   }
   const post = (url, data) => api(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   function settings() {
-    return Object.fromEntries(Object.entries(fields).map(([key,id]) => [key,numeric.has(key) ? Number($(id).value) : $(id).value]));
+    return {...Object.fromEntries(Object.entries(fields).map(([key,id]) => [key,numeric.has(key) ? Number($(id).value) : $(id).value])),...(window.recordingUI?.native?{input:'speech'}:{}),auto_context:$('auto-context').checked};
   }
-  function fill(config) { for (const [key,id] of Object.entries(fields)) $(id).value = config[key]; }
+  function fill(config) { for (const [key,id] of Object.entries(fields)) (id==='model'?setModel(config[key]):$(id).value = config[key]); $('auto-context').checked=config.auto_context!==false; $('context').disabled=$('auto-context').checked; }
+  $('auto-context').onchange=()=>{$('context').disabled=$('auto-context').checked;preview();};
   function buttons() {
-    $('save').disabled = !ready || busy;
+    $('save').disabled = !ready || busy || !validModel();
     $('preview').hidden = !selected?.has_ready_transcript;
     $('run').hidden = !selected?.has_ready_transcript;
     $('plan').hidden = !selected?.has_ready_transcript;
     $('run').textContent = selected?.needs_notes ? 'Построить конспект' : 'Создать новую версию конспекта';
-    $('preview').disabled = !ready || busy || !selected?.has_ready_transcript;
-    $('run').disabled = !ready || busy || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
+    $('preview').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript;
+    $('run').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
   }
   async function preview() {
-    if (!ready || !selected?.has_ready_transcript) return;
+    if (!ready || !selected?.has_ready_transcript || !validModel()) return;
     const version = ++previewVersion;
     const folder = selected.folder;
     $('plan').textContent = 'Оцениваем размер материала…';
@@ -42,6 +51,7 @@
   }
   async function snapshot() {
     if (!ready) throw Error('Дождитесь загрузки настроек конспекта');
+    if(!validModel())throw Error('Выберите доступную модель из списка');
     if (!form.checkValidity()) { window.studioUI?.openStage('notes'); document.getElementById('notes-settings').open = true; }
     if (!form.reportValidity()) throw Error('Проверьте настройки конспекта');
     return post('/api/construction-settings', settings());
@@ -53,26 +63,42 @@
     preview();
   };
   $('provider').onchange = () => {
+    $('cloud').checked=false; $('cloud-label').hidden=$('provider').value!=='gemini';
     providerValues[lastProvider] = {model:$('model').value, context:$('context').value, output:$('output').value};
     lastProvider = $('provider').value;
     const values = providerValues[lastProvider] || (lastProvider === 'gemini' ?
-      {model:'gemini-3.8-flash',context:1048576,output:16384} : {model:'qwen3.5:9b',context:16384,output:4096});
-    for (const [id,value] of Object.entries(values)) $(id).value = value;
-    $('models').replaceChildren(); preview();
+      {model:'',context:1048576,output:16384} : {model:'',context:16384,output:4096});
+    for (const [id,value] of Object.entries(values)) {if(id==='model')setModel(value);else $(id).value=value;}
+    $('models').replaceChildren(); loadModels();
   };
   $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; $('prompt').dispatchEvent(new Event('input',{bubbles:true})); preview(); };
-  $('load-models').onclick = async () => {
-    const provider = $('provider').value; $('load-models').disabled = true;
-    try {
-      const models = await api('/api/construction-models?' + new URLSearchParams({provider}));
-      if (provider !== $('provider').value) return;
-      $('models').replaceChildren(...models.map(model => { const option = document.createElement('option'); option.value = model.id; option.label = model.title; return option; }));
-      $('status').textContent = 'Доступно моделей: ' + models.length;
-    } catch (error) { $('status').textContent = error.message; }
-    finally { $('load-models').disabled = false; }
-  };
+  async function loadModels(){
+    const provider=$('provider').value,request=++modelRequest,wanted=$('model').value;
+    modelLoading=true;++previewVersion;$('plan').textContent='План будет рассчитан после выбора доступной модели.';$('load-models').disabled=true;$('model').disabled=true;
+    $('model-status').classList.remove('vd-error');$('model-status').textContent='Получаем список моделей…';buttons();
+    try{
+      const models=await api('/api/construction-models?'+new URLSearchParams({provider}));
+      if(request!==modelRequest||provider!==$('provider').value)return;
+      modelLists[provider]=models;
+      $('models').replaceChildren(...models.map(model=>{const option=document.createElement('option');option.value=model.id;option.label=model.title;return option;}));
+      const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=models.length?'Выберите модель…':'Доступных моделей нет';
+      $('model').replaceChildren(placeholder,...models.map(model=>{const option=document.createElement('option');option.value=model.id;option.textContent=model.title||model.id;return option;}));
+      if(wanted&&!models.some(model=>model.id===wanted)){
+        const unavailable=document.createElement('option');unavailable.value=wanted;unavailable.textContent=wanted+' — недоступна';unavailable.disabled=true;$('model').append(unavailable);
+      }
+      setModel(wanted);
+      $('model-status').textContent=!models.length?'Моделей нет. Проверьте подключение в настройках AI.':wanted&&!models.some(model=>model.id===wanted)?'Прежняя модель недоступна. Выберите другую из списка.':'Доступно моделей: '+models.length;
+    }catch(error){
+      if(request!==modelRequest)return;
+      modelLists[provider]=[];$('model-status').classList.add('vd-error');$('model-status').textContent=error.message+' Проверьте подключение и нажмите «Обновить».';
+    }finally{
+      if(request===modelRequest){modelLoading=false;$('load-models').disabled=false;$('model').disabled=false;buttons();preview();}
+    }
+  }
+  $('load-models').onclick=loadModels;
+  $('model').onchange=()=>{if(validModel())$('model-status').textContent='Доступно моделей: '+modelLists[$('provider').value].length;};
   $('preview').onclick = preview;
-  form.addEventListener('change', event => { if (!['material','provider'].some(id => event.target === $(id))) preview(); });
+  form.addEventListener('change', event => { buttons(); if (!['material','provider'].some(id => event.target === $(id))) preview(); });
   form.onsubmit = async event => {
     event.preventDefault(); busy = true; buttons();
     try { await snapshot(); window.studioDraft?.clear(form); $('status').textContent = 'Настройки сохранены для новых запусков. Текущая обработка сохраняет свои настройки.'; }
@@ -80,10 +106,15 @@
     finally { busy = false; buttons(); }
   };
   $('run').onclick = async () => {
-    if (!selected?.has_ready_transcript || !form.reportValidity()) return;
+    if (!selected?.has_ready_transcript || !validModel() || !form.reportValidity()) return;
+    if(window.speechReplyEditing?.()){$('status').textContent='Сначала завершите правку реплики.';return;}
+    if(document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){$('status').textContent='Сохраните правки текущего конспекта перед новым запуском.';return;}
     const folder = selected.folder, config = settings(); busy = true; buttons();
     try {
-      const job = await post('/api/notes-run', {folder,settings:config});
+      if(config.provider==='gemini'&&!$('cloud').checked)throw Error('Подтвердите отправку текста в Google и возможные расходы');
+      const job = window.recordingUI?.native ? await window.recordingUI.postprocess('notes', {
+        construction:config,translate_after:$('translate-after').checked,cloud_confirmed:$('cloud').checked
+      }) : await post('/api/notes-run', {folder,settings:config});
       $('status').textContent = 'Конспект добавлен в очередь. Повторное распознавание речи не требуется.';
       document.dispatchEvent(new CustomEvent('construction-started', {detail:job}));
     } catch (error) { $('status').textContent = error.message; }
@@ -104,6 +135,8 @@
         fill({...config, input:config.input || (value.frame_count ? 'slides' : 'speech')});
         lastMaterial = config.material; lastProvider = config.provider;
         window.studioDraft?.restore(form,true);
+        lastProvider=$('provider').value;lastMaterial=$('material').value;
+        loadModels();
       }
       $('download').hidden = !value?.construction_result_url;
       if (value?.construction_result_url) $('download').href = value.construction_result_url;
@@ -114,6 +147,6 @@
   api('/api/construction-settings').then(data => {
     prompts = data.prompts; fill(data.settings); lastMaterial = data.settings.material; lastProvider = data.settings.provider;
     window.studioDraft?.restore(form);lastMaterial=$('material').value;lastProvider=$('provider').value;
-    ready = true; document.dispatchEvent(new Event('construction-ready')); buttons(); $('status').textContent = 'Эти настройки применяются к новым запускам конспекта.'; preview();
+    ready = true; document.dispatchEvent(new Event('construction-ready')); buttons(); $('status').textContent = 'Эти настройки применяются к новым запускам конспекта.'; loadModels();
   }).catch(error => { $('status').textContent = error.message; });
 })();

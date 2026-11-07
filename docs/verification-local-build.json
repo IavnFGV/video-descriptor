@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-07",
+  "version": "0.8.18",
+  "end_to_end": {
+    "state": "ready",
+    "commit": "9f63b0c6cc15a18d4641f9c01d63cd47d85c7114",
+    "started": "2026-11-07T16:04:27.580543+00:00",
+    "output": "D:\\projects\\video-descriptor\\dist\\local\\0.8.18",
+    "log": "D:\\projects\\video-descriptor\\.git\\local-build\\runs\\9f63b0c6cc15-20261107T160427580543Z\\build.log",
+    "stage": "done",
+    "version": "0.8.18",
+    "finished": "2026-11-07T16:10:40.014639+00:00",
+    "artifacts": [
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.18\\VideoDescriptor-0.8.18-windows-x64.zip",
+        "sha256": "e812d90a3f74ad09a52b033b30aec5f0eaac2a4ccf3b67e286597b04caa6a872",
+        "bytes": 265849275
+      },
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.18\\VideoDescriptor-0.8.18-windows-x64-setup.exe",
+        "sha256": "6ef9347a7147897424d7e9a746cf200beaeba814baaf1de4d0af120f02bcf67c",
+        "bytes": 224019542
+      }
+    ],
+    "limits": [
+      "No automatic installation or publication",
+      "Portable smoke only; no clean VM installer lifecycle or hardware inference"
+    ]
+  },
+  "local_checks": {
+    "passed": 459,
+    "skipped": 2
+  },
+  "targeted_local_build_checks": {
+    "passed": 13,
+    "includes": "actual Windows post-merge hook, queue, OS lock, failure status, corrupt artifact reuse, cleanup boundaries, transient status file lock"
+  },
+  "manual_acceptance": {
+    "background_command_started": true,
+    "duplicate_request_did_not_build_twice": true,
+    "completed_sha_reused_after_hash_verification": true,
+    "cleanup_refused_during_build": true,
+    "cleanup_applied": false,
+    "cleanup_preview_bytes": 38839226855,
+    "cleanup_preview_targets": 185,
+    "post_merge_hook_installed": true,
+    "main_merged_or_pulled": false
+  },
+  "postprocess_ui": {
+    "isolated_browser": "PASS",
+    "checks": [
+      "immediate pending status",
+      "duplicate submit blocked",
+      "HTTP 409 error visible",
+      "button restored after failure"
+    ],
+    "real_api_observation": "Installed app rejected earlier click with HTTP 409; no active user job was stopped or automatically retried"
+  },
+  "limits": [
+    "No clean VM installer lifecycle",
+    "Working installation unchanged",
+    "End-to-end artifact source commit is recorded in end_to_end.commit; subsequent build-script hardening tested separately"
+  ],
+  "version_folder_publication": {
+    "status": "PASS",
+    "path": "dist/local/0.8.18",
+    "technical_runs_hidden": true,
+    "legacy_download_folder_migrated": true
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "network": false,
+  "user_environment_modified": false,
+  "packages": 116,
+  "missing": [],
+  "unpacked_gib": 4.05,
+  "exit_code": 0,
+  "seconds": 34.17,
+  "fresh_environment": true,
+  "pip_check": "PASS",
+  "gpu_inference": "PASS",
+  "turns": 3,
+  "device_name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+  "torch": "2.14.1+xpu"
+}

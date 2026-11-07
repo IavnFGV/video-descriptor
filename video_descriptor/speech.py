@@ -68,6 +68,33 @@ def edit_utterance(root, value):
         result = editable_result(folder, original)
         if value.get('revision') != result['edit_revision']:
             raise ValueError('Реплики изменились. Обновите страницу перед сохранением')
+        if value.get('action') == 'restore':
+            rows = value.get('segments')
+            translations = value.get('translations')
+            if not isinstance(rows, list) or not rows or len(rows) > 100000 or not isinstance(translations, dict):
+                raise ValueError('Некорректный снимок расшифровки')
+            known = {row['speaker'] for row in original['segments']} | set(original.get('speaker_names', {})) | {'unknown'}
+            identifiers = set()
+            for index, row in enumerate(rows):
+                if not isinstance(row, dict):
+                    raise TypeError('Некорректная реплика')
+                identity, start, end = row.get('id', f'@{index}'), row.get('start'), row.get('end')
+                if not isinstance(identity, str) or not identity or len(identity) > 200 or identity in identifiers:
+                    raise ValueError('Некорректный идентификатор реплики')
+                identifiers.add(identity)
+                unknown_end = end == -1 and any(item.get('start') == start and item.get('end') == -1 for item in original['segments'])
+                if (type(start) not in (int, float) or type(end) not in (int, float) or not math.isfinite(start) or not math.isfinite(end)
+                        or not (start >= 0 and (unknown_end or start < end <= original.get('duration', float('inf')) + .01))):
+                    raise ValueError('Некорректные границы реплики')
+                if not isinstance(row.get('text'), str) or not row['text'].strip() or len(row['text']) > 100000 or row.get('speaker') not in known:
+                    raise ValueError('Некорректный текст или участник')
+            if any(not isinstance(key, str) or not isinstance(text, str) or len(text) > 100000 for key, text in translations.items()):
+                raise ValueError('Некорректный перевод')
+            write_json(folder / 'transcript-edits.json', {'segments': rows, 'translations': translations, 'updated': time.time()})
+            if (folder / 'manifest.json').is_file() and (folder / 'notes.json').is_file():
+                from .translate import refresh_reports
+                refresh_reports(folder)
+            return editable_result(folder, original)
         index = value.get('index')
         if type(index) is not int or not 0 <= index < len(result['segments']):
             raise ValueError('Реплика не найдена')
@@ -78,7 +105,7 @@ def edit_utterance(root, value):
             if not isinstance(text, str) or not text.strip() or len(text) > 100_000:
                 raise ValueError('Укажите текст реплики (до 100 000 символов)')
             if not isinstance(speaker, str) or speaker not in known:
-                raise ValueError('Выберите говорящего из списка')
+                raise ValueError('Выберите участника из списка')
             return {**old, 'text': text.strip(), 'speaker': speaker, 'start': start, 'end': end}
 
         if value.get('action') == 'edit':
@@ -199,7 +226,7 @@ def state(root, params):
         job = {**job, 'status': 'running', 'error': None}
     if result.get('status') == 'done':
         result = editable_result(root / 'output' / folder, result)
-    return {'job': job, 'result': result}
+    return {'job': job, 'result': result, 'progress': read_json(resolved / 'progress.json', {})}
 
 
 def inventory(root):
@@ -479,7 +506,7 @@ def run(root, job_folder, job):
             result['stage'] = 'diarization'
             result['speaker_notice'] = 'Единые метки голосов по всей записи · локальная диаризация ' + device.upper()
             if job['engine'].startswith('whisper-npu') and result.get('timing') != 'word':
-                result['speaker_notice'] += (' · Говорящий назначается целой реплике по большей части её времени. '
+                result['speaker_notice'] += (' · Участник назначается целой реплике по большей части её времени. '
                                             'При смене человека внутри реплики возможна неточность.')
             if diar_future is not None:
                 update('NPU готов · ожидаем завершения GPU', duration)

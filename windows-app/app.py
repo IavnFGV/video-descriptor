@@ -38,6 +38,7 @@ def installation_id():
 
 
 class NativeHTTPServer(ThreadingHTTPServer):
+    request_queue_size = 32  # Concurrent startup checks must not drop loopback connections.
     allow_reuse_address = False
 
     def server_bind(self):
@@ -62,8 +63,12 @@ def config():
                 or parsed.path not in {'', '/'}):
             raise ValueError(f'{key}: в прототипе разрешён только локальный HTTP-сервис')
         value[key] = value[key].rstrip('/')
-    workspace = (HERE / value['workspace']).resolve()
-    workspace.relative_to((HERE / 'runtime').resolve())
+    if value.get('records_directory'):
+        from storage_service import local_folder
+        workspace = local_folder(value['records_directory'])
+    else:
+        workspace = (HERE / value['workspace']).resolve()
+        workspace.relative_to((HERE / 'runtime').resolve())
     value['workspace'] = str(workspace)
     worker = value['npu_worker_directory']
     value['npu_worker_directory'] = str(Path(worker) if worker else Path.home() / 'Downloads' / 'windows-benchmark')
@@ -222,11 +227,15 @@ def make_handler(value, instance):
     )
 
     from video_descriptor.action_history import record
-    from video_descriptor.jobs import enqueue, read_json, start_worker
+    from video_descriptor.jobs import enqueue, read_json, start_worker, write_json
     manager = ComputeManager(value, HERE) if 'npu_worker_directory' in value else None
     setup = SetupService(manager, HERE) if manager is not None else None
     from component_manager import ComponentManager
-    components = ComponentManager(setup) if setup else None
+    components = ComponentManager(setup, root=value.get('ai_components_directory')) if setup else None
+    from storage_service import StorageService
+    storage = StorageService(setup, components) if setup else None
+    if setup:
+        setup.bootstrap()
     from video_descriptor.serve import RangeRequestHandler
 
     class Handler(RangeRequestHandler):
@@ -265,6 +274,8 @@ def make_handler(value, instance):
                 return self.json_response(200, result)
             if path == '/api/compute-settings' and manager is not None:
                 return self.json_response(200, manager.snapshot())
+            if path == '/api/storage' and storage is not None:
+                return self.json_response(200, storage.snapshot())
             if path == '/api/setup' and setup is not None:
                 return self.json_response(200, setup.snapshot())
             if path == '/api/components' and components is not None:
@@ -299,8 +310,45 @@ def make_handler(value, instance):
             return super().do_GET()
 
         def do_POST(self):
+            if manager is not None:
+                with manager._lock:
+                    return self.handle_post()
+            return self.handle_post()
+
+        def handle_post(self):
             path = urlsplit(self.path).path
-            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
+            if storage and storage.blocked() and path not in {'/api/setup/storage', '/api/native/stop'}:
+                self.close_connection = True
+                return self.json_response(409, {'error': 'Перенос данных: дождитесь завершения и полностью перезапустите приложение'})
+            if path == '/api/speech-run' and manager is not None:
+                try:
+                    if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
+                        return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if self.headers.get_content_type() != 'application/json' or not 0 < length <= 400_000:
+                        raise ValueError('Ожидается JSON параметров распознавания')
+                    body = json.loads(self.rfile.read(length))
+                    if not isinstance(body, dict) or body.get('engine') != 'whisper-local':
+                        raise ValueError('Выберите локальное распознавание в настройках приложения')
+                    if manager.operation:
+                        raise RuntimeError('Дождитесь завершения настройки')
+                    from video_descriptor.speech import enqueue_existing, source_path
+                    if body.get('language', 'auto') not in {'auto', 'en', 'ru', 'uk'}:
+                        raise ValueError('Выберите язык: auto, en, ru или uk')
+                    source = source_path(Path(value['workspace']), body.get('video'))
+                    if any((item := read_json(path, {})).get('status') in {'queued', 'running'}
+                           and item.get('video') == str(source)
+                           for path in (Path(value['workspace']) / 'output/jobs').glob('*/job.json')):
+                        raise ValueError('Эта запись уже находится в обработке')
+                    plan = manager.make_plan(body.get('device', manager.settings()['speech_device']))
+                    job = enqueue_existing(Path(value['workspace']), body.get('video'), 'whisper-local', body.get('title', ''))
+                    job.update(speech_only=True, device_plan=plan, language=body.get('language', 'auto'))
+                    write_json(Path(value['workspace']) / 'output/jobs' / job['id'] / 'job.json', job)
+                    start_worker(Path(value['workspace']))
+                    return self.json_response(202, job)
+                except (ValueError, TypeError, OSError, RuntimeError) as exc:
+                    return self.json_response(400, {'error': str(exc)})
+            if setup is not None and path in {'/api/setup/inspect', '/api/setup/model', '/api/setup/pick-model', '/api/setup/ollama', '/api/setup/download', '/api/setup/probe', '/api/setup/complete', '/api/setup/gemini', '/api/setup/refresh', '/api/setup/component-directory', '/api/setup/storage', '/api/setup/external', '/api/components', '/api/native/postprocess'}:
                 try:
                     length = int(self.headers.get('Content-Length', '0'))
                     origin = self.headers.get('Origin')
@@ -318,11 +366,22 @@ def make_handler(value, instance):
                         return self.json_response(202, setup.probe(self.rfile.read(length)))
                     if path == '/api/setup/pick-model':
                         return self.json_response(200, {'path': choose_folder()})
-                    if not 0 < length <= 4096 or self.headers.get_content_type() != 'application/json':
+                    if not 0 < length <= (400_000 if path == '/api/native/postprocess' else 4096) or self.headers.get_content_type() != 'application/json':
                         raise ValueError('Ожидается путь к модели в JSON')
                     body = json.loads(self.rfile.read(length))
                     if not isinstance(body, dict):
                         raise TypeError('Ожидается объект настроек модели')
+                    if path == '/api/setup/storage':
+                        action = body.get('action')
+                        if action == 'pick':
+                            return self.json_response(200, {'path': choose_folder(storage=True)})
+                        if action == 'cleanup':
+                            if body.get('confirmed') is not True:
+                                raise ValueError('Подтвердите очистку старой папки')
+                            return self.json_response(200, storage.cleanup())
+                        if action != 'transfer':
+                            raise ValueError('Неизвестное действие с папкой')
+                        return self.json_response(202, storage.start(body))
                     if path == '/api/setup/external':
                         pages = {'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
                         if body.get('page') not in pages:
@@ -331,6 +390,8 @@ def make_handler(value, instance):
                         return self.json_response(200, {'opened': True})
                     if path == '/api/components':
                         return self.json_response(202, components.action(body.get('component'), body))
+                    if path == '/api/setup/component-directory':
+                        return self.json_response(200, setup.component_directory(body.get('directory')))
                     if path == '/api/setup/refresh':
                         with manager._lock:
                             setup.guard()
@@ -354,14 +415,23 @@ def make_handler(value, instance):
                             start_worker(Path(value['workspace']))
                             return self.json_response(202, job)
                         from video_descriptor.postprocess import enqueue as enqueue_postprocess
-                        status = ollama_status(value)
+                        config = body.get('construction') if body.get('task') == 'notes' else None
+                        if config is not None:
+                            from video_descriptor.construction import validate, validate_provider
+                            config = validate({**config, 'input': 'speech'})
+                            validate_provider(Path(value['workspace']), config)
+                            if config['provider'] == 'gemini' and body.get('cloud_confirmed') is not True:
+                                raise ValueError('Подтвердите отправку текста в Google и возможные расходы')
+                        status = ollama_status(value) if config is None else {'selected': config['model']}
                         model = status['selected']
                         notes_model = read_json(Path(value['workspace']) / '.devcontainer/notes-settings.json', {}).get('ollama_model') or model
-                        validate_ollama_model(value, model)
-                        if body.get('task') == 'notes' and notes_model != model:
+                        if config is None or config['provider'] == 'ollama':
+                            validate_ollama_model(value, model)
+                        if config is None and body.get('task') == 'notes' and notes_model != model:
                             validate_ollama_model(value, notes_model)
                         job = enqueue_postprocess(Path(value['workspace']), body.get('folder'),
-                                                  body.get('task'), model, value['ollama_url'], notes_model=notes_model)
+                                                  body.get('task'), model, value['ollama_url'], notes_model=notes_model,
+                                                  construction=config, translate_after=body.get('translate_after', True))
                         start_worker(Path(value['workspace']))
                         return self.json_response(202, job)
                     if path == '/api/setup/ollama':
@@ -416,10 +486,12 @@ def make_handler(value, instance):
                         return self.json_response(202, request_stop(Path(value['workspace']), job_id))
                     if path.endswith('start-npu'):
                         return self.json_response(202, start_npu(value))
+                    if storage and storage.active:
+                        return self.json_response(409, {'error': 'Дождитесь завершения переноса данных'})
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
                     if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
                         return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
-                    if components and components.active:
+                    if components and (components.active or components.plan.get('state') == 'running'):
                         return self.json_response(409, {'error': 'Остановите подготовку компонентов перед закрытием приложения'})
                     if components:
                         components.close()
@@ -449,7 +521,7 @@ def main():
         print(json.dumps(doctor(value), ensure_ascii=False, indent=2))
         return 0
     url = f'http://127.0.0.1:{value["port"]}'
-    fingerprint = hashlib.sha256(value['workspace'].encode()).hexdigest()[:16]
+    fingerprint = installation_id()[:16]
     state = HERE / 'runtime' / f'instance-{fingerprint}.json'
     if args.stop:
         recorded = json.loads(state.read_text(encoding='utf-8'))

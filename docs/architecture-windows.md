@@ -1,5 +1,29 @@
 # Windows: фактическая архитектура и решение
 
+22.10.2026, 0.8.13: история правок конспекта остаётся локальной CodeMirror history,
+включая правку раздела native dialog и сброс к savedText. Дисковый save по-прежнему
+использует editor.json/revision и сохраняет отдельный пользовательский Markdown.
+История субтитров в памяти frontend хранит before/after снимки по folder; restore
+проходит прежний speech-edit endpoint с актуальным revision и проверкой всего снимка
+под EDIT_LOCK. Сохранённые изменения другого клиента не отменяются молча. Новые
+действия после внешней правки начинают новую цепочку истории.
+
+22.10.2026, 0.8.12: единая расшифровка повторно использует общий speech-edit.js для
+быстрого Ctrl-редактора и inline управления голосами. Live API возвращает revision
+и допустимые speaker_options из существующего editable_result; новое хранилище или
+API правок не добавлены. Polling сохраняет DOM активного редактора, смена варианта
+учитывает dirty guard. Изменение текста сохраняет голос, границы и перевод.
+
+21.10.2026, 0.8.11: единый frontend рабочего места /create обслуживает также native
+выбор записи. Native библиотека группирует задания по исходному video, выбор job
+перенаправляет на /create?job= без второго экрана результата. recording.py предоставляет
+read-only каталог речи и отчётов по одному исходнику через /api/recording. recording.js
+переставляет существующие DOM-панели, сохраняя process-video и редакторы; отдельного
+плеера/копии данных нет. Старые stage URL, API правок и экспортов работают. Настройки
+нового результата используют прежние pipeline: native postprocess с instance/cloud
+guards либо legacy notes-run; новая native речь закрепляет ComputeManager.make_plan
+на исходном файле без повторного upload. Стандартные пути хранения не меняются.
+
 ## UI-система, 19.10.2026
 
 Согласованная главная сохраняет HTML/CSS/JS и WebView2. Клиентские области
@@ -540,3 +564,57 @@ venv-local `Library/bin` before dependency installation, with SHA256 checks agai
 Managed pip installation uses an explicit extended-length Windows prefix, with matching
 size/removal paths. Runtime configuration keeps normal absolute paths; no registry policy
 is changed and venvs are never relocated.
+
+## Background bootstrap and contextual preparation (21 October 2026)
+
+`SetupService.bootstrap()` runs once per server process after manager construction. It inventories the bundled runtime, imports a detected model only when no verified configuration exists, and uses `ComputeManager.prepare()` with the saved device preference. Speech and Ollama failures are isolated. Ollama discovery uses the selected connection and capability metadata only; no generation or Gemini request runs during bootstrap. Existing diagnostics inspect local diarization and saved Gemini configuration without sending recording data.
+
+The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. The `prepare` Ollama action explicitly opts into managed installation and then pulls/verifies one catalog model under the same lease.
+
+Advanced settings can save `ai_components_directory` for the next process start through the guarded SetupService API and the existing ComponentManager root argument. This does not move user data or modify live environments. Reinstalling a diarization runtime reuses an existing model when it still matches the reviewed manifest, including after a component-directory change.
+
+
+21.10.2026: пользовательские названия устройств унифицированы (CPU/GPU/NPU), внутреннее API значение `xpu` сохранено для совместимости. NPU диаризации недоступен, capability распознавания проверяется отдельно. GPU check не использует сохранённый CPU runtime; смена на GPU из записи открывает подготовку с согласием. Ошибка последней операции и ранее проверенное устройство отображаются раздельно; сообщения subprocess различают установку пакетов и пробный inference, не сохраняя сырой вывод с возможными credentials.
+
+
+21.10.2026, 0.8.2: /api/components action=prepare_selected принимает выбранные функции, устройство, режим/модель Ollama, общее согласие и отдельное HF consent. Backend сохраняет preparation.json без токена и последовательно использует существующие guarded операции. preparation.lock защищает очередь между экземплярами; компонентный lease и прежние guards сохранены. cancel_selected отменяет текущий шаг и остаток. После перезапуска незавершённая очередь становится явной ошибкой с повтором, без самовольной новой загрузки. GET /api/components.preparation возвращает общий прогресс; уход со страницы не останавливает backend.
+
+
+21.10.2026, 0.8.3: ComponentManager.run асинхронно читает bounded stdout/stderr pipe дочернего процесса. В состояние попадают только разрешённые фазы/имена пакетов/счётчики pip raw progress; неизвестный сырой вывод отбрасывается. Отдельный reader не блокирует cancel/timeout. activity_at отражает реальный вывод или изменение структурированного progress.json, step_started_at — начало subprocess, process_running — состояние дочернего процесса. diarization_worker сохраняет stage/completed/total с прежним message; родитель принимает только известные фазы и конечные счётчики. progress_scope=file означает текущий файл, stage — текущий этап; глобальный процент не синтезируется.
+
+
+21.10.2026, 0.8.4: install_packages.py запускает pip в отдельном процессе и нормализует результат wheel._record_to_fs_path через ntpath.normpath перед rehash. Причина: pip 25 после изменения shebang читает RECORD путь с ../.., а Windows extended prefix не нормализует такие сегменты и возвращает errno 22. Префикс длинных путей сохранён; pip на диске и политика Windows не изменяются. Новый helper включён в release source_paths и распознаётся ComponentManager.run для потокового прогресса.
+
+
+21.10.2026: хранение — GET /api/storage возвращает текущие независимые roots и прогресс; POST /api/setup/storage (instance/Origin guards) action=pick|transfer|cleanup. Перенос выполняется в фоне только без активных jobs/подготовки, с leases worker/components, в пустую непересекающуюся локальную папку. Старые данные сохраняются до явной очистки после полного перезапуска; config публикуется атомарно после SHA256 и исправления путей/venv. records_directory переопределяет workspace; стандартный runtime/workspace и LOCALAPPDATA/VideoDescriptor/ai-components сохраняются по умолчанию. Пока выполняется перенос или ожидается перезапуск, мутации HTTP заблокированы; остановка во время копирования запрещена. Внешняя Ollama не переносится и не останавливается. Очистка проверяет маркеры, набор файлов и хеши; новые/изменённые исходные файлы не удаляются.
+
+
+21.10.2026: перед конспектом native dialog выбирает Ollama/Gemini, модель, strategy, context_tokens и translate_after. POST /api/native/postprocess принимает construction; cloud_confirmed=true обязателен для Gemini, API-ключ остаётся в защищённых настройках. Provider/model закрепляются в job, глобальные настройки не меняются. GET /api/translation-settings возвращает только public preferences. /api/speech дополнительно возвращает progress из progress.json: phase, completed/total, chunk, request_state, received. Последовательные части конспекта получают ограниченную выдержку предыдущей части и недавние заголовки; план учитывает резерв памяти. Cache key включает эту память, поэтому возобновление восстанавливает тот же контекст из сохранённых ответов. Объединение — отдельный этап, процент показывается только для текущего этапа.
+
+
+21.10.2026: auto_context=true выбирает реальный лимит модели, false сохраняет ручной context_tokens. Старые конфигурации с явным context_tokens без флага остаются ручными. Для Gemini strategy=auto|whole планируется по countTokens полного payload (включая system prompt), с резервом ответа и 1024 токена; результат переиспользуется при генерации без повторного countTokens. Если помещается, один блок и один generateContent, без consolidation. Ручное strategy=chunks сохраняется. Локальная обработка ограничивает num_ctx фактически нужным размером, не выделяя максимальный KV cache без необходимости; уточнение локального подсчёта ниже.
+
+26.10.2026: `local_tokens.py` запрашивает выбранный endpoint `/api/show` с `verbose=true` один раз на операцию. По GGUF vocabulary/merges и известному pre-tokenizer (`qwen2`, `deepseek-r1-qwen`, `qwen35`) восстанавливается byte BPE через уже включённую в runtime библиотеку tokenizers. NFC применяется только при соответствующем флаге GGUF; HF normalizer не предполагается по названию модели. Неизвестный формат, некорректные metadata, неполный byte alphabet или недоступность API возвращают прежнюю byte-bound оценку. Никаких запросов генерации для подсчёта, HF-доступа или загрузки весов нет. Считаются токены текста плюс 256 на обрамление; это не точный размер Ollama chat template. Сохраняются дополнительные резервы инструкции, памяти и ответа. Один счётчик используется при планировании, разбиении, проверке перед отправкой и consolidation. `construction-plan.json` дополнен `token_counting`, `planned_input_tokens`, `effective_context_tokens`; `input_upper_bound` остаётся байтовым. Auto ограничивает контекст также для частей с резервом последовательной памяти; ручной контекст не изменён.
+
+Локальный перевод с известным словарём собирает блоки до 1000 токенов текста с маркерами (ещё 256 учитываются счётчиком), максимум 96 реплик, оставляя место для расширения русского ответа в контексте 8192. Неизвестный tokenizer и Gemini сохраняют прежние 90 секунд. Порядок и ids исходных реплик, проверка маркеров, разделение неудачных блоков и checkpoint-файлы сохранены. При частично готовом блоке отправляются только отсутствующие ids; сохранённые переводы, включая пустые реплики объединённого перевода, не перегенерируются. Настройки следующих блоков и закрепление provider/model в job работают как прежде. В completion-журнал Ollama добавлены load/prompt/eval duration и output tokens/sec; реальная аппаратная скорость не выводится из unit-тестов.
+
+Формат metadata: [Ollama Show Model](https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information); pre-tokenizers и normalizer keys сверены с [llama.cpp](https://github.com/ggml-org/llama.cpp/blob/master/src/llama-vocab.cpp). Проверка установленного Qwen3.5-9B GGUF и локального HF tokenizer на обычном русском тексте дала 51000 токенов вместо 306000 байт (165000 символов); это проверка подсчёта, а не замер генерации. Различие NFC в HF и GGUF на combining accents учитывается по metadata, без изменения материала.
+
+
+21.10.2026: progress.json — вспомогательный атомарный снимок. Windows PermissionError при replace повторяется до 6 попыток (задержки 10–100 мс); после исчерпания или другого OSError старый JSON сохраняется, в журнал однократно пишется предупреждение и обработка модели продолжается. Следующее сообщение повторяет публикацию; успешная запись сбрасывает предупреждение. Сериализация, результаты и ошибки запросов не переводятся в best-effort.
+
+07.11.2026: unified workspace разделяет локальное назначение говорящего реплике и глобальное переименование в панели говорящих. Создание с назначением использует существующие операции speech-names и speech-edit с revision; новых API нет.
+
+07.11.2026, 0.8.16: PrepareToInstall использует lifecycle helper из нового EXE, извлечённый в temp и запущенный встроенным Python целевой установки. Снимок PID/create_time/exe и список процессов создаются до подтверждения. Интерактивное «Да» разрешает завершение только этого снимка с повторной проверкой принадлежности executable каталогу установки и идентичности; новые/изменившиеся процессы блокируют замену. Проверка без согласия и silent setup ничего не останавливают. Обработка прерывается только после предупреждения о потере несохранённых правок. Внешние сервисы и произвольные деревья процессов не завершаются; uninstall сохраняет прежнюю блокировку. Проверки: tests/test_release_packaging.py и scripts/verify-installer-processes.py; последний использует только временные Windows-процессы, не рабочий NPU.
+
+07.11.2026: unified recording action устанавливает actionPending до POST /api/native/postprocess, показывает aria-busy и явный статус запуска, блокирует повтор до ответа и выводит ошибку в отдельном recording-action-status (vd-error), не перезаписываемом polling списка вариантов. Backend guard, API и состояния job сохранены.
+
+07.11.2026: локальный release driver scripts/local_build.py хранит конфигурацию/очередь/статус в Git common directory, использует OS-lock и detached worktree точного SHA. Post-merge main очищает унаследованные Git-local переменные и запускает Build-Local.ps1 в фоне. Готовый ZIP/EXE публикуются только в локальную папку версии dist/local/<версия> с SHA в provenance; рабочего installer lifecycle и auto-update нет. Clean-Local.ps1 использует тот же lock, preview по умолчанию и allowlist старых артефактов. Подробности: local-build.md.
+
+07.11.2026: диаризация публикует diarization_progress {stage,label,completed?,total?,updated_at,stage_started_at} из реальных hooks pyannote. Parent сохраняет структуру в speech.json и live snapshot. На экране один текущий этап с SVG-кольцом: unknown total — вращение без aria-valuenow, известный положительный total — измеренный процент; при reduced-motion вращения нет. Длительность этапа и давность последнего события не объявляются ETA/heartbeat модели. Стандартная линейная полоса скрыта только на активной диаризации; завершение/ошибка убирают кольцо. Unique speaker counts до clustering не показываются.
+
+07.11.2026: construction-model — native select с автоматическим /api/construction-models?provider=. Исходные IDs и API сохранены; construction-models datalist остаётся совместимым скрытым inventory. Refresh рядом с полем, модель не переключается молча. Список провайдера проверяется перед Save/Run; stale-response guard modelRequest, недоступная сохранённая модель показана и блокирует запуск. Черновик model сохраняется до асинхронного inventory.
+
+07.11.2026: error/cancelled различаются в presentation и recording inventory; error alert и явный retry находятся вне disclosure. Старые notes failures используют construction-error.json через live.construction_error; новые job.error сохраняют конкретную причину из этого файла. Retry вызывает прежний /api/retry, учитывает dirty guards и не запускается автоматически. parsed_notes допускает ### [start - end] как формат заголовка, проверяя обе границы по start/end исходных реплик и прежние ограничения ссылок/хронологии. Исходный Markdown и неизвестные end_ts не изменяются.
+
+07.11.2026: update_status локального конвейера атомарно публикует JSON и self-refresh HTML в dist/local/build-status.html на каждом этапе. last-success.json сохраняет ссылки на последнюю проверенную сборку во время следующей попытки или ошибки. HTML локальный, без сервера/CDN; динамический текст экранируется. Подписи diarization/participants унифицированы без смены speaker API.

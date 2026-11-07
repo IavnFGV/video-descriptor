@@ -5,6 +5,7 @@ import re
 import tempfile
 import threading
 import time
+from contextlib import suppress
 from pathlib import Path
 
 TASKS = {"route": "выбор картинок", "summarize": "конспект",
@@ -22,6 +23,7 @@ class ProgressLog:
         self.journal_dir = journal_dir
         self.lecture_context = None
         self.progress_file = None
+        self.progress_error = None
         self.thinking_enabled = False
         self.num_gpu = None
 
@@ -93,18 +95,35 @@ class ProgressLog:
             state.update(message=message, updated=time.time(), requests=requests,
                          request_seconds=round(elapsed, 1), thinking_enabled=self.thinking_enabled)
             with self.lock:
-                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
-                                                 dir=self.progress_file.parent,
-                                                 prefix=".progress-", delete=False) as stream:
-                    temporary = Path(stream.name)
-                    try:
-                        json.dump(state, stream, ensure_ascii=False)
-                    except BaseException:
-                        temporary.unlink(missing_ok=True)
-                        raise
+                previous_error = self.progress_error
+                self.progress_error = self._write_progress(state)
+            if self.progress_error and not previous_error:
+                self.emit('Индикатор прогресса временно недоступен: ' + self.progress_error +
+                          '. Обработка продолжается; обновление повторится при следующем сообщении.')
+
+    def _write_progress(self, state):
+        """Progress is advisory; a locked snapshot must never abort model generation."""
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
+                                             dir=self.progress_file.parent,
+                                             prefix=".progress-", delete=False) as stream:
+                temporary = Path(stream.name)
+                json.dump(state, stream, ensure_ascii=False)
+            for attempt in range(6):
                 try:
                     temporary.replace(self.progress_file)
-                finally:
+                    return None
+                except PermissionError:
+                    if attempt == 5:
+                        raise
+                    # Windows readers/AV can briefly deny atomic replacement (WinError 5/32).
+                    time.sleep(min(.01 * 2**attempt, .1))
+        except OSError as exc:
+            return f'{type(exc).__name__} ({getattr(exc, "winerror", None) or exc.errno})'
+        finally:
+            if temporary is not None:
+                with suppress(OSError):
                     temporary.unlink(missing_ok=True)
 
 
