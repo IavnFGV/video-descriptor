@@ -51,10 +51,10 @@
 <div class="construction-options"><label>Материал конспекта<select id="construction-input"><option value="speech">По речи</option><option value="slides">По речи и тексту слайдов</option></select></label>
 <label>Характер материала<select id="construction-material"><option value="lecture">Учебная лекция</option><option value="conversation">Разговорная лекция</option></select></label>
 <label>Модель для конспекта<select id="construction-provider"><option value="ollama">Локально · Ollama</option><option value="gemini">Google · Gemini</option></select></label>
-<label>Название модели<input id="construction-model" list="construction-models" value="qwen3.5:9b" required><datalist id="construction-models"></datalist></label>
+<div class="construction-model-field"><label for="construction-model">Модель</label><div class="construction-model-picker"><select id="construction-model" required aria-describedby="construction-model-status"><option value="">Загружаем модели…</option></select></div><div class="construction-model-meta"><p id="construction-model-status" class="hint" role="status"></p><button id="construction-load-models" type="button" class="vd-button vd-button--quiet vd-button--compact">Обновить</button></div><datalist id="construction-models"></datalist></div>
 <label>Обработка<select id="construction-strategy"><option value="auto">Автоматически</option><option value="whole">Весь текст одним запросом</option><option value="chunks">По частям с объединением</option></select></label>
 </div>
-<button id="construction-load-models" type="button">Обновить список моделей</button>
+
 <p class="hint">Модель конспекта выбирается отдельно от переводчика. Gemini использует сохранённый API-ключ. В запрос передаётся расшифровка; при выборе слайдов добавляется их распознанный текст. Картинки и целое видео этот способ построения пока не отправляет.</p>
 <details><summary>Инструкция модели · редактировать</summary><label>Промпт<textarea id="construction-prompt" rows="12" required maxlength="50000"></textarea></label><button id="construction-reset-prompt" type="button">Стандартный для этого материала</button></details>
 <details><summary>Разбиение и лимиты модели</summary><div class="construction-options">

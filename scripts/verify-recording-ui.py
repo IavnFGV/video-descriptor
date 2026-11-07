@@ -11,7 +11,7 @@ import threading
 from functools import partial
 from http.server import ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -51,6 +51,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         def do_GET(self):
             path=urlsplit(self.path).path
             if path=='/health':return self.json_response(200,{'status':'ok','app':'video-descriptor-windows','instance':'fixture'})
+            if path=='/api/construction-models':
+                provider=parse_qs(urlsplit(self.path).query).get('provider',['ollama'])[0]
+                names=['gemini-test'] if provider=='gemini' else ['qwen3.5:9b','model-a','model-b','gpt-oss:20b']
+                return self.json_response(200,[{'id':name,'title':name} for name in names])
             name={'/':'index.html','/native.js':'app.js','/native.css':'app.css'}.get(path)
             if name:
                 body=(ROOT/'windows-app/ui'/name).read_bytes()
@@ -85,6 +89,37 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--models-only' in sys.argv:
+            c.fill('#recording-notes','__new__')
+            wait_for(lambda:evaluate('document.querySelector("#construction-model").tagName==="SELECT" && document.querySelector("#construction-model").options.length>=4'))
+            c.fill('#construction-model','gpt-oss:20b')
+            assert not evaluate('document.querySelector("#construction-run").disabled')
+            c.click('#construction-load-models')
+            wait_for(lambda:not evaluate('document.querySelector("#construction-load-models").disabled'))
+            assert evaluate('document.querySelector("#construction-model").value')=='gpt-oss:20b'
+            c.fill('#construction-provider','gemini')
+            wait_for(lambda:evaluate('[...document.querySelector("#construction-model").options].some(o=>o.value==="gemini-test")'))
+            c.fill('#construction-model','gemini-test')
+            c.fill('#construction-provider','ollama')
+            wait_for(lambda:evaluate('document.querySelector("#construction-model").value==="gpt-oss:20b" && !document.querySelector("#construction-load-models").disabled'))
+            evaluate("window.modelsFetch=fetch;window.fetch=(url,options)=>String(url).startsWith('/api/construction-models')?Promise.resolve(new Response(JSON.stringify({error:'Сервер недоступен'}),{status:503})):modelsFetch(url,options)")
+            c.click('#construction-load-models')
+            wait_for(lambda:'Сервер недоступен' in c.visible_text('#construction-model-status'))
+            assert evaluate('document.querySelector("#construction-run").disabled')
+            evaluate('window.fetch=modelsFetch')
+            c.click('#construction-load-models')
+            wait_for(lambda:not evaluate('document.querySelector("#construction-run").disabled'))
+            evaluate('document.querySelector("#construction-model").append(new Option("missing-model","missing-model"));document.querySelector("#construction-model").value="missing-model"')
+            c.click('#construction-load-models')
+            wait_for(lambda:'Прежняя модель недоступна' in c.visible_text('#construction-model-status'))
+            assert evaluate('document.querySelector("#construction-model").value==="missing-model" && document.querySelector("#construction-run").disabled')
+            c.fill('#construction-model','qwen3.5:9b')
+            wait_for(lambda:not evaluate('document.querySelector("#construction-run").disabled'))
+            evaluate('document.querySelector("#construction-panel").scrollIntoView({block:"start"})')
+            c.screenshot(out/'model-picker.png')
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: automatic model select, refresh preserves choice, provider isolation, network error/retry, missing model blocked',flush=True)
+            sys.exit(0)
         if '--diarization-progress-only' in sys.argv:
             fixture=live.snapshot(root,root/'output/notes-a')
             evaluate('window.progressFixture='+json.dumps(fixture,ensure_ascii=False))
@@ -186,6 +221,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert not evaluate('document.querySelector("#recording-notes-settings").hidden')
         assert evaluate('document.querySelector("#report-editor").src.includes("notes-b")')
         c.fill('#construction-provider','gemini')
+        wait_for(lambda:evaluate('[...document.querySelector("#construction-model").options].some(o=>o.value==="gemini-test")'))
+        c.fill('#construction-model','gemini-test')
         wait_for(lambda:evaluate('!document.querySelector("#construction-run").disabled'),timeout=8)
         c.click('#construction-run')
         wait_for(lambda:'Подтвердите отправку' in c.visible_text('#construction-status'),timeout=5)

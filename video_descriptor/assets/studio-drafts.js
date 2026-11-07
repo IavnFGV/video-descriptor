@@ -36,6 +36,7 @@
       for (const element of root.querySelectorAll('input,textarea,select')) {
         const fieldKey = key() + ':' + element.id;
         if (!allowed(element) || (!force && restored.has(fieldKey)) || !(element.id in draft)) continue;
+        if(element.id==='construction-model'&&element.tagName==='SELECT'&&draft[element.id]&&![...element.options].some(option=>option.value===draft[element.id])){const option=document.createElement('option');option.value=draft[element.id];option.textContent=draft[element.id];element.append(option);}
         if (element.type === 'checkbox') element.checked = draft[element.id]; else element.value = draft[element.id];
         restored.add(fieldKey);
       }

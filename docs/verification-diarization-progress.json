@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-07",
+  "version": "0.8.19",
+  "package": {
+    "state": "ready",
+    "commit": "4fa0f115dc8bb179faf50287f671b6777813ebf1",
+    "started": "2026-11-07T16:37:08.148786+00:00",
+    "output": "D:\\projects\\video-descriptor\\dist\\local\\0.8.19",
+    "log": "D:\\projects\\video-descriptor\\.git\\local-build\\runs\\4fa0f115dc8b-20261107T163708148786Z\\build.log",
+    "stage": "done",
+    "version": "0.8.19",
+    "finished": "2026-11-07T16:43:45.545591+00:00",
+    "artifacts": [
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.19\\VideoDescriptor-0.8.19-windows-x64.zip",
+        "sha256": "9c59adc822dea894793580875fd4f42e446475ebdb63862a812700a951d7b8ad",
+        "bytes": 265852358
+      },
+      {
+        "path": "D:\\projects\\video-descriptor\\dist\\local\\0.8.19\\VideoDescriptor-0.8.19-windows-x64-setup.exe",
+        "sha256": "9a1b4680218e21e394157f616fd07b224d5c317569ddbc64c50adfbf70c1d14f",
+        "bytes": 224021507
+      }
+    ],
+    "limits": [
+      "No automatic installation or publication",
+      "Portable smoke only; no clean VM installer lifecycle or hardware inference"
+    ]
+  },
+  "checks": {
+    "unit_passed": 469,
+    "unit_skipped": 2,
+    "browser_current_stage_ring": "PASS",
+    "parent_to_live_measured_progress": "PASS"
+  },
+  "limits": [
+    "Isolated browser with injected stage events; no new hardware inference run",
+    "Working installation unchanged"
+  ]
+}
