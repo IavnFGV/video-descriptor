@@ -118,3 +118,65 @@ def test_lifecycle_guard_matches_own_install_without_resolving_foreign_paths(tmp
 
     monkeypatch.setattr(Path, 'resolve', local_only)
     assert module.busy(root) == [2]
+
+
+def lifecycle_module():
+    path = Path(__file__).resolve().parents[1] / 'windows-app/release_lifecycle.py'
+    spec = importlib.util.spec_from_file_location('lifecycle_stop', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize('changed', ['pid_reused', 'foreign_executable', 'foreign_entry', 'wrong_root'])
+def test_confirmed_stop_preflights_all_identities_before_terminating_any(tmp_path, monkeypatch, changed):
+    module = lifecycle_module()
+    root = tmp_path.resolve()
+    first = Mock(pid=2)
+    first.exe.return_value = str(root / 'python/python.exe')
+    first.create_time.return_value = 10
+    second = Mock(pid=3)
+    second.exe.return_value = str(root / 'python/python.exe')
+    second.create_time.return_value = 20
+    entries = [{'pid': p.pid, 'exe': p.exe(), 'created': p.create_time(), 'owned': True}
+               for p in (first, second)]
+    recorded = {'root': str(root), 'processes': entries}
+    if changed == 'pid_reused':
+        second.create_time.return_value = 21
+    elif changed == 'foreign_executable':
+        second.exe.return_value = str(root.parent / 'foreign/python.exe')
+    elif changed == 'foreign_entry':
+        entries[1]['owned'] = False
+    else:
+        recorded['root'] = str(root.parent)
+    current = Mock(pid=1, parents=list)
+    monkeypatch.setattr(module.psutil, 'Process', lambda pid=None: {2:first, 3:second}.get(pid, current))
+    with pytest.raises(ValueError):
+        module.stop_confirmed(root, recorded)
+    first.terminate.assert_not_called()
+    second.terminate.assert_not_called()
+
+
+def test_confirmed_stop_waits_and_rechecks_new_blockers(tmp_path, monkeypatch):
+    module = lifecycle_module()
+    root = tmp_path.resolve()
+    worker = Mock(pid=2)
+    worker.exe.return_value = str(root / 'python/python.exe')
+    worker.create_time.return_value = 10
+    current = Mock(pid=1, parents=list)
+    monkeypatch.setattr(module.psutil, 'Process', lambda pid=None: worker if pid == 2 else current)
+    monkeypatch.setattr(module.psutil, 'wait_procs', lambda processes, timeout: (processes, []))
+    monkeypatch.setattr(module, 'busy', lambda root: [3])
+    recorded = {'root': str(root), 'processes': [
+        {'pid':2, 'created':10, 'exe':worker.exe(), 'owned':True}]}
+    assert not module.stop_confirmed(root, recorded)
+    worker.terminate.assert_called_once()
+
+
+def test_installer_uses_new_helper_and_requires_interactive_consent():
+    source = (Path(__file__).resolve().parents[1] / 'windows-app/installer.iss').read_text(encoding='utf-8')
+    prepare = source.split('function PrepareInstallationProcesses()', 1)[1].split('function PrepareToInstall', 1)[0]
+    assert "ExtractTemporaryFile('VD-release-lifecycle.py')" in prepare
+    assert prepare.index('if WizardSilent then exit') < prepare.index('MsgBox(')
+    assert prepare.index('<> IDYES then exit') < prepare.index("Arguments + ' --stop-confirmed'")
+    assert 'MB_DEFBUTTON2' in prepare

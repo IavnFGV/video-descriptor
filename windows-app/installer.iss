@@ -28,6 +28,7 @@ UninstallDisplayIcon={app}\windows-app\app.ico
 Uninstallable=yes
 SetupLogging=yes
 [Files]
+Source: "release_lifecycle.py"; DestName: "VD-release-lifecycle.py"; Flags: dontcopy
 Source: "Ensure-WebView2.ps1"; Flags: dontcopy
 Source: "{#Payload}\windows-app\desktop-sdk\WebView2Loader.dll"; DestName: "VD-WebView2Loader.dll"; Flags: dontcopy
 Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -117,12 +118,50 @@ begin
   end;
 end;
 
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+function PrepareInstallationProcesses(): String;
+var
+  PythonPath, Arguments: String;
+  ProcessList: AnsiString;
+  ResultCode: Integer;
 begin
   Result := '';
-  if InstallationBusy() then
-    Result := 'Close Video Descriptor and its workers before updating this installation. No processes were stopped.'
-  else
+  PythonPath := ExpandConstant('{app}\python\python.exe');
+  if not FileExists(PythonPath) then exit;
+  { Use the NEW helper, including when upgrading an older installation. }
+  ExtractTemporaryFile('VD-release-lifecycle.py');
+  Arguments := '-X utf8 "' + ExpandConstant('{tmp}\VD-release-lifecycle.py') +
+    '" --root "' + ExpandConstant('{app}') +
+    '" --snapshot "' + ExpandConstant('{tmp}\VD-install-processes.json') +
+    '" --report "' + ExpandConstant('{tmp}\VD-install-processes.txt') + '"';
+  if not Exec(PythonPath, Arguments, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
+    Result := 'Не удалось проверить процессы приложения. Закройте приложение и повторите установку.';
+    exit;
+  end;
+  if ResultCode = 0 then exit;
+  Result := 'Установка приостановлена: приложение или его фоновые процессы ещё работают.';
+  if ResultCode <> 64 then exit;
+  LoadStringFromFile(ExpandConstant('{tmp}\VD-install-processes.txt'), ProcessList);
+  Log('Processes blocking installation: ' + String(ProcessList));
+  { Silent setup must never interpret absence of a person as consent. }
+  if WizardSilent then exit;
+  if MsgBox('Остались работающие процессы Video Descriptor:' + #13#10#13#10 +
+    String(ProcessList) + #13#10#13#10 +
+    'Остановить их и продолжить установку?' + #13#10#13#10 +
+    'Текущая обработка будет прервана. Несохранённые правки могут быть потеряны. ' +
+    'Сохранённые записи и модели останутся. Внешние сервисы не останавливаются.',
+    mbConfirmation, MB_YESNO or MB_DEFBUTTON2) <> IDYES then exit;
+  if not Exec(PythonPath, Arguments + ' --stop-confirmed', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then exit;
+  if ResultCode = 0 then begin
+    Log('Confirmed installation processes stopped; installation is unblocked.');
+    Result := '';
+  end else
+    Result := 'Не все процессы удалось остановить или их состав изменился. Повторите проверку установкой; файлы ещё не заменялись.';
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := PrepareInstallationProcesses();
+  if Result = '' then
     Result := EnsureWebView();
 end;
 
