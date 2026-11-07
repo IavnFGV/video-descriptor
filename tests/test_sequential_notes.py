@@ -80,3 +80,25 @@ def test_manual_context_is_preserved_and_oversize_google_text_splits(tmp_path, m
     assert not config['auto_context'] and config['context_tokens'] == 16384
     result, blocks = construction.plan(folder, config, root=tmp_path)
     assert result['strategy'] == 'chunks' and len(blocks) > 1
+
+
+
+def test_source_grounded_ranges_in_model_headings_are_accepted():
+    from video_descriptor.models import Source
+    source = Source(id='s1', start=0, end=5, text='Source')
+    answer = '## Оглавление\n### [00:00:00 - 00:00:05] Topic\n\n## Конспект\n### [00:00:00 – 00:00:05] Topic\nSummary.'
+    notes, chapters = construction.parsed_notes(answer, [source])
+    assert len(notes.notes) == len(chapters) == 1
+    assert chapters[0].start == 0 and chapters[0].end == 5
+    assert notes.notes[0].source_ids == ['s1']
+
+
+def test_range_format_does_not_admit_invented_boundaries():
+    import pytest
+
+    from video_descriptor.models import Source
+    source = Source(id='s1', start=0, end=5, text='Source')
+    for stop in ('00:00:04','00:00:00'):
+        answer = f'## Оглавление\n### [00:00:00 - {stop}] Topic\n\n## Конспект\n### [00:00:00] Topic\nSummary.'
+        with pytest.raises(ValueError, match='диапазон'):
+            construction.parsed_notes(answer, [source])

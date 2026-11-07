@@ -87,7 +87,11 @@ def run(root, folder, job, log):
                                str(result), str(settings)], cwd=root, stdout=log, stderr=subprocess.STDOUT,
                               stdin=subprocess.DEVNULL, check=False, env=job_environment(job['translation_base_url'])).returncode
         if code:
-            raise RuntimeError('Конспект остановлен; исходная расшифровка сохранена. См. журнал.')
+            detail = read_json(result / 'construction-error.json', {}).get('error')
+            raise RuntimeError('Не удалось создать конспект. ' +
+                               (detail[:1000] + ' ' if isinstance(detail, str) else '') +
+                               'Исходная расшифровка сохранена.' +
+                               (' Ответ модели также сохранён.' if (result / 'construction-result.md').is_file() else ''))
     if job['task'] == 'notes' and not job.get('translate_after', True):
         job['stage'] = 'done'
         return

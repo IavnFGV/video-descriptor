@@ -21,6 +21,20 @@
   const detail=document.createElement('details');detail.id='recording-processing';
   const summary=document.createElement('summary');summary.textContent='Подробности обработки';detail.append(summary);
   const workspace=$('workspace'); workspace.append(detail);
+  const jobError=document.createElement('p');jobError.id='recording-job-error';jobError.className='feedback vd-error';jobError.setAttribute('role','alert');jobError.hidden=true;workspace.insertBefore(jobError,$('stage-progress'));
+  const retryJob=document.createElement('button');retryJob.id='recording-retry';retryJob.type='button';retryJob.className='vd-button';retryJob.textContent='Продолжить с сохранёнными ответами';retryJob.hidden=true;workspace.insertBefore(retryJob,$('stage-progress'));
+  retryJob.onclick=async()=>{
+    if(!job?.id||actionPending)return;
+    if(window.speechReplyEditing?.()||$('report-editor').contentWindow?.notesEditorDirty?.()){jobError.textContent='Сначала сохраните или отмените текущие правки.';return;}
+    actionPending=true;retryJob.disabled=true;retryJob.setAttribute('aria-busy','true');
+    try{
+      const response=await fetch('/api/retry?'+new URLSearchParams({id:job.id}),{method:'POST',headers:{'X-App-Instance':window.recordingUI.instance}}),value=await response.json();
+      if(!response.ok)throw Error(value.error||'Не удалось продолжить обработку');
+      document.dispatchEvent(new CustomEvent('construction-started',{detail:value}));
+    }catch(error){jobError.textContent=error.message;}
+    finally{actionPending=false;retryJob.disabled=false;retryJob.removeAttribute('aria-busy');paint();}
+  };
+
   const diarizationProgress=document.createElement('div');diarizationProgress.id='diarization-progress';diarizationProgress.className='diarization-progress';diarizationProgress.hidden=true;
   diarizationProgress.innerHTML='<span class="diarization-ring" role="progressbar" aria-label="Определение говорящих"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="diarization-ring-track" cx="16" cy="16" r="13"/><circle class="diarization-ring-value" cx="16" cy="16" r="13" pathLength="100"/></svg></span><div><p class="diarization-progress-label" role="status"></p><p class="diarization-progress-time"></p></div>';
   workspace.insertBefore(diarizationProgress,$('stage-progress'));
@@ -93,7 +107,7 @@
   });
   function option(value,text){const node=document.createElement('option');node.value=value;node.textContent=text;return node;}
   const when=seconds=>new Date(seconds*1000).toLocaleString('ru-RU');
-  function speechName(item){const kind={notes:'Снимок для конспекта',translate:'Перевод',diarize:'С говорящими'}[item.task]||({'whisper-local':'Локальное распознавание','whisper-npu':'Локальное распознавание','whisper':'Локальное распознавание','gemini':'Google · распознавание'}[item.engine])||item.engine||'Распознавание';return kind+' · '+when(item.created)+(item.status==='running'?' · Обработка':item.status==='queued'?' · В очереди':item.status==='error'?' · Остановлено':'');}
+  function speechName(item){const kind={notes:'Снимок для конспекта',translate:'Перевод',diarize:'С говорящими'}[item.task]||({'whisper-local':'Локальное распознавание','whisper-npu':'Локальное распознавание','whisper':'Локальное распознавание','gemini':'Google · распознавание'}[item.engine])||item.engine||'Распознавание';return kind+' · '+when(item.created)+(item.status==='running'?' · Обработка':item.status==='queued'?' · В очереди':item.status==='error'?(item.cancelled?' · Остановлено':' · Ошибка'):'');}
   function paint(){
     if(!data)return;
     const key=JSON.stringify([data.speech,data.reports]);
@@ -142,6 +156,10 @@
   };
   document.addEventListener('recording-snapshot',event=>{
     const changed=snapshot?.folder!==event.detail.snapshot.folder;snapshot=event.detail.snapshot;job=event.detail.job;
+    jobError.hidden=job?.status!=='error';
+    retryJob.hidden=jobError.hidden||!window.recordingUI.native;
+    retryJob.textContent=snapshot.construction_answer_saved?'Продолжить с сохранённым ответом':'Повторить обработку';
+    if(!jobError.hidden){const message=(job.cancelled?'Обработка остановлена. ':'Ошибка обработки. ')+((!job.cancelled&&job.stage==='notes'&&snapshot.construction_error)||job.error||snapshot.status?.message||'Откройте подробности обработки.');if(jobError.textContent!==message)jobError.textContent=message;}
     if(changed){newNotes.hidden=true;$('speech-settings').open=false;currentTimeKey='';library();}
     $('construction-cloud-label').hidden=$('construction-provider').value!=='gemini';
     if(pendingReport&&pendingReport.folder===snapshot.folder){const report=pendingReport;pendingReport=null;window.studioUI.chooseReport(report.name);}
@@ -156,7 +174,7 @@
     requestStatus.textContent=active?[stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
     renderDiarizationProgress();paint();sync();
   });
-  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';renderDiarizationProgress();library();});
+  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';jobError.hidden=true;retryJob.hidden=true;renderDiarizationProgress();library();});
   async function postprocess(task,extra={}){
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;

@@ -296,6 +296,8 @@ def snapshot(root, folder):
             "start": manifest.get("start", 0), "position": position,
             "translation_progress": translation_progress,
             "diarization_progress": speech_result.get('diarization_progress'),
+            "construction_error": read_json(folder / "construction-error.json", {}).get("error"),
+            "construction_answer_saved": (folder / "construction-result.md").is_file(),
             "phase": phase, "done": done, "running": running, "status": state,
             "processing": processing_details(phase, state, speech_result, request_payload,
                                              read_json(folder / "recognition-settings.json", {})),

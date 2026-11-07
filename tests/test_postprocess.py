@@ -186,3 +186,16 @@ def test_native_cloud_choice_requires_confirmation_without_contacting_ollama(rec
         finally:
             server.shutdown()
             thread.join()
+
+
+
+def test_notes_failure_exposes_structured_reason_and_preserves_source(recording, monkeypatch):
+    root, source = recording
+    original = (source/'speech.json').read_bytes()
+    job = postprocess.enqueue(root,'source','notes','qwen:9b','http://127.0.0.1:11434')
+    result = root/'output'/job['folder']
+    jobs.write_json(result/'construction-error.json', {'error':'Нужны заголовки с таймкодами'})
+    monkeypatch.setattr(postprocess,'run_process',lambda *a,**kw: Mock(returncode=1))
+    jobs.run_job(root, root/'output/jobs'/job['id'],job)
+    assert 'Нужны заголовки с таймкодами' in job['error']
+    assert (source/'speech.json').read_bytes() == original

@@ -392,7 +392,7 @@
     const done = !snapshot.needs_notes && (job ? job.status === 'done' : snapshot.done);
     const error = job?.status === 'error' && !snapshot.notes_deleted;
     const gaps = snapshot.errors.length;
-    const label = error ? 'Остановлено' : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
+    const label = error ? (job?.cancelled?'Остановлено':'Ошибка') : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
     $('run-state').textContent = label;
     $('run-state').className = 'badge ' + (error || gaps ? 'error' : done ? 'done' : '');
     $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !snapshot.running && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено · можно построить конспект' : phases[snapshot.phase - 1] + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');

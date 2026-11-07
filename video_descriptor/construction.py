@@ -471,6 +471,19 @@ def consolidate(root, config, texts, log, ask=generate):
 
 def parsed_notes(markdown, sources):
     """Translate timestamped Markdown into existing navigation artifacts locally."""
+    # Models sometimes use source-grounded time ranges instead of a single anchor.
+    # Accept this formatting variant only when both boundaries exist in the input.
+    anchors = {int(source.start) for source in sources} | {int(source.end) for source in sources if source.end >= 0}
+    ranges = re.compile(r'^###\s+\[(\d{2,}:[0-5]\d:[0-5]\d)\s*[-–—]\s*(\d{2,}:[0-5]\d:[0-5]\d)\]\s+(.+)$', re.MULTILINE)
+
+    def single_anchor(match):
+        start, stop = [sum(int(part) * scale for part, scale in zip(value.split(':'), (3600, 60, 1), strict=True))
+                       for value in (match[1], match[2])]
+        if start not in anchors or stop not in anchors or stop <= start:
+            raise ValueError('Заголовок содержит неизвестный или неверный диапазон времени; исходный ответ сохранён')
+        return f'### [{match[1]}] {match[3]}'
+
+    markdown = ranges.sub(single_anchor, markdown)
     heading = re.compile(r'^###\s+\[(\d{2,}):([0-5]\d):([0-5]\d)\]\s+(.+)$', re.MULTILINE)
     if '## Оглавление' not in markdown or '## Конспект' not in markdown:
         raise ValueError('Ответ не содержит разделов «Оглавление» и «Конспект»; исходный ответ сохранён')

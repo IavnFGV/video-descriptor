@@ -89,6 +89,36 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--job-errors-only' in sys.argv:
+            fixture_job=json.loads((job_folder/'job.json').read_text(encoding='utf-8'))
+            fixture_job.update(status='error',stage='notes',error='См. журнал',cancelled=False)
+            write_json(root/'output/notes-a/construction-error.json',{'error':'Нужны заголовки с таймкодами'})
+            (root/'output/notes-a/construction-result.md').write_text('Saved model answer',encoding='utf-8')
+            write_json(job_folder/'job.json',fixture_job)
+            evaluate('recordingSelection.refresh()')
+            wait_for(lambda:'Нужны заголовки' in c.visible_text('#recording-job-error'))
+            assert c.visible_text('#run-state')=='Ошибка'
+            assert not evaluate('document.querySelector("#recording-job-error").hidden')
+            assert not evaluate('document.querySelector("#recording-retry").hidden')
+            assert 'сохранённым ответом' in c.visible_text('#recording-retry')
+            assert not evaluate('document.querySelector("#recording-job-error").closest("details")')
+            evaluate('window.originalEditing=speechReplyEditing;window.speechReplyEditing=()=>true')
+            c.click('#recording-retry')
+            assert 'Сначала сохраните' in c.visible_text('#recording-job-error')
+            evaluate('window.speechReplyEditing=originalEditing')
+            fixture_job.update(cancelled=True,error='По вашей команде')
+            write_json(job_folder/'job.json',fixture_job)
+            evaluate('recordingSelection.refresh()')
+            wait_for(lambda:'Обработка остановлена' in c.visible_text('#recording-job-error'))
+            assert c.visible_text('#run-state')=='Остановлено'
+            assert 'Нужны заголовки' not in c.visible_text('#recording-job-error')
+            fixture_job.update(status='done',cancelled=False,error=None)
+            write_json(job_folder/'job.json',fixture_job)
+            evaluate('recordingSelection.refresh()')
+            wait_for(lambda:evaluate('document.querySelector("#recording-job-error").hidden && document.querySelector("#recording-retry").hidden'))
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: actual API error alert outside disclosure, structured reason, explicit cached retry with dirty guard, error/cancel badges, success clears alert',flush=True)
+            sys.exit(0)
         if '--models-only' in sys.argv:
             c.fill('#recording-notes','__new__')
             wait_for(lambda:evaluate('document.querySelector("#construction-model").tagName==="SELECT" && document.querySelector("#construction-model").options.length>=4'))

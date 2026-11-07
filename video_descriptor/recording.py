@@ -45,6 +45,7 @@ def variants(root, *, folder='', job=''):
         created = current_job.get('created') or result.get('created') or path.stat().st_mtime
         speech.append({'folder': directory.name, 'job': current_job.get('id'),
                        'status': current_job.get('status', result.get('status', 'done')),
+                       'cancelled': current_job.get('cancelled', False),
                        'ready': ready, 'created': created, 'engine': result.get('engine', ''),
                        'task': current_job.get('task', ''), 'source_folder': data.get('version_of')})
         for report in [directory, *sorted(p for p in directory.iterdir() if p.is_dir())]:
