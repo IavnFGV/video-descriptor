@@ -1,0 +1,51 @@
+{
+  "zip_sha256": "ecf02f95351c0731cc60f35552f17067cb12ee2f7da4a48a9db5d5348ff7f35e",
+  "zip_files_verified": 4439,
+  "portable": {
+    "imports": true,
+    "loopback_ui": true,
+    "no_system_python_path": true,
+    "no_model": true,
+    "graceful_stop": true,
+    "setup_wizard": true
+  },
+  "clean_vm": false,
+  "hardware_recognition": false,
+  "date": "2026-11-07",
+  "version": "0.8.16",
+  "source_commit": "f3b6044",
+  "local_checks": {
+    "passed": 446,
+    "skipped": 2
+  },
+  "process_cleanup": {
+    "status": "PASS",
+    "scope": "Disposable real Windows processes; no user services stopped",
+    "checks": [
+      "check-only preserves orphan",
+      "external Python referencing installation is refused",
+      "all identities checked before termination",
+      "confirmed orphan terminated",
+      "installation unblocked",
+      "Unicode installation path"
+    ],
+    "installer_dialog_clicked": false
+  },
+  "artifacts": [
+    {
+      "file": "VideoDescriptor-0.8.16-windows-x64-setup.exe",
+      "bytes": 224018535,
+      "sha256": "f68240c02f1380f6d3052af7428f8447f0d466500ff93b034063dc52296f931e"
+    },
+    {
+      "file": "VideoDescriptor-0.8.16-windows-x64.zip",
+      "bytes": 265848254,
+      "sha256": "ecf02f95351c0731cc60f35552f17067cb12ee2f7da4a48a9db5d5348ff7f35e"
+    }
+  ],
+  "limits": [
+    "Installer compiled; consent dialog not clicked in this run",
+    "No clean VM install/upgrade/uninstall lifecycle for this build",
+    "Real orphan worker and existing installation left unchanged"
+  ]
+}
