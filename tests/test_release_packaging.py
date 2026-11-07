@@ -14,6 +14,26 @@ def builder():
     return module
 
 
+def test_cabinet_extraction_uses_inbox_expand_even_with_git_path_first(tmp_path, monkeypatch):
+    module = builder()
+    windows = tmp_path / 'Windows'
+    monkeypatch.setenv('SystemRoot', str(windows))
+    monkeypatch.setenv('PATH', str(tmp_path / 'Git/usr/bin'))
+    run = Mock(return_value=Mock(returncode=0, stdout=b'', stderr=b''))
+    monkeypatch.setattr(module.subprocess, 'run', run)
+    module.expand_cabinet(tmp_path / 'input.cab', tmp_path / 'out')
+    assert run.call_args.args[0][0] == str(windows / 'System32/expand.exe')
+    assert run.call_args.args[0][1] == '-F:*'
+
+
+def test_cabinet_failure_includes_real_tool_diagnostic(tmp_path, monkeypatch):
+    module = builder()
+    monkeypatch.setattr(module.subprocess, 'run', Mock(return_value=Mock(
+        returncode=1, stdout=b'', stderr=b'Cabinet file could not be opened')))
+    with pytest.raises(RuntimeError, match='Cabinet file could not be opened'):
+        module.expand_cabinet(tmp_path / 'bad.cab', tmp_path / 'out')
+
+
 @pytest.mark.parametrize('same_directory', [True, False])
 def test_packaged_smoke_checks_workspace_identity_not_path_spelling(tmp_path, monkeypatch, same_directory):
     path = Path(__file__).resolve().parents[1] / 'windows-app/verify_release.py'

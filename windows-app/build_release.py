@@ -112,6 +112,17 @@ def source_paths():
     return sorted({p for p in paths if '__pycache__' not in p.parts})
 
 
+def expand_cabinet(cabinet, destination):
+    # Git hooks prepend Git's usr/bin, which contains a different expand.exe
+    # (GNU tab expansion). CAB extraction must use the Windows inbox utility.
+    executable = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/expand.exe'
+    result = subprocess.run([str(executable), '-F:*', str(cabinet), str(destination)],
+                            check=False, capture_output=True)
+    if result.returncode:
+        detail = (result.stdout + result.stderr).decode('utf-8', errors='replace')[-2000:]
+        raise RuntimeError(f'Windows CAB extraction failed ({result.returncode}): {detail}')
+
+
 def stage_vcrt(inputs, cache, destination):
     """App-local Microsoft CRT from reviewed bytes; never install a host prerequisite."""
     import tempfile
@@ -134,8 +145,7 @@ def stage_vcrt(inputs, cache, destination):
                     '-oba', str((work / 'bootstrapper').resolve())], check=True, env=env)
     extracted = work / 'crt'
     extracted.mkdir()
-    subprocess.run(['expand.exe', '-F:*', str(work / 'bundle' / inputs['vcrt']['cabinet']),
-                    str(extracted)], check=True, capture_output=True)
+    expand_cabinet(work / 'bundle' / inputs['vcrt']['cabinet'], extracted)
     for item in inputs['vcrt']['files']:
         name = item['name']
         safe_member(name)
