@@ -41,7 +41,8 @@ def plan(repo, config, keep=3, days=7):
     tracked = set(git(repo, 'ls-files').splitlines())
     cutoff = time.time() - days * 86400
     candidates, packages = [], []
-    for base in (repo / 'dist', repo / 'dist-clean'):
+    local_output = Path(config.get('output', repo / 'dist/local')).resolve()
+    for base in dict.fromkeys((repo / 'dist', repo / 'dist-clean', local_output)):
         if not base.is_dir():
             continue
         for path in base.iterdir():
@@ -53,7 +54,6 @@ def plan(repo, config, keep=3, days=7):
                         packages.append((match[1], package, base))
     preserved = set(sorted({v for v, _, _ in packages}, key=version, reverse=True)[:keep])
     candidates += [(p, base, 'historical installer/archive') for v, p, base in packages if v not in preserved]
-    local_output = Path(config.get('output', repo / 'dist/local')).resolve()
     if local_output.is_dir():
         runs = sorted((p for p in local_output.iterdir() if p.is_dir()
                        and re.fullmatch(r'[0-9a-f]{12}-\d{8}T\d{12}Z', p.name)

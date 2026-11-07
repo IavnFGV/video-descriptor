@@ -91,6 +91,33 @@ def test_status_publish_retries_transient_windows_file_lock(modules, tmp_path, m
     assert json.loads((tmp_path / 'status.json').read_text()) == {'state': 'ready'}
 
 
+def test_ready_downloads_are_published_under_version(modules, tmp_path):
+    build, _ = modules
+    staging = tmp_path / 'internal/artifacts'
+    staging.mkdir(parents=True)
+    package = staging / 'VideoDescriptor-0.8.18-windows-x64.zip'
+    package.write_bytes(b'verified package')
+    record = {'state':'ready', 'version':'0.8.18', 'commit':'a'*40, 'output':str(staging),
+              'artifacts':[{'path':str(package), 'sha256':build.digest(package)}]}
+    result = build.publish_ready(record, tmp_path / 'local')
+    assert result['output'] == str(tmp_path / 'local/0.8.18')
+    assert build.reusable(result)
+    assert json.loads((tmp_path / 'local/0.8.18/provenance.json').read_text())['commit'] == 'a'*40
+    assert package.exists(), 'Internal verification evidence remains available'
+
+
+def test_cleanup_counts_versioned_local_downloads(modules, repo):
+    _, clean = modules
+    for number in range(1, 5):
+        folder = repo / 'dist/local' / f'0.8.{number}'
+        folder.mkdir(parents=True)
+        (folder / f'VideoDescriptor-0.8.{number}-windows-x64.zip').write_bytes(b'package')
+    result = clean.plan(repo, {})
+    assert result['preserved_versions'] == ['0.8.2', '0.8.3', '0.8.4']
+    assert len(result['files']) == 1
+    assert Path(result['files'][0]['path']).parent.name == '0.8.1'
+
+
 def test_failed_checks_do_not_build_or_claim_success(modules, tmp_path, monkeypatch):
     build, _ = modules
     sdk = tmp_path / 'sdk'

@@ -82,16 +82,42 @@ def reusable(record):
         for item in record['artifacts'])
 
 
+def publish_ready(record, base):
+    """Public downloads use version folders; technical runs remain in Git-local state."""
+    if not re.fullmatch(r'\d+\.\d+\.\d+', record['version']):
+        raise ValueError('Invalid release version')
+    destination = Path(base) / record['version']
+    destination.mkdir(parents=True, exist_ok=True)
+    original = Path(record['output'])
+    for source in original.iterdir():
+        if not source.is_file() or source.name == 'provenance.json':
+            continue
+        if source.suffix not in {'.zip', '.exe', '.json'}:
+            continue
+        target = destination / source.name
+        if source.resolve() != target.resolve():
+            temporary = target.with_name(target.name + '.publishing')
+            shutil.copyfile(source, temporary)
+            os.replace(temporary, target)
+    record['output'] = str(destination)
+    for artifact in record['artifacts']:
+        artifact['path'] = str(destination / Path(artifact['path']).name)
+    write_json(destination / 'provenance.json', record)
+    return record
+
+
 def run_build(repo, state, config, sha):
     result_file = state / 'results' / (sha + '.json')
     if result_file.exists():
         previous = json.loads(result_file.read_text(encoding='utf-8'))
         if reusable(previous):
+            previous = publish_ready(previous, config['output'])
+            write_json(result_file, previous)
             write_json(state / 'status.json', previous)
             print('Already built:', previous['output'], flush=True)
             return True
     stamp = dt.datetime.now(dt.UTC).strftime('%Y%m%dT%H%M%S%fZ')
-    run = Path(config['output']) / (sha[:12] + '-' + stamp)
+    run = state / 'runs' / (sha[:12] + '-' + stamp)
     source, output = run / 'source', run / 'artifacts'
     run.mkdir(parents=True)
     output.mkdir()
@@ -146,7 +172,7 @@ def run_build(repo, state, config, sha):
                 for path in (archive, installer)])
             status['limits'] = ['No automatic installation or publication',
                                 'Portable smoke only; no clean VM installer lifecycle or hardware inference']
-            write_json(output / 'provenance.json', status)
+            status = publish_ready(status, config['output'])
         except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
             status.update(state='failed', finished=now(), error=str(error))
             log.write(f'\nFAILED: {error}\n')
