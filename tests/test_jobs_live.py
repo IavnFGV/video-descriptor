@@ -177,3 +177,46 @@ def test_interrupted_notes_can_be_deleted_without_ready_report(tmp_path, monkeyp
     assert after['notes_deleted'] and after['has_ready_transcript']
     assert not after['notes'] and not after['sections']
     assert after['speech'][0]['text'] == 'Keep'
+
+
+
+def translation_fixture(tmp_path, monkeypatch):
+    folder = tmp_path / 'output/translated'
+    folder.mkdir(parents=True)
+    rows = [{'id':f's{i}', 'start':i*90, 'end':i*90+30, 'text':f'Reply {i}'} for i in range(37)]
+    jobs.write_json(folder/'manifest.json', {'video':str(tmp_path/'data/video.mp4')})
+    jobs.write_json(folder/'transcript.json', rows)
+    jobs.write_json(folder/'speech.json', {'status':'done','segments':[{**r,'speaker':'unknown'} for r in rows]})
+    jobs.write_json(folder/'progress.json', {'stage':'Перевод субтитров','phase':'translation','chunk':'2/13','completed':1,'total':13})
+    monkeypatch.setattr(live,'active_video',lambda _:False)
+    return folder, rows
+
+
+def test_translation_snapshot_uses_worker_plan_instead_of_90_second_buckets(tmp_path, monkeypatch):
+    from video_descriptor.models import Source
+    from video_descriptor.translate import translation_plan
+    folder, rows = translation_fixture(tmp_path,monkeypatch)
+    sources=[Source(**row) for row in rows]
+    groups=[sources[:3],sources[3:6],*[sources[i:i+3] for i in range(6,37,3)]]
+    assert len(groups)==13
+    jobs.write_json(folder/'translation-plan.json',translation_plan(groups,'model','ollama','model-vocabulary'))
+    jobs.write_json(folder/'translations.json',{row.id:'Translated' for row in groups[0]})
+    value=live.snapshot(tmp_path,folder)['translation_progress']
+    assert value['total']==13 and value['current']==2 and value['completed']==1
+    assert len(value['blocks'])==13 and value['details_available']
+    assert value['blocks'][1]['start']==270
+
+
+def test_legacy_translation_snapshot_trusts_existing_worker_counters(tmp_path, monkeypatch):
+    folder,_=translation_fixture(tmp_path,monkeypatch)
+    jobs.write_json(folder/'translations.json',{'s0':'Translated','s1':'Translated'})
+    value=live.snapshot(tmp_path,folder)['translation_progress']
+    assert value['total']==13 and value['completed']==1 and value['current']==2
+    assert not value['details_available'] and value['blocks']==[]
+
+
+def test_legacy_translation_counter_does_not_count_failed_parts_as_ready(tmp_path, monkeypatch):
+    folder,_=translation_fixture(tmp_path,monkeypatch)
+    jobs.write_json(folder/'translation-errors.json',[{'block':1,'error':'Failure'}])
+    value=live.snapshot(tmp_path,folder)['translation_progress']
+    assert value['completed']==0 and value['remaining']==13

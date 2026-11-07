@@ -395,7 +395,7 @@
     const label = error ? (job?.cancelled?'Остановлено':'Ошибка') : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
     $('run-state').textContent = label;
     $('run-state').className = 'badge ' + (error || gaps ? 'error' : done ? 'done' : '');
-    $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !snapshot.running && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено · можно построить конспект' : phases[snapshot.phase - 1] + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');
+    $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !snapshot.running && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено · можно построить конспект' : (snapshot.phase===4&&snapshot.construction_settings?.result_kind==='article'?'Создание статьи':phases[snapshot.phase - 1]) + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');
     $('position-label').textContent = clock(snapshot.position) + ' / ' + clock(snapshot.start + snapshot.duration);
     const fraction = (status.chunk || '').match(/(\d+)\/(\d+)/);
     let progress = fraction ? (Number(fraction[1]) - (done ? 0 : 1)) / Number(fraction[2]) * 100 : 0;
@@ -403,12 +403,13 @@
     if (done) progress = 100;
     const translation = snapshot.translation_progress;
     $('translation-summary').hidden = !translation;
-    $('translation-blocks-panel').hidden = !translation;
+    $('translation-blocks-panel').hidden = !translation || !translation.blocks.length;
     if (translation) {
       progress = translation.total ? translation.completed / translation.total * 100 : 0;
-      $('translation-summary').textContent = 'Готово: ' + translation.completed + '/' + translation.total +
-        ' блоков (включая кэш). Осталось: ' + translation.remaining +
-        (snapshot.running ? '. Сейчас обрабатывается блок ' + translation.current + '.' : '. Обработка остановлена.');
+      $('translation-summary').textContent = translation.total ? 'Переведено: ' + translation.completed + ' из ' + translation.total +
+        ' частей (включая кэш). Осталось: ' + translation.remaining +
+        (translation.remaining===0?'. Перевод готов.':snapshot.running?(translation.current>0?'. Сейчас обрабатывается часть '+translation.current+'.':'. Подготавливаем перевод.'):
+          job?.cancelled?'. Перевод остановлен.':job?.status==='error'?'. Перевод прерван.':'. Перевод не активен.') : 'Подготавливаем перевод: ожидаем данные о разбиении.';
       changed('translation-blocks', translation.blocks, node => {
         node.replaceChildren();
         const labels = {ready: 'Готово', active: 'Обрабатывается', error: 'Ошибка', retry: 'Повтор после сбоя', pending: 'Ожидает обработки'};

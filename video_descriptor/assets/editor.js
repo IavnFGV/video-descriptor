@@ -39,6 +39,7 @@
 (() => {
   const panel = document.getElementById('personal-notes');
   if (!panel) return;
+  const article=panel.dataset.resultKind==='article';
   const message = document.getElementById('editor-status');
   const saveButton = document.getElementById('save-notes');
   const preview = document.getElementById('personal-preview');
@@ -78,7 +79,7 @@
   function undoNotes(){if(saving||sectionDialog)return;editor.codemirror.undo();updatePreview();historyButtons();}
   function redoNotes(){if(saving||sectionDialog)return;editor.codemirror.redo();updatePreview();historyButtons();}
   undo.onclick=undoNotes;redo.onclick=redoNotes;
-  reset.onclick=async()=>{if(!dirty||saving)return;if(await window.confirmDiscard('Вернуть конспект к последнему сохранению? Все несохранённые правки будут сброшены.')){editor.codemirror.changeGeneration(true);editor.value(savedText);editor.codemirror.changeGeneration(true);updatePreview();historyButtons();}};
+  reset.onclick=async()=>{if(!dirty||saving)return;if(await window.confirmDiscard((article?'Вернуть статью':'Вернуть конспект')+' к последнему сохранению? Все несохранённые правки будут сброшены.')){editor.codemirror.changeGeneration(true);editor.value(savedText);editor.codemirror.changeGeneration(true);updatePreview();historyButtons();}};
   function openSection(index,creating=false){
     if(sectionDialog||saving||loading)return;
     const cm=editor.codemirror,all=headings(editor.value()),section=all[index];if(!section)return;
@@ -86,7 +87,7 @@
     const lines=editor.value().split('\n'),next=all.slice(index+1).find(item=>item.depth<=section.depth);
     const stop=next?.line??lines.length,body=lines.slice(section.line+1,stop).join('\n');
     const dialog=document.createElement('dialog');sectionDialog=dialog;dialog.className='vd-dialog notes-section-editor';
-    dialog.setAttribute('aria-label',creating?'Новый раздел конспекта':'Правка раздела конспекта');
+    dialog.setAttribute('aria-label',creating?(article?'Новый раздел статьи':'Новый раздел конспекта'):(article?'Правка раздела статьи':'Правка раздела конспекта'));
     dialog.innerHTML='<form><h2>Правка раздела</h2><label>Заголовок с временной меткой<input name="heading" required></label><label>Текст раздела · Markdown<textarea name="body" rows="12"></textarea></label><p role="status">«Применить» меняет черновик. Для записи на диск нажмите «Сохранить».</p><div class="vd-actions"><button type="submit">Применить</button><button type="button" data-cancel>Отмена</button></div></form>';
     const form=dialog.querySelector('form');form.elements.heading.value=section.title;form.elements.body.value=body;
     let localTouched=false;form.addEventListener('input',()=>{localTouched=true;});
@@ -109,7 +110,7 @@
   let controlTimer;
   document.addEventListener('keyup',event=>{if(event.key==='Control')clearTimeout(controlTimer);});
   function notify(text) { message.textContent = text; }
-  function download(text, name = 'notes.user.md') {
+  function download(text, name = document.getElementById('personal-notes').dataset.resultKind==='article'?'article.md':'notes.user.md') {
     const url = URL.createObjectURL(new Blob([text], {type: 'text/markdown;charset=utf-8'}));
     const link = document.createElement('a'); link.href = url; link.download = name;
     link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -148,7 +149,14 @@
       if (time !== null) {
         heading.dataset.noteTime = time;
         const jump = document.createElement('button');
-        jump.textContent = '▶'; jump.dataset.time = time;
+        const stamp=heading.textContent.match(/^\s*\[(\d{2,}:\d{2}:\d{2})(?:\s*[-–—]\s*\d{2,}:\d{2}:\d{2})?\]\s*/);
+        jump.textContent=stamp?stamp[1]:new Date(time*1000).toISOString().slice(11,19);
+        jump.className='note-time';jump.dataset.time=time;
+        if(stamp){
+          const walker=document.createTreeWalker(heading,NodeFilter.SHOW_TEXT);
+          let remaining=stamp[0].length,node;
+          while(remaining&&(node=walker.nextNode())){const count=Math.min(remaining,node.textContent.length);node.textContent=node.textContent.slice(count);remaining-=count;}
+        }
         jump.title = 'Перейти к этому месту видео'; heading.prepend(jump, ' ');
       }
     });
@@ -251,7 +259,7 @@
     const charset=exported.createElement('meta');charset.setAttribute('charset','utf-8');exported.head.prepend(charset);
     exported.body.innerHTML=DOMPurify.sanitize(editor.markdown(editor.value()));
     const blob=new Blob(['<!doctype html>\n'+exported.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='notes.html';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=document.getElementById('personal-notes').dataset.resultKind==='article'?'article.html':'notes.html';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   });
   document.getElementById('add-section').addEventListener('click', () => {
     const time = Math.floor((window.reportPlayer || document.getElementById('video')).currentTime || 0);
@@ -284,7 +292,7 @@
       try { draft = JSON.parse(localStorage.getItem(draftKey)); } catch (_) {}
       if (draft && draft.revision === revision && draft.text !== savedText) {
         editor.value(draft.text); dirty = true; notify('Восстановлен несохранённый черновик');
-      } else notify(result.personal ? 'Открыт ваш конспект' : 'Черновик модели — можно редактировать');
+      } else notify(result.personal ? (article?'Открыта ваша статья':'Открыт ваш конспект') : 'Черновик модели — можно редактировать');
       if (draft && draft.revision !== revision) {
         const recover = document.getElementById('download-draft'); recover.hidden = false;
         recover.addEventListener('click', () => download(draft.text, 'notes.draft.md'));

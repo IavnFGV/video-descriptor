@@ -44,6 +44,15 @@ def translation_groups(sources, count):
     return groups
 
 
+def translation_plan(groups, model, provider, mode):
+    """Persist exactly the batches used by this run; the UI must not regroup them."""
+    return {'version': 1, 'model': model, 'provider': provider, 'mode': mode,
+            'blocks': [{'block': index, 'source_ids': [source.id for source in group],
+                        'start': min(source.start for source in group),
+                        'end': max(source.end for source in group)}
+                       for index, group in enumerate(groups, 1)]}
+
+
 def translate_batch(sources, model, base_url, log=None):
     markers = [f"[[s{i:04d}]]" for i in range(1, len(sources) + 1)]
     text = "\n\n".join(f"{marker}\n{source.text}"
@@ -133,6 +142,8 @@ def main():
         active_model = settings['model'] if settings['provider'] == 'gemini' else (settings.get('ollama_model') or args.model)
         count = load_counter(args.base_url, active_model) if settings['provider'] == 'ollama' else None
         groups = translation_groups(speech, count) if count else group_sources(speech, 0, 90)
+        save(folder / 'translation-plan.json', translation_plan(
+            groups, active_model, settings['provider'], count.mode if count else 'cloud'))
         log(f'Перевод: {len(groups)} частей; подсчёт: {count.mode if count else "cloud"}')
         translation_path = folder / "translations.json"
         translations = (json.loads(translation_path.read_text())

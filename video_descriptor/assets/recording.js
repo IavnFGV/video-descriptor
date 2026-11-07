@@ -10,6 +10,14 @@
   const actions=document.createElement('div');actions.className='recording-actions';
   actions.innerHTML='<button id="recording-diarize" type="button" hidden>Разделить по участникам</button><button id="recording-translate" type="button" hidden>Перевести на русский</button><button id="recording-stop" type="button" hidden>Остановить обработку</button>';
   speechHeading.append(actions);
+  const translationPanel=$('translation-settings-panel');
+  translationPanel.insertBefore($('recording-translate'),$('translation-settings-form'));
+  const transcriptSection=$('speech-feed').closest('section');
+  const transcriptDisclosure=document.createElement('details');transcriptDisclosure.id='transcript-disclosure';transcriptDisclosure.open=true;
+  const transcriptSummary=document.createElement('summary');transcriptSummary.textContent='Текст расшифровки';
+  transcriptDisclosure.append(transcriptSummary);
+  while(transcriptSection.firstChild)transcriptDisclosure.append(transcriptSection.firstChild);
+  transcriptSection.append(transcriptDisclosure);
   const notice=document.createElement('p');notice.id='recording-status';notice.className='hint';notice.setAttribute('role','status');speechHeading.append(notice);
   const actionNotice=document.createElement('p');actionNotice.id='recording-action-status';actionNotice.className='feedback';actionNotice.setAttribute('role','status');actionNotice.setAttribute('aria-live','polite');speechHeading.append(actionNotice);
   let actionPending=false;
@@ -107,16 +115,17 @@
   });
   function option(value,text){const node=document.createElement('option');node.value=value;node.textContent=text;return node;}
   const when=seconds=>new Date(seconds*1000).toLocaleString('ru-RU');
-  function speechName(item){const kind={notes:'Снимок для конспекта',translate:'Перевод',diarize:'С участниками'}[item.task]||({'whisper-local':'Локальное распознавание','whisper-npu':'Локальное распознавание','whisper':'Локальное распознавание','gemini':'Google · распознавание'}[item.engine])||item.engine||'Распознавание';return kind+' · '+when(item.created)+(item.status==='running'?' · Обработка':item.status==='queued'?' · В очереди':item.status==='error'?(item.cancelled?' · Остановлено':' · Ошибка'):'');}
+  function speechName(item){const kind=(item.result_kind==='article'?'Снимок для статьи':null)||{notes:'Снимок для конспекта',translate:'Перевод',diarize:'С участниками'}[item.task]||({'whisper-local':'Локальное распознавание','whisper-npu':'Локальное распознавание','whisper':'Локальное распознавание','gemini':'Google · распознавание'}[item.engine])||item.engine||'Распознавание';return kind+' · '+when(item.created)+(item.status==='running'?' · Обработка':item.status==='queued'?' · В очереди':item.status==='error'?(item.cancelled?' · Остановлено':' · Ошибка'):'');}
   function paint(){
     if(!data)return;
     const key=JSON.stringify([data.speech,data.reports]);
     if(key!==libraryKey){libraryKey=key;speechSelect.replaceChildren(...data.speech.map(item=>option(item.folder,speechName(item))),option('__new__','＋ Создать новую расшифровку…'));
-      $('recording-notes').replaceChildren(option('','Конспект ещё не создан'),...data.reports.map(item=>option(item.url,(item.model||item.name||'Конспект')+' · '+when(item.created))),option('__new__','＋ Создать новый конспект…'));
+      $('recording-notes').replaceChildren(option('','Результат ещё не создан'),...data.reports.map(item=>option(item.url,(item.result_kind==='article'?'Статья · ':'')+(item.model||item.name||'Конспект')+' · '+when(item.created))),option('__new__','＋ Создать новый конспект…'));
     }
     speechSelect.value=snapshot?.folder||data.folder;
     const own=data.reports.find(item=>item.folder===snapshot?.folder&&item.name===window.studioUI.reportVariant());
     $('recording-notes').value=own?.url||'';
+    $('report-editor').title=own?.result_kind==='article'?'Чтение и редактирование статьи':'Чтение и редактирование конспекта';
     $('recording-notes-origin').textContent=own?'По расшифровке: '+speechName(data.speech.find(item=>item.folder===own.speech_folder)||{created:own.created}):'Создайте конспект по выбранной расшифровке.';
     $('recording-stop').hidden=!window.recordingUI.native||!(data.active_job||['queued','running'].includes(job?.status));
     for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot?.has_ready_transcript||Boolean(data.active_job)||['queued','running'].includes(job?.status);
@@ -132,7 +141,7 @@
       if(snapshot&&query.get('folder')!==snapshot.folder){requested=true;return;}
       data=value;paint();
       if(!snapshot){$('stage-source').hidden=true;speech.hidden=false;notes.hidden=false;$('run-title').textContent=value.filename;}
-      if(value.active_job){$('recording-stop').hidden=!window.recordingUI.native;notice.textContent='Новый вариант '+({notes:'конспекта',translate:'перевода',diarize:'с участниками'}[value.active_job.task]||'расшифровки')+(value.active_job.status==='queued'?' в очереди.':' обрабатывается.')+' Готовые варианты доступны в списках.';}
+      if(value.active_job){$('recording-stop').hidden=!window.recordingUI.native;notice.textContent='Новый вариант '+(value.active_job.result_kind==='article'?'статьи':({notes:'конспекта',translate:'перевода',diarize:'с участниками'}[value.active_job.task]||'расшифровки'))+(value.active_job.status==='queued'?' в очереди.':' обрабатывается.')+' Готовые варианты доступны в списках.';}
       if(value.video_url&&player.getAttribute('src')!==value.video_url)player.src=value.video_url;
       $('shared-player').hidden=false;
     }catch(error){notice.textContent=error.message;}finally{loading=false;if(requested){requested=false;library();}}

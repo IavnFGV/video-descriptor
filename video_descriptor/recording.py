@@ -47,7 +47,9 @@ def variants(root, *, folder='', job=''):
                        'status': current_job.get('status', result.get('status', 'done')),
                        'cancelled': current_job.get('cancelled', False),
                        'ready': ready, 'created': created, 'engine': result.get('engine', ''),
-                       'task': current_job.get('task', ''), 'source_folder': data.get('version_of')})
+                       'task': current_job.get('task', ''),
+                       'result_kind': current_job.get('construction', {}).get('result_kind', 'notes'),
+                       'source_folder': data.get('version_of')})
         for report in [directory, *sorted(p for p in directory.iterdir() if p.is_dir())]:
             if not (report / 'report.html').is_file() or (report == directory and not (report / 'notes.json').is_file()):
                 continue
@@ -60,8 +62,10 @@ def variants(root, *, folder='', job=''):
             reports.append({'folder': directory.name, 'name': '' if report == directory else report.name,
                             'url': '/output/' + quote(relative, safe='/') + '/report.html',
                             'model': settings.get('model', ''), 'created': created,
+                            'result_kind': settings.get('result_kind', 'notes'),
                             'speech_folder': directory.name})
     return {'folder': folder, 'filename': source.name, 'video_url': video_url(root, str(source)),
-            'active_job': {key: active.get(key) for key in ('id', 'folder', 'status', 'task')} if active else None,
+            'active_job': {**{key: active.get(key) for key in ('id', 'folder', 'status', 'task')},
+                           'result_kind': active.get('construction', {}).get('result_kind', 'notes')} if active else None,
             'speech': sorted(speech, key=lambda x: x['created'], reverse=True),
             'reports': sorted(reports, key=lambda x: x['created'], reverse=True)}

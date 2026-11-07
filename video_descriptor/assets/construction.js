@@ -35,6 +35,8 @@
     $('run').textContent = selected?.needs_notes ? 'Построить конспект' : 'Создать новую версию конспекта';
     $('preview').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript;
     $('run').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
+    $('article').disabled = !ready || busy || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
+    $('article').title = 'Полная расшифровка → статья · ' + $('model').value;
   }
   async function preview() {
     if (!ready || !selected?.has_ready_transcript || !validModel()) return;
@@ -120,6 +122,27 @@
     } catch (error) { $('status').textContent = error.message; }
     finally { busy = false; buttons(); }
   };
+  $('article').onclick = async () => {
+    const status=document.getElementById('article-status');
+    status.classList.remove('vd-error');
+    if(window.speechReplyEditing?.()||document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){
+      status.textContent='Сначала сохраните или отмените текущие правки.';return;
+    }
+    const showSettings=()=>{const panel=document.getElementById('notes-settings');panel.closest('section').hidden=false;panel.open=true;$('model').focus();};
+    if(!validModel()){status.textContent='Выберите доступную модель для статьи в настройках.';showSettings();return;}
+    const config={...settings(),result_kind:'article'};
+    if(config.provider==='gemini'&&!$('cloud').checked){status.textContent='Подтвердите отправку расшифровки в Google в настройках.';showSettings();return;}
+    busy=true;buttons();$('article').setAttribute('aria-busy','true');
+    status.textContent='Добавляем статью в очередь…';
+    try{
+      const job=window.recordingUI?.native?await window.recordingUI.postprocess('notes',{
+        construction:config,translate_after:false,cloud_confirmed:$('cloud').checked
+      }):await post('/api/notes-run',{folder:selected.folder,settings:config});
+      status.textContent='Статья добавлена в очередь. Полная расшифровка будет обработана одним запросом.';
+      document.dispatchEvent(new CustomEvent('construction-started',{detail:job}));
+    }catch(error){status.classList.add('vd-error');status.textContent=error.message;}
+    finally{busy=false;$('article').removeAttribute('aria-busy');buttons();}
+  };
   window.constructionUI = {
     snapshot,
     media(name) {
@@ -132,7 +155,8 @@
       selected = value;
       if (changed && ready && value?.construction_settings) {
         const config = value.construction_settings;
-        fill({...config, input:config.input || (value.frame_count ? 'slides' : 'speech')});
+        fill({...config, input:config.input || (value.frame_count ? 'slides' : 'speech'),
+          ...(config.result_kind==='article'?{prompt:prompts[config.material],strategy:'auto'}:{})});
         lastMaterial = config.material; lastProvider = config.provider;
         window.studioDraft?.restore(form,true);
         lastProvider=$('provider').value;lastMaterial=$('material').value;
