@@ -89,7 +89,7 @@ def main():
         save(args.progress, {**current_progress, 'message': message})
         print(message, flush=True)
 
-    progress(f'Говорящие · {args.device.upper()} · загружаем локальную модель; скачивания нет', 'model_load')
+    progress(f'Участники · {args.device.upper()} · загружаем локальную модель; скачивания нет', 'model_load')
     load_started = time.monotonic()
     pipeline = Pipeline.from_pretrained(str(args.model))
     pipeline.to(torch.device(args.device))
@@ -104,28 +104,28 @@ def main():
     signal = torch.from_numpy(np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768).unsqueeze(0)
     stages = {'segmentation': 'ищем смены голосов', 'embeddings': 'сравниваем голоса',
               'speaker_counting': 'анализируем речевые участки',
-              'discrete_diarization': 'размечаем говорящих', 'clustering': 'объединяем одинаковые голоса'}
+              'discrete_diarization': 'размечаем участников', 'clustering': 'объединяем одинаковые голоса'}
     last = {}
 
     def hook(step_name, step_artifact, file=None, total=None, completed=None):
         # pyannote 4 emits final embedding artifacts before synchronous clustering,
         # and the discrete result after clustering. Neither supplies a denominator.
         if completed is None and step_name == 'embeddings':
-            progress('Говорящие: объединяем одинаковые голоса', 'clustering')
+            progress('Участники: объединяем одинаковые голоса', 'clustering')
             return
         if step_name == 'discrete_diarization':
-            progress('Говорящие: формируем разметку интервалов', 'assignment')
+            progress('Участники: формируем разметку интервалов', 'assignment')
             return
         percent = min(100, int(100 * completed / total)) if total and completed is not None else None
         if last.get(step_name, -1) != percent:
             last[step_name] = percent
-            progress(f'Говорящие · {args.device.upper()} · {stages.get(step_name, "обработка голосов")}' +
+            progress(f'Участники · {args.device.upper()} · {stages.get(step_name, "обработка голосов")}' +
                      (f' · {percent}%' if percent is not None else ''), step_name, completed, total)
 
     if args.device == 'xpu':
         torch.xpu.synchronize()
     started = time.monotonic()
-    progress('Говорящие: ищем речь и смены голосов', 'segmentation')
+    progress('Участники: ищем речь и смены голосов', 'segmentation')
     prediction = pipeline({'waveform': signal, 'sample_rate': 16000}, hook=hook)
     if args.device == 'xpu':
         torch.xpu.synchronize()
@@ -143,7 +143,7 @@ def main():
                        'load_seconds': load_seconds,
                        'powerset_device': 'cpu',
                        'inference_seconds': time.monotonic() - started})
-    progress('Голоса сопоставлены; назначаем говорящих репликам', 'assignment')
+    progress('Голоса сопоставлены; назначаем участников репликам', 'assignment')
 
 
 if __name__ == '__main__':

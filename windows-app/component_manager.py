@@ -30,7 +30,7 @@ STATES = {'not_installed', 'installed', 'downloading', 'installing', 'verifying'
           'ready', 'error', 'update_available'}
 BUSY = {'downloading', 'installing', 'verifying'}
 NAMES = {'whisper': 'Whisper · распознавание', 'ollama': 'Ollama · языковые модели',
-         'diarization': 'pyannote · говорящие'}
+         'diarization': 'pyannote · участники'}
 
 
 def package_progress(line, package=''):
@@ -60,7 +60,7 @@ def package_progress(line, package=''):
 def model_progress(value):
     stages = {'model_load': 'Загружаем локальную модель в память — скачивания нет',
               'segmentation': 'Пробная запись: ищем смены голосов', 'embeddings': 'Пробная запись: сравниваем голоса',
-              'discrete_diarization': 'Пробная запись: размечаем говорящих', 'clustering': 'Пробная запись: объединяем голоса',
+              'discrete_diarization': 'Пробная запись: размечаем участников', 'clustering': 'Пробная запись: объединяем голоса',
               'complete': 'Пробная запись обработана. Проверяем результат'}
     if not isinstance(value, dict) or not isinstance(value.get('stage'), str) or value['stage'] not in stages:
         return None
@@ -270,7 +270,7 @@ class ComponentManager:
         message = ('Создаём отдельное окружение Python' if 'venv' in command else
                    'Подбираем зависимости и готовим загрузку пакетов' if 'install' in command else
                    'Проверяем совместимость установленных пакетов' if pip_command else
-                   'Запускаем пробное определение говорящих')
+                   'Запускаем пробное разделение по участникам')
         self.update(key, 'installing' if installing else 'verifying',
                     message=message, bytes=0, total=0, progress_scope='stage', progress_unit=None,
                     step_started_at=time.time(), activity_at=time.time(), process_running=False)
@@ -374,20 +374,20 @@ class ComponentManager:
     def prepare_selected(self, body):
         features = body.get('features')
         if not isinstance(features, list) or not features or any(not isinstance(key, str) or key not in NAMES for key in features) or len(set(features)) != len(features):
-            raise ValueError('Выберите нужные функции: распознавание, говорящие, локальный AI')
+            raise ValueError('Выберите нужные функции: распознавание, участники, локальный AI')
         if body.get('confirmed') is not True:
             raise ValueError('Разрешите загрузку и установку выбранных AI-компонентов')
         device = body.get('device', 'auto')
         if device not in {'auto', 'cpu', 'xpu'}:
-            raise ValueError('Выберите поддерживаемое устройство для определения говорящих')
+            raise ValueError('Выберите поддерживаемое устройство для определения участников')
         if 'diarization' in features and body.get('hf_consent') is not True:
-            raise ValueError('Для говорящих примите условия community-1 и отметьте согласие Hugging Face в разделе «Говорящие»')
+            raise ValueError('Для участников примите условия community-1 и отметьте согласие Hugging Face в разделе «Участники»')
         if 'diarization' in features and not body.get('token') and not (self.root / 'hf-token.dpapi').is_file():
             profile = self.manifest.get('diarization_model', {})
             model_path = Path(self.manager.value.get('diarization_model_directory') or '__missing__')
             cached = self.root / ('community-1-' + str(profile.get('revision', '')))
             if profile.get('revision') and not (model_path / 'config.yaml').is_file() and not (cached / 'config.yaml').is_file():
-                raise ValueError('Для первой загрузки говорящих укажите токен чтения Hugging Face в разделе «Говорящие»')
+                raise ValueError('Для первой загрузки участников укажите токен чтения Hugging Face в разделе «Участники»')
         mode = body.get('mode', 'existing')
         if mode not in {'existing', 'service', 'managed'}:
             raise ValueError('Выберите подключение локального AI')
@@ -819,7 +819,7 @@ class ComponentManager:
         with requests.Session() as session:
             session.trust_env = False
             if shutil.disk_usage(self.root).free < sum(item['bytes'] for item in profile['files']) + 64 * 1024**2:
-                raise ValueError('Недостаточно свободного места для модели говорящих')
+                raise ValueError('Недостаточно свободного места для модели участников')
             for item in profile['files']:
                 self.check_cancel()
                 path = staging / safe_member(item['name'])
@@ -841,7 +841,7 @@ class ComponentManager:
                             if count > item['bytes']:
                                 raise ValueError('Размер файла community-1 превышает манифест')
                             output.write(block)
-                            self.update('diarization', 'downloading', bytes=count, total=item['bytes'], message='Загружаем модель говорящих')
+                            self.update('diarization', 'downloading', bytes=count, total=item['bytes'], message='Загружаем модель участников')
                 if not self.verify_file(temporary, item):
                     raise ValueError('Контрольная сумма community-1 не совпала')
                 temporary.replace(path)
@@ -960,11 +960,11 @@ class ComponentManager:
         proof_dir = self.root / 'checks' / uuid.uuid4().hex
         proof_dir.mkdir(parents=True)
         device_label = 'видеокарта (GPU)' if device == 'xpu' else 'процессор (CPU)'
-        self.update('diarization', 'verifying', message='Проверяем определение говорящих · ' + device_label)
+        self.update('diarization', 'verifying', message='Проверяем разделение по участникам · ' + device_label)
         self.run([python, self.here / 'diarization_worker.py', '--model', model, '--device', device,
                   '--audio', self.here / 'samples/speech-check.wav', '--output', proof_dir / 'result.json',
                   '--progress', proof_dir / 'progress.json'], 'diarization', timeout=600, progress_file=proof_dir / 'progress.json',
-                 failure_message='Не удалось выполнить пробное определение говорящих: ' + device_label + '.')
+                 failure_message='Не удалось выполнить пробное разделение по участникам: ' + device_label + '.')
         proof = read_json(proof_dir / 'result.json', {})
         requirements = self.here / ('requirements-pyannote-' + device + '.lock')
         proof['requirements_sha256'] = checksum(requirements)

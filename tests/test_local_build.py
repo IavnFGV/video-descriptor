@@ -74,6 +74,26 @@ def test_reuse_requires_exact_artifact_hash(modules, tmp_path):
     assert not build.reusable(record)
 
 
+def test_live_status_page_links_downloads_and_escapes_errors(modules, tmp_path):
+    build, _ = modules
+    state, output = tmp_path / 'state', tmp_path / 'local'
+    package = output / '0.8.22/VideoDescriptor-0.8.22-windows-x64-setup.exe'
+    package.parent.mkdir(parents=True)
+    package.write_bytes(b'fixture')
+    ready = {'state':'ready','stage':'done','version':'0.8.22','commit':'a'*40,
+             'artifacts':[{'path':str(package)}]}
+    build.update_status(state, {'output':str(output)}, ready)
+    page = (output / 'build-status.html').read_text(encoding='utf-8')
+    assert 'http-equiv="refresh"' in page and 'content="3"' in page
+    assert package.as_uri() in page and '0.8.22' in page
+    build.update_status(state, {'output':str(output)}, {
+        'state':'failed','stage':'checks','error':'<script>unsafe</script>'})
+    page = (output / 'build-status.html').read_text(encoding='utf-8')
+    assert '&lt;script&gt;unsafe&lt;/script&gt;' in page
+    assert '<script>unsafe</script>' not in page
+    assert package.as_uri() in page, 'Last successful downloads remain clearly labeled'
+
+
 def test_status_publish_retries_transient_windows_file_lock(modules, tmp_path, monkeypatch):
     build, _ = modules
     replace = build.os.replace

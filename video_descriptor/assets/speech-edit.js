@@ -107,18 +107,18 @@
   window.createSpeakerName = function(original, speaker, onSave){
     const holder=document.createElement('span'), button=document.createElement('button');
     const input=document.createElement('input'), feedback=document.createElement('span');
-    const label=original.speaker_names?.[speaker]||(speaker==='unknown'?'Не определён':speaker);
+    const label=original.speaker_names?.[speaker]||(speaker==='unknown'?'Участник не указан':speaker);
     button.type='button';button.className='vd-button vd-button--quiet vd-button--compact speaker-name';
-    button.textContent=label;button.append(speakerActionIcon('M16 3a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4L16 3Z M14 5l3 3'));button.title='Переименовать говорящего во всех его репликах';button.setAttribute('aria-label','Переименовать говорящего '+label+' во всех его репликах');
+    button.textContent=label;button.append(speakerActionIcon('M16 3a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4L16 3Z M14 5l3 3'));button.title='Изменить имя участника во всех его репликах';button.setAttribute('aria-label','Изменить имя участника '+label+' во всех его репликах');
     input.className='vd-input speaker-name-input';input.maxLength=100;input.hidden=true;
-    input.setAttribute('aria-label','Имя говорящего '+label);feedback.className='vd-help';feedback.setAttribute('role','status');
+    input.setAttribute('aria-label','Имя участника '+label);feedback.className='vd-help';feedback.setAttribute('role','status');
     let active=false,saving=false;
     const close=()=>{active=false;editing=false;input.hidden=true;button.hidden=false;button.focus({preventScroll:true});};
     button.onclick=()=>{if(editing)return;editing=true;active=true;input.value=label;button.hidden=true;input.hidden=false;input.focus();input.select();};
     const save=async()=>{
       if(!active||saving)return;
       const name=input.value.trim();
-      if(!name){feedback.textContent='Введите имя говорящего.';input.focus();return;}
+      if(!name){feedback.textContent='Введите имя участника.';input.focus();return;}
       if(name===label){close();return;}
       saving=true;input.disabled=true;feedback.textContent='Сохраняем имя…';
       try{
@@ -136,10 +136,10 @@
     const row=original.segments[index], holder=document.createElement('span');holder.className='speaker-controls';
     const select=document.createElement('select'), feedback=document.createElement('span');
     select.className='vd-select speaker-select';
-    select.setAttribute('aria-label','Назначить говорящего только этой реплике '+stamp(row.start));
+    select.setAttribute('aria-label','Назначить участника только этой реплике '+stamp(row.start));
     select.title='Кто говорит в этой реплике?';
     const speakers=[...new Set([...(original.speaker_options||[]),...original.segments.map(s=>s.speaker),'unknown'])];
-    select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||(s==='unknown'?'Не определён':s))));
+    select.replaceChildren(...speakers.map(s=>option(s,original.speaker_names?.[s]||(s==='unknown'?'Участник не указан':s))));
     if(compact)select.append(option('__new_speaker__','＋ Создать и назначить…'));
     select.value=row.speaker;
     feedback.className='vd-help';feedback.setAttribute('role','status');
@@ -156,16 +156,16 @@
       finally{editing=false;select.disabled=false;select.removeAttribute('aria-busy');}
     };
     const add=document.createElement('button'), name=document.createElement('input');
-    add.type='button';add.className='vd-button vd-button--compact';add.title='Добавить нового говорящего в эту запись';
-    add.setAttribute('aria-label','Добавить говорящего');
+    add.type='button';add.className='vd-button vd-button--compact';add.title='Добавить нового участника в эту запись';
+    add.setAttribute('aria-label','Добавить участника');
     add.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z M2 10v1a6 6 0 0 0 12 0v-1 M8 17v4 M5 21h6 M19 5v8 M15 9h8"/></svg>';
-    name.className='vd-input speaker-name-input';name.maxLength=100;name.hidden=true;name.placeholder=compact?'Имя · Enter — создать и назначить':'Имя нового говорящего';name.setAttribute('aria-label','Имя нового говорящего');
+    name.className='vd-input speaker-name-input';name.maxLength=100;name.hidden=true;name.placeholder=compact?'Имя · Enter — создать и назначить':'Имя нового участника';name.setAttribute('aria-label','Имя нового участника');
     let adding=false,publishing=false;
     const cancel=()=>{adding=false;editing=false;name.hidden=true;add.hidden=compact;feedback.textContent='';(compact?select:add).focus();};
     add.onclick=()=>{if(editing)return;editing=true;adding=true;name.value='';name.hidden=false;add.hidden=true;name.focus();};
     const create=async()=>{
       if(!adding||publishing)return;
-      const label=name.value.trim();if(!label){feedback.textContent='Введите имя нового говорящего.';return;}
+      const label=name.value.trim();if(!label){feedback.textContent='Введите имя нового участника.';return;}
       publishing=true;name.disabled=true;feedback.textContent='Добавляем…';
       try{
         const id='speaker_'+crypto.randomUUID().replaceAll('-',''),names={...original.speaker_names,[id]:label};
@@ -184,7 +184,7 @@
     };
     name.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();create();}if(e.key==='Escape'&&!publishing){e.preventDefault();cancel();}};
     name.onblur=()=>{if(adding&&!publishing){if(name.value.trim())create();else cancel();}};
-    const assignment=document.createElement('label');assignment.className='speaker-assignment';assignment.title='Назначить говорящего только этой реплике';
+    const assignment=document.createElement('label');assignment.className='speaker-assignment';assignment.title='Назначить участника только этой реплике';
     assignment.append(select);
     add.hidden=compact;
     holder.append(assignment,add,name,feedback);return holder;
@@ -193,7 +193,7 @@
     if(editing)return;
     const row=original.segments[index];
     const dialog=document.createElement('dialog');dialog.className='reply-editor vd-dialog';dialog.setAttribute('aria-labelledby','reply-editor-title');
-    dialog.innerHTML=`<form><div class="reply-editor-toolbar"><h2 id="reply-editor-title">Правка реплики</h2><div class="actions"><button type="submit">Сохранить</button><button type="button" class="cancel">Отмена</button></div></div><div class="reply-editor-body"><p class="bounds"></p><p>Исправьте текст и говорящего. Чтобы разделить реплику, поставьте курсор в тексте на границе второй части и нажмите «Разделить по курсору».</p><label>Текст первой части<textarea name="left" required></textarea></label><label>Перевод первой части<textarea name="translation"></textarea></label><label>Говорящий<select name="speaker"></select></label><button type="button" class="split">Разделить по курсору</button><div class="second" hidden><h3>Вторая часть</h3><label>Текст второй части<textarea name="right"></textarea></label><label>Перевод второй части<textarea name="rightTranslation"></textarea></label><p>При разделении перевод остаётся в первой части. Перенесите нужный текст во вторую вручную.</p><label>Говорящий второй части<select name="rightSpeaker"></select></label><p>Выберите момент смены говорящего внутри исходной реплики. Обе части сохранят её общий интервал.</p><label>Граница времени<input class="boundary" type="text" aria-label="Время разделения" placeholder="02:32:40"></label><input class="split-range" type="range" step="0.01" aria-label="Граница разделения внутри реплики"><button type="button" class="from-video">Взять позицию видео</button> <button type="button" class="preview">Послушать перед границей</button><p class="ranges"></p></div><p class="error" role="status"></p></div></form>`;
+    dialog.innerHTML=`<form><div class="reply-editor-toolbar"><h2 id="reply-editor-title">Правка реплики</h2><div class="actions"><button type="submit">Сохранить</button><button type="button" class="cancel">Отмена</button></div></div><div class="reply-editor-body"><p class="bounds"></p><p>Исправьте текст и участника. Чтобы разделить реплику, поставьте курсор в тексте на границе второй части и нажмите «Разделить по курсору».</p><label>Текст первой части<textarea name="left" required></textarea></label><label>Перевод первой части<textarea name="translation"></textarea></label><label>Участник<select name="speaker"></select></label><button type="button" class="split">Разделить по курсору</button><div class="second" hidden><h3>Вторая часть</h3><label>Текст второй части<textarea name="right"></textarea></label><label>Перевод второй части<textarea name="rightTranslation"></textarea></label><p>При разделении перевод остаётся в первой части. Перенесите нужный текст во вторую вручную.</p><label>Участник второй части<select name="rightSpeaker"></select></label><p>Выберите момент смены участника внутри исходной реплики. Обе части сохранят её общий интервал.</p><label>Граница времени<input class="boundary" type="text" aria-label="Время разделения" placeholder="02:32:40"></label><input class="split-range" type="range" step="0.01" aria-label="Граница разделения внутри реплики"><button type="button" class="from-video">Взять позицию видео</button> <button type="button" class="preview">Послушать перед границей</button><p class="ranges"></p></div><p class="error" role="status"></p></div></form>`;
     const form=dialog.querySelector('form'), left=form.elements.left, right=form.elements.right;
     const firstSpeaker=form.elements.speaker, secondSpeaker=form.elements.rightSpeaker;
     const boundary=dialog.querySelector('.boundary'), range=dialog.querySelector('.split-range');
@@ -206,11 +206,11 @@
     for(const target of [firstSpeaker,secondSpeaker]){
       const controls=document.createElement('div'),add=document.createElement('button'),input=document.createElement('input');
       controls.className='dialog-speaker-controls';target.after(controls);controls.append(target);
-      add.type='button';add.className='vd-button vd-button--compact';add.textContent='+ Говорящий';add.setAttribute('aria-label','Добавить говорящего');
-      input.className='vd-input';input.name='newSpeaker_'+target.name;input.maxLength=100;input.placeholder='Имя нового говорящего';input.setAttribute('aria-label','Имя нового говорящего');input.hidden=true;
-      const create=()=>{const name=input.value.trim();if(!name){error.textContent='Введите имя нового говорящего.';return;}const id='speaker_'+crypto.randomUUID().replaceAll('-','');addedNames[id]=name;for(const select of [firstSpeaker,secondSpeaker])select.append(option(id,name));target.value=id;input.value='';input.hidden=true;add.hidden=false;error.textContent='';target.focus();};
-      add.onclick=()=>{if(input.hidden){input.hidden=false;input.focus();add.textContent='Добавить';}else{create();add.textContent='+ Говорящий';}};
-      input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();create();add.textContent='+ Говорящий';}if(e.key==='Escape'){e.preventDefault();e.stopPropagation();input.value='';input.hidden=true;add.textContent='+ Говорящий';target.focus();}};
+      add.type='button';add.className='vd-button vd-button--compact';add.textContent='+ Участник';add.setAttribute('aria-label','Добавить участника');
+      input.className='vd-input';input.name='newSpeaker_'+target.name;input.maxLength=100;input.placeholder='Имя нового участника';input.setAttribute('aria-label','Имя нового участника');input.hidden=true;
+      const create=()=>{const name=input.value.trim();if(!name){error.textContent='Введите имя нового участника.';return;}const id='speaker_'+crypto.randomUUID().replaceAll('-','');addedNames[id]=name;for(const select of [firstSpeaker,secondSpeaker])select.append(option(id,name));target.value=id;input.value='';input.hidden=true;add.hidden=false;error.textContent='';target.focus();};
+      add.onclick=()=>{if(input.hidden){input.hidden=false;input.focus();add.textContent='Добавить';}else{create();add.textContent='+ Участник';}};
+      input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();create();add.textContent='+ Участник';}if(e.key==='Escape'){e.preventDefault();e.stopPropagation();input.value='';input.hidden=true;add.textContent='+ Участник';target.focus();}};
       controls.append(add,input);
     }
     left.value=row.text;

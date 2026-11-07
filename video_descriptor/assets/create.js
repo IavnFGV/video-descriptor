@@ -81,8 +81,8 @@
       const names = [...new Set([...result.segments.map(row => row.speaker).filter(Boolean), ...Object.keys(result.speaker_names || {})])];
       $('speaker-names').replaceChildren(...names.map(speaker => {
         const count=result.segments.filter(row=>row.speaker===speaker).length;
-        const label = text('label', (result.speaker_names?.[speaker] || (speaker==='unknown'?'Говорящий не указан':speaker))+' · реплик: '+count), input = document.createElement('input');
-        input.dataset.speaker = speaker; input.maxLength = 100; input.placeholder = 'Имя говорящего';
+        const label = text('label', (result.speaker_names?.[speaker] || (speaker==='unknown'?'Участник не указан':speaker))+' · реплик: '+count), input = document.createElement('input');
+        input.dataset.speaker = speaker; input.maxLength = 100; input.placeholder = 'Имя участника';
         input.value = result.speaker_names?.[speaker] || ''; label.append(input); return label;
       }));
       namesFolder = folder;

@@ -87,7 +87,7 @@ def edit_utterance(root, value):
                         or not (start >= 0 and (unknown_end or start < end <= original.get('duration', float('inf')) + .01))):
                     raise ValueError('Некорректные границы реплики')
                 if not isinstance(row.get('text'), str) or not row['text'].strip() or len(row['text']) > 100000 or row.get('speaker') not in known:
-                    raise ValueError('Некорректный текст или говорящий')
+                    raise ValueError('Некорректный текст или участник')
             if any(not isinstance(key, str) or not isinstance(text, str) or len(text) > 100000 for key, text in translations.items()):
                 raise ValueError('Некорректный перевод')
             write_json(folder / 'transcript-edits.json', {'segments': rows, 'translations': translations, 'updated': time.time()})
@@ -105,7 +105,7 @@ def edit_utterance(root, value):
             if not isinstance(text, str) or not text.strip() or len(text) > 100_000:
                 raise ValueError('Укажите текст реплики (до 100 000 символов)')
             if not isinstance(speaker, str) or speaker not in known:
-                raise ValueError('Выберите говорящего из списка')
+                raise ValueError('Выберите участника из списка')
             return {**old, 'text': text.strip(), 'speaker': speaker, 'start': start, 'end': end}
 
         if value.get('action') == 'edit':
@@ -506,7 +506,7 @@ def run(root, job_folder, job):
             result['stage'] = 'diarization'
             result['speaker_notice'] = 'Единые метки голосов по всей записи · локальная диаризация ' + device.upper()
             if job['engine'].startswith('whisper-npu') and result.get('timing') != 'word':
-                result['speaker_notice'] += (' · Говорящий назначается целой реплике по большей части её времени. '
+                result['speaker_notice'] += (' · Участник назначается целой реплике по большей части её времени. '
                                             'При смене человека внутри реплики возможна неточность.')
             if diar_future is not None:
                 update('NPU готов · ожидаем завершения GPU', duration)

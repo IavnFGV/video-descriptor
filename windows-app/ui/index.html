@@ -122,11 +122,11 @@
 </nav>
 <div id="postprocess-actions" hidden>
 <div class="setup-actions">
-<button id="diarize-run" type="button" class="vd-button" disabled>Определить говорящих</button>
+<button id="diarize-run" type="button" class="vd-button" disabled>Разделить по участникам</button>
 <button id="translate-run" type="button" class="vd-button">Перевести на русский</button>
 <button id="notes-run" type="button" class="vd-button">Конспект и перевод</button>
 </div>
-<p class="footnote">Говорящие определяются локально, без повторного распознавания речи. Создаётся отдельная версия из исправленных реплик. Для перевода и конспекта используется выбранная модель Ollama.</p>
+<p class="footnote">Реплики разделяются по участникам локально, без повторного распознавания речи. Создаётся отдельная версия из исправленных реплик. Для перевода и конспекта используется выбранная модель Ollama.</p>
 </div>
 <button id="stop-job" type="button" hidden class="vd-button">Стоп</button>
 <button id="retry" type="button" hidden class="vd-button">Продолжить из кэша</button>
@@ -151,10 +151,10 @@
 <p>Один раз выберите нужные функции и устройства, разрешите загрузки и нажмите «Сохранить и подготовить». Установка, проверка и переход к следующему компоненту выполняются автоматически. Можно уйти со страницы настроек и вернуться за прогрессом.</p>
 <label class="check-label"><input type="checkbox" id="prepare-whisper" checked> Распознавание речи</label>
 <label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор (CPU)</option><option value="GPU">Видеокарта (GPU)</option><option value="NPU">Нейропроцессор (NPU)</option></select></label>
-<label class="check-label"><input type="checkbox" id="prepare-diarization"> Определение говорящих</label>
-<label class="vd-field">Устройство для определения говорящих<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
+<label class="check-label"><input type="checkbox" id="prepare-diarization"> Разделение по участникам</label>
+<label class="vd-field">Устройство для разделения по участникам<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
 <button type="button" id="open-hf-settings" class="vd-button vd-button--quiet">Условия Hugging Face и токен →</button>
-<p class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для говорящих также примите условия и укажите токен Hugging Face в разделе «Говорящие».</p>
+<p class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для участников также примите условия и укажите токен Hugging Face в разделе «Участники».</p>
 <label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальный перевод и конспекты через Ollama</label>
 <button type="button" id="open-local-settings" class="vd-button vd-button--quiet">Подключение и языковая модель →</button>
 <p class="footnote">Подключение и модель выбираются в разделе «Локальный AI». Существующий сервер используем как есть; отдельная установка выполняется только в управляемом режиме.</p>
@@ -276,8 +276,8 @@
 </p>
 </form>
 </details>
-<details class="card ai-section"><summary>Говорящие · условия доступа Hugging Face</summary>
-<h2>Определение говорящих</h2>
+<details class="card ai-section"><summary>Участники · условия доступа Hugging Face</summary>
+<h2>Разделение по участникам</h2>
 <p class="footnote">Автоматически подготовим отдельное окружение и модель community-1. Системный Python не нужен. Требуется не менее 8 ГиБ свободного места; загрузка пакетов может занять несколько гигабайт. Распознавание остаётся в своём окружении.</p>
 <div id="component-diarization"></div>
 
@@ -287,7 +287,7 @@
 <label class="vd-field">Токен чтения Hugging Face (пустое поле сохраняет прежний)<input id="hf-token" type="password" autocomplete="off" maxlength="512" class="vd-input"></label>
 <label class="check-label"><input id="diarization-consent" type="checkbox"> Условия доступа приняты; разрешаю загрузку окружения и модели</label>
 <button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button>
-<p class="footnote">Автоматический режим пробует видеокарту, затем процессор. Явно выбранное устройство не заменяется другим. Нейропроцессор (NPU) пока не поддерживается для определения говорящих.</p>
+<p class="footnote">Автоматический режим пробует видеокарту, затем процессор. Явно выбранное устройство не заменяется другим. Нейропроцессор (NPU) пока не поддерживается для разделения по участникам.</p>
 </details>
 <details class="card ai-section"><summary>Папки хранения</summary>
 <h2>Где хранить данные</h2>
@@ -295,7 +295,7 @@
 <p id="component-directory" class="footnote"></p>
 <label class="vd-field">Папка моделей и AI-компонентов<input id="component-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
 <div class="vd-actions"><button id="pick-component-root" type="button" class="vd-button">Выбрать папку…</button><button id="save-component-root" type="button" class="vd-button">Перенести модели и компоненты</button></div>
-<p class="footnote">Переносятся компоненты из указанной текущей папки: модели Whisper и говорящих, Python-окружения, загрузки и отдельная Ollama приложения. Подключённые модели из других папок остаются на месте. Ваша ранее установленная Ollama и её модели остаются на своём месте.</p>
+<p class="footnote">Переносятся компоненты из указанной текущей папки: модели Whisper и участников, Python-окружения, загрузки и отдельная Ollama приложения. Подключённые модели из других папок остаются на месте. Ваша ранее установленная Ollama и её модели остаются на своём месте.</p>
 <p id="component-root-feedback" class="footnote" role="status"></p>
 <p id="records-directory" class="footnote"></p>
 <label class="vd-field">Папка записей<input id="records-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
@@ -384,10 +384,10 @@
 <div class="setup-actions"><button id="local-ai-go" type="button" class="vd-button vd-button--primary">Подготовить и продолжить</button><button id="local-ai-close" type="button" class="vd-button">Позже</button></div>
 </dialog>
 <dialog id="speaker-dialog" class="vd-dialog" aria-labelledby="speaker-heading">
-<h2 id="speaker-heading">Определить говорящих</h2>
+<h2 id="speaker-heading">Разделить по участникам</h2>
 <label class="vd-field">Способ обработки<select id="speaker-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option><option value="cpu">Процессор (CPU)</option></select></label>
 <p id="speaker-status" role="status" aria-live="polite"></p>
-<details id="speaker-install-fields"><summary>Подготовка определения говорящих</summary>
+<details id="speaker-install-fields"><summary>Подготовка разделения по участникам</summary>
 <p>Источник: PyPI, python.org и Hugging Face community-1. Загрузка — несколько гигабайт, необходимо 8 ГиБ свободного места. Для community-1 примите условия доступа и предоставьте токен чтения.</p>
 <button id="speaker-terms" type="button" class="vd-button">Условия community-1</button>
 <button id="speaker-tokens" type="button" class="vd-button">Получить токен</button>

@@ -69,11 +69,11 @@ def processing_details(phase, state, speech_result, payload=None, recognition_se
         speech_stage = speech_result.get("stage")
         details["task"] = speech_result.get("message", "Распознавание речи")
         if speech_stage == "diarization":
-            details.update(title="Распознавание говорящих",
-                           message="Для распознавания говорящих параметры не нужны.")
+            details.update(title="Распознавание участников",
+                           message="Для распознавания участников параметры не нужны.")
         elif speech_stage == "parallel":
-            details.update(title="Распознавание речи и говорящих",
-                           message="Для распознавания говорящих параметры не нужны.")
+            details.update(title="Распознавание речи и участников",
+                           message="Для распознавания участников параметры не нужны.")
         elif speech_stage == "preparation":
             details["title"] = "Подготовка аудио"
         if speech_result.get("engine"):
@@ -82,7 +82,7 @@ def processing_details(phase, state, speech_result, payload=None, recognition_se
             settings = recognition_settings or speech_result.get("recognition_parameters", {})
             details["parameters"] = [{"name": name, "value": value} for name, value in settings.items()]
             if settings:
-                details["message"] = ("Параметры распознавания речи. Для распознавания говорящих параметры не нужны."
+                details["message"] = ("Параметры распознавания речи. Для распознавания участников параметры не нужны."
                                       if speech_stage == "parallel" else "Параметры текущего распознавания речи.")
             elif speech_stage != "parallel":
                 details["message"] = "Обработчик ещё не опубликовал параметры распознавания речи."

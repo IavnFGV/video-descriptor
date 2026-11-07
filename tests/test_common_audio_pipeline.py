@@ -103,9 +103,9 @@ def test_stage_parameters_use_actual_request_and_do_not_leak_to_other_stages():
     diarization = live.processing_details(2, {'model': 'stale-model'}, {
         'stage': 'diarization', 'engine': 'whisper-npu-diarization-xpu',
         'message': 'GPU: segmentation', 'recognition_parameters': {'num_beams': 1}}, payload)
-    assert diarization['title'] == 'Распознавание говорящих'
+    assert diarization['title'] == 'Распознавание участников'
     assert diarization['parameters'] == []
-    assert diarization['message'] == 'Для распознавания говорящих параметры не нужны.'
+    assert diarization['message'] == 'Для распознавания участников параметры не нужны.'
     assert not diarization['request_available'] and not diarization['supports_thinking']
     report = live.processing_details(5, {'model': 'stale-model'}, {}, payload)
     assert report['parameters'] == [] and not report['request_available']
@@ -116,7 +116,7 @@ def test_stage_parameters_use_actual_request_and_do_not_leak_to_other_stages():
 def test_speech_and_translation_publish_their_own_parameters():
     speech = live.processing_details(2, {}, {'stage': 'parallel', 'engine': 'whisper-npu-diarization-xpu'},
                                     recognition_settings={'device': 'NPU', 'num_beams': 1})
-    assert speech['title'] == 'Распознавание речи и говорящих'
+    assert speech['title'] == 'Распознавание речи и участников'
     assert {item['name']: item['value'] for item in speech['parameters']} == {'device': 'NPU', 'num_beams': 1}
     config = {'temperature': 0, 'maxOutputTokens': 4096, 'thinkingConfig': {'thinkingLevel': 'minimal'}}
     translation = live.processing_details(6, {'model': 'gemini-3.5-flash-lite'}, {}, {'generationConfig': config})

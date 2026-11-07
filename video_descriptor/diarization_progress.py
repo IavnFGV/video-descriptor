@@ -9,16 +9,16 @@ LABELS = {
     'speaker_counting': 'Анализируем речевые участки',
     'embeddings': 'Сравниваем голоса',
     'clustering': 'Объединяем одинаковые голоса',
-    'assignment': 'Назначаем говорящих репликам',
+    'assignment': 'Назначаем участников репликам',
     'saving': 'Сохраняем результат',
-    'complete': 'Говорящие определены',
+    'complete': 'Реплики разделены по участникам',
 }
 
 
 def progress_state(stage, previous=None, completed=None, total=None, at=None):
     previous = previous if isinstance(previous, dict) else {}
     stamp = time.time() if at is None else at
-    value = {'stage': stage, 'label': LABELS.get(stage, 'Определяем говорящих'),
+    value = {'stage': stage, 'label': LABELS.get(stage, 'Разделяем реплики по участникам'),
              'updated_at': stamp, 'stage_started_at': previous.get('stage_started_at', stamp)
              if previous.get('stage') == stage else stamp}
     if (type(total) in (int, float) and math.isfinite(total) and total > 0

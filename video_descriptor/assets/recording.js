@@ -8,7 +8,7 @@
   const label=document.createElement('label'); label.textContent='Расшифровка';
   const speechSelect=document.createElement('select');speechSelect.id='recording-speech';label.append(speechSelect);speechHeading.append(label);speech.prepend(speechHeading);
   const actions=document.createElement('div');actions.className='recording-actions';
-  actions.innerHTML='<button id="recording-diarize" type="button" hidden>Определить говорящих</button><button id="recording-translate" type="button" hidden>Перевести на русский</button><button id="recording-stop" type="button" hidden>Остановить обработку</button>';
+  actions.innerHTML='<button id="recording-diarize" type="button" hidden>Разделить по участникам</button><button id="recording-translate" type="button" hidden>Перевести на русский</button><button id="recording-stop" type="button" hidden>Остановить обработку</button>';
   speechHeading.append(actions);
   const notice=document.createElement('p');notice.id='recording-status';notice.className='hint';notice.setAttribute('role','status');speechHeading.append(notice);
   const actionNotice=document.createElement('p');actionNotice.id='recording-action-status';actionNotice.className='feedback';actionNotice.setAttribute('role','status');actionNotice.setAttribute('aria-live','polite');speechHeading.append(actionNotice);
@@ -36,15 +36,15 @@
   };
 
   const diarizationProgress=document.createElement('div');diarizationProgress.id='diarization-progress';diarizationProgress.className='diarization-progress';diarizationProgress.hidden=true;
-  diarizationProgress.innerHTML='<span class="diarization-ring" role="progressbar" aria-label="Определение говорящих"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="diarization-ring-track" cx="16" cy="16" r="13"/><circle class="diarization-ring-value" cx="16" cy="16" r="13" pathLength="100"/></svg></span><div><p class="diarization-progress-label" role="status"></p><p class="diarization-progress-time"></p></div>';
+  diarizationProgress.innerHTML='<span class="diarization-ring" role="progressbar" aria-label="Разделение по участникам"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="diarization-ring-track" cx="16" cy="16" r="13"/><circle class="diarization-ring-value" cx="16" cy="16" r="13" pathLength="100"/></svg></span><div><p class="diarization-progress-label" role="status"></p><p class="diarization-progress-time"></p></div>';
   workspace.insertBefore(diarizationProgress,$('stage-progress'));
   function renderDiarizationProgress(){
     const value=snapshot?.diarization_progress,active=job?.task==='diarize'&&['queued','running'].includes(job.status);
     diarizationProgress.hidden=!active;
     $('stage-progress').hidden=active;
     if(!active)return;
-    $('stage-label').textContent='Определение говорящих';
-    const queued=job.status==='queued',label=queued?'Говорящие: ожидаем запуска':value?.label||'Определяем говорящих',ring=diarizationProgress.querySelector('.diarization-ring');
+    $('stage-label').textContent='Разделение по участникам';
+    const queued=job.status==='queued',label=queued?'Участники: ожидаем запуска':value?.label||'Разделяем реплики по участникам',ring=diarizationProgress.querySelector('.diarization-ring');
     const measured=!queued&&Number.isFinite(value?.completed)&&Number.isFinite(value?.total)&&value.total>0&&value.completed>=0&&value.completed<=value.total;
     const percent=measured?Math.floor(value.completed/value.total*100):null;
     ring.classList.toggle('indeterminate',!measured);ring.setAttribute('aria-label',label);
@@ -107,7 +107,7 @@
   });
   function option(value,text){const node=document.createElement('option');node.value=value;node.textContent=text;return node;}
   const when=seconds=>new Date(seconds*1000).toLocaleString('ru-RU');
-  function speechName(item){const kind={notes:'Снимок для конспекта',translate:'Перевод',diarize:'С говорящими'}[item.task]||({'whisper-local':'Локальное распознавание','whisper-npu':'Локальное распознавание','whisper':'Локальное распознавание','gemini':'Google · распознавание'}[item.engine])||item.engine||'Распознавание';return kind+' · '+when(item.created)+(item.status==='running'?' · Обработка':item.status==='queued'?' · В очереди':item.status==='error'?(item.cancelled?' · Остановлено':' · Ошибка'):'');}
+  function speechName(item){const kind={notes:'Снимок для конспекта',translate:'Перевод',diarize:'С участниками'}[item.task]||({'whisper-local':'Локальное распознавание','whisper-npu':'Локальное распознавание','whisper':'Локальное распознавание','gemini':'Google · распознавание'}[item.engine])||item.engine||'Распознавание';return kind+' · '+when(item.created)+(item.status==='running'?' · Обработка':item.status==='queued'?' · В очереди':item.status==='error'?(item.cancelled?' · Остановлено':' · Ошибка'):'');}
   function paint(){
     if(!data)return;
     const key=JSON.stringify([data.speech,data.reports]);
@@ -132,7 +132,7 @@
       if(snapshot&&query.get('folder')!==snapshot.folder){requested=true;return;}
       data=value;paint();
       if(!snapshot){$('stage-source').hidden=true;speech.hidden=false;notes.hidden=false;$('run-title').textContent=value.filename;}
-      if(value.active_job){$('recording-stop').hidden=!window.recordingUI.native;notice.textContent='Новый вариант '+({notes:'конспекта',translate:'перевода',diarize:'с говорящими'}[value.active_job.task]||'расшифровки')+(value.active_job.status==='queued'?' в очереди.':' обрабатывается.')+' Готовые варианты доступны в списках.';}
+      if(value.active_job){$('recording-stop').hidden=!window.recordingUI.native;notice.textContent='Новый вариант '+({notes:'конспекта',translate:'перевода',diarize:'с участниками'}[value.active_job.task]||'расшифровки')+(value.active_job.status==='queued'?' в очереди.':' обрабатывается.')+' Готовые варианты доступны в списках.';}
       if(value.video_url&&player.getAttribute('src')!==value.video_url)player.src=value.video_url;
       $('shared-player').hidden=false;
     }catch(error){notice.textContent=error.message;}finally{loading=false;if(requested){requested=false;library();}}
@@ -183,7 +183,7 @@
     if(actionPending)return;
     const folder=snapshot?.folder,button=$(task==='diarize'?'recording-diarize':'recording-translate'),label=button.textContent;
     actionPending=true;paint();button.setAttribute('aria-busy','true');button.textContent='Запускаем…';
-    actionNotice.classList.remove('vd-error');actionNotice.textContent=task==='diarize'?'Запускаем определение говорящих… Проверяем запись и готовим задание.':'Запускаем перевод…';
+    actionNotice.classList.remove('vd-error');actionNotice.textContent=task==='diarize'?'Запускаем разделение по участникам… Проверяем запись и готовим задание.':'Запускаем перевод…';
     try{
       const value=await postprocess(task);
       actionNotice.textContent='Задание добавлено в очередь. Прогресс появится в новом варианте записи.';

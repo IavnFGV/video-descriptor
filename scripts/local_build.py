@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import datetime as dt
 import hashlib
+import html
 import json
 import os
 import re
@@ -22,9 +23,13 @@ def state_dir(repo):
 
 
 def write_json(path, value):
+    atomic_text(path, json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+
+
+def atomic_text(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + f'.{os.getpid()}.tmp')
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    temporary.write_text(content, encoding='utf-8')
     for attempt in range(20):
         try:
             os.replace(temporary, path)
@@ -34,6 +39,45 @@ def write_json(path, value):
                 temporary.unlink(missing_ok=True)
                 raise
             time.sleep(.05)
+
+
+def update_status(state, config, record):
+    """A fixed, self-refreshing local page; no server or external resources."""
+    write_json(state / 'status.json', record)
+    if record['state'] == 'ready':
+        write_json(state / 'last-success.json', record)
+    previous_file = state / 'last-success.json'
+    ready = record if record['state'] == 'ready' else (
+        json.loads(previous_file.read_text(encoding='utf-8')) if previous_file.exists() else None)
+    labels = {'checkout': 'Подготавливаем исходники', 'desktop-sdk': 'Подготавливаем desktop SDK',
+              'checks': 'Выполняем локальные проверки', 'build': 'Собираем ZIP и установщик',
+              'portable-smoke': 'Проверяем запуск пакета', 'done': 'Готово'}
+    heading = {'running': 'Сборка выполняется', 'ready': 'Сборка готова', 'failed': 'Ошибка сборки'}[record['state']]
+
+    def link(path, title):
+        return f'<a class="vd-link" href="{html.escape(Path(path).resolve().as_uri(), quote=True)}">{html.escape(title)}</a>'
+
+    downloads = ''
+    if ready:
+        downloads = '<section><h2>Последняя готовая версия: ' + html.escape(ready.get('version', '')) + '</h2><p>' + ' · '.join(
+            link(item['path'], 'Установщик' if item['path'].endswith('.exe') else 'ZIP')
+            for item in ready.get('artifacts', [])) + '</p></section>'
+    root = Path(__file__).resolve().parents[1]
+    styles = '\n'.join((root / 'design-system' / name).read_text(encoding='utf-8')
+                       for name in ('tokens.css', 'components.css'))
+    error = '<p class="vd-error" role="alert">' + html.escape(record.get('error', '')) + '</p>' if record['state'] == 'failed' else ''
+    log = link(record['log'], 'Открыть журнал сборки') if record.get('log') else ''
+    page = f'''<!doctype html><html lang="ru"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="3">
+<title>Video Descriptor — локальная сборка</title><style>{styles}
+body{{font:var(--vd-body)/1.5 var(--vd-font);color:var(--vd-text);background:var(--vd-canvas);margin:var(--vd-space-6)}}
+main{{max-width:var(--vd-reading-width);margin:auto;background:var(--vd-surface);padding:var(--vd-space-6);border:1px solid var(--vd-border);border-radius:var(--vd-radius-card)}}
+p,section{{overflow-wrap:anywhere}}section{{margin-top:var(--vd-space-6)}}</style><main>
+<h1>Локальная сборка</h1><h2>{heading}</h2><p>{html.escape(labels.get(record.get('stage'), record.get('stage', '')))}</p>
+{error}<p>{log}</p>{downloads}<details><summary>Технические сведения</summary>
+<p>Коммит: {html.escape(record.get('commit', ''))}</p><p>Начало (UTC): {html.escape(record.get('started', ''))}</p>
+</details><p>Страница обновляется автоматически каждые 3 секунды. Сборка не устанавливает приложение.</p></main></html>'''
+    atomic_text(Path(config['output']) / 'build-status.html', page)
 
 
 @contextlib.contextmanager
@@ -113,7 +157,7 @@ def run_build(repo, state, config, sha):
         if reusable(previous):
             previous = publish_ready(previous, config['output'])
             write_json(result_file, previous)
-            write_json(state / 'status.json', previous)
+            update_status(state, config, previous)
             print('Already built:', previous['output'], flush=True)
             return True
     stamp = dt.datetime.now(dt.UTC).strftime('%Y%m%dT%H%M%S%fZ')
@@ -128,7 +172,7 @@ def run_build(repo, state, config, sha):
     with (run / 'build.log').open('w', encoding='utf-8') as log:
         def step(name, command, cwd=source):
             status['stage'] = name
-            write_json(state / 'status.json', status)
+            update_status(state, config, status)
             log.write(f'\n[{now()}] {name}\n')
             log.flush()
             print(name, flush=True)
@@ -177,7 +221,7 @@ def run_build(repo, state, config, sha):
             status.update(state='failed', finished=now(), error=str(error))
             log.write(f'\nFAILED: {error}\n')
         write_json(result_file, status)
-        write_json(state / 'status.json', status)
+        update_status(state, config, status)
     print(json.dumps(status, ensure_ascii=False), flush=True)
     return status['state'] == 'ready'
 

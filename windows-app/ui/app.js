@@ -100,7 +100,7 @@
   async function readiness() {
     try {
       const d=await api('/api/doctor');$('doctor').textContent=JSON.stringify(d,null,2);
-      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Определить говорящих'+(d.diarization?.device?' · '+deviceName(d.diarization.device):'');$('diarize-run').disabled=processing;$('diarize-run').title='Выбрать способ обработки и определить говорящих';
+      diarizationConfigured=d.diarization?.state==='configured';$('diarize-run').textContent='Разделить по участникам'+(d.diarization?.device?' · '+deviceName(d.diarization.device):'');$('diarize-run').disabled=processing;$('diarize-run').title='Выбрать способ обработки и разделить по участникам';
       if(d.compute){
         const c=d.compute, chosen=c.selected, ready=chosen&&c.capabilities[chosen].ready;
         const deviceReason=(name)=>{const cap=c.capabilities[name];return c.preparing&&name===chosen?'Запускаем распознавание…':cap.available&&!cap.ready&&cap.model_present&&cap.reason==='Модель не загружена'?'Распознавание не запущено':cap.reason;};
@@ -115,7 +115,7 @@
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
         $('npu-notice').textContent=ready?'Распознавание готово. Можно добавить запись.':'Подготавливаем распознавание в фоне. Выбранный файл сохраняется.';
         if(!componentBusy){$('bootstrap-message').textContent=c.preparing?'Подготавливаем распознавание…':ready?'Распознавание готово':c.error?'Не удалось подготовить распознавание. Повторите.':'Нужно подготовить распознавание';$('prepare-speech').hidden=!!ready||c.preparing;}
-        $('ai-summary').textContent=(ready?'Распознавание готово. ':'Распознавание требует подготовки. ')+(d.ollama.ready?'Локальный перевод подключён. ':'Локальный перевод не подключён. ')+(diarizationConfigured?'Определение говорящих доступно.':'Говорящие подготавливаются при первом использовании.');
+        $('ai-summary').textContent=(ready?'Распознавание готово. ':'Распознавание требует подготовки. ')+(d.ollama.ready?'Локальный перевод подключён. ':'Локальный перевод не подключён. ')+(diarizationConfigured?'Разделение по участникам доступно.':'Участники подготавливаются при первом использовании.');
         try{const events=await api('/api/native/events');$('events').textContent=events.slice(-20).map(e=>`${new Date(e.time_utc).toLocaleTimeString()} · ${actionNames[e.action]||e.action}${e.device||e.requested?' · '+(e.device||e.requested):''}${e.previous_device?' ← '+e.previous_device:''}${e.job_id?' · запись '+e.job_id.slice(0,8):''}`).join('\n')||'Событий пока нет';}catch(e){$('events').textContent='Не удалось обновить историю: '+e.message;}
         return;
       }
@@ -173,7 +173,7 @@
     else $('progress').removeAttribute('value');
     if(['postprocess','notes'].includes(job.mode)){
       const phases={queued:'В очереди',notes:'Создаём конспект',translation:'Переводим реплики',done:'Готово'};
-      $('progress-text').textContent=job.task==='diarize'?(job.error||result?.message||'Определяем говорящих'):(job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.stage==='translation'?job.translation_model:job.construction?.model||job.translation_model||'Ollama'}`);
+      $('progress-text').textContent=job.task==='diarize'?(job.error||result?.message||'Разделяем реплики по участникам'):(job.error||`${phases[job.stage]||statusNames[job.status]} · ${job.stage==='translation'?job.translation_model:job.construction?.model||job.translation_model||'Ollama'}`);
       if(['queued','running'].includes(job.status)){
         $('progress').removeAttribute('value');
         if(job.status==='running'&&job.task!=='diarize'){
@@ -186,7 +186,7 @@
       }
     }
     $('retry').hidden=job.status!=='error';
-    $('retry').textContent=job.task==='diarize'?'Повторить определение говорящих':result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
+    $('retry').textContent=job.task==='diarize'?'Повторить разделение по участникам':result?.segments?.length?'Продолжить из кэша':'Повторить распознавание';
     const done=job.status==='done'&&result?.status==='done';$('exports').hidden=!done;
     $('postprocess-actions').hidden=!done||!result?.segments?.length;
     $('translate-run').disabled=processing;$('notes-run').disabled=processing;$('diarize-run').disabled=processing;
@@ -202,7 +202,7 @@
       $('ru-srt').href='/api/subtitles?'+new URLSearchParams({folder:job.folder,language:'ru',format:'srt'});
       $('open-report').href='/output/'+encodeURIComponent(job.folder)+'/report.html';
     }
-    $('timing-note').textContent=job.status==='error'?'':result.speaker_notice|| (result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и говорящих в этом режиме не выполняется.');
+    $('timing-note').textContent=job.status==='error'?'':result.speaker_notice|| (result.no_speech?'Речь не обнаружена. Это решение VAD, а не ручная проверка записи.':'Таймкоды относятся к целым репликам. Разделение слов и участников в этом режиме не выполняется.');
     const content=JSON.stringify([job.id,result.segments,result.translations,result.speaker_names,result.edit_revision,done,result.no_speech]);
     if($('transcript').dataset.content===content)return;
     $('transcript').dataset.content=content;
@@ -210,7 +210,7 @@
       const row=document.createElement('div');row.className='row';const time=document.createElement('button');time.type='button';time.className='vd-button vd-button--quiet vd-button--compact seek';time.textContent=stamp(segment.start)+' — '+stamp(segment.end);time.setAttribute('aria-label','Воспроизвести с '+stamp(segment.start));time.disabled=!Number.isFinite(segment.start)||segment.start<0||!result.video;time.onclick=()=>{$('video').currentTime=segment.start;$('video').play().catch(()=>{});};
       const header=document.createElement('div'),tools=document.createElement('div');header.className='reply-heading';tools.className='reply-tools';header.append(time);row.append(header);
       if(done){const edit=document.createElement('button');edit.type='button';edit.className='vd-button vd-button--compact row-edit';edit.title='Исправить реплику';edit.setAttribute('aria-label','Исправить реплику');const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('width','18');icon.setAttribute('height','18');icon.setAttribute('fill','none');icon.setAttribute('stroke','currentColor');icon.setAttribute('stroke-width','2');icon.setAttribute('stroke-linecap','round');icon.setAttribute('stroke-linejoin','round');icon.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M16 3a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4L16 3Z M14 5l3 3');icon.append(path);edit.append(icon);edit.onclick=()=>window.editSpeechReply(result,index,$('video'),saved=>render(saved,job));tools.append(edit);}
-      const p=document.createElement('p');p.textContent=segment.text;if(done)window.enableQuickReplyEdit(p,result,index,saved=>{if(selected!==job.id)return;render(saved,job);$('transcript').querySelectorAll('.row')[index]?.querySelector('p')?.focus({preventScroll:true});});if(result.diarization_device){if(done){header.append(window.createSpeakerName(result,segment.speaker,saved=>{if(selected!==job.id)return;render(saved,job);$('transcript').querySelectorAll('.speaker-name')[index]?.focus({preventScroll:true});}));tools.prepend(window.createSpeakerSelect(result,index,saved=>{if(selected!==job.id)return;render(saved,job);$('transcript').querySelectorAll('.speaker-select')[index]?.focus({preventScroll:true});}));}else{const speaker=document.createElement('span');speaker.className='vd-status';speaker.textContent=result.speaker_names?.[segment.speaker]||(segment.speaker==='unknown'?'Говорящий не определён':segment.speaker);header.append(speaker);}}header.append(tools);row.append(p);const translated=result.translations?.[segment.id];if(translated){const ru=document.createElement('p');ru.className='translation';ru.textContent=translated;row.append(ru);}return row;
+      const p=document.createElement('p');p.textContent=segment.text;if(done)window.enableQuickReplyEdit(p,result,index,saved=>{if(selected!==job.id)return;render(saved,job);$('transcript').querySelectorAll('.row')[index]?.querySelector('p')?.focus({preventScroll:true});});if(result.diarization_device){if(done){header.append(window.createSpeakerName(result,segment.speaker,saved=>{if(selected!==job.id)return;render(saved,job);$('transcript').querySelectorAll('.speaker-name')[index]?.focus({preventScroll:true});}));tools.prepend(window.createSpeakerSelect(result,index,saved=>{if(selected!==job.id)return;render(saved,job);$('transcript').querySelectorAll('.speaker-select')[index]?.focus({preventScroll:true});}));}else{const speaker=document.createElement('span');speaker.className='vd-status';speaker.textContent=result.speaker_names?.[segment.speaker]||(segment.speaker==='unknown'?'Участник не указан':segment.speaker);header.append(speaker);}}header.append(tools);row.append(p);const translated=result.translations?.[segment.id];if(translated){const ru=document.createElement('p');ru.className='translation';ru.textContent=translated;row.append(ru);}return row;
     });
     if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent=result.no_speech?'Речевых фрагментов не найдено.':job.status==='error'?'Распознавание остановилось до сохранения текста. Причина указана выше. Повторный запуск может завершиться той же ошибкой.':'Текст появится после первого сохранённого фрагмента.';rows.push(p);}
     $('transcript').replaceChildren(...rows);
@@ -335,7 +335,7 @@
     $('setup-callout-message').textContent=plan.message||'Откройте настройки, выберите нужные функции и разрешите загрузки. Приложение само подготовит выбранные компоненты.';
     $('setup-open').classList.toggle('needs-setup',plan.state!=='ready');
     const whisper=data.profiles.whisper_model,ollama=data.profiles.ollama;
-    $('prepare-sources').textContent='Источники: '+(whisper?whisper.source+' (распознавание ≈'+Math.ceil((whisper.recorded_download_bytes||whisper.files.reduce((sum,file)=>sum+file.bytes,0))/1024**2)+' МиБ); ':'')+'Hugging Face / PyPI / PyTorch (говорящие: несколько ГиБ, требуется 8 ГиБ свободного места); '+(ollama?ollama.source+' (Ollama)':'Ollama')+'. Размер языковой модели указан в каталоге ниже. Загружаются только компоненты выбранных функций.';
+    $('prepare-sources').textContent='Источники: '+(whisper?whisper.source+' (распознавание ≈'+Math.ceil((whisper.recorded_download_bytes||whisper.files.reduce((sum,file)=>sum+file.bytes,0))/1024**2)+' МиБ); ':'')+'Hugging Face / PyPI / PyTorch (участники: несколько ГиБ, требуется 8 ГиБ свободного места); '+(ollama?ollama.source+' (Ollama)':'Ollama')+'. Размер языковой модели указан в каталоге ниже. Загружаются только компоненты выбранных функций.';
     $('cancel-preparation').hidden=!data.active;
     if(data.active){const active=data.components.find(c=>c.id===data.active);$('bootstrap-message').textContent=deviceMessage(active.message)+(active.total?' · '+Math.floor(100*(active.bytes||0)/active.total)+'%':'');$('prepare-speech').hidden=true;}
     for(const item of data.components){
@@ -388,7 +388,7 @@
       const features=['whisper','diarization','ollama'].filter(key=>$('prepare-'+key).checked);
       if(!features.length)throw Error('Выберите хотя бы одну функцию.');
       if(!$('prepare-consent').checked){$('prepare-consent').focus();throw Error('Отметьте разрешение на загрузку и установку выбранных компонентов. Для GPU нужно это же разрешение.');}
-      if(features.includes('diarization')&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для говорящих примите условия community-1 и отметьте согласие в разделе «Говорящие».');}
+      if(features.includes('diarization')&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для участников примите условия community-1 и отметьте согласие в разделе «Участники».');}
       const mode=$('ollama-mode').value,model=mode==='managed'?$('ollama-catalog').value:$('ollama-model').value;
       if(features.includes('ollama')&&!model){$('ollama-mode').closest('details').open=true;$('ollama-mode').focus();throw Error('Выберите подключение и языковую модель в разделе «Локальный AI».');}
       await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'prepare_selected',features,device:$('diarization-device').value,mode,model,token:$('hf-token').value,hf_consent:$('diarization-consent').checked,confirmed:true})});
@@ -506,7 +506,7 @@
     $('speaker-install-fields').open=speakerNeedsInstall;
     $('speaker-install-fields').hidden=!speakerNeedsInstall;
     $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':(item.proof?.turns?.length?'Готово для ':'Окружение найдено для ')+deviceName(health.diarization?.device||'cpu')+'. Способ обработки проверим перед запуском.';
-    $('speaker-go').textContent=speakerNeedsInstall?'Скачать, подготовить и запустить':'Определить говорящих';
+    $('speaker-go').textContent=speakerNeedsInstall?'Скачать, подготовить и запустить':'Разделить по участникам';
   }
   $('speaker-device').onchange=async()=>{$('speaker-go').disabled=true;try{await speakerStatus(true);}catch(e){$('speaker-status').textContent=e.message;}finally{$('speaker-go').disabled=false;}};
   $('speaker-cancel').onclick=()=>$('speaker-dialog').close();
@@ -526,7 +526,7 @@
       if(!cached)await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component:'diarization',action:speakerNeedsInstall?'install':'check',device,token,resume:{folder,task:'diarize'},confirmed:$('speaker-consent').checked})});
       await componentStatus();
       $('speaker-token').value='';
-      $('speaker-status').textContent='Подготавливаем определение говорящих… Можно закрыть это окно.';
+      $('speaker-status').textContent='Подготавливаем разделение по участникам… Можно закрыть это окно.';
       const wait=async()=>{
         const d=await api('/api/components'),item=d.components.find(c=>c.id==='diarization');
         $('speaker-status').textContent=item.message;
