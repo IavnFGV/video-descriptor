@@ -215,7 +215,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     page += f'</aside><main class="read-pane"><section id="personal-notes" data-editing="false" data-result-kind="{result_kind}">'
     page += f'<div class="notes-toolbar"><button data-notes-view="read">{result_label}</button>'
     page += '<button data-notes-view="edit">Редактировать</button>'
-    page += '<button data-notes-view="model">Материал модели</button></div>'
+    page += '<button data-notes-view="model">Оригинальный ответ модели</button></div>'
     page += '<div class="notes-actions"><button id="save-notes" disabled>Сохранить</button>'
     page += '<button id="add-section">+ Раздел в этом месте</button>'
     page += '<span>Экспорт:</span><button id="download-notes">Markdown</button><button id="download-html">HTML</button>'

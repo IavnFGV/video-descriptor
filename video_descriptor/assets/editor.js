@@ -222,11 +222,14 @@
     clearTimeout(timer); timer = setTimeout(updatePreview, 250);
   });
   function view(name) {
+    const wasModel=!document.getElementById('model-material').hidden;
     editing = name === 'edit'; panel.dataset.editing = String(editing);
     document.getElementById('editor-pane').hidden = !editing;
     preview.hidden = name !== 'read';
     (outlineGroup || outline).hidden = name === 'model';
     document.getElementById('model-material').hidden = name !== 'model';
+    if(name==='model')notify('Оригинальный результат модели. Ваши правки сохраняются отдельно.');
+    else if(wasModel)notify(dirty?'Есть несохранённые правки.':'Открыт ваш текст.');
     document.querySelectorAll('[data-notes-view]').forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.notesView === name));
     });

@@ -94,6 +94,26 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--notes-menu-only' in sys.argv:
+            assert evaluate('document.querySelector("#recording-original-response").closest("#recording-notes-actions")!==null')
+            assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("[data-notes-view=model]").checkVisibility()')
+            assert evaluate('[...document.querySelector("#report-editor").contentDocument.querySelectorAll(".notes-toolbar button")].filter(x=>x.checkVisibility()).length')==2
+            evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror").CodeMirror.replaceRange(" Unsaved edit",{line:0,ch:0})')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            c.click('#recording-notes-actions>summary')
+            c.click('#recording-original-response')
+            assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("#model-material").hidden')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            assert not evaluate('document.querySelector("#recording-notes-actions").open')
+            assert 'Ваши правки сохраняются отдельно' in evaluate('document.querySelector("#report-editor").contentDocument.querySelector("#editor-status").textContent')
+            evaluate('document.querySelector("#report-editor").contentDocument.querySelector("[data-notes-view=read]").click()')
+            assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("#personal-preview").hidden')
+            assert 'Unsaved edit' in evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror").CodeMirror.getValue()')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            c.screenshot(out/'notes-original-response-menu.png')
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: model result moved into notes actions; read/edit remain; unsaved draft survives mode switches',flush=True)
+            sys.exit(0)
         if '--article-only' in sys.argv:
             wait_for(lambda:not evaluate('document.querySelector("#construction-article").disabled'))
             wait_for(lambda:evaluate('!document.querySelector("#construction-model").disabled'))

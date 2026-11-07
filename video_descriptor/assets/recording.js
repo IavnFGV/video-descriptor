@@ -24,6 +24,15 @@
   const newNotes=$('notes-settings').closest('section');newNotes.id='recording-notes-settings';
   if(location.search.includes('folder=')||location.search.includes('job='))newNotes.hidden=true;
   const notesMenu=document.createElement('details'),notesSummary=document.createElement('summary');notesSummary.textContent='Действия с конспектом';notesMenu.append(notesSummary,$('delete-notes'));$('stage-notes').append(notesMenu);
+  notesMenu.id='recording-notes-actions';
+  const originalResponse=document.createElement('button');originalResponse.id='recording-original-response';originalResponse.type='button';originalResponse.textContent='Оригинальный ответ модели';originalResponse.disabled=true;originalResponse.setAttribute('aria-controls','report-editor');
+  const notesMenuActions=document.createElement('div');notesMenuActions.className='notes-actions';notesMenuActions.append($('delete-notes'),originalResponse);notesMenu.append(notesMenuActions);
+  originalResponse.onclick=()=>{
+    const frame=$('report-editor'),button=frame.contentDocument?.querySelector('[data-notes-view="model"]');
+    if(!button)return;
+    button.click();notesMenu.open=false;frame.scrollIntoView({block:'start'});
+    frame.contentDocument.querySelector('[data-notes-view="read"]')?.focus();
+  };
   const originalReports=$('notes-variant-label');originalReports.hidden=true;
   $('source-details').append($('record-menu'));
   const detail=document.createElement('details');detail.id='recording-processing';
@@ -111,6 +120,7 @@
   $('report-editor').addEventListener('load',()=>{
     previewObserver?.disconnect();currentTimeKey='';sync(true);
     const doc=$('report-editor').contentDocument;
+    originalResponse.disabled=!doc?.querySelector('[data-notes-view="model"]');
     if(doc){previewObserver=new MutationObserver(()=>{currentTimeKey='';sync(true);});previewObserver.observe(doc.body,{childList:true,subtree:true});}
   });
   function option(value,text){const node=document.createElement('option');node.value=value;node.textContent=text;return node;}
