@@ -306,6 +306,8 @@ def test_status_excludes_active_request_and_shows_live_packaging_details(modules
     assert 'Inno Setup' in details['step']
     page = (output / 'build-status.html').read_text(encoding='utf-8')
     assert 'Очередь: 1' in page and pending[:12] in page
+    assert 'новые сверху' in page
+    assert page.index('&lt;script&gt;unsafe&lt;/script&gt;') < page.index('Preprocessing')
     assert 'Последняя запись' in page and 'На этапе:' in page
     assert '<script>unsafe</script>' not in page
     assert '&lt;script&gt;unsafe&lt;/script&gt;' in page
