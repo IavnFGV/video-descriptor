@@ -46,9 +46,12 @@ def main():
     previous = json.loads(marker.read_text()) if marker.exists() else {}
     if previous.get('version') == manifest['version'] and previous.get('root') == str(ROOT) and existing:
         return
-    # Validate every bundled input before changing settings or running native code.
+    # ZIP/Inno extraction checks container integrity; wheels were hash-locked at build.
+    # Recheck models and the Python executable boundary without reopening thousands
+    # of site-packages files (very slow with Windows on-access scanning).
     for entry in manifest['files']:
-        if entry['path'].startswith('windows-app/domestic/'):
+        if entry['path'].startswith('windows-app/domestic/') and not entry['path'].startswith(
+                'windows-app/domestic/python/Lib/'):
             import hashlib
             with (ROOT / entry['path']).open('rb') as stream:
                 if hashlib.file_digest(stream, 'sha256').hexdigest() != entry['sha256']:
