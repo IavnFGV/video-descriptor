@@ -332,3 +332,41 @@ def test_build_scratch_is_scoped_to_configured_volume_and_not_system_temp(module
     custom = tmp_path / 'custom'
     env = build.build_environment({'cache': str(cache), 'temp_root': str(custom)}, 'run-456')
     assert Path(env['TEMP']) == custom / 'run-456'
+
+
+def test_build_cleanup_removes_owned_checkout_and_scratch_including_logs(modules, tmp_path):
+    build, _ = modules
+    run = tmp_path / 'runs/owned'
+    source = run / 'source'
+    scratch = tmp_path / 'temp/owned'
+    for folder in (source, scratch):
+        folder.mkdir(parents=True)
+        (folder / 'garbage.log').write_text('temporary')
+        (folder / 'small.txt').write_text('temporary')
+    report = run / 'result.json'
+    report.write_text('retained result')
+    assert build.cleanup_run(tmp_path, source, scratch, run) == []
+    assert not source.exists() and not scratch.exists()
+    assert report.read_text() == 'retained result'
+
+
+def test_idle_cleanup_removes_small_generated_logs_but_keeps_current_evidence(modules, repo):
+    build, clean = modules
+    state = build.state_dir(repo)
+    old = state / 'runs' / ('a' * 12 + '-20261108T123456000000Z')
+    current = state / 'runs' / ('b' * 12 + '-20261108T123457000000Z')
+    for run in (old, current):
+        (run / 'source').mkdir(parents=True)
+        (run / 'source/tiny.txt').write_text('scratch')
+        (run / 'build.log').write_text('build evidence')
+    build.write_json(state / 'status.json', {'log': str(current / 'build.log')})
+    state.joinpath('launcher-old.log').write_text('obsolete')
+    repo.joinpath('generated.log').write_text('obsolete')
+    repo.joinpath('.env.private.log').write_text('preserve')
+    report = clean.plan(repo, {})
+    clean.apply_plan(report)
+    assert not (old / 'source').exists() and not (old / 'build.log').exists()
+    assert (current / 'build.log').is_file()
+    assert not state.joinpath('launcher-old.log').exists()
+    assert not repo.joinpath('generated.log').exists()
+    assert repo.joinpath('.env.private.log').is_file()

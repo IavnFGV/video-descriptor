@@ -29,6 +29,24 @@ def extract_zip(archive, folder):
             updated = time.monotonic()
 
 
+def stop_owned_processes(folder):
+    """Terminate only executables inside this unique disposable test copy."""
+    import psutil
+    root = folder.resolve()
+    owned = []
+    for process in psutil.process_iter(['exe']):
+        try:
+            if process.info['exe'] and Path(process.info['exe']).resolve().is_relative_to(root):
+                process.terminate()
+                owned.append(process)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    _, remaining = psutil.wait_procs(owned, timeout=10)
+    for process in remaining:
+        process.kill()
+    psutil.wait_procs(remaining, timeout=10)
+
+
 def run(command, **kwargs):
     return subprocess.run([str(x) for x in command], check=True, timeout=300, **kwargs)
 
@@ -94,24 +112,31 @@ def start(folder, port):
                                cwd=folder, env=env, stdout=log, stderr=subprocess.STDOUT,
                                creationflags=0x08000000)
     progress(f'Запущена тестовая копия приложения, PID {process.pid}; ожидаем /health, до 90 с')
-    deadline = time.monotonic() + 90
-    updated = time.monotonic()
-    while time.monotonic() < deadline:
-        try:
-            info = request(port, '/health')
-            assert info['app'] == 'video-descriptor-windows'
-            # Runner TEMP may use RUNNER~1 while app.resolve() expands the same path.
-            assert Path(info['workspace']).samefile(folder / 'windows-app/runtime/workspace')
-            progress('PASS: /health отвечает, приложение использует временную рабочую папку')
-            return process, log, info['instance']
-        except (OSError, ValueError):
-            if process.poll() is not None:
-                raise RuntimeError('Packaged app failed: ' + (folder / 'smoke-process.log').read_text(errors='replace')) from None
-            if time.monotonic() - updated >= 5:
-                progress('Ожидаем готовность тестовой копии: /health ещё не отвечает')
-                updated = time.monotonic()
-            time.sleep(.25)
-    raise TimeoutError('Packaged app did not become ready; see ' + str(folder))
+    try:
+        deadline = time.monotonic() + 90
+        updated = time.monotonic()
+        while time.monotonic() < deadline:
+            try:
+                info = request(port, '/health')
+                assert info['app'] == 'video-descriptor-windows'
+                # Runner TEMP may use RUNNER~1 while app.resolve() expands the same path.
+                assert Path(info['workspace']).samefile(folder / 'windows-app/runtime/workspace')
+                progress('PASS: /health отвечает, приложение использует временную рабочую папку')
+                return process, log, info['instance']
+            except (OSError, ValueError):
+                if process.poll() is not None:
+                    raise RuntimeError('Packaged app failed: ' + (folder / 'smoke-process.log').read_text(errors='replace')) from None
+                if time.monotonic() - updated >= 5:
+                    progress('Ожидаем готовность тестовой копии: /health ещё не отвечает')
+                    updated = time.monotonic()
+                time.sleep(.25)
+        raise TimeoutError('Packaged app did not become ready; see ' + str(folder))
+    except BaseException:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=20)
+        log.close()
+        raise
 
 
 def stop(process, log, port, instance):
@@ -119,6 +144,9 @@ def stop(process, log, port, instance):
         request(port, '/api/native/stop', data=b'', headers={'X-App-Instance': instance})
         assert process.wait(timeout=20) == 0
     finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=20)
         log.close()
 
 
@@ -217,89 +245,99 @@ def main():
     parser.add_argument('--model', type=Path)
     parser.add_argument('--output', type=Path, default=Path('dist/verification-release.json'))
     args = parser.parse_args()
-    test_root = Path(tempfile.mkdtemp(prefix='vd-release-'))
-    print('Test directory:', test_root, flush=True)
-    portable = test_root / 'ZIP тест с пробелом'
-    with zipfile.ZipFile(args.zip) as archive:
-        manifest = json.loads(archive.read('release-manifest.json'))
-        expected = {entry['path'] for entry in manifest['files']} | {'release-manifest.json'}
-        assert set(archive.namelist()) == expected, 'ZIP contains missing or unhashed entries'
-        extract_zip(archive, portable)
-    print('ZIP extracted; verifying files and offline launch', flush=True)
-    progress('Вычисляем SHA256 готового ZIP')
-    with args.zip.open('rb') as source:
-        archive_sha = hashlib.file_digest(source, 'sha256').hexdigest()
-    report = {'zip_sha256': archive_sha, 'zip_files_verified': manifest_check(portable), 'portable': smoke(portable),
-              'clean_vm': False, 'hardware_recognition': False}
-    if args.video and args.model:
-        print('Testing real CPU/GPU recognition with external weights', flush=True)
-        report['hardware_cases'] = hardware_smoke(portable, args.video, args.model)
-        report['hardware_recognition'] = True
-    if args.installer:
-        require_no_registered_install()
-        with args.installer.open('rb') as source:
-            report['installer_sha256'] = hashlib.file_digest(source, 'sha256').hexdigest()
-        print('Testing installer lifecycle', flush=True)
-        installed = test_root / 'Installer тест с пробелом'
-        install_args = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS=', '/NOICONS', '/DIR=' + str(installed)]
-        run([args.installer.resolve(), *install_args])
-        manifest_check(installed)
-        report['installed'] = smoke(installed)
-        # Keep user data/config/settings while replacing tracked payload files.
-        sentinel = installed / 'windows-app/runtime/workspace/data/keep.txt'
-        sentinel.parent.mkdir(parents=True, exist_ok=True)
-        sentinel.write_text('preserve user data', encoding='utf-8')
-        settings = installed / 'windows-app/config.local.json'
-        saved_settings = settings.read_bytes()
-        preserved_setup = {
-            'runtime/models/whisper-fixture/model.bin': b'small fixture; no model download',
-            'runtime/setup-state.json': b'{"completed":true}',
-            'runtime/workspace/.devcontainer/notes-settings.json': b'{"ollama_model":"notes-fixture:9b"}',
-            'runtime/workspace/.devcontainer/compute-settings.json': b'{"speech_device":"CPU"}',
-        }
-        for relative, payload in preserved_setup.items():
-            destination = installed / 'windows-app' / relative
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(payload)
-        port = json.loads(saved_settings)['port']
-        process, log, instance = start(installed, port)
+    with tempfile.TemporaryDirectory(prefix='vd-release-') as temporary:
+        test_root = Path(temporary)
         try:
-            rejected = subprocess.run([str(args.installer.resolve()), *install_args], timeout=300, check=False)
-            assert rejected.returncode != 0, 'Installer overwrote a running installation'
-            assert request(port, '/health')['instance'] == instance
-        finally:
-            stop(process, log, port, instance)
-        run([args.installer.resolve(), *install_args])
-        assert settings.read_bytes() == saved_settings and sentinel.read_text() == 'preserve user data'
-        assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
-        report['reinstall_preserves_data'] = True
-        report['running_upgrade_refused'] = True
-        if args.iscc:
-            # A distinct installer version, same reviewed code: lifecycle fixture, not a release.
-            script = Path(__file__).resolve().parent / 'installer.iss'
-            upgrade_payload = test_root / 'upgrade-payload'
+            print('Test directory:', test_root, flush=True)
+            portable = test_root / 'ZIP тест с пробелом'
             with zipfile.ZipFile(args.zip) as archive:
-                archive.extractall(upgrade_payload)
-            major, minor, patch = map(int, manifest['version'].split('.'))
-            upgrade_version = f'{major}.{minor}.{patch + 1}'
-            run([args.iscc.resolve(), '/Qp', '/DPayload=' + str(upgrade_payload), '/DAppVersion=' + upgrade_version, '/O' + str(test_root), script])
-            upgrade = test_root / f'VideoDescriptor-{upgrade_version}-windows-x64-setup.exe'
-            run([upgrade, *install_args])
-            assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
-            assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
-            report['upgrade_fixture'] = True
-        run([installed / 'unins000.exe', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
-        assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
-        assert not (installed / 'python/python.exe').exists()
-        assert not (installed / 'windows-app/app.py').exists()
-        assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
-        report['uninstall_preserves_data'] = True
-        report['setup_and_model_files_preserved'] = True
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    progress('Проверки завершены; сохраняем отчёт: ' + str(args.output))
-    args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
-    print(json.dumps(report), flush=True)
-    print('Evidence directory:', test_root, flush=True)
+                manifest = json.loads(archive.read('release-manifest.json'))
+                expected = {entry['path'] for entry in manifest['files']} | {'release-manifest.json'}
+                assert set(archive.namelist()) == expected, 'ZIP contains missing or unhashed entries'
+                extract_zip(archive, portable)
+            print('ZIP extracted; verifying files and offline launch', flush=True)
+            progress('Вычисляем SHA256 готового ZIP')
+            with args.zip.open('rb') as source:
+                archive_sha = hashlib.file_digest(source, 'sha256').hexdigest()
+            report = {'zip_sha256': archive_sha, 'zip_files_verified': manifest_check(portable), 'portable': smoke(portable),
+                      'clean_vm': False, 'hardware_recognition': False}
+            if args.video and args.model:
+                print('Testing real CPU/GPU recognition with external weights', flush=True)
+                report['hardware_cases'] = hardware_smoke(portable, args.video, args.model)
+                report['hardware_recognition'] = True
+            if args.installer:
+                require_no_registered_install()
+                with args.installer.open('rb') as source:
+                    report['installer_sha256'] = hashlib.file_digest(source, 'sha256').hexdigest()
+                print('Testing installer lifecycle', flush=True)
+                installed = test_root / 'Installer тест с пробелом'
+                install_args = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS=', '/NOICONS', '/DIR=' + str(installed)]
+                run([args.installer.resolve(), *install_args])
+                manifest_check(installed)
+                report['installed'] = smoke(installed)
+                # Keep user data/config/settings while replacing tracked payload files.
+                sentinel = installed / 'windows-app/runtime/workspace/data/keep.txt'
+                sentinel.parent.mkdir(parents=True, exist_ok=True)
+                sentinel.write_text('preserve user data', encoding='utf-8')
+                settings = installed / 'windows-app/config.local.json'
+                saved_settings = settings.read_bytes()
+                preserved_setup = {
+                    'runtime/models/whisper-fixture/model.bin': b'small fixture; no model download',
+                    'runtime/setup-state.json': b'{"completed":true}',
+                    'runtime/workspace/.devcontainer/notes-settings.json': b'{"ollama_model":"notes-fixture:9b"}',
+                    'runtime/workspace/.devcontainer/compute-settings.json': b'{"speech_device":"CPU"}',
+                }
+                for relative, payload in preserved_setup.items():
+                    destination = installed / 'windows-app' / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(payload)
+                port = json.loads(saved_settings)['port']
+                process, log, instance = start(installed, port)
+                try:
+                    rejected = subprocess.run([str(args.installer.resolve()), *install_args], timeout=300, check=False)
+                    assert rejected.returncode != 0, 'Installer overwrote a running installation'
+                    assert request(port, '/health')['instance'] == instance
+                finally:
+                    stop(process, log, port, instance)
+                run([args.installer.resolve(), *install_args])
+                assert settings.read_bytes() == saved_settings and sentinel.read_text() == 'preserve user data'
+                assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
+                report['reinstall_preserves_data'] = True
+                report['running_upgrade_refused'] = True
+                if args.iscc:
+                    # A distinct installer version, same reviewed code: lifecycle fixture, not a release.
+                    script = Path(__file__).resolve().parent / 'installer.iss'
+                    upgrade_payload = test_root / 'upgrade-payload'
+                    with zipfile.ZipFile(args.zip) as archive:
+                        archive.extractall(upgrade_payload)
+                    major, minor, patch = map(int, manifest['version'].split('.'))
+                    upgrade_version = f'{major}.{minor}.{patch + 1}'
+                    run([args.iscc.resolve(), '/Qp', '/DPayload=' + str(upgrade_payload), '/DAppVersion=' + upgrade_version, '/O' + str(test_root), script])
+                    upgrade = test_root / f'VideoDescriptor-{upgrade_version}-windows-x64-setup.exe'
+                    run([upgrade, *install_args])
+                    assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
+                    assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
+                    report['upgrade_fixture'] = True
+                run([installed / 'unins000.exe', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
+                assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
+                assert not (installed / 'python/python.exe').exists()
+                assert not (installed / 'windows-app/app.py').exists()
+                assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
+                report['uninstall_preserves_data'] = True
+                report['setup_and_model_files_preserved'] = True
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            progress('Проверки завершены; сохраняем отчёт: ' + str(args.output))
+            args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+            print(json.dumps(report), flush=True)
+            progress('Временные распаковки и их журналы удаляются; итоговый отчёт сохранён')
+        finally:
+            uninstaller = test_root / 'Installer тест с пробелом/unins000.exe'
+            try:
+                if uninstaller.is_file():
+                    progress('Убираем регистрацию временной тестовой установки')
+                    run([uninstaller, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
+            finally:
+                stop_owned_processes(test_root)
 
 
 if __name__ == '__main__':

@@ -19,14 +19,16 @@ def main():
     parser.add_argument('--config-only', action='store_true', help='Documentation-only CI: workflow contracts and syntax')
     parser.add_argument('--skip-config', action='store_true', help='CI routing job already checked configuration')
     args = parser.parse_args()
-    os.environ.update(PYTHONUTF8='1', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+    os.environ.update(PYTHONUTF8='1', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
+                      PYTHONDONTWRITEBYTECODE='1')
+    sys.dont_write_bytecode = True
     if not args.unit_only and not args.skip_config:
         run(sys.executable, 'scripts/check-actions.py')
-        run(sys.executable, '-m', 'pytest', '-q', 'tests/test_ci_policy.py')
+        run(sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', 'tests/test_ci_policy.py')
     if args.config_only:
         return
     if not args.unit_only:
-        run(sys.executable, '-m', 'ruff', 'check', 'video_descriptor', 'tests', 'windows-app',
+        run(sys.executable, '-m', 'ruff', 'check', '--no-cache', 'video_descriptor', 'tests', 'windows-app',
             'scripts/check-fast.py', 'scripts/check-actions.py', 'scripts/ci_changes.py',
             'scripts/ci_artifacts.py', 'scripts/check-installer-smoke.py',
             'scripts/smoke_compose.py', 'scripts/whisper_npu_server.py',
@@ -38,7 +40,7 @@ def main():
         for folder in ('windows-app/ui', 'video_descriptor/assets'):
             for path in sorted((ROOT / folder).glob('*.js')):
                 run(node, '--check', str(path))
-    run(sys.executable, '-m', 'pytest', '-q', '--ignore=tests/test_ci_policy.py')
+    run(sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', '--ignore=tests/test_ci_policy.py')
 
 
 if __name__ == '__main__':
