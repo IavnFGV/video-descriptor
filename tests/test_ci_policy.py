@@ -21,6 +21,18 @@ def workflow(name):
     return data
 
 
+def test_ci_uses_cached_python_minor_but_product_runtime_stays_pinned():
+    for path in (ROOT / '.github/workflows').glob('*.yml'):
+        for job in workflow(path.name)['jobs'].values():
+            for step in job.get('steps', []):
+                if step.get('uses', '').startswith('actions/setup-python@'):
+                    assert step['with']['python-version'] == '3.12'
+                    assert step['with']['check-latest'] is False
+    inputs = json.loads((ROOT / 'windows-app/release-inputs.json').read_text())
+    assert '/3.12.10/' in inputs['python']['url']
+    assert len(inputs['python']['sha256']) == 64
+
+
 @pytest.mark.parametrize('paths,expected', [
     (['README.md', 'docs/example.md'], (False, False, False, False)),
     (['video_descriptor/assets/create.css'], (True, True, False, False)),
