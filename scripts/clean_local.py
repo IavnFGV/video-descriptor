@@ -3,12 +3,11 @@ import argparse
 import json
 import os
 import re
-import shutil
 import sys
 import time
 from pathlib import Path
 
-from local_build import build_lock, git, state_dir
+from local_build import build_lock, git, remove_tree, state_dir
 
 PACKAGE = re.compile(r'VideoDescriptor-(\d+\.\d+\.\d+)-windows-x64(?:-setup\.exe|\.zip)$')
 VERSION = re.compile(r'\d+\.\d+\.\d+$')
@@ -118,6 +117,8 @@ def plan(repo, config, keep=3, days=0):
         complete = sorted((p for p in bundles.iterdir() if p.is_dir() and
                            re.fullmatch(r'[0-9a-f]{64}', p.name) and (p / 'cache.json').is_file()),
                           key=lambda p: p.stat().st_mtime_ns, reverse=True)
+        candidates += [(p, bundles, 'incomplete component cache') for p in bundles.iterdir()
+                       if p.is_dir() and re.fullmatch(r'[0-9a-f]{64}', p.name) and not (p / 'cache.json').is_file()]
         retained = set(protected_bundles)
         for directory in complete:
             if len(retained) < 2:
@@ -162,7 +163,7 @@ def apply_plan(report):
             raise ValueError('Cleanup target escaped its boundary')
         safe_size(path)
         if path.is_dir():
-            shutil.rmtree(path)
+            remove_tree(path, Path(entry['boundary']))
         else:
             path.unlink()
 
