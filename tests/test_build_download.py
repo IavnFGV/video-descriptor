@@ -47,6 +47,22 @@ def test_valid_cache_never_downloads(tmp_path, monkeypatch):
     opener.assert_not_called()
 
 
+def test_release_api_fallback_keeps_hash_check_and_binary_accept_header(tmp_path, monkeypatch, no_sleep):
+    opener = Mock(side_effect=[urllib.error.HTTPError('https://fixture', 504, 'Timeout', {}, None), io.BytesIO(PAYLOAD)])
+    monkeypatch.setattr(download.urllib.request, 'urlopen', opener)
+    fallback = 'https://api.github.com/repos/owner/tool/releases/assets/123'
+    download.verified_download('https://fixture', tmp_path / 'archive', SHA, fallback_url=fallback)
+    request = opener.call_args.args[0]
+    assert request.full_url.startswith(fallback + '?download=')
+    assert request.get_header('Accept') == 'application/octet-stream'
+    assert (tmp_path / 'archive').read_bytes() == PAYLOAD
+
+
+def test_fallback_rejects_unofficial_mirror(tmp_path):
+    with pytest.raises(ValueError, match='official GitHub'):
+        download.verified_download('https://fixture', tmp_path / 'archive', SHA, fallback_url='https://mirror.invalid/tool')
+
+
 def test_corrupt_cache_and_truncated_response_are_recovered(tmp_path, monkeypatch, no_sleep):
     target = tmp_path / 'archive'
     target.write_bytes(b'old partial cache')
