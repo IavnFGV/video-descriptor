@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     root = Path(temporary)
     video = root / 'data/meeting.mp4'
     video.parent.mkdir(); video.write_bytes(b'fixture')
-    for name, model in [('original', ''), ('notes-a', 'model-a'), ('notes-b', 'model-b')]:
+    for name, model in [('original', ''), ('notes-a', 'model-a'), ('notes-b', 'model-b'), ('article-a', 'model-a')]:
         folder = root / 'output' / name; folder.mkdir(parents=True)
         rows = [{'id': f's{i}', 'start': i*30, 'end': i*30+30, 'text': f'Реплика {i}. Проверка синхронизации и правок.', 'speaker':'speaker_1'} for i in range(80)]
         write_json(folder / 'manifest.json', {'video': str(video), 'processed_duration': 2400})
@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         write_json(folder / 'translations.json', {'s0':'Сохранённый перевод'})
         write_json(folder / 'frames.json', [])
         if model:
-            write_json(folder / 'construction-settings.json', construction.validate({'model': model}))
+            write_json(folder / 'construction-settings.json', construction.validate({'model': model, 'result_kind': 'article' if name == 'article-a' else 'notes'}))
             write_json(folder / 'notes.json', {'notes': [], 'sections': []})
             render(folder, video, [Source(**{k:v for k,v in row.items() if k!='speaker'}) for row in rows], [])
             (folder / 'notes.user.md').write_text('## [00:00:00] Начало\n\n'+('Описание.\n\n'*45)+'## [00:01:00] Раздел второй\n\n'+('Подробности.\n\n'*45), encoding='utf-8')
@@ -94,6 +94,26 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--independent-versions-only' in sys.argv:
+            original = evaluate('document.querySelector("#recording-speech").value')
+            assert not evaluate('[...document.querySelector("#recording-speech").options].some(item=>item.value==="notes-a")')
+            evaluate("document.querySelector('#recording-article').value='/output/article-a/report.html';document.querySelector('#recording-article').dispatchEvent(new Event('change'))")
+            wait_for(lambda: 'article-a/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            assert evaluate('document.querySelector("#recording-speech").value') == original
+            evaluate("document.querySelector('#recording-notes').value='/output/notes-b/report.html';document.querySelector('#recording-notes').dispatchEvent(new Event('change'))")
+            wait_for(lambda: 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            assert evaluate('document.querySelector("#recording-speech").value') == original
+            evaluate("document.querySelector('#recording-speech').value='original';document.querySelector('#recording-speech').dispatchEvent(new Event('change'))")
+            wait_for(lambda: evaluate('document.querySelector("#recording-speech").value') == 'original')
+            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror").CodeMirror.replaceRange("Draft",{line:0,ch:0})')
+            evaluate("document.querySelector('#recording-notes').value='/output/notes-a/report.html';document.querySelector('#recording-notes').dispatchEvent(new Event('change'))")
+            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            assert evaluate('window.uiErrors') == []
+            c.screenshot(out/'independent-versions.png')
+            print('PASS: independent report/transcript selection and unsaved report guard',flush=True)
+            sys.exit(0)
         if '--notes-menu-only' in sys.argv:
             assert evaluate('document.querySelector("#recording-original-response").closest("#recording-notes-actions")!==null')
             assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("[data-notes-view=model]").checkVisibility()')

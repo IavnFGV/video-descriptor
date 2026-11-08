@@ -121,3 +121,15 @@ def test_native_rerun_pins_device_without_copying_source_or_starting_inference(t
         finally:
             server.shutdown()
             thread.join()
+
+
+def test_internal_report_snapshots_are_identified_without_losing_artifacts(tmp_path):
+    video = tmp_path / 'data' / 'one.mp4'
+    result(tmp_path, 'original', video)
+    folder = result(tmp_path, 'snapshot', video, 'chosen-model')
+    write_json(folder / 'construction-job.json', {'id': 'a' * 32})
+    data = variants(tmp_path, folder='snapshot')
+    visible = [item['folder'] for item in data['speech'] if not item['internal_snapshot']]
+    assert visible == ['original']
+    assert data['reports'][0]['speech_folder'] == 'snapshot'
+    assert (folder / 'speech.json').is_file()
