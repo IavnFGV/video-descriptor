@@ -370,3 +370,33 @@ def test_idle_cleanup_removes_small_generated_logs_but_keeps_current_evidence(mo
     assert not state.joinpath('launcher-old.log').exists()
     assert not repo.joinpath('generated.log').exists()
     assert repo.joinpath('.env.private.log').is_file()
+
+
+def test_cached_full_requests_are_distinct_from_legacy_full_requests(modules, tmp_path, monkeypatch):
+    build, _ = modules
+    state, sha = tmp_path / 'state', 'a' * 40
+    build.write_json(state / 'queue' / (sha + '-domestic.json'), {'commit': sha, 'domestic': True})
+    build.write_json(state / 'queue' / (sha + '-cached.json'), {'commit': sha, 'cached': True})
+    profiles = []
+    monkeypatch.setattr(build, 'run_build', lambda repo, state, config, commit:
+                        profiles.append((config['domestic'], config['cached'])) or True)
+    assert build.drain(tmp_path, state, {})
+    assert set(profiles) == {(True, False), (False, True)}
+
+
+def test_component_cache_cleanup_keeps_current_key_even_if_it_is_old(modules, repo, tmp_path):
+    build, clean = modules
+    cache = tmp_path / 'cache'
+    keys = ['a' * 64, 'b' * 64, 'c' * 64]
+    for index, key in enumerate(keys):
+        folder = cache / 'component-bundles' / key
+        folder.mkdir(parents=True)
+        (folder / 'cache.json').write_text('{}')
+        (folder / 'components.zip').write_bytes(b'fixture')
+        os.utime(folder, (100 + index, 100 + index))
+    build.write_json(build.state_dir(repo) / 'last-success.json', {'component_cache_key': keys[0]})
+    report = clean.plan(repo, {'cache': str(cache)})
+    clean.apply_plan(report)
+    assert (cache / 'component-bundles' / keys[0]).is_dir()
+    assert not (cache / 'component-bundles' / keys[1]).exists()
+    assert (cache / 'component-bundles' / keys[2]).is_dir()

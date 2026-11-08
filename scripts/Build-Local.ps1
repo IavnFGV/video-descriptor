@@ -13,7 +13,7 @@ if ($Status) {
 $sha = & git -C $repo rev-parse --verify --end-of-options "$Ref`^{commit}"
 if ($LASTEXITCODE -ne 0 -or $sha -notmatch '^[0-9a-f]{40,64}$') { throw 'Invalid commit reference' }
 $profileArguments = @()
-if ($Domestic) { $profileArguments += '--domestic' }
+if ($Domestic) { $profileArguments += '--domestic' } else { $profileArguments += '--cached' }
 if ($Background) {
     Start-Process -FilePath $config.python -WindowStyle Hidden -WorkingDirectory $repo -ArgumentList (@(
         '-X', 'utf8', ('"' + $driver + '"'), 'build', '--repo', ('"' + $repo + '"'), '--ref', $sha

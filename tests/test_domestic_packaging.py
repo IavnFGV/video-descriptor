@@ -55,11 +55,12 @@ def test_cpu_wheel_lock_covers_pins_including_local_build_versions(monkeypatch):
     assert all(len(entry['sha256']) == 64 for entry in lock)
 
 
-def test_domestic_hook_selects_profile_without_starting_a_build(tmp_path, monkeypatch):
+def test_hook_uses_default_cached_full_profile_without_starting_a_build(tmp_path, monkeypatch):
     folder = Path(__file__).resolve().parents[1] / 'scripts'
     monkeypatch.syspath_prepend(str(folder))
     import local_build
     monkeypatch.setattr(local_build, 'git', lambda *args: str(tmp_path))
     hook = local_build.install_hook(tmp_path)
-    assert '-Background -Domestic' in hook.read_text()
+    assert '-Background' in hook.read_text()
+    assert '-Domestic' not in hook.read_text()
     assert not (tmp_path / 'queue').exists()
