@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -237,6 +238,26 @@ def build_environment(config, run_name):
     return env
 
 
+def remove_tree(path, boundary):
+    """Delete an owned scratch tree, clearing only disposable read-only attributes."""
+    path, boundary = Path(path), Path(boundary).resolve()
+    target = path.resolve()
+    if target == boundary or not target.is_relative_to(boundary):
+        raise ValueError('Cleanup target escaped its boundary')
+    if path.is_symlink() or (hasattr(path, 'is_junction') and path.is_junction()):
+        raise ValueError('Linked cleanup root refused')
+
+    def retry_readonly(function, name, error):
+        candidate = Path(name)
+        if not isinstance(error, PermissionError) or not candidate.resolve().is_relative_to(target):
+            raise error
+        mode = candidate.stat().st_mode | stat.S_IREAD | stat.S_IWRITE
+        candidate.chmod(mode | stat.S_IEXEC if candidate.is_dir() else mode)
+        function(name)
+
+    shutil.rmtree(path, onexc=retry_readonly)
+
+
 def cleanup_run(repo, source, scratch, run):
     """Remove only the two scratch roots created by this build, after children exit."""
     failures = []
@@ -253,7 +274,7 @@ def cleanup_run(repo, source, scratch, run):
                 subprocess.run(['git', '-C', str(repo), 'worktree', 'remove', '--force', str(source)],
                                check=True, capture_output=True)
             else:
-                shutil.rmtree(target)
+                remove_tree(target, boundary)
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             failures.append(str(error))
     return failures
@@ -391,7 +412,7 @@ def run_build(repo, state, config, sha):
             # Published files live outside the run; partial/duplicate packages are disposable.
             if output.exists() and output.resolve().parent == run.resolve():
                 try:
-                    shutil.rmtree(output)
+                    remove_tree(output, run)
                 except OSError as error:
                     failures.append(str(error))
             if failures:

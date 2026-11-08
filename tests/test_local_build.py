@@ -400,3 +400,36 @@ def test_component_cache_cleanup_keeps_current_key_even_if_it_is_old(modules, re
     assert (cache / 'component-bundles' / keys[0]).is_dir()
     assert not (cache / 'component-bundles' / keys[1]).exists()
     assert (cache / 'component-bundles' / keys[2]).is_dir()
+
+
+def test_owned_scratch_cleanup_removes_readonly_git_objects(modules, tmp_path):
+    import stat
+    build, _ = modules
+    scratch = tmp_path / 'scratch'
+    object_file = scratch / 'repo/.git/objects/ab/fixture'
+    object_file.parent.mkdir(parents=True)
+    object_file.write_bytes(b'git object')
+    object_file.chmod(stat.S_IREAD)
+    build.remove_tree(scratch, tmp_path)
+    assert not scratch.exists()
+
+
+def test_readonly_cleanup_never_escapes_its_boundary(modules, tmp_path):
+    build, _ = modules
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    sentinel = outside / 'keep.txt'
+    sentinel.write_text('preserve')
+    with pytest.raises(ValueError, match='boundary'):
+        build.remove_tree(outside, tmp_path / 'owned')
+    assert sentinel.read_text() == 'preserve'
+
+
+def test_cleanup_removes_incomplete_component_cache(modules, repo, tmp_path):
+    _, clean = modules
+    cache = tmp_path / 'cache'
+    incomplete = cache / 'component-bundles' / ('a' * 64)
+    incomplete.mkdir(parents=True)
+    (incomplete / 'components.zip').write_bytes(b'interrupted build')
+    clean.apply_plan(clean.plan(repo, {'cache': str(cache)}))
+    assert not incomplete.exists()

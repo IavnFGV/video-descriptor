@@ -264,8 +264,11 @@ def test_npu_diarization_rejected_before_start(manager):
 
 def wait_plan(manager):
     for _ in range(300):
-        if manager.plan.get('state') != 'running':
-            return
+        # The worker publishes the file under this lock after updating memory.
+        # A terminal in-memory state alone does not mean the atomic write ended.
+        with manager.manager._lock:
+            if manager.plan.get('state') != 'running':
+                return
         time.sleep(.01)
     raise AssertionError('preparation plan did not finish')
 
