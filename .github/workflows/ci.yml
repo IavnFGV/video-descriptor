@@ -31,7 +31,8 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
       with:
-        python-version: 3.12.10
+        python-version: '3.12'
+        check-latest: false
         cache: pip
         cache-dependency-path: requirements-ci.txt
     - name: Cache pinned actionlint archive
@@ -72,7 +73,8 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
       with:
-        python-version: 3.12.10
+        python-version: '3.12'
+        check-latest: false
         cache: pip
         cache-dependency-path: |-
           ${{ runner.os == 'Windows' && 'windows-app/requirements-lock.txt' || 'requirements-container.lock' }}

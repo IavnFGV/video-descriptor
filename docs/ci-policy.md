@@ -89,7 +89,7 @@ Branch protection менять должен владелец отдельно; �
 - Ollama cache только Full: pinned installer manifest + model name, installer
   SHA256/signature/publisher и model blob integrity проверяет существующий harness.
 - actionlint 1.7.7 имеет фиксированные SHA256 Linux/Windows архивов. Node 24.19.0,
-  Python 3.12.10, pytest/Ruff/PyYAML закреплены. Actions закреплены commit SHA.
+  Python инструментов CI — предустановленный стабильный 3.12.x с check-latest=false; фактический patch виден в журнале setup-python. Python внутри Windows-дистрибутива остаётся закреплённым на 3.12.10. pytest/Ruff/PyYAML закреплены. Actions закреплены commit SHA.
 
 Smoke сохраняет лишь JSON (5 дней); Full сохраняет принятый Docker image 7 дней,
 Windows дистрибутив и отчёты 14 дней,

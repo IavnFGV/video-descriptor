@@ -22,7 +22,8 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
       with:
-        python-version: 3.12.10
+        python-version: '3.12'
+        check-latest: false
         cache: pip
         cache-dependency-path: requirements-ci.txt
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
