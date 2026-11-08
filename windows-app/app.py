@@ -39,7 +39,9 @@ def installation_id():
 
 class NativeHTTPServer(ThreadingHTTPServer):
     request_queue_size = 32  # Concurrent startup checks must not drop loopback connections.
-    allow_reuse_address = False
+    # POSIX needs SO_REUSEADDR to restart while closed connections are in
+    # TIME_WAIT. Windows keeps SO_EXCLUSIVEADDRUSE and must not allow reuse.
+    allow_reuse_address = os.name != 'nt'
 
     def server_bind(self):
         if os.name == 'nt':

@@ -48,6 +48,47 @@ def connection(folder):
                           encoding='utf-8', timeout=40, env={**os.environ, 'PYTHONUTF8': '1'})
 
 
+def test_native_server_keeps_live_listener_exclusive():
+    with desktop.app.NativeHTTPServer(('127.0.0.1', 0), BaseHTTPRequestHandler) as server:
+        if os.name == 'nt':
+            assert server.socket.getsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE) == 1
+            assert not server.allow_reuse_address
+        else:
+            assert server.socket.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) == 1
+        with pytest.raises(OSError):
+            desktop.app.NativeHTTPServer(server.server_address, BaseHTTPRequestHandler)
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX TIME_WAIT restart; Windows keeps exclusive port ownership')
+def test_native_server_rebinds_after_serving_a_closed_connection():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'ready')
+
+        def log_message(self, *args):
+            pass
+
+    server = desktop.app.NativeHTTPServer(('127.0.0.1', 0), Handler)
+    port = server.server_port
+    thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01})
+    thread.start()
+    try:
+        response = requests.get(f'http://127.0.0.1:{port}', timeout=3)
+        assert response.content == b'ready'
+        with pytest.raises(OSError):
+            desktop.app.NativeHTTPServer(('127.0.0.1', port), Handler)
+    finally:
+        server.shutdown()
+        thread.join(timeout=3)
+        server.server_close()
+    # A closed TCP connection may remain in TIME_WAIT, but a live listener must
+    # still prevent a second server from taking ownership of the same address.
+    with desktop.app.NativeHTTPServer(('127.0.0.1', port), Handler):
+        pass
+
+
 def test_desktop_launch_repeat_api_and_active_job_survives(installation):
     folder, base = installation
     first = connection(folder)
