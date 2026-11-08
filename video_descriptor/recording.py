@@ -48,6 +48,8 @@ def variants(root, *, folder='', job=''):
                        'cancelled': current_job.get('cancelled', False),
                        'ready': ready, 'created': created, 'engine': result.get('engine', ''),
                        'task': current_job.get('task', ''),
+                       'internal_snapshot': current_job.get('mode') == 'notes' or current_job.get('task') == 'notes' or
+                       (directory / 'construction-job.json').is_file(),
                        'result_kind': current_job.get('construction', {}).get('result_kind', 'notes'),
                        'source_folder': data.get('version_of')})
         for report in [directory, *sorted(p for p in directory.iterdir() if p.is_dir())]:

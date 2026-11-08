@@ -608,11 +608,11 @@
   let deletionFolder = null, deletionKind = 'version', deletionReport = '';
   function confirmDeletion(kind) {
     if (!lastSnapshot?.folder) return;
-    deletionFolder = lastSnapshot.folder; deletionKind = kind;
-    deletionReport = kind === 'notes' ? window.studioUI.reportVariant() : '';
+    deletionFolder = kind === 'notes' ? (window.studioUI.selectedReport()?.folder || lastSnapshot.folder) : lastSnapshot.folder; deletionKind = kind;
+    deletionReport = kind === 'notes' ? (window.studioUI.selectedReport()?.name ?? window.studioUI.reportVariant()) : '';
     const option = [...$('existing-runs').options].find(item => item.value === deletionFolder);
     $('delete-version-name').textContent = (option?.textContent || lastSnapshot.display_title || lastSnapshot.filename) + ' · ' + deletionFolder + (deletionReport ? ' · ' + deletionReport : '');
-    $('delete-version-heading').textContent = kind === 'notes' ? 'Удалить этот конспект?' : 'Удалить версию целиком?';
+    $('delete-version-heading').textContent = kind === 'notes' ? (window.studioUI.selectedReport()?.result_kind === 'article' ? 'Удалить эту статью?' : 'Удалить этот конспект?') : 'Удалить версию целиком?';
     $('delete-version-description').textContent = kind === 'notes'
       ? 'Будут удалены только выбранный конспект и его ручные правки. Расшифровка, перевод, имена голосов и кадры сохранятся. Отменить удаление нельзя.'
       : 'Будут удалены расшифровка, конспект и сохранённые правки этой версии. Исходный видеофайл и другие версии сохранятся. Отменить удаление нельзя.';
@@ -634,6 +634,10 @@
         body:JSON.stringify({folder:deletionFolder, report:deletionReport})
       });
       $('delete-version-dialog').close();
+      if (deletionKind === 'notes') {
+        window.studioUI.chooseIndependentReport(null);
+        document.dispatchEvent(new CustomEvent('recording-report-deleted'));
+      }
       if (lastSnapshot?.folder === deletionFolder) {
         window.studioUI.resetReport();
         if (deletionKind === 'notes') {

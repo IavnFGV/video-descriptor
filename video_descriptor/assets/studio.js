@@ -3,6 +3,7 @@
   const $ = id => document.getElementById(id);
   let stage = new URLSearchParams(location.search).get('stage') || 'source';
   let snapshot = null, job = null, reportUrl = null, currentFolder = null;
+  let independentReport = null;
   let variant = new URLSearchParams(location.search).get('report') || '';
   $('notes-variant').onchange = () => {
     if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('notes-variant').value = variant; $('report-version-notice').hidden = false; $('report-version-notice').textContent = 'Сохраните правки перед выбором другого варианта.'; return; }
@@ -55,9 +56,9 @@
   function loadReport() {
     const ownReport = snapshot?.report_variants?.find(item => item.name === variant)?.url || snapshot?.report_url || snapshot?.report_variants?.[0]?.url;
     const busy = snapshot?.running || ['queued', 'running'].includes(job?.status);
-    const url = ownReport || (busy ? snapshot?.previous_report_url : null);
+    const url = independentReport?.url || ownReport || (busy ? snapshot?.previous_report_url : null);
     $('report-editor-card').hidden = !url;
-    const previous = !ownReport && Boolean(url);
+    const previous = !independentReport && !ownReport && Boolean(url);
     $('report-version-notice').hidden = !previous;
     if (previous) $('report-version-notice').textContent = 'Показана предыдущая версия. Новая ' + (job?.status === 'queued' ? 'ожидает в очереди.' : 'ещё не готова.');
     if (!url) {
@@ -170,7 +171,7 @@
     $('record-menu').hidden = !snapshot?.folder;
     $('new-notes').hidden = !snapshot?.has_ready_transcript;
     $('new-notes').disabled = Boolean(busy);
-    $('delete-notes').hidden = !snapshot?.has_notes;
+    $('delete-notes').hidden = !(independentReport || snapshot?.has_notes);
     $('delete-notes').disabled = Boolean(busy);
     $('delete-version').disabled = Boolean(busy);
     $('delete-version').title = busy ? 'Дождитесь завершения обработки' : 'Удалить выбранную версию';
@@ -216,6 +217,12 @@
     document.dispatchEvent(new CustomEvent('recording-snapshot', {detail:{snapshot,job}}));
   }
   window.studioUI = {
+    selectedReport: () => independentReport,
+    chooseIndependentReport(report) {
+      independentReport = report; loadReport();
+      $('delete-notes').hidden = !report;
+      $('notes-card').hidden = Boolean(report);
+    },
     chooseReport(name) {
       variant = name; $('notes-variant').value = name;
       const params = new URLSearchParams(location.search);
@@ -226,7 +233,7 @@
     select(value) {
       snapshot = null; job = value?.job ? {status:'queued'} : null;
       $('shared-player').hidden = true;
-      $('report-editor-card').hidden = true;
+      $('report-editor-card').hidden = !independentReport;
       $('diagnostics').hidden = true;
       update();
     },
