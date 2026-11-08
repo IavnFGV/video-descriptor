@@ -139,3 +139,7 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace #report-editor{resize:vertical;overflow:auto}
 
 #construction-article{margin-top:var(--vd-space-2)}
+
+.construction-recovery{width:min(var(--vd-editor-width),calc(100% - 32px))}
+.construction-recovery textarea{width:100%;box-sizing:border-box;font-family:var(--vd-font-mono,monospace)}
+.construction-recovery select{width:100%;min-width:0}

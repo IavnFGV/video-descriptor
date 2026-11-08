@@ -49,7 +49,7 @@ def delete_version(root, name):
 NOTE_FILES = {
     'report.html', 'notes.json', 'notes-live.json', 'notes.md', 'notes.user.md',
     'editor-default.md', 'chapters.json', 'construction-result.md',
-    'construction-plan.json', 'analysis-errors.json',
+    'construction-plan.json', 'analysis-errors.json', 'construction-manual.json',
 }
 
 

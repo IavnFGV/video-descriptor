@@ -1,5 +1,8 @@
 # Windows: фактическая архитектура и решение
 
+08.11.2026: POST `/api/construction-recovery` открывает сохранённый Markdown ошибочного notes job с revision и началами реплик. Сохранение проверяет parsed_notes, source revision и отсутствие активных задач, записывает отдельный construction-manual.json и возвращает то же задание в очередь. Construction worker принимает проверенный ручной ответ до проверки AI-провайдера и собирает отчёт без генерации; последующий перевод, если был заказан, остаётся отдельным этапом. Оригинальный construction-result.md не изменяется.
+
+
 08.11.2026: профиль упаковки `--domestic` не меняет runtime-контракты приложения.
 Builder добавляет только проверенные модельные файлы, isolated embedded CPython с CPU
 pyannote wheels и WebView2 CAB. Inno Setup вызывает отдельный `domestic_setup.py`,

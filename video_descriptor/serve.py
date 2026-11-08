@@ -231,6 +231,24 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                 self.rfile.read(length)
             return self.json_response(403, {"error": "Сохранение доступно из страницы отчёта"})
         path = urlsplit(self.path).path
+        if path == '/api/construction-recovery':
+            try:
+                from .construction_recovery import recover
+                length = int(self.headers.get('Content-Length', '0'))
+                if self.headers.get_content_type() != 'application/json' or not 0 < length <= 2_000_000:
+                    raise ValueError('Недопустимый размер запроса')
+                value = json.loads(self.rfile.read(length))
+                if not isinstance(value, dict):
+                    raise TypeError('Ожидается конспект')
+                root = Path(self.directory).resolve()
+                result = recover(root, value)
+                if 'job' in result:
+                    start_worker(root)
+                return self.json_response(200, result)
+            except EditConflict as exc:
+                return self.json_response(409, {'error': str(exc)})
+            except (ValueError, OSError, TypeError, KeyError) as exc:
+                return self.json_response(400, {'error': str(exc)})
         if path in ('/api/delete-version', '/api/delete-notes'):
             try:
                 from .versions import delete_notes, delete_version
