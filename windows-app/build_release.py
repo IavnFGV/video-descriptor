@@ -150,31 +150,32 @@ def stage_vcrt(inputs, cache, destination):
         raise ValueError('Building the app-local VC runtime requires an existing .NET 8+ runtime')
     runtime = download(inputs['vcrt'], cache)
     wix_package = download(inputs['vcrt_extractor'], cache)
-    work = Path(tempfile.mkdtemp(prefix='vcrt-', dir=cache))
-    wix = work / 'wix'
-    with zipfile.ZipFile(wix_package) as archive:
-        for member in archive.infolist():
-            safe_member(member.filename)
-        archive.extractall(wix)
-    # WiX 6 targets net6.0; allow the installed build-machine .NET 8+ runtime.
-    env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
-    subprocess.run([dotnet, str(wix / 'tools/net6.0/any/wix.dll'), 'burn', 'extract',
-                    str(runtime.resolve()), '-o', str((work / 'bundle').resolve()),
-                    '-oba', str((work / 'bootstrapper').resolve())], check=True, env=env)
-    extracted = work / 'crt'
-    extracted.mkdir()
-    expand_cabinet(work / 'bundle' / inputs['vcrt']['cabinet'], extracted)
-    for item in inputs['vcrt']['files']:
-        name = item['name']
-        safe_member(name)
-        source = extracted / (name + '_amd64')
-        if sha256(source) != item['sha256']:
-            raise ValueError('VC runtime checksum mismatch: ' + name)
-        shutil.copyfile(source, destination / name)
-    license_file = work / 'bootstrapper/license.rtf'
-    if sha256(license_file) != inputs['vcrt']['license_sha256']:
-        raise ValueError('VC runtime license checksum mismatch')
-    shutil.copyfile(license_file, destination / 'Microsoft-Visual-Cpp-LICENSE.rtf')
+    with tempfile.TemporaryDirectory(prefix='vcrt-', dir=cache) as temporary:
+        work = Path(temporary)
+        wix = work / 'wix'
+        with zipfile.ZipFile(wix_package) as archive:
+            for member in archive.infolist():
+                safe_member(member.filename)
+            archive.extractall(wix)
+        # WiX 6 targets net6.0; allow the installed build-machine .NET 8+ runtime.
+        env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
+        subprocess.run([dotnet, str(wix / 'tools/net6.0/any/wix.dll'), 'burn', 'extract',
+                        str(runtime.resolve()), '-o', str((work / 'bundle').resolve()),
+                        '-oba', str((work / 'bootstrapper').resolve())], check=True, env=env)
+        extracted = work / 'crt'
+        extracted.mkdir()
+        expand_cabinet(work / 'bundle' / inputs['vcrt']['cabinet'], extracted)
+        for item in inputs['vcrt']['files']:
+            name = item['name']
+            safe_member(name)
+            source = extracted / (name + '_amd64')
+            if sha256(source) != item['sha256']:
+                raise ValueError('VC runtime checksum mismatch: ' + name)
+            shutil.copyfile(source, destination / name)
+        license_file = work / 'bootstrapper/license.rtf'
+        if sha256(license_file) != inputs['vcrt']['license_sha256']:
+            raise ValueError('VC runtime license checksum mismatch')
+        shutil.copyfile(license_file, destination / 'Microsoft-Visual-Cpp-LICENSE.rtf')
 
 
 def main():
@@ -217,60 +218,61 @@ def main():
         raise ValueError('Wheel hash lock and requirements do not match')
     # A new directory per build: never recursively erase a computed user path.
     import tempfile
-    folder = Path(tempfile.mkdtemp(prefix='payload-', dir=args.cache))
-    cached_files = {}
-    for path in source_paths():
-        target = folder / path.relative_to(ROOT)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(path, target)
-    shutil.copyfile(lock_file, folder / 'windows-app/release-wheels.json')
-    python_dir = folder / 'python'
-    python_dir.mkdir()
-    with zipfile.ZipFile(python_zip) as archive:
-        for member in archive.infolist():
-            safe_member(member.filename)
-        archive.extractall(python_dir)
-    unpack_wheels(wheels, python_dir / 'Lib/site-packages', cached_files)
-    stage_vcrt(inputs, args.cache, python_dir)
-    sdk = HERE / 'runtime/desktop-sdk'
-    if not (sdk / 'VideoDescriptor.exe').is_file():
-        raise ValueError('Run windows-app/Prepare-Desktop.ps1 before building the desktop preview')
-    desktop_build = json.loads((sdk / 'desktop-build.json').read_text())
-    if (desktop_build['source_sha256'] != sha256(HERE / 'DesktopHost.cs')
-            or desktop_build['sdk_sha256'] != inputs['webview2']['sha256']):
-        raise ValueError('Desktop build is stale; run windows-app/Prepare-Desktop.ps1')
-    shutil.copytree(sdk, folder / 'windows-app/desktop-sdk')
-    (python_dir / 'python312._pth').write_text('python312.zip\n.\nLib/site-packages\n..\n../windows-app\nimport site\n', encoding='ascii')
-    # Keep packaged subprocesses on this runtime; ignore system PYTHONPATH/registry.
-    (folder / 'Open Video Descriptor.cmd').write_text('@echo off\r\ncall "%~dp0windows-app\\Open-App.cmd"\r\n', encoding='ascii')
-    domestic = None
-    if args.domestic:
-        from domestic_bundle import stage
-        domestic = stage(folder, args.domestic_inputs, python_zip, cached_files)
-    print('Recording payload manifest', flush=True)
-    entries = [{'path': p.relative_to(folder).as_posix(),
-                'bytes': cached_files[p]['bytes'] if p in cached_files else p.stat().st_size,
-                'sha256': cached_files[p]['sha256'] if p in cached_files else sha256(p)}
-               for p in sorted(folder.rglob('*')) if p.is_file()]
-    manifest = {'version': inputs['version'], 'architecture': 'windows-x64', 'whisper_weights_included': args.domestic,
-                'profile': 'domestic' if args.domestic else 'standard', 'domestic': domestic,
-                'vad_asset_in_faster_whisper': True,
-                'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
-                'wheels': lock, 'files': entries}
-    (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-    output = args.output / f'VideoDescriptor-{inputs["version"]}-windows-x64.zip'
-    print('Writing reproducible ZIP', flush=True)
-    deterministic_zip(folder, output, cached_files)
-    print('ZIP:', output, 'SHA256:', sha256(output), flush=True)
-    if args.iscc:
-        print('Building Windows installer (Inno Setup)', flush=True)
-        subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
-                        *(['/DDomestic=1'] if args.domestic else []),
-                        f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
-    artifacts = [{'file': p.name, 'bytes': p.stat().st_size, 'sha256': sha256(p)}
-                 for p in sorted(args.output.glob(f'VideoDescriptor-{inputs["version"]}-windows-x64*'))]
-    (args.output / 'SHA256SUMS.json').write_text(json.dumps(artifacts, indent=2) + '\n', encoding='utf-8')
-    print('Payload:', folder, flush=True)
+    with tempfile.TemporaryDirectory(prefix='payload-', dir=args.cache) as temporary:
+        folder = Path(temporary)
+        cached_files = {}
+        for path in source_paths():
+            target = folder / path.relative_to(ROOT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, target)
+        shutil.copyfile(lock_file, folder / 'windows-app/release-wheels.json')
+        python_dir = folder / 'python'
+        python_dir.mkdir()
+        with zipfile.ZipFile(python_zip) as archive:
+            for member in archive.infolist():
+                safe_member(member.filename)
+            archive.extractall(python_dir)
+        unpack_wheels(wheels, python_dir / 'Lib/site-packages', cached_files)
+        stage_vcrt(inputs, args.cache, python_dir)
+        sdk = HERE / 'runtime/desktop-sdk'
+        if not (sdk / 'VideoDescriptor.exe').is_file():
+            raise ValueError('Run windows-app/Prepare-Desktop.ps1 before building the desktop preview')
+        desktop_build = json.loads((sdk / 'desktop-build.json').read_text())
+        if (desktop_build['source_sha256'] != sha256(HERE / 'DesktopHost.cs')
+                or desktop_build['sdk_sha256'] != inputs['webview2']['sha256']):
+            raise ValueError('Desktop build is stale; run windows-app/Prepare-Desktop.ps1')
+        shutil.copytree(sdk, folder / 'windows-app/desktop-sdk')
+        (python_dir / 'python312._pth').write_text('python312.zip\n.\nLib/site-packages\n..\n../windows-app\nimport site\n', encoding='ascii')
+        # Keep packaged subprocesses on this runtime; ignore system PYTHONPATH/registry.
+        (folder / 'Open Video Descriptor.cmd').write_text('@echo off\r\ncall "%~dp0windows-app\\Open-App.cmd"\r\n', encoding='ascii')
+        domestic = None
+        if args.domestic:
+            from domestic_bundle import stage
+            domestic = stage(folder, args.domestic_inputs, python_zip, cached_files)
+        print('Recording payload manifest', flush=True)
+        entries = [{'path': p.relative_to(folder).as_posix(),
+                    'bytes': cached_files[p]['bytes'] if p in cached_files else p.stat().st_size,
+                    'sha256': cached_files[p]['sha256'] if p in cached_files else sha256(p)}
+                   for p in sorted(folder.rglob('*')) if p.is_file()]
+        manifest = {'version': inputs['version'], 'architecture': 'windows-x64', 'whisper_weights_included': args.domestic,
+                    'profile': 'domestic' if args.domestic else 'standard', 'domestic': domestic,
+                    'vad_asset_in_faster_whisper': True,
+                    'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
+                    'wheels': lock, 'files': entries}
+        (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+        output = args.output / f'VideoDescriptor-{inputs["version"]}-windows-x64.zip'
+        print('Writing reproducible ZIP', flush=True)
+        deterministic_zip(folder, output, cached_files)
+        print('ZIP:', output, 'SHA256:', sha256(output), flush=True)
+        if args.iscc:
+            print('Building Windows installer (Inno Setup)', flush=True)
+            subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
+                            *(['/DDomestic=1'] if args.domestic else []),
+                            f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
+        artifacts = [{'file': p.name, 'bytes': p.stat().st_size, 'sha256': sha256(p)}
+                     for p in sorted(args.output.glob(f'VideoDescriptor-{inputs["version"]}-windows-x64*'))]
+        (args.output / 'SHA256SUMS.json').write_text(json.dumps(artifacts, indent=2) + '\n', encoding='utf-8')
+        print('Packaging complete; temporary payload is being removed', flush=True)
 
 
 if __name__ == '__main__':

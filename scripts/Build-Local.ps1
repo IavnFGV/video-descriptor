@@ -15,10 +15,9 @@ if ($LASTEXITCODE -ne 0 -or $sha -notmatch '^[0-9a-f]{40,64}$') { throw 'Invalid
 $profileArguments = @()
 if ($Domestic) { $profileArguments += '--domestic' }
 if ($Background) {
-    $launchId = [guid]::NewGuid().ToString('N')
     Start-Process -FilePath $config.python -WindowStyle Hidden -WorkingDirectory $repo -ArgumentList (@(
         '-X', 'utf8', ('"' + $driver + '"'), 'build', '--repo', ('"' + $repo + '"'), '--ref', $sha
-    ) + $profileArguments) -RedirectStandardOutput (Join-Path $state "launcher-$launchId.log") -RedirectStandardError (Join-Path $state "launcher-$launchId.error.log") | Out-Null
+    ) + $profileArguments) | Out-Null
     Write-Output "Local build queued: $sha. Status: scripts/Build-Local.ps1 -Status"
 } else {
     & $config.python -X utf8 $driver build --repo $repo --ref $sha @profileArguments

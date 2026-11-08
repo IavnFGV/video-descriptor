@@ -84,7 +84,7 @@ def update_status(state, config, record, *, render_only=False):
 body{{font:var(--vd-body)/1.5 var(--vd-font);color:var(--vd-text);background:var(--vd-canvas);margin:var(--vd-space-6)}}
 main{{max-width:var(--vd-reading-width);margin:auto;background:var(--vd-surface);padding:var(--vd-space-6);border:1px solid var(--vd-border);border-radius:var(--vd-radius-card)}}
 pre{{white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--vd-caption);max-height:24em;overflow:auto;background:var(--vd-subtle);padding:var(--vd-space-4)}}p,section{{overflow-wrap:anywhere}}section{{margin-top:var(--vd-space-6)}}</style><main>
-<h1>Локальная сборка</h1><h2>{heading}</h2><p>{html.escape(labels.get(record.get('stage'), record.get('stage', '')))}</p>
+<h1>Локальная сборка {html.escape(record.get("version", ""))}</h1><h2>{heading}</h2><p>{html.escape(labels.get(record.get('stage'), record.get('stage', '')))}</p>
 {details_html}{error}<p>{log}</p>{downloads}<details><summary>Технические сведения</summary>
 <p>Коммит: {html.escape(record.get('commit', ''))}</p><p>Начало (UTC): {html.escape(record.get('started', ''))}</p>
 </details><p>Страница обновляется автоматически каждые 3 секунды. Сборка не устанавливает приложение.</p></main></html>'''
@@ -227,8 +227,31 @@ def build_environment(config, run_name):
     scratch.mkdir(parents=True, exist_ok=True)
     env = {key: value for key, value in os.environ.items() if key not in {'PYTHONHOME', 'PYTHONPATH'}}
     env.update(TEMP=str(scratch.resolve()), TMP=str(scratch.resolve()), TMPDIR=str(scratch.resolve()),
-               PYTHONUTF8='1', PYTHONIOENCODING='utf-8', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+               PYTHONUTF8='1', PYTHONIOENCODING='utf-8', PYTHONDONTWRITEBYTECODE='1',
+               HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
     return env
+
+
+def cleanup_run(repo, source, scratch, run):
+    """Remove only the two scratch roots created by this build, after children exit."""
+    failures = []
+    for target, boundary in ((source, run), (scratch, scratch.parent)):
+        if not target.exists():
+            continue
+        try:
+            resolved = target.resolve()
+            if resolved == boundary.resolve() or not resolved.is_relative_to(boundary.resolve()):
+                raise ValueError('Cleanup boundary mismatch: ' + str(target))
+            if target.is_symlink() or (hasattr(target, 'is_junction') and target.is_junction()):
+                raise ValueError('Linked scratch root refused: ' + str(target))
+            if target == source and (source / '.git').is_file():
+                subprocess.run(['git', '-C', str(repo), 'worktree', 'remove', '--force', str(source)],
+                               check=True, capture_output=True)
+            else:
+                shutil.rmtree(target)
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            failures.append(str(error))
+    return failures
 
 
 def run_build(repo, state, config, sha):
@@ -287,6 +310,7 @@ def run_build(repo, state, config, sha):
             sdk = Path(config['desktop_sdk'])
             metadata = sdk / 'desktop-build.json'
             inputs = json.loads((source / 'windows-app/release-inputs.json').read_text(encoding='utf-8'))
+            status['version'] = inputs['version']
             if (metadata.exists() and json.loads(metadata.read_text()) == {
                     'source_sha256': digest(source / 'windows-app/DesktopHost.cs'),
                     'sdk_sha256': inputs['webview2']['sha256']}):
@@ -327,6 +351,19 @@ def run_build(repo, state, config, sha):
         except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
             status.update(state='failed', finished=now(), error=str(error))
             log.write(f'\nFAILED: {error}\n')
+        finally:
+            failures = cleanup_run(repo, source, Path(env['TEMP']), run)
+            # Published files live outside the run; partial/duplicate packages are disposable.
+            if output.exists() and output.resolve().parent == run.resolve():
+                try:
+                    shutil.rmtree(output)
+                except OSError as error:
+                    failures.append(str(error))
+            if failures:
+                status['cleanup_errors'] = failures
+                log.write('\nCleanup warning: ' + '; '.join(failures) + '\n')
+            else:
+                status['temporary_files_removed'] = True
         write_json(result_file, status)
         update_status(state, config, status)
     print(json.dumps(status, ensure_ascii=False), flush=True)
@@ -422,7 +459,18 @@ def main():
     sha = git(repo, 'rev-parse', '--verify', '--end-of-options', args.ref + '^{commit}')
     write_json(state / 'queue' / (sha + ('-domestic' if args.domestic else '') + '.json'),
                {'commit': sha, 'requested': now(), 'domestic': args.domestic})
-    return 0 if drain(repo, state, config) else 1
+    success = drain(repo, state, config)
+    # Once the queue is idle, purge known generated leftovers under the same OS lock.
+    with build_lock(state) as acquired:
+        if acquired:
+            from clean_local import apply_plan, plan, refuse_active_builds
+            try:
+                refuse_active_builds()
+                apply_plan(plan(repo, config))
+                git(repo, 'worktree', 'prune')
+            except (OSError, ValueError, RuntimeError) as error:
+                print('Cleanup postponed:', error, file=sys.stderr)
+    return 0 if success else 1
 
 
 if __name__ == '__main__':

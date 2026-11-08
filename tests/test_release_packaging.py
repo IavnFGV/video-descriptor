@@ -244,3 +244,39 @@ def test_zip_verification_reports_real_file_counts_and_hash_completion(tmp_path,
     with pytest.raises(AssertionError):
         module.manifest_check(folder)
     assert 'SHA256 совпадает' not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('failure', [False, True])
+def test_release_verifier_cleans_all_scratch_and_logs_on_success_or_failure(tmp_path, monkeypatch, failure):
+    import hashlib
+    import json
+    path = Path(__file__).resolve().parents[1] / 'windows-app/verify_release.py'
+    spec = importlib.util.spec_from_file_location('verify_cleanup', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    payload = b'fixture'
+    archive_path = tmp_path / 'package.zip'
+    manifest = {'files': [{'path': 'file.txt', 'sha256': hashlib.sha256(payload).hexdigest()}]}
+    with zipfile.ZipFile(archive_path, 'w') as archive:
+        archive.writestr('release-manifest.json', json.dumps(manifest))
+        archive.writestr('file.txt', payload)
+    report = tmp_path / 'result.json'
+    monkeypatch.setattr(module.tempfile, 'tempdir', str(tmp_path))
+    import sys
+    monkeypatch.setattr(sys, 'argv', [str(path), str(archive_path), '--output', str(report)])
+
+    def smoke(folder):
+        (folder / 'temporary.log').write_text('temporary diagnostic')
+        if failure:
+            raise RuntimeError('fixture failure')
+        return {'loopback_ui': True}
+
+    monkeypatch.setattr(module, 'smoke', smoke)
+    if failure:
+        with pytest.raises(RuntimeError, match='fixture failure'):
+            module.main()
+    else:
+        module.main()
+        assert json.loads(report.read_text())['portable']['loopback_ui']
+    assert not list(tmp_path.glob('vd-release-*'))
+    assert archive_path.exists()

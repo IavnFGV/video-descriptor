@@ -170,3 +170,5 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 07.11.2026: по просьбе владельца «Материал модели» убран из основной панели встроенного редактора. «Оригинальный ответ модели» находится в «Действия с конспектом» рядом с удалением; основные режимы — чтение и редактирование. Используется прежний переключатель model внутри iframe, без перезагрузки и потери несохранённых правок. Standalone отчёт сохраняет прямой доступ под новым названием.
 
 08.11.2026: verify_release.py adds flushed progress reporting only; extraction retains the exact ZIP manifest check, SHA256 assertions and isolated smoke lifecycle. Hardware and installer tests remain explicit opt-ins. Original UI baseline is unchanged; file-specific review recorded in migrations/main.json.
+
+08.11.2026: owner-requested self-cleaning build/verification scratch, success and failure. Temporary nested logs are disposable; final JSON and published packages remain outside scratch. Release version 0.8.28; no UI handler or API change.

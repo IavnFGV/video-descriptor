@@ -642,3 +642,5 @@ Advanced settings can save `ai_components_directory` for the next process start 
 
 
 08.11.2026: исправлен Linux CI: быстрый перезапуск backend после переноса хранилища больше не падает с Address already in use из-за TCP TIME_WAIT. SO_REUSEADDR включён только на POSIX; Windows сохраняет SO_EXCLUSIVEADDRUSE и запрет повторного bind. Регрессия воспроизведена в изолированной Ubuntu, проверены перезапуск и отказ второго живого listener.
+
+08.11.2026: build/verification scratch owns temporary directories through TemporaryDirectory/final cleanup. Local build removes its own detached worktree and TEMP root after child completion, including failure; published artifacts and compact result evidence live outside these roots. Launcher output is not duplicated into separate files.
