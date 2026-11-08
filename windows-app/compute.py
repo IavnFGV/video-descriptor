@@ -30,9 +30,13 @@ class ComputeManager:
         for device, port in [('NPU', 8766), ('GPU', 8768), ('CPU', 8767)]:
             url = value.get(device.lower() + '_url', f'http://127.0.0.1:{port}')
             port = urlsplit(url).port or 80
-            external_npu = (device == 'NPU' and npu_python.is_file()
-                            and (worker / 'whisper_npu_server.py').is_file()
-                            and model.resolve() == original_model.resolve())
+            try:
+                # A bundled/custom model cannot use the legacy benchmark worker.
+                # Do not traverse its optional venv (which Windows may block).
+                external_npu = (device == 'NPU' and model.resolve() == original_model.resolve()
+                                and npu_python.is_file() and (worker / 'whisper_npu_server.py').is_file())
+            except OSError:
+                external_npu = False
             script = worker / 'whisper_npu_server.py' if external_npu else self.here / 'whisper_worker.py'
             args = ['--model-name', 'small', '--bind', '127.0.0.1'] if external_npu else ['--device', device]
             self.backends[device] = {'device': device,

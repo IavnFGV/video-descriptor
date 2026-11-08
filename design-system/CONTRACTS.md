@@ -172,3 +172,5 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 08.11.2026: verify_release.py adds flushed progress reporting only; extraction retains the exact ZIP manifest check, SHA256 assertions and isolated smoke lifecycle. Hardware and installer tests remain explicit opt-ins. Original UI baseline is unchanged; file-specific review recorded in migrations/main.json.
 
 08.11.2026: owner-requested self-cleaning build/verification scratch, success and failure. Temporary nested logs are disposable; final JSON and published packages remain outside scratch. Release version 0.8.28; no UI handler or API change.
+
+08.11.2026: owner clarified full installer with cached unchanged work, not an update-only installer. CachedComponents installer branch preserves original application AppId, process identity/consent guard and settings; complete offline component archive is native-extracted only when needed. Existing noncached branch remains supported. Status labels identify cached full profile; original UI handler/API baseline retained.

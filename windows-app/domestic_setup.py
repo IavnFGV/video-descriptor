@@ -49,7 +49,9 @@ def main():
     existing = json.loads(local.read_text(encoding='utf-8')) if local.exists() else {}
     marker = HERE / 'runtime/domestic-setup.json'
     previous = json.loads(marker.read_text()) if marker.exists() else {}
-    if previous.get('version') == manifest['version'] and previous.get('root') == str(ROOT) and existing:
+    same_validation = bool(manifest.get('component_validation_key')) and previous.get('validation_key') == manifest['component_validation_key']
+    same_version = not manifest.get('component_validation_key') and previous.get('version') == manifest['version']
+    if (same_version or same_validation) and previous.get('root') == str(ROOT) and existing:
         progress('PASS: подготовка этой версии уже выполнена, повторный запуск не меняет настройки')
         return
     progress('Проверяем SHA256 встроенных моделей и runtime')
@@ -115,7 +117,8 @@ def main():
     if speech_checked and diarization_checked:
         setup.complete()
     write_json(marker, {'version': manifest['version'], 'root': str(ROOT), 'profile': 'domestic',
-                        'speech_checked': speech_checked, 'diarization_checked': diarization_checked})
+                        'speech_checked': speech_checked, 'diarization_checked': diarization_checked,
+                        'validation_key': manifest.get('component_validation_key')})
 
 
 if __name__ == '__main__':
