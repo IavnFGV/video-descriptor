@@ -59,7 +59,8 @@ def main():
     settings = defaults(HERE, existing)
     runtime = HERE / 'webview2-runtime'
     if not (runtime / 'msedgewebview2.exe').is_file():
-        subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        powershell = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+        subprocess.run([str(powershell), '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
                         '-File', str(HERE / 'Ensure-WebView2.ps1'), '-Mode', 'Install',
                         '-LoaderPath', str(HERE / 'desktop-sdk/WebView2Loader.dll'),
                         '-InstallerPath', str(HERE / 'domestic/WebView2Runtime.x64.cab'),
