@@ -8,10 +8,10 @@ from pathlib import Path
 
 def classify(paths):
     code = [p for p in paths if not (p.endswith('.md') or p.startswith(('docs/', 'design-system/evidence/')) or p in ('.gitignore', 'LICENSE'))]
-    infrastructure = any(p in ('.github/workflows/windows-smoke.yml', 'scripts/check-installer-smoke.py') for p in code)
+    infrastructure = any(p in ('.github/workflows/windows-smoke.yml', 'scripts/check-installer-smoke.py', 'scripts/download_build_file.py') for p in code)
     windows = infrastructure or any(p.startswith(('windows-app/', 'video_descriptor/', 'design-system/'))
         or p in ('pyproject.toml',) for p in code)
-    installer = any(p.startswith(('windows-app/installer', 'windows-app/Prepare-', 'windows-app/build_release',
+    installer = 'scripts/download_build_file.py' in code or any(p.startswith(('windows-app/installer', 'windows-app/Prepare-', 'windows-app/build_release',
         'windows-app/release', 'windows-app/requirements', 'windows-app/component-manifest')) for p in code)
     container = any((p.startswith('video_descriptor/') and p.endswith('.py'))
         or p.startswith(('video_descriptor/prompts/', 'docker/', 'scripts/smoke_compose'))
