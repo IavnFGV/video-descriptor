@@ -128,6 +128,15 @@ def test_status_publish_retries_transient_windows_file_lock(modules, tmp_path, m
     assert json.loads((tmp_path / 'status.json').read_text()) == {'state': 'ready'}
 
 
+def test_domestic_build_keeps_existing_dashboard_location(modules, tmp_path):
+    build, _ = modules
+    output = tmp_path / 'local'
+    build.update_status(tmp_path / 'state', {'output': str(output / 'domestic'), 'status_output': str(output)},
+                        {'state': 'running', 'stage': 'build'})
+    assert (output / 'build-status.html').is_file()
+    assert not (output / 'domestic/build-status.html').exists()
+
+
 def test_ready_downloads_are_published_under_version(modules, tmp_path):
     build, _ = modules
     staging = tmp_path / 'internal/artifacts'

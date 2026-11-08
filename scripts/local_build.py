@@ -77,7 +77,7 @@ p,section{{overflow-wrap:anywhere}}section{{margin-top:var(--vd-space-6)}}</styl
 {error}<p>{log}</p>{downloads}<details><summary>Технические сведения</summary>
 <p>Коммит: {html.escape(record.get('commit', ''))}</p><p>Начало (UTC): {html.escape(record.get('started', ''))}</p>
 </details><p>Страница обновляется автоматически каждые 3 секунды. Сборка не устанавливает приложение.</p></main></html>'''
-    atomic_text(Path(config['output']) / 'build-status.html', page)
+    atomic_text(Path(config.get('status_output', config['output'])) / 'build-status.html', page)
 
 
 @contextlib.contextmanager
@@ -153,7 +153,7 @@ def publish_ready(record, base):
 def run_build(repo, state, config, sha):
     domestic = config.get('domestic', False)
     if domestic:
-        config = {**config, 'output': str(Path(config['output']) / 'domestic')}
+        config = {**config, 'status_output': config['output'], 'output': str(Path(config['output']) / 'domestic')}
     result_file = state / 'results' / (sha + ('-domestic' if domestic else '') + '.json')
     if result_file.exists():
         previous = json.loads(result_file.read_text(encoding='utf-8'))
