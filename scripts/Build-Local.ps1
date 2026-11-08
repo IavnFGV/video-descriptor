@@ -1,4 +1,4 @@
-param([switch]$Background, [switch]$Status, [string]$Ref = 'HEAD')
+param([switch]$Background, [switch]$Status, [switch]$Domestic, [string]$Ref = 'HEAD')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $common = & git -C $repo rev-parse --path-format=absolute --git-common-dir
@@ -12,13 +12,15 @@ if ($Status) {
 }
 $sha = & git -C $repo rev-parse --verify --end-of-options "$Ref`^{commit}"
 if ($LASTEXITCODE -ne 0 -or $sha -notmatch '^[0-9a-f]{40,64}$') { throw 'Invalid commit reference' }
+$profileArguments = @()
+if ($Domestic) { $profileArguments += '--domestic' }
 if ($Background) {
     $launchId = [guid]::NewGuid().ToString('N')
-    Start-Process -FilePath $config.python -WindowStyle Hidden -WorkingDirectory $repo -ArgumentList @(
+    Start-Process -FilePath $config.python -WindowStyle Hidden -WorkingDirectory $repo -ArgumentList (@(
         '-X', 'utf8', ('"' + $driver + '"'), 'build', '--repo', ('"' + $repo + '"'), '--ref', $sha
-    ) -RedirectStandardOutput (Join-Path $state "launcher-$launchId.log") -RedirectStandardError (Join-Path $state "launcher-$launchId.error.log") | Out-Null
+    ) + $profileArguments) -RedirectStandardOutput (Join-Path $state "launcher-$launchId.log") -RedirectStandardError (Join-Path $state "launcher-$launchId.error.log") | Out-Null
     Write-Output "Local build queued: $sha. Status: scripts/Build-Local.ps1 -Status"
 } else {
-    & $config.python -X utf8 $driver build --repo $repo --ref $sha
+    & $config.python -X utf8 $driver build --repo $repo --ref $sha @profileArguments
     exit $LASTEXITCODE
 }

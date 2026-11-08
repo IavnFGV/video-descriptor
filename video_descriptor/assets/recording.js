@@ -40,6 +40,37 @@
   const workspace=$('workspace'); workspace.append(detail);
   const jobError=document.createElement('p');jobError.id='recording-job-error';jobError.className='feedback vd-error';jobError.setAttribute('role','alert');jobError.hidden=true;workspace.insertBefore(jobError,$('stage-progress'));
   const retryJob=document.createElement('button');retryJob.id='recording-retry';retryJob.type='button';retryJob.className='vd-button';retryJob.textContent='Продолжить с сохранёнными ответами';retryJob.hidden=true;workspace.insertBefore(retryJob,$('stage-progress'));
+  const repairNotes=document.createElement('button');repairNotes.type='button';repairNotes.className='vd-button';repairNotes.textContent='Исправить конспект вручную';repairNotes.hidden=true;workspace.insertBefore(repairNotes,$('stage-progress'));
+  async function recoveryPost(value){
+    const response=await fetch('/api/construction-recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)}),data=await response.json();
+    if(!response.ok)throw Error(data.error||'Не удалось сохранить конспект');return data;
+  }
+  repairNotes.onclick=async()=>{
+    if(actionPending||!snapshot)return;
+    if(window.speechReplyEditing?.()||$('report-editor').contentWindow?.notesEditorDirty?.()){jobError.textContent='Сначала сохраните или отмените текущие правки.';return;}
+    const folder=snapshot.folder;repairNotes.disabled=true;
+    try{
+      const state=await recoveryPost({folder});if(snapshot?.folder!==folder)return;
+      const dialog=document.createElement('dialog');dialog.className='vd-dialog construction-recovery';dialog.setAttribute('aria-labelledby','recovery-title');
+      dialog.innerHTML='<form><h2 id="recovery-title">Исправить конспект</h2><p>Исправьте метки в оглавлении и конспекте. Используйте начала реплик из списка. Ответ модели сохранится отдельно; новый запрос к модели не нужен.</p><label>Начала реплик<select data-anchors><option value="">Выберите реплику…</option></select></label><p class="hint">Выделите неверную метку в тексте и выберите реплику, чтобы заменить её.</p><label>Текст конспекта<textarea rows="16" required></textarea></label><p role="alert" data-error></p><div class="vd-actions"><button type="submit">Проверить и сохранить</button><button type="button" data-cancel>Отмена</button></div></form>';
+      const text=dialog.querySelector('textarea'),anchors=dialog.querySelector('[data-anchors]'),error=dialog.querySelector('[data-error]'),save=dialog.querySelector('[type=submit]');text.value=state.text;
+      const clock=t=>[Math.floor(t/3600),Math.floor(t/60)%60,t%60].map(x=>String(x).padStart(2,'0')).join(':');
+      for(const anchor of state.anchors){const item=document.createElement('option');item.value=clock(anchor.time);item.textContent=item.value+' · '+anchor.text.slice(0,160);anchors.append(item);}
+      anchors.onchange=()=>{if(!anchors.value)return;text.setRangeText(anchors.value,text.selectionStart,text.selectionEnd,'select');text.focus();anchors.value='';};
+      let saving=false,saved=false;const dirty=()=>!saved&&text.value!==state.text;
+      const close=async()=>{if(saving)return;if(!dirty()||await window.confirmDiscard('Исправленный конспект ещё не сохранён. Закрыть без сохранения?'))dialog.close();};
+      dialog.oncancel=e=>{e.preventDefault();close();};dialog.querySelector('[data-cancel]').onclick=close;
+      const unload=e=>{if(dirty()){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',unload);
+      dialog.onclose=()=>{window.removeEventListener('beforeunload',unload);dialog.remove();repairNotes.focus();};
+      dialog.querySelector('form').onsubmit=async e=>{
+        e.preventDefault();if(saving)return;saving=true;save.disabled=true;error.textContent='Проверяем и сохраняем…';
+        try{const value=await recoveryPost({folder,revision:state.revision,text:text.value});saved=true;dialog.close();document.dispatchEvent(new CustomEvent('construction-started',{detail:value.job}));}
+        catch(exc){error.textContent=exc.message;const stamp=exc.message.match(/\[(\d{2,}:\d{2}:\d{2})\]/)?.[1],at=stamp?text.value.indexOf(stamp):-1;if(at>=0){text.focus();text.setSelectionRange(at,at+stamp.length);}}
+        finally{saving=false;save.disabled=false;}
+      };
+      document.body.append(dialog);dialog.showModal();text.focus();text.setSelectionRange(0,0);text.scrollTop=0;
+    }catch(error){jobError.textContent=error.message;}finally{repairNotes.disabled=false;}
+  };
   retryJob.onclick=async()=>{
     if(!job?.id||actionPending)return;
     if(window.speechReplyEditing?.()||$('report-editor').contentWindow?.notesEditorDirty?.()){jobError.textContent='Сначала сохраните или отмените текущие правки.';return;}
@@ -177,6 +208,7 @@
     const changed=snapshot?.folder!==event.detail.snapshot.folder;snapshot=event.detail.snapshot;job=event.detail.job;
     jobError.hidden=job?.status!=='error';
     retryJob.hidden=jobError.hidden||!window.recordingUI.native;
+    repairNotes.hidden=jobError.hidden||!snapshot.construction_answer_saved||job.cancelled||job.stage!=='notes';
     retryJob.textContent=snapshot.construction_answer_saved?'Продолжить с сохранённым ответом':'Повторить обработку';
     if(!jobError.hidden){const message=(job.cancelled?'Обработка остановлена. ':'Ошибка обработки. ')+((!job.cancelled&&job.stage==='notes'&&snapshot.construction_error)||job.error||snapshot.status?.message||'Откройте подробности обработки.');if(jobError.textContent!==message)jobError.textContent=message;}
     if(changed){newNotes.hidden=true;$('speech-settings').open=false;currentTimeKey='';library();}
@@ -193,7 +225,7 @@
     requestStatus.textContent=active?[stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
     renderDiarizationProgress();paint();sync();
   });
-  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';jobError.hidden=true;retryJob.hidden=true;renderDiarizationProgress();library();});
+  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';jobError.hidden=true;retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
   async function postprocess(task,extra={}){
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;

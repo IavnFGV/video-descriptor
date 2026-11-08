@@ -517,7 +517,9 @@ def parsed_notes(markdown, sources):
         for index, match in enumerate(matches):
             seconds = int(match[1]) * 3600 + int(match[2]) * 60 + int(match[3])
             if seconds not in allowed or is_outline and seconds < previous:
-                raise ValueError('Оглавление содержит неизвестные метки времени или нарушает хронологию; исходный ответ сохранён')
+                section_name = 'Оглавление' if is_outline else 'Конспект'
+                reason = 'нет начала реплики с такой меткой' if seconds not in allowed else 'нарушена хронология'
+                raise ValueError(f'{section_name}: [{match[1]}:{match[2]}:{match[3]}] {match[4]} — {reason}; исходный ответ сохранён')
             previous = seconds
             stop = matches[index + 1].start() if index + 1 < len(matches) else len(content)
             explanation = content[match.end():stop].strip()
@@ -533,10 +535,36 @@ def parsed_notes(markdown, sources):
     return Notes(notes=notes, sections=sections), chapters
 
 
+def save_notes_result(folder, answer, sources, result, notes, chapters, article=False):
+    write_json(folder / 'transcript.json', [source.model_dump() for source in sources if not source.image])
+    write_json(folder / 'notes.json', notes.model_dump())
+    write_json(folder / 'notes-live.json', notes.model_dump())
+    write_json(folder / 'chapters.json', [chapter.model_dump() for chapter in chapters])
+    write_json(folder / 'analysis-errors.json', [])
+    manifest = read_json(folder / 'manifest.json')
+    render(folder, Path(manifest['video']), sources, notes.notes, chapters, result['translations'])
+    (folder / 'editor-default.md').write_text(answer, encoding='utf-8')
+    (folder / 'notes.md').write_text(answer, encoding='utf-8')
+    if article:
+        (folder / 'article.md').write_text(answer, encoding='utf-8')
+    (folder / 'construction-error.json').unlink(missing_ok=True)
+
+
 def run(root, folder, value, ask=generate):
     config = validate(value)
     article = config['result_kind'] == 'article'
     label = 'Статья' if article else 'Конспект'
+    manual = read_json(folder / 'construction-manual.json', {})
+    if manual:
+        from .construction_recovery import recovery_state
+        state, sources, result = recovery_state(folder)
+        if manual['source_revision'] != state['source_revision']:
+            raise ValueError('Расшифровка или ответ модели изменились. Откройте ручное исправление заново')
+        notes, chapters = parsed_notes(manual['text'], sources)
+        save_notes_result(folder, manual['text'], sources, result, notes, chapters)
+        write_json(folder / 'progress.json', {'stage': '[5/5] Сохранение отчёта',
+                   'message': 'Исправленный конспект готов', 'request_state': 'готово', 'updated': time.time()})
+        return
     validate_provider(root, config)
     if ask is generate:
         config = actual_limits(root, config)
@@ -615,20 +643,11 @@ def run(root, folder, value, ask=generate):
     sources = [Source(id=row.get('id', f's{index}'), start=row['start'], end=row['end'], text=row['text'])
                for index, row in enumerate(result['segments'], 1)] + [Source.model_validate(frame) for frame in frames]
     notes, chapters = (Notes(notes=[]), []) if article else parsed_notes(answer, sources)
-    write_json(folder / 'transcript.json', [source.model_dump() for source in sources if not source.image])
-    write_json(folder / 'notes.json', notes.model_dump())
-    write_json(folder / 'notes-live.json', notes.model_dump())
-    write_json(folder / 'chapters.json', [chapter.model_dump() for chapter in chapters])
-    write_json(folder / 'analysis-errors.json', [])
-    manifest = read_json(folder / 'manifest.json')
-    render(folder, Path(manifest['video']), sources, notes.notes, chapters, result['translations'])
-    (folder / 'editor-default.md').write_text(answer, encoding='utf-8')
-    (folder / 'notes.md').write_text(answer, encoding='utf-8')
-    if article:
-        (folder / 'article.md').write_text(answer, encoding='utf-8')
+    save_notes_result(folder, answer, sources, result, notes, chapters, article)
     update_status(log, stage='[5/5] Сохранение отчёта', message='Статья готова' if article else 'Конспект и оглавление готовы',
                   request_state='готово', chunk=f'{len(blocks)}/{len(blocks)}')
     log('Статья сохранена' if article else 'Конспект и оглавление сохранены')
+
 
 
 if __name__ == '__main__':

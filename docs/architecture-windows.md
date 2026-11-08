@@ -1,5 +1,17 @@
 # Windows: фактическая архитектура и решение
 
+08.11.2026: POST `/api/construction-recovery` открывает сохранённый Markdown ошибочного notes job с revision и началами реплик. Сохранение проверяет parsed_notes, source revision и отсутствие активных задач, записывает отдельный construction-manual.json и возвращает то же задание в очередь. Construction worker принимает проверенный ручной ответ до проверки AI-провайдера и собирает отчёт без генерации; последующий перевод, если был заказан, остаётся отдельным этапом. Оригинальный construction-result.md не изменяется.
+
+
+08.11.2026: профиль упаковки `--domestic` не меняет runtime-контракты приложения.
+Builder добавляет только проверенные модельные файлы, isolated embedded CPython с CPU
+pyannote wheels и WebView2 CAB. Inno Setup вызывает отдельный `domestic_setup.py`,
+который заполняет отсутствующие пути config.local.json и проверяет inference через
+существующие workers/ComponentManager. Сохранённые устройства и внешние модели
+сохраняются. На новой установке диаризация — CPU, распознавание — прежний Auto.
+Hook main передаёт профиль в локальную очередь; результаты и reuse разделены по
+профилю. Подробнее: [domestic installer](domestic-installer.md).
+
 22.10.2026, 0.8.13: история правок конспекта остаётся локальной CodeMirror history,
 включая правку раздела native dialog и сброс к savedText. Дисковый save по-прежнему
 использует editor.json/revision и сохраняет отдельный пользовательский Markdown.

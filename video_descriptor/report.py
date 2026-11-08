@@ -149,6 +149,9 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     editor_seed = "\n".join(line for line in markdown if not line.startswith("- Источник "))
     if (speech_folder / 'construction-result.md').is_file():
         editor_seed = (speech_folder / 'construction-result.md').read_text(encoding='utf-8')
+    manual = read_json(speech_folder / 'construction-manual.json', {})
+    if manual:
+        editor_seed = manual['text']
     (folder / "editor-default.md").write_text(editor_seed, encoding="utf-8")
     page = """<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
