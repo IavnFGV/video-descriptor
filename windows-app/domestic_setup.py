@@ -13,6 +13,11 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT))
 
 
+def progress(message):
+    if os.environ.get('VIDEO_DESCRIPTOR_VERIFY_PROGRESS') == '1':
+        print(time.strftime('[%H:%M:%S] ') + message, file=sys.__stdout__, flush=True)
+
+
 def write_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix('.domestic.tmp')
@@ -45,7 +50,9 @@ def main():
     marker = HERE / 'runtime/domestic-setup.json'
     previous = json.loads(marker.read_text()) if marker.exists() else {}
     if previous.get('version') == manifest['version'] and previous.get('root') == str(ROOT) and existing:
+        progress('PASS: подготовка этой версии уже выполнена, повторный запуск не меняет настройки')
         return
+    progress('Проверяем SHA256 встроенных моделей и runtime')
     # ZIP/Inno extraction checks container integrity; wheels were hash-locked at build.
     # Recheck models and the Python executable boundary without reopening thousands
     # of site-packages files (very slow with Windows on-access scanning).
@@ -56,6 +63,7 @@ def main():
             with (ROOT / entry['path']).open('rb') as stream:
                 if hashlib.file_digest(stream, 'sha256').hexdigest() != entry['sha256']:
                     raise ValueError('Bundled file checksum mismatch: ' + entry['path'])
+    progress('PASS: SHA256; проверяем встроенный WebView2')
     settings = defaults(HERE, existing)
     runtime = HERE / 'webview2-runtime'
     if not (runtime / 'msedgewebview2.exe').is_file():
@@ -68,6 +76,7 @@ def main():
                         '-RuntimeVersion', profile['webview_version'],
                         '-LogPath', str(HERE / 'domestic-webview.jsonl')], check=True,
                        stdout=sys.stdout, stderr=sys.stderr)
+    progress('PASS: WebView2; подготавливаем проверки моделей')
     # Write no build-machine path; installed location is known only at this point.
     write_json(local, settings)
     import app
@@ -80,21 +89,29 @@ def main():
     # Existing external models/environments and explicit devices are left intact.
     speech_checked = settings['whisper_model_directory'] == str(HERE / 'domestic/whisper')
     if speech_checked:
+        progress('CPU Whisper: загружаем модель и распознаём контрольный WAV, лимит 600 с')
         setup.apply(settings['whisper_model_directory'])
         subprocess.run([sys.executable, '-X', 'utf8', str(HERE / 'whisper_worker.py'),
                         '--model', settings['whisper_model_directory'], '--device', 'CPU',
                         '--probe', str(HERE / 'samples/speech-check.wav'),
                         '--output', str(HERE / 'runtime/domestic-speech.json')], check=True, timeout=600,
                        stdout=sys.stdout, stderr=sys.stderr)
+        progress('PASS: контрольный WAV распознан на CPU')
     diarization_checked = settings['diarization_python'] == str(HERE / 'domestic/python/python.exe')
     if diarization_checked:
+        progress('CPU диаризация: загружаем модель и проверяем разделение контрольной записи')
+        updated = time.monotonic()
         components.action('diarization', {'action': 'check', 'device': settings.get('diarization_requested_device', 'cpu'),
                                         'resume': None})
         while components.active:
+            if time.monotonic() - updated >= 10:
+                progress('CPU диаризация: проверка продолжается; ожидаем завершения модели')
+                updated = time.monotonic()
             time.sleep(.2)
         item = next(item for item in components.snapshot()['components'] if item['id'] == 'diarization')
         if item['state'] != 'ready':
             raise RuntimeError(item.get('message', 'Bundled diarization check failed'))
+        progress('PASS: CPU диаризация готова')
     if speech_checked and diarization_checked:
         setup.complete()
     write_json(marker, {'version': manifest['version'], 'root': str(ROOT), 'profile': 'domestic',

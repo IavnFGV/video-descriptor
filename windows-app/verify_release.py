@@ -12,6 +12,23 @@ import zipfile
 from pathlib import Path
 
 
+def progress(message):
+    print(time.strftime('[%H:%M:%S] ') + message, flush=True)
+
+
+def extract_zip(archive, folder):
+    members = archive.infolist()
+    total = sum(item.file_size for item in members)
+    progress(f'Распаковка ZIP: {len(members)} файлов, {total / 1024**2:.0f} МиБ')
+    completed, updated = 0, time.monotonic()
+    for index, member in enumerate(members, 1):
+        archive.extract(member, folder)
+        completed += member.file_size
+        if time.monotonic() - updated >= 5 or index == len(members):
+            progress(f'Распаковано {index}/{len(members)} файлов, {completed / 1024**2:.0f}/{total / 1024**2:.0f} МиБ')
+            updated = time.monotonic()
+
+
 def run(command, **kwargs):
     return subprocess.run([str(x) for x in command], check=True, timeout=300, **kwargs)
 
@@ -53,9 +70,14 @@ def configure(folder, port):
 
 def manifest_check(folder):
     manifest = json.loads((folder / 'release-manifest.json').read_text())
-    for entry in manifest['files']:
+    progress(f'Проверка SHA256: {len(manifest["files"])} файлов')
+    updated = time.monotonic()
+    for index, entry in enumerate(manifest['files'], 1):
         with (folder / entry['path']).open('rb') as source:
             assert hashlib.file_digest(source, 'sha256').hexdigest() == entry['sha256'], entry['path']
+        if time.monotonic() - updated >= 5 or index == len(manifest['files']):
+            progress(f'SHA256 совпадает: {index}/{len(manifest["files"])} файлов; последний: {entry["path"]}')
+            updated = time.monotonic()
     assert not any((folder / path).exists() for path in ('data', 'output', '.git', '.env', '.venv-windows'))
     return len(manifest['files'])
 
@@ -71,17 +93,23 @@ def start(folder, port):
     process = subprocess.Popen([str(python), '-X', 'utf8', str(folder / 'windows-app/app.py'), '--no-browser'],
                                cwd=folder, env=env, stdout=log, stderr=subprocess.STDOUT,
                                creationflags=0x08000000)
+    progress(f'Запущена тестовая копия приложения, PID {process.pid}; ожидаем /health, до 90 с')
     deadline = time.monotonic() + 90
+    updated = time.monotonic()
     while time.monotonic() < deadline:
         try:
             info = request(port, '/health')
             assert info['app'] == 'video-descriptor-windows'
             # Runner TEMP may use RUNNER~1 while app.resolve() expands the same path.
             assert Path(info['workspace']).samefile(folder / 'windows-app/runtime/workspace')
+            progress('PASS: /health отвечает, приложение использует временную рабочую папку')
             return process, log, info['instance']
         except (OSError, ValueError):
             if process.poll() is not None:
                 raise RuntimeError('Packaged app failed: ' + (folder / 'smoke-process.log').read_text(errors='replace')) from None
+            if time.monotonic() - updated >= 5:
+                progress('Ожидаем готовность тестовой копии: /health ещё не отвечает')
+                updated = time.monotonic()
             time.sleep(.25)
     raise TimeoutError('Packaged app did not become ready; see ' + str(folder))
 
@@ -99,22 +127,28 @@ def smoke(folder):
     configure(folder, port)
     process, log, instance = start(folder, port)
     try:
+        progress('Проверка /api/doctor: зависимости и FFmpeg')
         doctor = request(port, '/api/doctor')
         assert all(doctor['packages'].values()) and doctor['ffmpeg']
+        progress('PASS: зависимости и FFmpeg; проверяем мастер настройки без модели')
         setup = request(port, '/api/setup')
         assert not setup['model_present'] and setup['downloads']
         assert setup['download']['revision'] == '2410d022171ca8a97343182f88eec8807a324db9'
         request(port, '/api/setup/complete', data=b'{}',
                 headers={'Content-Type': 'application/json', 'X-App-Instance': instance})
         assert request(port, '/api/setup')['completed']
+        progress('PASS: мастер настройки; проверяем, что без модели устройство не объявлено готовым')
         compute = request(port, '/api/compute-settings')
         assert compute['selected'] is None
         assert not any(cap['available'] for cap in compute['capabilities'].values())
+        progress('PASS: проверка устройств; загружаем главную страницу UI')
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with opener.open(f'http://127.0.0.1:{port}/', timeout=5) as page:
             assert 'Устройство распознавания' in page.read().decode()
     finally:
+        progress('Останавливаем только тестовую копию приложения')
         stop(process, log, port, instance)
+        progress('PASS: тестовая копия завершилась штатно')
     return {'imports': True, 'loopback_ui': True, 'no_system_python_path': True, 'no_model': True, 'graceful_stop': True, 'setup_wizard': True}
 
 
@@ -190,8 +224,9 @@ def main():
         manifest = json.loads(archive.read('release-manifest.json'))
         expected = {entry['path'] for entry in manifest['files']} | {'release-manifest.json'}
         assert set(archive.namelist()) == expected, 'ZIP contains missing or unhashed entries'
-        archive.extractall(portable)
+        extract_zip(archive, portable)
     print('ZIP extracted; verifying files and offline launch', flush=True)
+    progress('Вычисляем SHA256 готового ZIP')
     with args.zip.open('rb') as source:
         archive_sha = hashlib.file_digest(source, 'sha256').hexdigest()
     report = {'zip_sha256': archive_sha, 'zip_files_verified': manifest_check(portable), 'portable': smoke(portable),
@@ -261,6 +296,7 @@ def main():
         report['uninstall_preserves_data'] = True
         report['setup_and_model_files_preserved'] = True
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    progress('Проверки завершены; сохраняем отчёт: ' + str(args.output))
     args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report), flush=True)
     print('Evidence directory:', test_root, flush=True)

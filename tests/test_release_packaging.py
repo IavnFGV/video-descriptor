@@ -218,3 +218,29 @@ def test_installer_uses_new_helper_and_requires_interactive_consent():
     assert prepare.index('if WizardSilent then exit') < prepare.index('MsgBox(')
     assert prepare.index('<> IDYES then exit') < prepare.index("Arguments + ' --stop-confirmed'")
     assert 'MB_DEFBUTTON2' in prepare
+
+
+def test_zip_verification_reports_real_file_counts_and_hash_completion(tmp_path, capsys):
+    import hashlib
+    import json
+    path = Path(__file__).resolve().parents[1] / 'windows-app/verify_release.py'
+    spec = importlib.util.spec_from_file_location('verify_progress', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    archive_path = tmp_path / 'test.zip'
+    payload = b'fixture'
+    with zipfile.ZipFile(archive_path, 'w') as archive:
+        archive.writestr('app/file.txt', payload)
+    folder = tmp_path / 'unpacked'
+    with zipfile.ZipFile(archive_path) as archive:
+        module.extract_zip(archive, folder)
+    (folder / 'release-manifest.json').write_text(json.dumps({'files': [
+        {'path': 'app/file.txt', 'sha256': hashlib.sha256(payload).hexdigest()}]}))
+    assert module.manifest_check(folder) == 1
+    output = capsys.readouterr().out
+    assert 'Распаковано 1/1 файлов' in output
+    assert 'SHA256 совпадает: 1/1 файлов' in output
+    (folder / 'app/file.txt').write_bytes(b'corrupted')
+    with pytest.raises(AssertionError):
+        module.manifest_check(folder)
+    assert 'SHA256 совпадает' not in capsys.readouterr().out
