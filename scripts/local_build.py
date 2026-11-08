@@ -77,7 +77,7 @@ def update_status(state, config, record, *, render_only=False):
     details_html += '<p>Коммит: <code>' + html.escape(record.get('commit', '')[:12]) + '</code> · Профиль: ' + ('С моделями' if record.get('profile') == 'domestic' else 'Стандартный') + '</p>'
     details_html += '<section><h2>Очередь: ' + str(len(detail['queue'])) + '</h2>'
     details_html += ('<ol>' + ''.join('<li><code>' + html.escape(item['commit'][:12]) + '</code> · ' + ('С моделями' if item.get('domestic') else 'Стандартный') + '</li>' for item in detail['queue']) + '</ol>') if detail['queue'] else '<p>Ожидающих сборок нет.</p>'
-    details_html += '</section><section><h2>Последние сообщения</h2><p>' + html.escape(detail['activity']) + '</p><pre>' + html.escape(detail['tail'] or 'Журнал пока пуст.') + '</pre></section>'
+    details_html += '</section><section><h2>Последние сообщения — новые сверху</h2><p>' + html.escape(detail['activity']) + '</p><pre>' + html.escape('\n'.join(reversed(detail['tail'].splitlines())) if detail['tail'] else 'Журнал пока пуст.') + '</pre></section>'
     page = f'''<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="3">
 <title>Video Descriptor — локальная сборка</title><style>{styles}
