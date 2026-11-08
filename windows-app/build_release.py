@@ -8,6 +8,7 @@ import subprocess
 import sys
 import urllib.request
 import zipfile
+from contextlib import ExitStack
 from email.parser import BytesParser
 from pathlib import Path
 
@@ -38,7 +39,7 @@ def safe_member(name):
     return path
 
 
-def unpack_wheels(wheels, destination):
+def unpack_wheels(wheels, destination, cached_files=None):
     """Vendor library payloads and notices; do not generate machine-specific CLI wrappers."""
     for wheel in sorted(wheels):
         with zipfile.ZipFile(wheel) as archive:
@@ -56,20 +57,25 @@ def unpack_wheels(wheels, destination):
                     raise ValueError('Conflicting wheel payload: ' + str(path))
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(payload)
+                if cached_files is not None:
+                    cached_files[target] = {'bytes': len(payload), 'sha256': hashlib.sha256(payload).hexdigest(),
+                                            'archive': wheel, 'member': member.filename}
 
 
 def resolved_wheels(directory, requirements):
     pins = {line.strip().lower().replace('_', '-').split('==')[0]: line.strip().split('==')[1]
-            for line in requirements.read_text().splitlines() if line.strip() and not line.startswith('#')}
+            for line in requirements.read_text().splitlines() if line.strip() and not line.startswith(('#', '--'))}
     resolved = {}
     for path in sorted(directory.glob('*.whl')):
         with zipfile.ZipFile(path) as archive:
-            names = [n for n in archive.namelist() if n.endswith('.dist-info/METADATA')]
+            names = [n for n in archive.namelist() if n.endswith('.dist-info/METADATA') and n.count('/') == 1]
             if len(names) != 1:
                 raise ValueError('Invalid wheel metadata: ' + path.name)
             metadata = BytesParser().parsebytes(archive.read(names[0]))
         name = metadata['Name'].lower().replace('_', '-')
-        if pins.get(name) != metadata['Version']:
+        version = metadata['Version']
+        pin = pins.get(name)
+        if pin != version and not (pin and '+' not in pin and version.split('+')[0] == pin):
             continue  # Old/unrelated cache entries are never release inputs.
         if name in resolved:
             raise ValueError('Ambiguous wheel builds: ' + name)
@@ -79,15 +85,27 @@ def resolved_wheels(directory, requirements):
     return sorted(resolved.values())
 
 
-def deterministic_zip(folder, output):
-    with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+def deterministic_zip(folder, output, cached_files=None):
+    with ExitStack() as stack:
+        archive = stack.enter_context(zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6))
+        sources = {}
         for path in sorted(folder.rglob('*')):
             if path.is_file():
                 info = zipfile.ZipInfo(path.relative_to(folder).as_posix(), (2026, 1, 1, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.create_system = 3
                 info.external_attr = 0o100644 << 16
-                archive.writestr(info, path.read_bytes(), compresslevel=6)
+                cached = (cached_files or {}).get(path)
+                if cached:
+                    source = cached['archive']
+                    if source not in sources:
+                        sources[source] = stack.enter_context(zipfile.ZipFile(source))
+                    payload = sources[source].read(cached['member'])
+                    if hashlib.sha256(payload).hexdigest() != cached['sha256']:
+                        raise ValueError('Archive changed during build: ' + str(source))
+                else:
+                    payload = path.read_bytes()
+                archive.writestr(info, payload, compresslevel=6)
 
 
 def source_paths():
@@ -164,8 +182,12 @@ def main():
     parser.add_argument('--cache', type=Path, default=HERE / 'runtime/build-cache')
     parser.add_argument('--output', type=Path, default=ROOT / 'dist')
     parser.add_argument('--iscc', type=Path)
+    parser.add_argument('--domestic', action='store_true', help='Bundle offline speech and CPU diarization inputs')
+    parser.add_argument('--domestic-inputs', type=Path, help='Local JSON paths to verified models, CPU wheelhouse and WebView2 CAB')
     parser.add_argument('--refresh-lock', action='store_true', help='Explicitly record hashes after resolving pinned wheels')
     args = parser.parse_args()
+    if args.domestic and not args.domestic_inputs:
+        parser.error('--domestic requires --domestic-inputs; incomplete domestic builds are not allowed')
     args.cache.mkdir(parents=True, exist_ok=True)
     args.output.mkdir(parents=True, exist_ok=True)
     inputs = json.loads((HERE / 'release-inputs.json').read_text())
@@ -196,6 +218,7 @@ def main():
     # A new directory per build: never recursively erase a computed user path.
     import tempfile
     folder = Path(tempfile.mkdtemp(prefix='payload-', dir=args.cache))
+    cached_files = {}
     for path in source_paths():
         target = folder / path.relative_to(ROOT)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -207,7 +230,7 @@ def main():
         for member in archive.infolist():
             safe_member(member.filename)
         archive.extractall(python_dir)
-    unpack_wheels(wheels, python_dir / 'Lib/site-packages')
+    unpack_wheels(wheels, python_dir / 'Lib/site-packages', cached_files)
     stage_vcrt(inputs, args.cache, python_dir)
     sdk = HERE / 'runtime/desktop-sdk'
     if not (sdk / 'VideoDescriptor.exe').is_file():
@@ -220,18 +243,28 @@ def main():
     (python_dir / 'python312._pth').write_text('python312.zip\n.\nLib/site-packages\n..\n../windows-app\nimport site\n', encoding='ascii')
     # Keep packaged subprocesses on this runtime; ignore system PYTHONPATH/registry.
     (folder / 'Open Video Descriptor.cmd').write_text('@echo off\r\ncall "%~dp0windows-app\\Open-App.cmd"\r\n', encoding='ascii')
-    entries = [{'path': p.relative_to(folder).as_posix(), 'bytes': p.stat().st_size, 'sha256': sha256(p)}
+    domestic = None
+    if args.domestic:
+        from domestic_bundle import stage
+        domestic = stage(folder, args.domestic_inputs, python_zip, cached_files)
+    print('Recording payload manifest', flush=True)
+    entries = [{'path': p.relative_to(folder).as_posix(),
+                'bytes': cached_files[p]['bytes'] if p in cached_files else p.stat().st_size,
+                'sha256': cached_files[p]['sha256'] if p in cached_files else sha256(p)}
                for p in sorted(folder.rglob('*')) if p.is_file()]
-    manifest = {'version': inputs['version'], 'architecture': 'windows-x64', 'whisper_weights_included': False,
+    manifest = {'version': inputs['version'], 'architecture': 'windows-x64', 'whisper_weights_included': args.domestic,
+                'profile': 'domestic' if args.domestic else 'standard', 'domestic': domestic,
                 'vad_asset_in_faster_whisper': True,
                 'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
                 'wheels': lock, 'files': entries}
     (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     output = args.output / f'VideoDescriptor-{inputs["version"]}-windows-x64.zip'
-    deterministic_zip(folder, output)
+    print('Writing reproducible ZIP', flush=True)
+    deterministic_zip(folder, output, cached_files)
     print('ZIP:', output, 'SHA256:', sha256(output), flush=True)
     if args.iscc:
         subprocess.run([str(args.iscc), '/Qp', f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
+                        *(['/DDomestic=1'] if args.domestic else []),
                         f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
     artifacts = [{'file': p.name, 'bytes': p.stat().st_size, 'sha256': sha256(p)}
                  for p in sorted(args.output.glob(f'VideoDescriptor-{inputs["version"]}-windows-x64*'))]

@@ -42,7 +42,7 @@ def plan(repo, config, keep=3, days=7):
     cutoff = time.time() - days * 86400
     candidates, packages = [], []
     local_output = Path(config.get('output', repo / 'dist/local')).resolve()
-    for base in dict.fromkeys((repo / 'dist', repo / 'dist-clean', local_output)):
+    for base in dict.fromkeys((repo / 'dist', repo / 'dist-clean', local_output, local_output / 'domestic')):
         if not base.is_dir():
             continue
         for path in base.iterdir():

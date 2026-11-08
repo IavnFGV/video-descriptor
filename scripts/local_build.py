@@ -51,7 +51,7 @@ def update_status(state, config, record):
         json.loads(previous_file.read_text(encoding='utf-8')) if previous_file.exists() else None)
     labels = {'checkout': 'Подготавливаем исходники', 'desktop-sdk': 'Подготавливаем desktop SDK',
               'checks': 'Выполняем локальные проверки', 'build': 'Собираем ZIP и установщик',
-              'portable-smoke': 'Проверяем запуск пакета', 'done': 'Готово'}
+              'portable-smoke': 'Проверяем запуск пакета', 'domestic-smoke': 'Проверяем встроенные модели', 'done': 'Готово'}
     heading = {'running': 'Сборка выполняется', 'ready': 'Сборка готова', 'failed': 'Ошибка сборки'}[record['state']]
 
     def link(path, title):
@@ -151,7 +151,10 @@ def publish_ready(record, base):
 
 
 def run_build(repo, state, config, sha):
-    result_file = state / 'results' / (sha + '.json')
+    domestic = config.get('domestic', False)
+    if domestic:
+        config = {**config, 'output': str(Path(config['output']) / 'domestic')}
+    result_file = state / 'results' / (sha + ('-domestic' if domestic else '') + '.json')
     if result_file.exists():
         previous = json.loads(result_file.read_text(encoding='utf-8'))
         if reusable(previous):
@@ -166,6 +169,7 @@ def run_build(repo, state, config, sha):
     run.mkdir(parents=True)
     output.mkdir()
     status = {'state': 'running', 'commit': sha, 'started': now(), 'output': str(output),
+              'profile': 'domestic' if domestic else 'standard',
               'log': str(run / 'build.log'), 'stage': 'checkout'}
     env = {k: v for k, v in os.environ.items() if k not in {'PYTHONHOME', 'PYTHONPATH'}}
     env.update(PYTHONUTF8='1', PYTHONIOENCODING='utf-8', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
@@ -202,8 +206,13 @@ def run_build(repo, state, config, sha):
                                      source / 'windows-app/Prepare-Desktop.ps1'])
             python = config['python']
             step('checks', [python, 'scripts/check-fast.py'])
+            profile_args = []
+            if domestic:
+                if not config.get('domestic_inputs'):
+                    raise ValueError('Configure --domestic-inputs before requesting a domestic build')
+                profile_args = ['--domestic', '--domestic-inputs', config['domestic_inputs']]
             step('build', [python, 'windows-app/build_release.py', '--cache', config['cache'],
-                           '--output', output, '--iscc', config['iscc']])
+                           '--output', output, '--iscc', config['iscc'], *profile_args])
             version = inputs['version']
             archive = output / f'VideoDescriptor-{version}-windows-x64.zip'
             installer = output / f'VideoDescriptor-{version}-windows-x64-setup.exe'
@@ -211,6 +220,9 @@ def run_build(repo, state, config, sha):
                 raise ValueError('Installer was not produced')
             step('portable-smoke', [python, 'windows-app/verify_release.py', archive,
                                     '--output', output / 'verification-release.json'])
+            if domestic:
+                step('domestic-smoke', [python, 'windows-app/verify_domestic.py', archive,
+                                       '--output', output / 'verification-domestic.json'])
             status.update(state='ready', stage='done', version=version, finished=now(), artifacts=[
                 {'path': str(path), 'sha256': digest(path), 'bytes': path.stat().st_size}
                 for path in (archive, installer)])
@@ -236,10 +248,11 @@ def drain(repo, state, config):
                 announced_wait = True
             while acquired and (pending := sorted((state / 'queue').glob('*.json'), key=lambda p: p.stat().st_mtime_ns)):
                 request = pending[0]
-                sha = json.loads(request.read_text(encoding='utf-8'))['commit']
+                queued = json.loads(request.read_text(encoding='utf-8'))
+                sha = queued['commit']
                 if not re.fullmatch(r'[0-9a-f]{40,64}', sha):
                     raise ValueError('Invalid queued commit')
-                success = run_build(repo, state, config, sha) and success
+                success = run_build(repo, state, {**config, 'domestic': queued.get('domestic', False)}, sha) and success
                 request.unlink(missing_ok=True)
         if not acquired:
             time.sleep(1)
@@ -263,7 +276,7 @@ def install_hook(repo):
 root=$(git rev-parse --show-toplevel) || exit 0
 unset $(git rev-parse --local-env-vars)
 if [ -f "$root/scripts/Build-Local.ps1" ]; then
-  powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$root/scripts/Build-Local.ps1" -Background
+  powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$root/scripts/Build-Local.ps1" -Background -Domestic
 fi
 exit 0
 ''', encoding='utf-8', newline='\n')
@@ -276,7 +289,8 @@ def main():
     parser.add_argument('command', choices=['configure', 'build', 'status', 'install-hook'])
     parser.add_argument('--repo', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--ref', default='HEAD')
-    for name in ('python', 'cache', 'iscc', 'desktop-sdk', 'output'):
+    parser.add_argument('--domestic', action='store_true')
+    for name in ('python', 'cache', 'iscc', 'desktop-sdk', 'output', 'domestic-inputs'):
         parser.add_argument('--' + name, type=Path)
     args = parser.parse_args()
     repo = Path(git(args.repo, 'rev-parse', '--show-toplevel')).resolve()
@@ -291,6 +305,8 @@ def main():
             parser.error('Python and ISCC must already be installed')
         settings['desktop_sdk'] = str((args.desktop_sdk or repo / 'windows-app/runtime/desktop-sdk').resolve())
         settings['output'] = str((args.output or repo / 'dist/local').resolve())
+        if args.domestic_inputs:
+            settings['domestic_inputs'] = str(args.domestic_inputs.resolve())
         write_json(config_file, settings)
         print(config_file)
         return 0
@@ -304,7 +320,8 @@ def main():
         return 0
     config = json.loads(config_file.read_text(encoding='utf-8'))
     sha = git(repo, 'rev-parse', '--verify', '--end-of-options', args.ref + '^{commit}')
-    write_json(state / 'queue' / (sha + '.json'), {'commit': sha, 'requested': now()})
+    write_json(state / 'queue' / (sha + ('-domestic' if args.domestic else '') + '.json'),
+               {'commit': sha, 'requested': now(), 'domestic': args.domestic})
     return 0 if drain(repo, state, config) else 1
 
 

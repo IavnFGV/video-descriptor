@@ -74,6 +74,24 @@ def test_release_zip_is_byte_reproducible_and_independent_of_mtime(tmp_path):
     assert first.read_bytes() == second.read_bytes()
 
 
+def test_zip_from_verified_wheel_inputs_matches_payload_bytes(tmp_path):
+    module = builder()
+    wheel = tmp_path / 'test.whl'
+    with zipfile.ZipFile(wheel, 'w') as archive:
+        archive.writestr('package/__init__.py', 'value = 42\n')
+    folder = tmp_path / 'payload'
+    cached = {}
+    module.unpack_wheels([wheel], folder, cached)
+    first, second = tmp_path / 'first.zip', tmp_path / 'second.zip'
+    module.deterministic_zip(folder, first)
+    module.deterministic_zip(folder, second, cached)
+    assert first.read_bytes() == second.read_bytes()
+    with zipfile.ZipFile(wheel, 'w') as archive:
+        archive.writestr('package/__init__.py', 'tampered')
+    with pytest.raises(ValueError, match='Archive changed'):
+        module.deterministic_zip(folder, second, cached)
+
+
 @pytest.mark.parametrize('name', ['../secret', '/absolute', 'C:/escape', 'dir\\escape'])
 def test_release_rejects_unsafe_archive_names(name):
     with pytest.raises(ValueError, match='Unsafe'):

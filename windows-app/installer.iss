@@ -31,6 +31,9 @@ SetupLogging=yes
 Source: "release_lifecycle.py"; DestName: "VD-release-lifecycle.py"; Flags: dontcopy
 Source: "Ensure-WebView2.ps1"; Flags: dontcopy
 Source: "{#Payload}\windows-app\desktop-sdk\WebView2Loader.dll"; DestName: "VD-WebView2Loader.dll"; Flags: dontcopy
+#ifdef Domestic
+Source: "{#Payload}\windows-app\domestic\WebView2Runtime.x64.cab"; DestName: "WebView2Runtime.x64.cab"; Flags: dontcopy
+#endif
 Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
@@ -81,6 +84,13 @@ begin
     Result := 'WebView2 detection failed. See ' + ExpandConstant('{tmp}\VideoDescriptor-WebView2.jsonl');
     exit;
   end;
+#ifdef Domestic
+  ExtractTemporaryFile('WebView2Runtime.x64.cab');
+  if not WebViewCheck('Install', ResultCode) then
+    Result := 'Could not start bundled WebView2 preparation.'
+  else if ResultCode <> 0 then
+    Result := 'Bundled WebView2 verification failed. See the setup log.';
+#else
   WebViewDownload.Clear;
   WebViewDownload.Add('{#WebViewRuntimeUrl}', 'WebView2Runtime.x64.cab', '{#WebViewRuntimeSha256}');
   WebViewDownload.Show;
@@ -100,7 +110,24 @@ begin
   finally
     WebViewDownload.Hide;
   end;
+#endif
 end;
+
+#ifdef Domestic
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if CurStep <> ssPostInstall then exit;
+  WizardForm.StatusLabel.Caption := 'Проверяем встроенные модели распознавания и участников...';
+  if not Exec(ExpandConstant('{app}\python\python.exe'),
+    '-X utf8 "' + ExpandConstant('{app}\windows-app\domestic_setup.py') + '"',
+    ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    RaiseException('Could not prepare domestic components. Retry setup.')
+  else if ResultCode <> 0 then
+    RaiseException('Domestic model checks failed. See windows-app\runtime\domestic-setup.log or run Prepare Domestic.cmd in the installation folder, then retry setup.');
+end;
+#endif
 
 function InstallationBusy(): Boolean;
 var

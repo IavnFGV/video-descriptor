@@ -64,6 +64,23 @@ def test_queue_drains_commit_arriving_during_build(modules, tmp_path, monkeypatc
     assert not list((state / 'queue').iterdir())
 
 
+def test_queue_keeps_domestic_and_standard_requests_for_same_commit(modules, tmp_path, monkeypatch):
+    build, _ = modules
+    state, sha = tmp_path / 'state', 'a' * 40
+    build.write_json(state / 'queue' / (sha + '.json'), {'commit': sha})
+    build.write_json(state / 'queue' / (sha + '-domestic.json'), {'commit': sha, 'domestic': True})
+    profiles = []
+
+    def run(repo, state, config, commit):
+        assert commit == sha
+        profiles.append(config['domestic'])
+        return True
+
+    monkeypatch.setattr(build, 'run_build', run)
+    assert build.drain(tmp_path, state, {})
+    assert sorted(profiles) == [False, True]
+
+
 def test_reuse_requires_exact_artifact_hash(modules, tmp_path):
     build, _ = modules
     package = tmp_path / 'package.zip'
@@ -181,7 +198,7 @@ def test_actual_post_merge_hook_runs_only_on_local_main(modules, repo):
     scripts = repo / 'scripts'
     scripts.mkdir()
     (scripts / 'Build-Local.ps1').write_text(
-        'param([switch]$Background)\n'
+        'param([switch]$Background, [switch]$Domestic)\n'
         'if ($env:GIT_DIR -or $env:GIT_INDEX_FILE) { throw "Inherited Git state" }\n'
         'Set-Content -LiteralPath (Join-Path $PSScriptRoot "../.git/hook-fired") -Value yes\n')
     subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True)
