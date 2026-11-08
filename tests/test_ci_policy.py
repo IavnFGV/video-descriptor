@@ -29,6 +29,7 @@ def workflow(name):
     (['Dockerfile'], (True, False, False, True)),
     (['compose.yaml'], (True, False, False, True)),
     (['windows-app/installer.iss'], (True, True, True, False)),
+    (['scripts/download_build_file.py'], (True, True, True, False)),
     (['windows-app/requirements-release.txt'], (True, True, True, False)),
     (['.github/workflows/full-acceptance.yml'], (True, False, False, False)),
     (['.github/workflows/windows-smoke.yml'], (True, True, False, False)),

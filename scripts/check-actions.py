@@ -4,9 +4,10 @@ import io
 import os
 import subprocess
 import tarfile
-import urllib.request
 import zipfile
 from pathlib import Path
+
+from download_build_file import verified_download
 
 VERSION = '1.7.7'
 ARCHIVES = {
@@ -22,8 +23,7 @@ def main():
     cache = root / 'windows-app/runtime/ci-tools'
     cache.mkdir(parents=True, exist_ok=True)
     archive = cache / name
-    if not archive.exists():
-        urllib.request.urlretrieve(f'https://github.com/rhysd/actionlint/releases/download/v{VERSION}/{name}', archive)
+    verified_download(f'https://github.com/rhysd/actionlint/releases/download/v{VERSION}/{name}', archive, expected)
     data = archive.read_bytes()
     assert hashlib.sha256(data).hexdigest() == expected, 'actionlint archive checksum mismatch'
     binary = 'actionlint.exe' if os.name == 'nt' else 'actionlint'

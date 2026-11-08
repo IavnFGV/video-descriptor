@@ -30,7 +30,7 @@ def main():
             'scripts/check-fast.py', 'scripts/check-actions.py', 'scripts/ci_changes.py',
             'scripts/ci_artifacts.py', 'scripts/check-installer-smoke.py',
             'scripts/smoke_compose.py', 'scripts/whisper_npu_server.py',
-            'scripts/local_build.py', 'scripts/clean_local.py')
+            'scripts/local_build.py', 'scripts/clean_local.py', 'scripts/download_build_file.py')
         run(sys.executable, 'scripts/check-ui-audit.py')  # includes CSS consistency once
         node = shutil.which('node')
         if not node:
