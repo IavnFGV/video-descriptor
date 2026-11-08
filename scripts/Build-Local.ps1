@@ -12,7 +12,8 @@ if ($Status) {
 }
 $sha = & git -C $repo rev-parse --verify --end-of-options "$Ref`^{commit}"
 if ($LASTEXITCODE -ne 0 -or $sha -notmatch '^[0-9a-f]{40,64}$') { throw 'Invalid commit reference' }
-$profileArguments = if ($Domestic) { @('--domestic') } else { @() }
+$profileArguments = @()
+if ($Domestic) { $profileArguments += '--domestic' }
 if ($Background) {
     $launchId = [guid]::NewGuid().ToString('N')
     Start-Process -FilePath $config.python -WindowStyle Hidden -WorkingDirectory $repo -ArgumentList (@(
