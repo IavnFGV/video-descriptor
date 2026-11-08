@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "version": "0.8.26",
+  "implementation_commit": "89791899a7c36f35cedf06dc5e863be9351e8f43",
+  "local_checks": {
+    "passed": 492,
+    "skipped": 3
+  },
+  "installer": {
+    "input": {
+      "commit": "89791899a7c36f35cedf06dc5e863be9351e8f43",
+      "version": "0.8.26",
+      "networking": "disabled in Acceptance.wsb",
+      "file": "VideoDescriptor-domestic-final-setup.exe",
+      "sha256": "40a0589f555d5863a159f3bf5e38b666f62f1644bc874e4cca00a8e9c9ef7f21"
+    },
+    "checks": {
+      "cpu_whisper": true,
+      "reinstall_preserves_data": true,
+      "uninstall_preserves_data": true,
+      "video_to_speakers": true,
+      "running_upgrade_refused": true,
+      "no_hf_account": true,
+      "cpu_diarization": true,
+      "installed": true
+    },
+    "method": "direct domestic EXE in offline Sandbox",
+    "guest_sac": 0,
+    "error": null,
+    "started": "2026-11-08T10:28:03.3701126Z",
+    "guest_id": "eee67b008d564d498be6395786f08bce",
+    "status": "PASS",
+    "finished": "2026-11-08T10:51:48.3145404Z",
+    "host_security_changed": false
+  },
+  "payload": {
+    "status": "PASS",
+    "base_zip_files_sha256_verified": 31043,
+    "unchanged_zip_members": 31042,
+    "changed_members": [
+      "release-manifest.json",
+      "windows-app/domestic_setup.py"
+    ],
+    "committed_helper_sha256": "f3d123e2dad5beb4882a5f281bd48c2527709353ef715eab5d5b7997d2d13b03",
+    "method": "reused verified source ZIP; builder rechecked SHA256 for every reused member while writing new ZIP"
+  },
+  "portable_setup": {
+    "status": "PASS",
+    "cpu_whisper": true,
+    "cpu_diarization": true,
+    "idempotent_setup": true,
+    "isolated_user_state": true,
+    "PATH": "System32 only",
+    "committed_helper_ast_matches_tested_source": true,
+    "helper_sha256": "f3d123e2dad5beb4882a5f281bd48c2527709353ef715eab5d5b7997d2d13b03",
+    "limits": [
+      "Host Windows, not a network-isolated guest; separate EXE guest test required"
+    ]
+  },
+  "artifacts": [
+    {
+      "file": "VideoDescriptor-0.8.26-windows-x64-setup.exe",
+      "bytes": 1223509486,
+      "sha256": "40a0589f555d5863a159f3bf5e38b666f62f1644bc874e4cca00a8e9c9ef7f21"
+    },
+    {
+      "file": "VideoDescriptor-0.8.26-windows-x64.zip",
+      "bytes": 1323787388,
+      "sha256": "5960d67f38e1d067204d5aa52f7302f0728e6658ed1fcd4ab4f860f48f9277ae"
+    }
+  ],
+  "limits": [
+    "CPU only; physical NPU/GPU not revalidated",
+    "Same-version reinstall; distinct-version upgrade not tested",
+    "Functional guest SAC Off; default-policy signing trust not asserted",
+    "Translation/notes models and XPU runtime remain optional"
+  ],
+  "raw_reports": "windows-app\\runtime\\domestic-harness\\windows-app\\runtime\\acceptance\\20261108-120153-764-functional\\reports",
+  "sandbox_disposed": true
+}
