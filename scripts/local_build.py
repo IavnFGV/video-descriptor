@@ -221,6 +221,16 @@ def publish_ready(record, base):
     return record
 
 
+def build_environment(config, run_name):
+    """Keep build/verification scratch files on the configured build-data volume."""
+    scratch = Path(config.get('temp_root', str(Path(config['cache']) / 'temp'))) / run_name
+    scratch.mkdir(parents=True, exist_ok=True)
+    env = {key: value for key, value in os.environ.items() if key not in {'PYTHONHOME', 'PYTHONPATH'}}
+    env.update(TEMP=str(scratch.resolve()), TMP=str(scratch.resolve()), TMPDIR=str(scratch.resolve()),
+               PYTHONUTF8='1', PYTHONIOENCODING='utf-8', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+    return env
+
+
 def run_build(repo, state, config, sha):
     domestic = config.get('domestic', False)
     if domestic:
@@ -242,8 +252,8 @@ def run_build(repo, state, config, sha):
     status = {'state': 'running', 'commit': sha, 'started': now(), 'output': str(output),
               'profile': 'domestic' if domestic else 'standard',
               'log': str(run / 'build.log'), 'stage': 'checkout'}
-    env = {k: v for k, v in os.environ.items() if k not in {'PYTHONHOME', 'PYTHONPATH'}}
-    env.update(PYTHONUTF8='1', PYTHONIOENCODING='utf-8', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
+    env = build_environment(config, run.name)
+    status['temporary_directory'] = env['TEMP']
     with (run / 'build.log').open('w', encoding='utf-8') as log:
         def step(name, command, cwd=source):
             status['stage'] = name
@@ -375,7 +385,7 @@ def main():
     parser.add_argument('--repo', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--ref', default='HEAD')
     parser.add_argument('--domestic', action='store_true')
-    for name in ('python', 'cache', 'iscc', 'desktop-sdk', 'output', 'domestic-inputs'):
+    for name in ('python', 'cache', 'iscc', 'desktop-sdk', 'output', 'domestic-inputs', 'temp-root'):
         parser.add_argument('--' + name, type=Path)
     args = parser.parse_args()
     repo = Path(git(args.repo, 'rev-parse', '--show-toplevel')).resolve()
@@ -390,6 +400,8 @@ def main():
             parser.error('Python and ISCC must already be installed')
         settings['desktop_sdk'] = str((args.desktop_sdk or repo / 'windows-app/runtime/desktop-sdk').resolve())
         settings['output'] = str((args.output or repo / 'dist/local').resolve())
+        if args.temp_root:
+            settings['temp_root'] = str(args.temp_root.resolve())
         if args.domestic_inputs:
             settings['domestic_inputs'] = str(args.domestic_inputs.resolve())
         write_json(config_file, settings)

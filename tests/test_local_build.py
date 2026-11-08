@@ -182,7 +182,7 @@ def test_failed_checks_do_not_build_or_claim_success(modules, tmp_path, monkeypa
 
     monkeypatch.setattr(build, 'digest', lambda path: 'hash')
     monkeypatch.setattr(build.subprocess, 'run', command)
-    config = {'output': str(tmp_path / 'output'), 'desktop_sdk': str(sdk), 'python': 'python', 'cache': 'cache', 'iscc': 'iscc'}
+    config = {'output': str(tmp_path / 'output'), 'desktop_sdk': str(sdk), 'python': 'python', 'cache': str(tmp_path / 'cache'), 'iscc': 'iscc'}
     state = tmp_path / 'state'
     assert not build.run_build(tmp_path, state, config, 'a' * 40)
     report = json.loads((state / 'status.json').read_text())
@@ -315,3 +315,20 @@ def test_status_excludes_active_request_and_shows_live_packaging_details(modules
     build.update_status(state, {'output': str(output)}, record, render_only=True)
     assert 'Создание ZIP-архива' in (output / 'build-status.html').read_text(encoding='utf-8')
     assert json.loads((state / 'status.json').read_text()) == record
+
+
+def test_build_scratch_is_scoped_to_configured_volume_and_not_system_temp(modules, tmp_path, monkeypatch):
+    build, _ = modules
+    system_temp = tmp_path / 'system-temp'
+    monkeypatch.setenv('TEMP', str(system_temp))
+    monkeypatch.setenv('PYTHONPATH', 'external-python')
+    cache = tmp_path / 'build-data'
+    env = build.build_environment({'cache': str(cache)}, 'run-123')
+    expected = cache / 'temp/run-123'
+    assert env['TEMP'] == env['TMP'] == env['TMPDIR'] == str(expected.resolve())
+    assert expected.is_dir() and not system_temp.exists()
+    assert 'PYTHONPATH' not in env
+    assert build.os.environ['TEMP'] == str(system_temp)
+    custom = tmp_path / 'custom'
+    env = build.build_environment({'cache': str(cache), 'temp_root': str(custom)}, 'run-456')
+    assert Path(env['TEMP']) == custom / 'run-456'
