@@ -14,6 +14,7 @@ ARCHIVES = {
     'nt': ('windows_amd64.zip', '7f12f1801bca3d480d67aaf7774f4c2a6359a3ca8eebe382c95c10c9704aa731'),
     'posix': ('linux_amd64.tar.gz', '023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757'),
 }
+ASSET_IDS = {'nt': 221573260, 'posix': 221573254}
 
 
 def main():
@@ -23,7 +24,8 @@ def main():
     cache = root / 'windows-app/runtime/ci-tools'
     cache.mkdir(parents=True, exist_ok=True)
     archive = cache / name
-    verified_download(f'https://github.com/rhysd/actionlint/releases/download/v{VERSION}/{name}', archive, expected)
+    verified_download(f'https://github.com/rhysd/actionlint/releases/download/v{VERSION}/{name}', archive, expected,
+                      fallback_url=f'https://api.github.com/repos/rhysd/actionlint/releases/assets/{ASSET_IDS[os.name]}')
     data = archive.read_bytes()
     assert hashlib.sha256(data).hexdigest() == expected, 'actionlint archive checksum mismatch'
     binary = 'actionlint.exe' if os.name == 'nt' else 'actionlint'
