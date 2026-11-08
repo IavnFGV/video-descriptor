@@ -288,3 +288,28 @@ def test_cleanup_boundary_cannot_be_bypassed(modules, tmp_path):
     with pytest.raises(ValueError, match='boundary'):
         clean.apply_plan({'files': [{'path': str(outside), 'boundary': str(tmp_path / 'allowed')}]})
     assert outside.exists()
+
+
+def test_status_excludes_active_request_and_shows_live_packaging_details(modules, tmp_path):
+    build, _ = modules
+    state, output = tmp_path / 'state', tmp_path / 'output'
+    current, pending = 'a' * 40, 'b' * 40
+    build.write_json(state / 'queue/current.json', {'commit': current, 'domestic': True})
+    build.write_json(state / 'queue/next.json', {'commit': pending, 'domestic': True})
+    log = tmp_path / 'build.log'
+    log.write_text('Writing reproducible ZIP\nZIP: package.zip\nPreprocessing\n<script>unsafe</script>')
+    record = {'state': 'running', 'stage': 'build', 'commit': current, 'profile': 'domestic',
+              'started': build.now(), 'stage_started': build.now(), 'log': str(log)}
+    build.update_status(state, {'output': str(output)}, record)
+    details = build.status_details(state, record)
+    assert [item['commit'] for item in details['queue']] == [pending]
+    assert 'Inno Setup' in details['step']
+    page = (output / 'build-status.html').read_text(encoding='utf-8')
+    assert 'Очередь: 1' in page and pending[:12] in page
+    assert 'Последняя запись' in page and 'На этапе:' in page
+    assert '<script>unsafe</script>' not in page
+    assert '&lt;script&gt;unsafe&lt;/script&gt;' in page
+    log.write_text('Writing reproducible ZIP')
+    build.update_status(state, {'output': str(output)}, record, render_only=True)
+    assert 'Создание ZIP-архива' in (output / 'build-status.html').read_text(encoding='utf-8')
+    assert json.loads((state / 'status.json').read_text()) == record

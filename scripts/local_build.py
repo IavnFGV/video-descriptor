@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -41,10 +42,11 @@ def atomic_text(path, content):
             time.sleep(.05)
 
 
-def update_status(state, config, record):
+def update_status(state, config, record, *, render_only=False):
     """A fixed, self-refreshing local page; no server or external resources."""
-    write_json(state / 'status.json', record)
-    if record['state'] == 'ready':
+    if not render_only:
+        write_json(state / 'status.json', record)
+    if record['state'] == 'ready' and not render_only:
         write_json(state / 'last-success.json', record)
     previous_file = state / 'last-success.json'
     ready = record if record['state'] == 'ready' else (
@@ -67,17 +69,86 @@ def update_status(state, config, record):
                        for name in ('tokens.css', 'components.css'))
     error = '<p class="vd-error" role="alert">' + html.escape(record.get('error', '')) + '</p>' if record['state'] == 'failed' else ''
     log = link(record['log'], 'Открыть журнал сборки') if record.get('log') else ''
+    detail = status_details(state, record)
+    elapsed = duration(record.get('started'), record.get('finished'))
+    stage_elapsed = duration(record.get('stage_started') or detail['stage_started'], record.get('finished'))
+    details_html = f'<p><strong>{html.escape(detail["step"])}</strong></p>'
+    details_html += f'<p>Всего: {elapsed} · На этапе: {stage_elapsed}</p>'
+    details_html += '<p>Коммит: <code>' + html.escape(record.get('commit', '')[:12]) + '</code> · Профиль: ' + ('С моделями' if record.get('profile') == 'domestic' else 'Стандартный') + '</p>'
+    details_html += '<section><h2>Очередь: ' + str(len(detail['queue'])) + '</h2>'
+    details_html += ('<ol>' + ''.join('<li><code>' + html.escape(item['commit'][:12]) + '</code> · ' + ('С моделями' if item.get('domestic') else 'Стандартный') + '</li>' for item in detail['queue']) + '</ol>') if detail['queue'] else '<p>Ожидающих сборок нет.</p>'
+    details_html += '</section><section><h2>Последние сообщения</h2><p>' + html.escape(detail['activity']) + '</p><pre>' + html.escape(detail['tail'] or 'Журнал пока пуст.') + '</pre></section>'
     page = f'''<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="3">
 <title>Video Descriptor — локальная сборка</title><style>{styles}
 body{{font:var(--vd-body)/1.5 var(--vd-font);color:var(--vd-text);background:var(--vd-canvas);margin:var(--vd-space-6)}}
 main{{max-width:var(--vd-reading-width);margin:auto;background:var(--vd-surface);padding:var(--vd-space-6);border:1px solid var(--vd-border);border-radius:var(--vd-radius-card)}}
-p,section{{overflow-wrap:anywhere}}section{{margin-top:var(--vd-space-6)}}</style><main>
+pre{{white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--vd-caption);max-height:24em;overflow:auto;background:var(--vd-subtle);padding:var(--vd-space-4)}}p,section{{overflow-wrap:anywhere}}section{{margin-top:var(--vd-space-6)}}</style><main>
 <h1>Локальная сборка</h1><h2>{heading}</h2><p>{html.escape(labels.get(record.get('stage'), record.get('stage', '')))}</p>
-{error}<p>{log}</p>{downloads}<details><summary>Технические сведения</summary>
+{details_html}{error}<p>{log}</p>{downloads}<details><summary>Технические сведения</summary>
 <p>Коммит: {html.escape(record.get('commit', ''))}</p><p>Начало (UTC): {html.escape(record.get('started', ''))}</p>
 </details><p>Страница обновляется автоматически каждые 3 секунды. Сборка не устанавливает приложение.</p></main></html>'''
     atomic_text(Path(config.get('status_output', config['output'])) / 'build-status.html', page)
+
+
+def duration(start, end=None):
+    if not start:
+        return '—'
+    seconds = max(0, int(((dt.datetime.fromisoformat(end) if end else dt.datetime.now(dt.UTC)) - dt.datetime.fromisoformat(start)).total_seconds()))
+    return f'{seconds // 60} мин {seconds % 60:02d} с'
+
+
+def status_details(state, record):
+    tail, modified = '', None
+    if record.get('log'):
+        path = Path(record['log'])
+        try:
+            with path.open('rb') as stream:
+                stream.seek(max(0, path.stat().st_size - 12000))
+                tail = '\n'.join(stream.read().decode('utf-8', errors='replace').splitlines()[-24:])
+            modified = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC).isoformat()
+        except FileNotFoundError:
+            pass
+    step = {'checkout': 'Создание отдельной копии исходников', 'checks': 'Проверка кода и тесты',
+            'desktop-sdk': 'Подготовка оболочки Windows', 'build': 'Подготовка файлов приложения',
+            'portable-smoke': 'Проверка запуска готового ZIP', 'domestic-smoke': 'Проверка моделей в пакете',
+            'done': 'ZIP и установщик готовы'}.get(record.get('stage'), 'Ожидаем сведения об этапе')
+    if record.get('stage') == 'build':
+        if any(marker in tail for marker in ('ZIP:', 'Preprocessing', 'Building Windows installer',
+                                               'Parsing [', 'Creating setup files', 'Compressing:',
+                                               'Creating Setup', 'Compile successful')):
+            step = 'ZIP создан. Работает компилятор Windows-установщика (Inno Setup)'
+        elif 'Writing reproducible ZIP' in tail:
+            step = 'Создание ZIP-архива с приложением и моделями'
+        elif 'Recording payload manifest' in tail:
+            step = 'Проверка состава пакета и запись контрольных сумм'
+    queue = []
+    for path in sorted((state / 'queue').glob('*.json'), key=lambda item: item.stat().st_mtime_ns):
+        try:
+            item = json.loads(path.read_text(encoding='utf-8'))
+        except FileNotFoundError:
+            continue
+        active = record.get('state') == 'running' and item.get('commit') == record.get('commit') and bool(item.get('domestic')) == (record.get('profile') == 'domestic')
+        if not active:
+            queue.append(item)
+    activity = ('Последняя запись в журнале: ' + duration(modified) + ' назад. ' if modified else '')
+    activity += 'Процент готовности этого этапа не сообщается. Пауза в журнале сама по себе не означает зависание.' if record.get('state') == 'running' else 'Сборка завершена.'
+    starts = re.findall(r'^\[([^\]]+)\] ' + re.escape(record.get('stage', '')) + r'$', tail, re.MULTILINE)
+    return {'tail': tail, 'step': step, 'queue': queue, 'activity': activity,
+            'stage_started': starts[-1] if starts else None}
+
+
+def watch_status(state, config):
+    """Refresh the existing dashboard without changing worker state or its queue."""
+    while True:
+        path = state / 'status.json'
+        if not path.exists():
+            return
+        record = json.loads(path.read_text(encoding='utf-8'))
+        update_status(state, config, record, render_only=True)
+        if record.get('state') != 'running' and not list((state / 'queue').glob('*.json')):
+            return
+        time.sleep(3)
 
 
 @contextlib.contextmanager
@@ -176,13 +247,27 @@ def run_build(repo, state, config, sha):
     with (run / 'build.log').open('w', encoding='utf-8') as log:
         def step(name, command, cwd=source):
             status['stage'] = name
+            status['stage_started'] = now()
             update_status(state, config, status)
             log.write(f'\n[{now()}] {name}\n')
             log.flush()
             print(name, flush=True)
-            subprocess.run([str(arg) for arg in command], cwd=cwd, env=env, stdout=log,
-                           stderr=subprocess.STDOUT, check=True,
-                           creationflags=0x08000000 if os.name == 'nt' else 0)
+            stopped = threading.Event()
+
+            def refresh():
+                while not stopped.wait(3):
+                    update_status(state, config, status, render_only=True)
+
+            monitor = threading.Thread(target=refresh, daemon=True)
+            monitor.start()
+            try:
+                subprocess.run([str(arg) for arg in command], cwd=cwd, env=env, stdout=log,
+                               stderr=subprocess.STDOUT, check=True,
+                               creationflags=0x08000000 if os.name == 'nt' else 0)
+            finally:
+                stopped.set()
+                monitor.join()
+
         try:
             step('checkout', ['git', 'worktree', 'add', '--detach', source, sha], repo)
             # Reuse verified small build tools; no user config, runtime workspace or models.
@@ -286,7 +371,7 @@ exit 0
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['configure', 'build', 'status', 'install-hook'])
+    parser.add_argument('command', choices=['configure', 'build', 'status', 'watch-status', 'install-hook'])
     parser.add_argument('--repo', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--ref', default='HEAD')
     parser.add_argument('--domestic', action='store_true')
@@ -319,6 +404,9 @@ def main():
         print('Queued:', len(list((state / 'queue').glob('*.json'))))
         return 0
     config = json.loads(config_file.read_text(encoding='utf-8'))
+    if args.command == 'watch-status':
+        watch_status(state, config)
+        return 0
     sha = git(repo, 'rev-parse', '--verify', '--end-of-options', args.ref + '^{commit}')
     write_json(state / 'queue' / (sha + ('-domestic' if args.domestic else '') + '.json'),
                {'commit': sha, 'requested': now(), 'domestic': args.domestic})

@@ -263,7 +263,8 @@ def main():
     deterministic_zip(folder, output, cached_files)
     print('ZIP:', output, 'SHA256:', sha256(output), flush=True)
     if args.iscc:
-        subprocess.run([str(args.iscc), '/Qp', f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
+        print('Building Windows installer (Inno Setup)', flush=True)
+        subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
                         *(['/DDomestic=1'] if args.domestic else []),
                         f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
     artifacts = [{'file': p.name, 'bytes': p.stat().st_size, 'sha256': sha256(p)}
