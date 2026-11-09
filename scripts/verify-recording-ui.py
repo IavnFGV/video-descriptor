@@ -163,6 +163,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert not evaluate('document.querySelector("#construction-article").disabled')
             evaluate('window.constructionUI.openSettings("notes")')
             assert 'конспекта' in c.visible_text('#construction-heading')
+            assert evaluate('document.querySelector("#construction-input").closest("label").hidden')
             assert evaluate('!document.querySelector("#construction-notes-instruction").hidden')
             evaluate('window.constructionUI.openSettings("article")')
             assert evaluate('document.querySelector("#construction-article-prompt").value')=='Custom article instruction'

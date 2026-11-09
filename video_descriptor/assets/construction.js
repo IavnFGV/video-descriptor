@@ -11,7 +11,7 @@
     const panel=document.getElementById('notes-settings');panel.closest('section').hidden=false;panel.open=true;
     $('heading').textContent=article?'Настройки новой статьи':'Настройки нового конспекта';
     $('notes-instruction').hidden=article;$('article-instruction').hidden=!article;
-    for(const id of ['input','material','strategy','translate-after'])$(id).closest('label').hidden=article;
+    for(const id of ['input','material','strategy','translate-after'])$(id).closest('label').hidden=article||(id==='input'&&window.recordingUI?.native);
     for(const id of ['grouping','chunk','max-chunk','max-chars'])$(id).closest('label').hidden=article;
     $('source-help').textContent=article?'Модель выбирается отдельно от переводчика. В модель отправляется полная выбранная расшифровка.':'Модель выбирается отдельно от переводчика. В запрос передаётся расшифровка и, при выборе, распознанный текст слайдов.';
     $('plan-help').textContent=article?'Перед запуском проверяем, что полная расшифровка, промпт и ответ помещаются в контекст модели.':'Перед запуском проверяем лимиты модели. При обработке по частям результаты объединяются в общий конспект и оглавление.';
