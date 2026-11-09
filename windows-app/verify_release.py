@@ -68,6 +68,19 @@ def require_no_registered_install():
             pass
 
 
+def cleanup_test_install(test_root, uninstall_complete):
+    """Inno may leave its self-deleting EXE briefly after a successful uninstall."""
+    uninstaller = test_root / 'Installer тест с пробелом/unins000.exe'
+    try:
+        if not uninstall_complete and uninstaller.is_file():
+            if not uninstaller.resolve().is_relative_to(test_root.resolve()):
+                raise ValueError('Test uninstaller is outside the disposable test directory')
+            progress('Убираем регистрацию временной тестовой установки')
+            run([uninstaller, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
+    finally:
+        stop_owned_processes(test_root)
+
+
 def request(port, path, *, data=None, headers=None):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     req = urllib.request.Request(f'http://127.0.0.1:{port}{path}', data=data, headers=headers or {})
@@ -247,6 +260,7 @@ def main():
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='vd-release-') as temporary:
         test_root = Path(temporary)
+        uninstall_complete = False
         try:
             print('Test directory:', test_root, flush=True)
             portable = test_root / 'ZIP тест с пробелом'
@@ -320,6 +334,8 @@ def main():
                     assert all((installed / 'windows-app' / name).read_bytes() == payload for name, payload in preserved_setup.items())
                     report['upgrade_fixture'] = True
                 run([installed / 'unins000.exe', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
+                require_no_registered_install()
+                uninstall_complete = True
                 assert sentinel.read_text() == 'preserve user data' and settings.read_bytes() == saved_settings
                 assert not (installed / 'python/python.exe').exists()
                 assert not (installed / 'windows-app/app.py').exists()
@@ -332,13 +348,7 @@ def main():
             print(json.dumps(report), flush=True)
             progress('Временные распаковки и их журналы удаляются; итоговый отчёт сохранён')
         finally:
-            uninstaller = test_root / 'Installer тест с пробелом/unins000.exe'
-            try:
-                if uninstaller.is_file():
-                    progress('Убираем регистрацию временной тестовой установки')
-                    run([uninstaller, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'])
-            finally:
-                stop_owned_processes(test_root)
+            cleanup_test_install(test_root, uninstall_complete)
 
 
 if __name__ == '__main__':

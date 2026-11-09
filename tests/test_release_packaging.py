@@ -34,6 +34,23 @@ def test_cabinet_failure_includes_real_tool_diagnostic(tmp_path, monkeypatch):
         module.expand_cabinet(tmp_path / 'bad.cab', tmp_path / 'out')
 
 
+@pytest.mark.parametrize('complete', [False, True])
+def test_cleanup_does_not_repeat_a_successful_uninstall_even_if_exe_lingers(tmp_path, monkeypatch, complete):
+    path = Path(__file__).resolve().parents[1] / 'windows-app/verify_release.py'
+    spec = importlib.util.spec_from_file_location('verify_cleanup_once', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    uninstaller = tmp_path / 'Installer тест с пробелом/unins000.exe'
+    uninstaller.parent.mkdir()
+    uninstaller.write_bytes(b'self-deletion pending; never executable')
+    execute, stop = Mock(), Mock()
+    monkeypatch.setattr(module, 'run', execute)
+    monkeypatch.setattr(module, 'stop_owned_processes', stop)
+    module.cleanup_test_install(tmp_path, complete)
+    assert execute.call_count == (0 if complete else 1)
+    stop.assert_called_once_with(tmp_path)
+
+
 @pytest.mark.parametrize('same_directory', [True, False])
 def test_packaged_smoke_checks_workspace_identity_not_path_spelling(tmp_path, monkeypatch, same_directory):
     path = Path(__file__).resolve().parents[1] / 'windows-app/verify_release.py'
