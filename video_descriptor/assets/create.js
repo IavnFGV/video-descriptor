@@ -159,6 +159,8 @@
       const value = await json('/api/translation-settings');
       $('translation-provider').value = value.provider;
       $('translation-local-model').value = value.ollama_model || 'qwen3.5:9b';
+      $('lmstudio-url').value=value.lmstudio_url; $('lmstudio-model').value=value.lmstudio_model;
+      $('lmstudio-key').placeholder=value.lmstudio_has_key?'Токен сохранён':'Необязательный токен';
       updateTranslationProvider();
       $('gemini-billing').value = value.billing_mode;
       $('gemini-free-ack').checked = value.free_ack;
@@ -173,8 +175,8 @@
   }
   $('gemini-billing').addEventListener('change', () => { $('gemini-free-label').hidden = $('gemini-billing').value !== 'free'; });
   function updateTranslationProvider() {
-    const local = $('translation-provider').value === 'ollama';
-    $('translation-local-label').hidden = !local;
+    const local = $('translation-provider').value !== 'gemini';
+    $('translation-local-label').hidden = $('translation-provider').value !== 'ollama';
     $('translation-gemini-label').hidden = local;
     $('load-gemini-models').hidden = local;
   }
@@ -183,12 +185,13 @@
     event.preventDefault();
     const connection = event.currentTarget.id === 'connections-form';
     const changes = connection ? {
+      lmstudio_url:$('lmstudio-url').value,lmstudio_model:$('lmstudio-model').value,lmstudio_api_key:$('lmstudio-key').value,
       api_key: $('gemini-key').value, billing_mode: $('gemini-billing').value, free_ack: $('gemini-free-ack').checked
     } : {provider: $('translation-provider').value, model: $('gemini-model').value, ollama_model: $('translation-local-model').value};
     const status = $(connection ? 'connections-status' : 'translation-settings-status');
     try {
       await json('/api/translation-settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(changes)});
-      if (connection) $('gemini-key').value = '';
+      if (connection) {$('gemini-key').value = ''; $('lmstudio-key').value='';}
       status.textContent = 'Настройки сохранены.';
       if(!connection)window.studioDraft.clear($('translation-settings-form'));
       if (connection) {await loadTranslationSettings();$('connections-form').dispatchEvent(new Event('connections-saved'));}
@@ -196,6 +199,11 @@
   }
   $('translation-settings-form').addEventListener('submit', saveTranslationSettings);
   $('connections-form').addEventListener('submit', saveTranslationSettings);
+  $('lmstudio-models').onclick=async()=>{
+    const button=$('lmstudio-models');button.disabled=true;$('lmstudio-status').textContent='Проверяем сохранённое подключение…';
+    try{const rows=await json('/api/construction-models?provider=lmstudio');$('lmstudio-status').textContent=rows.length?'Доступны: '+rows.map(r=>r.id).join(', ')+'. Генерация ещё не проверена.':'Сервер ответил, моделей нет.';}
+    catch(e){$('lmstudio-status').textContent=e.message;}finally{button.disabled=false;}
+  };
   $('load-gemini-models').addEventListener('click', async () => {
     $('translation-settings-status').textContent = 'Запрашиваем список моделей Google…';
     try {

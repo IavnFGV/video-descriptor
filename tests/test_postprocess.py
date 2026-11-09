@@ -188,6 +188,50 @@ def test_native_cloud_choice_requires_confirmation_without_contacting_ollama(rec
             thread.join()
 
 
+def test_native_lmstudio_queues_without_ollama_and_pins_worker(recording, monkeypatch):
+    import setup_service
+
+    from video_descriptor import lmstudio, translation_settings
+    root, _ = recording
+    translation_settings.save(root, {'provider': 'lmstudio', 'lmstudio_model': 'local/model',
+                                    'lmstudio_url': 'http://127.0.0.1:1234/v1'})
+    spec = importlib.util.spec_from_file_location('lmstudio_app', Path(__file__).resolve().parents[1] / 'windows-app/app.py')
+    app = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(app)
+    monkeypatch.setattr(setup_service.SetupService, 'bootstrap', lambda self: None)
+    monkeypatch.setattr(setup_service, 'ollama_status', Mock(side_effect=AssertionError('Must not contact Ollama')))
+    monkeypatch.setattr(setup_service, 'validate_ollama_model', Mock(side_effect=AssertionError('Must not validate Ollama')))
+    monkeypatch.setattr(lmstudio, 'models', lambda _: [{'id': 'local/model'}])
+    monkeypatch.setattr(jobs, 'start_worker', lambda _: None)
+    value = {'workspace': str(root), 'npu_worker_directory': str(root / 'benchmark'),
+             'ollama_url': 'http://127.0.0.1:11434'}
+    with ThreadingHTTPServer(('127.0.0.1', 0), app.make_handler(value, 'instance')) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            response = requests.post(f'http://127.0.0.1:{server.server_port}/api/native/postprocess',
+                                     json={'folder': 'source', 'task': 'translate'},
+                                     headers={'X-App-Instance': 'instance'}, timeout=5)
+            assert response.status_code == 202, response.text
+            job = response.json()
+            assert job['translation_provider'] == 'lmstudio'
+            assert job['translation_model'] == 'local/model'
+            assert job['translation_base_url'] == 'http://127.0.0.1:1234/v1'
+            commands = []
+            def run_process(folder, command, **kwargs):
+                commands.append((command, kwargs['env']))
+                return Mock(returncode=0)
+            monkeypatch.setattr(postprocess, 'run_process', run_process)
+            postprocess.run(root, jobs.jobs_dir(root) / job['id'], job, None)
+            command, env = commands[0]
+            assert command[command.index('--lmstudio-model') + 1] == 'local/model'
+            assert command[command.index('--lmstudio-url') + 1] == job['translation_base_url']
+            assert env['VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL'] == job['translation_base_url']
+        finally:
+            server.shutdown()
+            thread.join()
+
+
 
 def test_notes_failure_exposes_structured_reason_and_preserves_source(recording, monkeypatch):
     root, source = recording

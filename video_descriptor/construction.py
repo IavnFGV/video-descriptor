@@ -81,12 +81,12 @@ def validate(value):
         config['auto_context'] = 'context_tokens' not in value
     if type(config['auto_context']) is not bool:
         raise TypeError('Выберите автоматический или ручной размер контекста')
-    for key, choices in {'input': {'speech', 'slides'}, 'material': {'lecture', 'conversation'}, 'provider': {'ollama', 'gemini'},
+    for key, choices in {'input': {'speech', 'slides'}, 'material': {'lecture', 'conversation'}, 'provider': {'ollama', 'gemini', 'lmstudio'},
                          'strategy': {'auto', 'whole', 'chunks'},
                          'grouping': {'auto', 'slides', 'speech', 'time'}}.items():
         if config[key] not in choices:
             raise ValueError(f'Некорректная настройка {key}')
-    if not isinstance(config['model'], str) or not re.fullmatch(r'[A-Za-z0-9._:/-]{1,150}', config['model']):
+    if not isinstance(config['model'], str) or not re.fullmatch(r'[A-Za-z0-9._:/@-]{1,150}', config['model']):
         raise ValueError('Укажите название модели')
     if config['provider'] == 'gemini' and not re.fullmatch(r'gemini-[A-Za-z0-9.-]+', config['model']):
         raise ValueError('Выберите Gemini-модель')
@@ -289,7 +289,7 @@ def enqueue_notes(root, name, value):
     folder = checked_folder(root, name)
     config = validate(value)
     validate_provider(root, config)
-    if config['provider'] != 'gemini' and not config['auto_context']:
+    if config['provider'] == 'ollama' and not config['auto_context']:
         plan(folder, config, count=load_counter(ollama_base_url(root), config['model']))
     manifest = read_json(folder / 'manifest.json')
     for path in jobs_dir(root).glob('*/job.json'):
@@ -327,6 +327,8 @@ def enqueue_notes(root, name, value):
                'folder': version.name, 'source_folder': folder.name, 'title': '',
                'thinking': False, 'mode': 'notes', 'construction': config,
                'created': time.time(), 'status': 'queued', 'ollama_url': ollama_base_url(root)}
+        if config['provider'] == 'lmstudio':
+            job['lmstudio_url'] = credentials(root)['lmstudio_url']
         target = jobs_dir(root) / id
         target.mkdir()
         write_json(version / 'construction-job.json', {'id': id})
@@ -338,6 +340,9 @@ def enqueue_notes(root, name, value):
 
 
 def available_models(root, provider):
+    if provider == 'lmstudio':
+        from .lmstudio import models
+        return models(credentials(root))
     if provider == 'gemini':
         from .gemini import models
         return models(credentials(root)['api_key'])
@@ -359,6 +364,13 @@ def actual_limits(root, config):
         meta = call('GET', BASE + '/models/' + config['model'], credentials(root)['api_key'])
         config['context_tokens'] = min(2097152, meta['inputTokenLimit']) if config['auto_context'] else min(config['context_tokens'], meta['inputTokenLimit'])
         config['output_tokens'] = min(config['output_tokens'], meta['outputTokenLimit'])
+    elif config['provider'] == 'lmstudio':
+        from .lmstudio import context_limit, models
+        settings = credentials(root)
+        if config['model'] not in {item['id'] for item in models(settings)}:
+            raise ValueError('Выбранная модель LM Studio недоступна; обновите список моделей')
+        if config['auto_context']:
+            config['context_tokens'] = min(2097152, context_limit(settings, config['model']))
     else:
         base = ollama_base_url(root)
         try:
@@ -411,6 +423,10 @@ def generate(root, config, text, log, stage='Конспект'):
         prompt += '\nОбъедини приведённые промежуточные конспекты. Удали повторы, свяжи аргументы. Не добавляй новых фактов и меток времени. Сохрани все существенные темы и хронологию оглавления.\n'
     if config['provider'] != 'gemini' and count(text) + count(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
         raise ValueError('Материал запроса превышает заданный контекст')
+    if config['provider'] == 'lmstudio':
+        from .lmstudio import generate as lm_generate
+        return lm_generate(credentials(root), config['model'], prompt, text, log,
+                           output_tokens=config['output_tokens'], task='construction')
     if config['provider'] == 'ollama':
         from .notes import chat_json
         # Builder prompts are independent of the legacy lecture/filter prompts.

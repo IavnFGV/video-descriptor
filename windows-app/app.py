@@ -432,16 +432,30 @@ def make_handler(value, instance):
                             validate_provider(Path(value['workspace']), config)
                             if config['provider'] == 'gemini' and body.get('cloud_confirmed') is not True:
                                 raise ValueError('Подтвердите отправку текста в Google и возможные расходы')
-                        status = ollama_status(value) if config is None else {'selected': config['model']}
+                        from video_descriptor import translation_settings
+                        preferences = translation_settings.load(value['workspace'])
+                        lm_selected = (config['provider'] if config else preferences['provider']) == 'lmstudio'
+                        if lm_selected:
+                            from video_descriptor.lmstudio import models
+                            selected = config['model'] if config else preferences['lmstudio_model']
+                            if selected not in {row['id'] for row in models(preferences)}:
+                                raise ValueError('Выберите доступную модель LM Studio в настройках')
+                            status = {'selected': selected}
+                            if config is None and body.get('task') == 'notes':
+                                from video_descriptor.construction import validate
+                                config = validate({'provider': 'lmstudio', 'model': selected})
+                        else:
+                            status = ollama_status(value) if config is None else {'selected': config['model']}
                         model = status['selected']
                         notes_model = read_json(Path(value['workspace']) / '.devcontainer/notes-settings.json', {}).get('ollama_model') or model
-                        if config is None or config['provider'] == 'ollama':
+                        if not lm_selected and (config is None or config['provider'] == 'ollama'):
                             validate_ollama_model(value, model)
-                        if config is None and body.get('task') == 'notes' and notes_model != model:
+                        if not lm_selected and config is None and body.get('task') == 'notes' and notes_model != model:
                             validate_ollama_model(value, notes_model)
                         job = enqueue_postprocess(Path(value['workspace']), body.get('folder'),
-                                                  body.get('task'), model, value['ollama_url'], notes_model=notes_model,
-                                                  construction=config, translate_after=body.get('translate_after', True))
+                                                  body.get('task'), model, preferences['lmstudio_url'] if lm_selected else value['ollama_url'], notes_model=notes_model,
+                                                  construction=config, translate_after=body.get('translate_after', True),
+                                                  translation_provider='lmstudio' if lm_selected else None)
                         start_worker(Path(value['workspace']))
                         return self.json_response(202, job)
                     if path == '/api/setup/ollama':

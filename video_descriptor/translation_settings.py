@@ -41,9 +41,14 @@ def load(root=None):
     root = Path(root or Path.cwd())
     path = root / ".devcontainer" / "translation-settings.json"
     value = {"provider": "ollama", "ollama_model": "", "model": "gemini-3.5-flash-lite",
-             "billing_mode": "paid", "free_ack": False, "api_key": ""}
+             "billing_mode": "paid", "free_ack": False, "api_key": "",
+             "lmstudio_url": "http://127.0.0.1:1234/v1", "lmstudio_model": "", "lmstudio_api_key": ""}
     if path.exists():
         value.update(json.loads(path.read_text(encoding='utf-8')))
+        if value.get('lmstudio_api_key_dpapi'):
+            if os.name != 'nt':
+                raise ValueError('Токен LM Studio защищён учётной записью Windows')
+            value['lmstudio_api_key'] = protected_key(base64.b64decode(value['lmstudio_api_key_dpapi']), decrypt=True).decode('utf-8')
         if value.get('api_key_dpapi'):
             if os.name != 'nt':
                 raise ValueError('Ключ защищён учётной записью Windows; введите ключ на этом компьютере')
@@ -55,12 +60,17 @@ def load(root=None):
             for line in env.read_text().splitlines():
                 if line.startswith("GEMINI_API_KEY="):
                     value["api_key"] = line.partition("=")[2].strip().strip("\"'")
+    if os.getenv('VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL'):
+        value['lmstudio_url'] = os.environ['VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL']
     return value
 
 
 def public(value):
     return {**{key: value[key] for key in ("provider", "model", "ollama_model", "billing_mode", "free_ack")},
-            "has_key": bool(value["api_key"])}
+            "has_key": bool(value["api_key"]),
+            "lmstudio_url": value.get("lmstudio_url", "http://127.0.0.1:1234/v1"),
+            "lmstudio_model": value.get("lmstudio_model", ""),
+            "lmstudio_has_key": bool(value.get("lmstudio_api_key"))}
 
 
 def save(root, changes):
@@ -70,10 +80,10 @@ def save(root, changes):
 
 def _save(root, changes):
     value = load(root)
-    for name in ("provider", "model", "ollama_model", "billing_mode", "free_ack", "api_key"):
-        if name in changes and not (name == "api_key" and changes[name] == ""):
+    for name in ("provider", "model", "ollama_model", "billing_mode", "free_ack", "api_key", "lmstudio_url", "lmstudio_model", "lmstudio_api_key"):
+        if name in changes and not (name in {"api_key", "lmstudio_api_key"} and changes[name] == ""):
             value[name] = changes[name]
-    if value["provider"] not in {"ollama", "gemini"}:
+    if value["provider"] not in {"ollama", "gemini", "lmstudio"}:
         raise ValueError("Неизвестный исполнитель перевода")
     if (not isinstance(value["model"], str)
             or not re.fullmatch(r"gemini-[a-zA-Z0-9.-]{1,100}", value["model"])):
@@ -84,6 +94,12 @@ def _save(root, changes):
         raise ValueError("Некорректный режим оплаты")
     if not isinstance(value["api_key"], str) or len(value["api_key"]) > 512:
         raise ValueError("Некорректный API-ключ")
+    from .lmstudio import base_url
+    value['lmstudio_url'] = base_url(value['lmstudio_url'])
+    if not isinstance(value['lmstudio_model'], str) or (value['lmstudio_model'] and not re.fullmatch(r'[A-Za-z0-9._:/@-]{1,150}', value['lmstudio_model'])):
+        raise ValueError('Укажите идентификатор модели LM Studio')
+    if not isinstance(value['lmstudio_api_key'], str) or len(value['lmstudio_api_key']) > 512 or any(c in value['lmstudio_api_key'] for c in '\r\n'):
+        raise ValueError('Некорректный API-токен LM Studio')
     if value["provider"] == "gemini":
         if not value["api_key"].strip():
             raise ValueError("Добавьте API-ключ Gemini")
@@ -94,6 +110,14 @@ def _save(root, changes):
     temporary = path.with_suffix(".tmp")
     fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     stored = dict(value)
+    if os.name == 'nt' and value['lmstudio_api_key']:
+        try:
+            stored['lmstudio_api_key_dpapi'] = base64.b64encode(protected_key(value['lmstudio_api_key'].encode('utf-8'))).decode('ascii')
+            stored['lmstudio_api_key'] = ''
+        except BaseException:
+            os.close(fd)
+            temporary.unlink(missing_ok=True)
+            raise
     if os.name == 'nt' and value['api_key']:
         try:
             stored['api_key_dpapi'] = base64.b64encode(protected_key(value['api_key'].encode('utf-8'))).decode('ascii')

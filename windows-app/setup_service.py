@@ -340,7 +340,8 @@ class SetupService:
         settings = translation_settings.public(translation_settings.load(self.manager.value['workspace']))
         ollama = ollama_status(self.manager.value)
         notes = read_json(Path(self.manager.value['workspace']) / '.devcontainer/notes-settings.json', {}).get('ollama_model', '')
-        text_ready = ollama['ready']
+        lm_configured = settings['provider'] == 'lmstudio' and bool(settings.get('lmstudio_model'))
+        text_ready = lm_configured or ollama['ready']
         if self.hardware is None:
             self.hardware = hardware_inventory()
         return {'hardware': self.hardware, 'inventory': inventory, 'runtime_python': str(self.manager.python),
@@ -350,8 +351,8 @@ class SetupService:
                                    'Tesseract не найден; необязательный компонент'},
                 'translation': {'state': 'configured' if text_ready or settings['has_key'] else 'setup_required',
                                 'message': 'Модель/ключ настроены; генерация выполняется по запросу'},
-                'notes': {'state': 'configured' if notes and notes in {m['name'] for m in ollama['models']} and ollama_completion(self.manager.value, notes) else 'setup_required', 'selected': notes,
-                          'message': 'Выберите модель Ollama для конспекта'},
+                'notes': {'state': 'configured' if lm_configured or notes and notes in {m['name'] for m in ollama['models']} and ollama_completion(self.manager.value, notes) else 'setup_required', 'selected': settings['lmstudio_model'] if lm_configured else notes,
+                          'message': 'LM Studio настроен; генерация ещё не проверена' if lm_configured else 'Выберите модель Ollama для конспекта'},
                 'diarization': diarization_status(self.manager.value)}
 
     def gemini(self, changes):

@@ -251,7 +251,8 @@ def run_job(root, folder, job):
                 code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction',
                                        str(root), str(result), str(settings)], cwd=root, stdout=log,
                                       stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False,
-                                      env=job_environment(job.get('ollama_url') or ollama_base_url(root))).returncode
+                                      env=({**os.environ, 'VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL': job['lmstudio_url']}
+                                           if job.get('lmstudio_url') else job_environment(job.get('ollama_url') or ollama_base_url(root)))).returncode
                 if code:
                     error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
                     raise RuntimeError('Конспект остановлен: ' + error)

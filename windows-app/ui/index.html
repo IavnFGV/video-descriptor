@@ -251,6 +251,12 @@
 </p>
 </form>
 </details>
+<details><summary>LM Studio · локальный сервер</summary><form id="lmstudio-form" class="vd-form">
+<p>Включите Local Server и загрузите модель в LM Studio. Устройство и контекст выбираются в LM Studio. Сохранённая модель используется для перевода; конспект и статья имеют отдельный выбор.</p>
+<label class="vd-field">Адрес API<input id="lmstudio-url" class="vd-input" value="http://127.0.0.1:1234/v1"></label>
+<label class="vd-field">API-токен (если требуется; пустое поле сохраняет прежний)<input id="lmstudio-key" class="vd-input" type="password" autocomplete="off" maxlength="512"></label>
+<label class="vd-field">Модель для перевода<input id="lmstudio-model" class="vd-input" maxlength="150"></label>
+<div class="vd-actions"><button type="submit" class="vd-button">Сохранить и использовать LM Studio</button><button id="lmstudio-models" type="button" class="vd-button">Проверить подключение и показать модели</button></div><p id="lmstudio-status" role="status"></p></form></details>
 <details class="card ai-section"><summary>Облачный AI (Gemini)</summary>
 <h2>Gemini · необязательно</h2>
 <p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p>
@@ -355,7 +361,7 @@
 </div>
 <dialog id="notes-dialog" class="vd-dialog" aria-labelledby="notes-heading">
 <h2 id="notes-heading">Создать конспект</h2>
-<label class="vd-field">Где обрабатывать<select id="notes-provider" class="vd-select"><option value="ollama">На компьютере · Ollama</option><option value="gemini">В облаке Google · Gemini</option></select></label>
+<label class="vd-field">Где обрабатывать<select id="notes-provider" class="vd-select"><option value="ollama">На компьютере · Ollama</option><option value="lmstudio">На компьютере · LM Studio</option><option value="gemini">В облаке Google · Gemini</option></select></label>
 <label class="vd-field">Модель<select id="notes-model-choice" class="vd-select"></select></label>
 <button id="notes-model-refresh" type="button" class="vd-button">Обновить модели</button>
 <details><summary>Разбиение и контекст</summary>

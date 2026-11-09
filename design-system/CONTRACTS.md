@@ -190,3 +190,6 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 08.11.2026: owner-requested self-cleaning build/verification scratch, success and failure. Temporary nested logs are disposable; final JSON and published packages remain outside scratch. Release version 0.8.28; no UI handler or API change.
 
 08.11.2026: owner clarified full installer with cached unchanged work, not an update-only installer. CachedComponents installer branch preserves original application AppId, process identity/consent guard and settings; complete offline component archive is native-extracted only when needed. Existing noncached branch remains supported. Status labels identify cached full profile; original UI handler/API baseline retained.
+
+
+09.11.2026: по запросу владельца добавлен LM Studio в существующие provider selects и отдельные поля подключения (local URL/model/optional password token). Основные IDs, handlers, routes, revision/dirty guards сохранены; desktop использует существующий `/api/construction-models?provider=lmstudio`. Список моделей — только проверка доступности сервера, генерация проверяется при обработке. Контекст/устройство загружаемой модели настраиваются в LM Studio; авто-контекст требует метаданных фактически загруженного instance. Новых CSS и массовой миграции интерфейса нет.
