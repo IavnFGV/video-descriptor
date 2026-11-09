@@ -54,7 +54,24 @@ def installed_workflow(root, port, output, *, with_ollama=False):
         cdp.fill('#language', 'en')
         wait_for(lambda: not cdp.evaluate('document.querySelector("#start").disabled'))
         cdp.click('#start')
-        wait_for(lambda: cdp.visible_text('#status'), lambda value: value in {'Готово', 'Нужна проверка'}, timeout=240)
+        deadline = time.monotonic() + 240
+        last_status = None
+
+        while time.monotonic() < deadline:
+            last_status = cdp.visible_text('#status')
+
+            print(f"UI status: {last_status!r}", flush=True)
+
+            if last_status in {'Готово', 'Нужна проверка'}:
+                break
+
+            time.sleep(2)
+        else:
+            raise TimeoutError(
+                f"UI did not finish within 240s. "
+                f"Last status: {last_status!r}"
+            )
+        
         job = cdp.evaluate('new URLSearchParams(location.search).get("job")')
         speech = json.loads(read_http(base + '/api/speech?' + urlencode({'job': job})))
         assert speech['job']['status'] == 'done' and speech['result']['segments'], speech
