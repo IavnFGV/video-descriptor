@@ -24,6 +24,27 @@ def test_standard_package_is_accepted(tmp_path):
         assert ci_artifacts.check_public_zip(archive)['profile'] == 'standard'
 
 
+@pytest.mark.parametrize('same', [True, False])
+def test_runtime_build_identity_must_match_manifest(tmp_path, same):
+    info = 1
+    payload = {'BUILD': '1\n' if same else '2\n'}
+    with zipfile.ZipFile(package(tmp_path, changes={'build': info}, payload=payload)) as archive:
+        if same:
+            ci_artifacts.check_public_zip(archive)
+        else:
+            with pytest.raises(ValueError, match='build number'):
+                ci_artifacts.check_public_zip(archive)
+
+
+@pytest.mark.parametrize('name', ['ctranslate2/models/__init__.py',
+                                 'onnxruntime/transformers/models/whisper/convert_to_onnx.py',
+                                 'tokenizers/models/__init__.pyi'])
+def test_dependency_source_modules_named_models_are_not_downloaded_weights(tmp_path, name):
+    path = 'python/Lib/site-packages/' + name
+    with zipfile.ZipFile(package(tmp_path, payload={path: b'# pinned dependency source'})) as archive:
+        ci_artifacts.check_public_zip(archive)
+
+
 @pytest.mark.parametrize('changes', [{'profile': 'domestic'}, {'profile': 'cached'}, {'profile': None},
                                      {'domestic': {}}, {'whisper_weights_included': True},
                                      {'whisper_weights_included': None}, {'component_cache_key': 'private-cache'}])
@@ -35,6 +56,8 @@ def test_private_or_unknown_profile_cannot_be_published(tmp_path, changes):
 @pytest.mark.parametrize('name', ['windows-app/domestic/whisper/config.json', 'runtime/models/config.json',
                                  'renamed/model.bin', 'hidden/weights.safetensors', 'assets/network.onnx',
                                  'hidden/weights.GGUF', 'hidden/weights.pt', 'components.zip',
+                                 'python/Lib/site-packages/ctranslate2/models/weights.bin',
+                                 'python/Lib/site-packages/tokenizers/models/weights.onnx',
                                  'cache-reference.json', '.env.local', 'windows-app/config.local.json',
                                  'windows-app/domestic_setup.py', '../escaped/model.bin'])
 def test_renaming_archive_does_not_hide_models_or_private_payload(tmp_path, name):

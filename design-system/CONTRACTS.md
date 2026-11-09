@@ -193,3 +193,5 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 
 09.11.2026: по запросу владельца добавлен LM Studio в существующие provider selects и отдельные поля подключения (local URL/model/optional password token). Основные IDs, handlers, routes, revision/dirty guards сохранены; desktop использует существующий `/api/construction-models?provider=lmstudio`. Список моделей — только проверка доступности сервера, генерация проверяется при обработке. Контекст/устройство загружаемой модели настраиваются в LM Studio; авто-контекст требует метаданных фактически загруженного instance. Новых CSS и массовой миграции интерфейса нет.
+
+09.11.2026: readonly footer показывает version + номер билда из BUILD. Существующие handlers, API routes, revision/dirty guards сохранены; в health/doctor добавлено числовое поле build без новых endpoints.
