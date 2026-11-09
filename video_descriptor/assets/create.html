@@ -60,8 +60,8 @@
 <div id="construction-article-instruction" hidden><label>Промпт статьи<textarea id="construction-article-prompt" rows="12" required maxlength="50000"></textarea></label><button id="construction-reset-article-prompt" type="button">Стандартный промпт статьи</button><p class="hint">Статья создаётся по полной выбранной расшифровке одним запросом, без таймкодов. Настройки разбиения конспекта не применяются.</p></div>
 <details><summary>Разбиение и лимиты модели</summary><div class="construction-options">
 <label>Границы частей<select id="construction-grouping"><option value="auto">Автоматически</option><option value="slides">По смене слайда</option><option value="speech">По паузам в речи</option><option value="time">По времени</option></select></label>
-<label>Контекст модели, токенов<input id="construction-context" type="number" min="4096" max="2097152" value="16384" required></label>
-<label><input id="construction-auto-context" type="checkbox" checked> Определять доступный контекст модели автоматически</label>
+<div class="construction-context-field"><label>Контекст модели, токенов<input id="construction-context" type="number" min="4096" max="2097152" value="16384" required></label>
+<label><input id="construction-auto-context" type="checkbox" checked> Определять автоматически</label><p class="hint">При включённом режиме используем доступный контекст выбранной модели.</p></div>
 <label>Предел ответа, токенов<input id="construction-output" type="number" min="512" max="65536" value="4096" required></label>
 <label>Целевая длина части, секунд<input id="construction-chunk" type="number" min="30" max="3600" value="180" required></label>
 <label>Максимальная длина части, секунд<input id="construction-max-chunk" type="number" min="60" max="7200" value="600" required></label>
@@ -70,6 +70,7 @@
 <p id="construction-plan" role="status">Выберите готовую запись, чтобы оценить размер и способ обработки.</p>
 <p id="construction-plan-help" class="hint">До запуска показываем оценку размера. Контекст включает место для инструкции и ответа. При запуске проверяем лимиты модели; для Gemini дополнительно считаем точные токены. Обработка частей заканчивается общим конспектом и оглавлением; большие промежуточные результаты объединяются в несколько проходов.</p>
 <label id="construction-cloud-label" hidden><input id="construction-cloud" type="checkbox"> Разрешаю отправить текст расшифровки в Google. Возможны расходы по тарифу моего проекта.</label><label><input id="construction-translate-after" type="checkbox"> Также перевести расшифровку выбранной моделью</label>
+<p id="construction-run-reason" class="hint" role="status" aria-live="polite"></p>
 <div class="construction-actions"><button id="construction-save" type="submit" disabled>Сохранить настройки</button><button id="construction-preview" type="button" disabled>Проверить план</button><button id="construction-run" type="button" disabled>Создать новый конспект</button><button id="cancel-new-notes" type="button">Отмена</button><a id="construction-download" hidden download>Конспект Markdown ↓</a></div>
 <p id="construction-status" role="status">Загружаем настройки…</p>
 </form></div></details></section>

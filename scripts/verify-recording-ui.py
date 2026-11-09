@@ -169,6 +169,16 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('document.querySelector("#construction-article-prompt").value')=='Custom article instruction'
             evaluate('document.querySelector("#construction-heading").scrollIntoView({block:"start"})')
             c.screenshot(out/'article-action.png')
+            evaluate('window.constructionUI.select({folder:"notes-a",has_ready_transcript:true,running:false,job:{status:"running"}})')
+            assert evaluate('document.querySelector("#construction-run").disabled')
+            assert 'уже выполняется' in c.visible_text('#construction-run-reason')
+            evaluate('window.constructionUI.select({folder:"notes-a",has_ready_transcript:true,running:false,job:{status:"queued"}})')
+            assert 'в очереди' in c.visible_text('#construction-run-reason')
+            evaluate('window.constructionUI.select({folder:"notes-a",has_ready_transcript:true,running:false,job:{status:"done"}})')
+            assert not evaluate('document.querySelector("#construction-run").disabled')
+            assert evaluate('document.querySelector("#construction-context").closest(".construction-context-field").contains(document.querySelector("#construction-auto-context"))')
+            evaluate('window.constructionUI.openSettings("notes");document.querySelector("#construction-context").closest("details").open=true;document.querySelector("#construction-context").scrollIntoView({block:"center"})')
+            c.screenshot(out/'notes-context.png')
             assert evaluate('window.uiErrors')==[]
             print('PASS: article action sends chosen model, full-transcript result kind, no translation; dirty/busy/error guards preserved',flush=True)
             sys.exit(0)

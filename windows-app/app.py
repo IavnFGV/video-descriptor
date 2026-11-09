@@ -559,7 +559,9 @@ def main():
         workspace = Path(value['workspace'])
         for folder in ('data', 'output', '.devcontainer'):
             (workspace / folder).mkdir(parents=True, exist_ok=True)
-        # An interrupted worker owns recovery; opening the UI does not restart old jobs.
+        # Recover abandoned statuses without restarting the old queue.
+        from video_descriptor.jobs import recover_interrupted
+        recover_interrupted(workspace)
         if args.start_npu:
             print(json.dumps(start_npu(value)))
         instance = uuid.uuid4().hex
