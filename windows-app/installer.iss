@@ -1,6 +1,9 @@
 #ifndef Payload
   #error Payload must name the prepared application directory
 #endif
+#if defined(PublicRelease) && (defined(Domestic) || defined(CachedComponents))
+  #error PublicRelease cannot include Domestic or CachedComponents payloads
+#endif
 #ifndef AppVersion
   #define AppVersion "0.4.0"
 #endif

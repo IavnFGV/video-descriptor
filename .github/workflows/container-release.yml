@@ -22,6 +22,8 @@ jobs:
       run: gh run download "$GITHUB_RUN_ID" --name VideoDescriptor-full-acceptance --dir accepted-windows
       env:
         GH_TOKEN: ${{ github.token }}
+    - name: Reject private Domestic and cached model bundles before publication
+      run: python scripts/ci_artifacts.py --directory accepted-windows
     - name: Retrieve accepted container image without rebuilding
       env:
         GH_TOKEN: ${{ github.token }}

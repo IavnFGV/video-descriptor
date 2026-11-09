@@ -138,3 +138,12 @@ PR-cycle подтверждает применённую маршрутизац�
 При повторной попытке actionlint/Inno Setup используют официальный api.github.com/repos/.../releases/assets/ID с Accept: application/octet-stream. ID закреплён вместе с версией; уникальный query исключает повтор закэшированного перенаправления. SHA256 и подпись не ослабляются, сторонние зеркала не используются.
 
 08.11.2026: локальный post-merge использует полный кешируемый офлайн EXE, без изменения GitHub CI routing. Компоненты content-addressed и проверяются SHA256 архива на cache hit; CPU proof кешируется для одинакового backend/runtime/installer и хоста. Каждый merge сохраняет Fast tests и проверку точного полученного EXE (install/reinstall/health/uninstall в отдельном AppId). Полный ZIP/некешируемый путь и clean-VM/hardware acceptance остаются явными отдельными проверками.
+
+
+### Граница публичного релиза — 09.11.2026
+
+По уточнению владельца GitHub Releases предназначен только для стандартного пакета. Domestic и полный пакет из component cache остаются личными: переименование файлов не делает их публичными. `ci_artifacts.py` перед записью/проверкой provenance требует `profile=standard`, `domestic=null`, `whisper_weights_included=false`, отсутствие component cache и приватных файлов. Проверяется реальный список ZIP, а не только декларация manifest; неизвестные веса блокируются. Исключения ONNX ограничены точными SHA256 VAD из pinned faster-whisper и тремя тестовыми примерами pinned onnxruntime. Для VAD требуется отдельное уведомление Silero MIT, включаемое source allowlist сборщика. Это техническая граница, а не завершённый аудит всех транзитивных лицензий (см. THIRD-PARTY.md).
+
+Publish job повторяет проверку в каталоге accepted-windows до registry push и gh release create. Посторонние ZIP/EXE в каталоге публикации запрещены. SHA256SUMS содержит только созданные текущим запуском артефакты, а не старые файлы по glob. Inno PublicRelease несовместим с Domestic/CachedComponents; lifecycle проверяет полное равенство manifest установленного EXE и принятого ZIP.
+
+Модели Whisper, community-1 и LLM не переносятся из личного cache в public assets. Настройка после установки использует официальные источники и пользовательский доступ/согласие. Не сохранять токены в дистрибутиве. Наличие уже проверенной локальной модели не требует повторного скачивания, нового inference или HF-доступа.

@@ -118,7 +118,7 @@ def test_pr_routing_uses_merge_base_and_accounts_for_renames(monkeypatch):
     assert '--no-renames' in commands[1]
 
 
-@pytest.mark.parametrize('corruption', ['bytes', 'revision', 'provenance'])
+@pytest.mark.parametrize('corruption', ['bytes', 'revision', 'provenance', 'extra-installer'])
 def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch, corruption):
     spec = importlib.util.spec_from_file_location('ci_artifacts', ROOT / 'scripts/ci_artifacts.py')
     module = importlib.util.module_from_spec(spec)
@@ -131,7 +131,9 @@ def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch
     dist.mkdir()
     archive = dist / 'VideoDescriptor-0.7.0-windows-x64.zip'
     with zipfile.ZipFile(archive, 'w') as package:
-        package.writestr('release-manifest.json', '{"version":"0.7.0"}')
+        package.writestr('release-manifest.json', json.dumps({'version': '0.7.0', 'profile': 'standard',
+                                                            'domestic': None, 'whisper_weights_included': False,
+                                                            'files': []}))
     installer = dist / 'VideoDescriptor-0.7.0-windows-x64-setup.exe'
     installer.write_bytes(b'unit fixture, never executable')
     entries = [{'file': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in [archive, installer]]
@@ -143,9 +145,11 @@ def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch
         installer.write_bytes(b'different artifact')
     elif corruption == 'revision':
         monkeypatch.setattr(module.subprocess, 'check_output', lambda *a, **kw: 'different-sha\n')
-    else:
+    elif corruption == 'provenance':
         (dist / 'acceptance-provenance.json').write_text('{"git_sha":"accepted-sha","artifacts":[]}')
-    with pytest.raises(AssertionError):
+    else:
+        (dist / 'renamed-domestic-setup.exe').write_bytes(b'private artifact')
+    with pytest.raises(ValueError if corruption == 'extra-installer' else AssertionError):
         module.main()
 
 
