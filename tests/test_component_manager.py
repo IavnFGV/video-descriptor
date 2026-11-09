@@ -516,3 +516,105 @@ def test_reinstall_reuses_verified_model_without_requesting_token(manager, monke
     monkeypatch.setattr(manager, 'diarization_runtime', lambda device, path, install: (manager.here / 'runtime/Scripts/python.exe', {'torch': 'verified'}))
     monkeypatch.setattr(manager, 'publish', lambda value: None)
     assert manager.diarization({'device': 'cpu'}, 'install')['torch'] == 'verified'
+
+
+@pytest.fixture
+def verified_diarization(manager, tmp_path):
+    import hashlib
+    runtime = tmp_path / 'runtime'
+    python = runtime / 'Scripts/python.exe'
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b'python')
+    for package, version in [('torch', '2.14.1'), ('pyannote_audio', '4.0.7')]:
+        metadata = runtime / ('Lib/site-packages/' + package + '-' + version + '.dist-info/METADATA')
+        metadata.parent.mkdir(parents=True)
+        metadata.write_text('Version: ' + version, encoding='utf-8')
+    model = tmp_path / 'diarization-model'
+    model.mkdir()
+    (model / 'config.yaml').write_text('model', encoding='utf-8')
+    (manager.here / 'diarization_worker.py').write_text('worker', encoding='utf-8')
+    lock = manager.here / 'requirements-pyannote-cpu.lock'
+    lock.write_text('locked dependencies', encoding='utf-8')
+    profile = {'revision': 'revision', 'files': [{'name': 'config.yaml', 'bytes': 5,
+                   'sha256': hashlib.sha256(b'model').hexdigest()}]}
+    manager.manifest['diarization_model'] = profile
+    (manager.here / 'component-manifest.json').write_text(json.dumps(manager.manifest))
+    proof = {'turns': [{'start': 0, 'end': 1, 'speaker': 'a'}], 'device': 'cpu',
+             'torch': '2.14.1', 'pyannote': '4.0.7', 'model_revision': 'revision',
+             'requirements_sha256': hashlib.sha256(lock.read_bytes()).hexdigest()}
+    manager.manager.value.update(diarization_python=str(python), diarization_model_directory=str(model),
+                                 diarization_device='cpu', diarization_requested_device='cpu', diarization_probe=proof)
+    manager.refresh_diarization_readiness()
+    return manager
+
+
+def test_diarization_proof_survives_restart_without_inference_or_download(verified_diarization, monkeypatch):
+    manager = verified_diarization
+    assert manager.components['diarization']['state'] == 'ready'
+    restored = cm.ComponentManager(manager.setup, manager.root)
+    assert restored.components['diarization']['state'] == 'ready'
+    monkeypatch.setattr(restored, 'diarization_runtime', lambda *a, **kw: pytest.fail('Repeated inference'))
+    assert restored.diarization({'device': 'cpu'}, 'check')['turns']
+    assert next(item for item in restored.snapshot()['components'] if item['id']=='diarization')['requires_download'] is False
+
+
+@pytest.mark.parametrize('changed', ['model', 'environment', 'backend', 'dependencies'])
+def test_changed_diarization_inputs_invalidate_proof(verified_diarization, changed):
+    manager = verified_diarization
+    paths = {'model': Path(manager.manager.value['diarization_model_directory']) / 'config.yaml',
+             'environment': Path(manager.manager.value['diarization_python']),
+             'backend': manager.here / 'diarization_worker.py',
+             'dependencies': manager.here / 'requirements-pyannote-cpu.lock'}
+    paths[changed].write_bytes(paths[changed].read_bytes() + b' changed')
+    manager.refresh_diarization_readiness()
+    assert manager.components['diarization']['state'] == 'installed'
+    restored = cm.ComponentManager(manager.setup, manager.root)
+    assert restored.components['diarization']['state'] != 'ready'
+
+
+def test_ui_change_does_not_invalidate_diarization(verified_diarization):
+    manager = verified_diarization
+    (manager.here / 'app.py').write_text('UI-only change', encoding='utf-8')
+    manager.refresh_diarization_readiness()
+    assert manager.components['diarization']['state'] == 'ready'
+
+
+def test_component_failure_invalidates_cached_diarization(verified_diarization):
+    manager = verified_diarization
+    manager.update('diarization', 'error', message='Failed real check')
+    restored = cm.ComponentManager(manager.setup, manager.root)
+    assert restored.components['diarization']['state'] == 'error'
+    assert restored.components['diarization']['readiness_invalidated']
+
+
+def test_configured_model_without_real_proof_is_not_ready(verified_diarization):
+    manager = verified_diarization
+    manager.manager.value.pop('diarization_probe')
+    manager.components['diarization'] = {'state': 'installed'}
+    manager.refresh_diarization_readiness()
+    assert manager.components['diarization']['state'] != 'ready'
+
+
+def test_real_job_failure_and_later_success_update_readiness(verified_diarization, tmp_path):
+    manager = verified_diarization
+    workspace = tmp_path / 'records'
+    manager.manager.value['workspace'] = str(workspace)
+    state = manager.components['diarization']
+    signature = state['readiness_key']
+    jobfile = workspace / ('output/jobs/' + 'a' * 32) / 'job.json'
+    jobfile.parent.mkdir(parents=True)
+    job = {'task': 'diarize', 'folder': 'result', 'diarization_readiness_key': signature,
+           'status': 'error', 'finished': state['checked_at'] + 1}
+    jobfile.write_text(json.dumps(job))
+    manager.refresh_diarization_readiness()
+    assert manager.components['diarization']['state'] == 'installed'
+    assert manager.components['diarization']['readiness_invalidated']
+    manager._diarization_history_at = 0
+    job.update(status='done', finished=job['finished'] + 1)
+    jobfile.write_text(json.dumps(job))
+    result = workspace / 'output/result/diarization-result.json'
+    result.parent.mkdir()
+    result.write_text(json.dumps({'device':'cpu','turns':[{'speaker':'a','start':0,'end':1}]}))
+    manager.refresh_diarization_readiness()
+    assert manager.components['diarization']['state'] == 'ready'
+    assert not manager.components['diarization']['readiness_invalidated']

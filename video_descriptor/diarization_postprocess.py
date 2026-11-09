@@ -85,6 +85,9 @@ def enqueue(root, name, settings):
                'diarization_model_directory': str(Path(settings['diarization_model_directory']).resolve()),
                'diarization_model_sha256': model_digest(Path(settings['diarization_model_directory'])),
                'diarization_device': device, 'status': 'queued', 'created': time.time()}
+        from .diarization_readiness import fingerprint
+        job['diarization_readiness_key'] = fingerprint(settings, WORKER.parent,
+                                                       read_json(WORKER.parent / 'component-manifest.json', {}).get('diarization_model', {}))
         folder = jobs_dir(root) / identity
         folder.mkdir()
         write_json(folder / 'job.json', job)

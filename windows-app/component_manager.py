@@ -167,10 +167,10 @@ class ComponentManager:
             except (BlockingIOError, PermissionError):
                 pass  # Another application instance owns this operation; do not recover it.
             else:
-                for item in self.components.values():
+                for key, item in self.components.items():
                     if item['state'] in BUSY:
                         item.update(state='error', message='Подготовка прервана перезапуском. Повторите: проверенные файлы сохранены.')
-                    elif item['state'] == 'ready':
+                    elif item['state'] == 'ready' and key != 'diarization':
                         item.update(state='installed', message='Последняя проверка сохранена. Проверьте готовность в этом запуске.')
                 self.save()
         # Selection is configuration, not something inferred from an old managed artifact.
@@ -178,6 +178,52 @@ class ComponentManager:
         self.manager.value.update(ollama_mode=self.connection['mode'], ollama_url=self.connection['url'])
         if self.manager.value.get('workspace'):
             atomic(workspace_file(self.manager.value['workspace']), self.connection)
+        self.refresh_diarization_readiness()
+
+    def refresh_diarization_readiness(self):
+        from video_descriptor.diarization_readiness import fingerprint, legacy_proof_matches
+        item = self.components['diarization']
+        if self.active == 'diarization' or item['state'] in BUSY:
+            return
+        previous_item = dict(item)
+        profile = self.manifest.get('diarization_model', {})
+        model = Path(self.manager.value.get('diarization_model_directory') or '__missing__')
+        current = fingerprint(self.manager.value, self.here, profile)
+        proof = item.get('proof') or self.manager.value.get('diarization_probe') or {}
+        saved_key = item.get('readiness_key')
+        verified_at = item.get('checked_at', 0)
+        if current and self.manager.value.get('workspace') and time.monotonic()-getattr(self, '_diarization_history_at', 0)>5:
+            self._diarization_history_at = time.monotonic()
+            jobs = [read_json(path, {}) for path in (Path(self.manager.value['workspace']) / 'output/jobs').glob('*/job.json')]
+            latest = max((job for job in jobs if job.get('task')=='diarize'
+                          and not job.get('cancelled') and job.get('diarization_readiness_key')==current and job.get('status') in {'done','error'}),
+                         key=lambda job:job.get('finished', 0), default={})
+            if latest.get('finished', 0)>verified_at:
+                if latest['status']=='error':
+                    item.update(readiness_key=None,readiness_invalidated=True,state='installed',message='Последний запуск не прошёл. Проверим окружение автоматически перед следующей обработкой.')
+                    saved_key=None
+                else:
+                    result=read_json(Path(self.manager.value['workspace'])/'output'/latest['folder']/'diarization-result.json', {})
+                    if result.get('turns'):
+                        proof={**result,'turns':result['turns'][:3],'observed_turn_count':len(result['turns'])}
+                        saved_key=current
+                        item.update(readiness_invalidated=False,checked_at=latest['finished'])
+        ready = bool(current and saved_key == current and proof.get('turns'))
+        if current and not saved_key and not item.get('readiness_invalidated') and item['state']!='error' and legacy_proof_matches(proof, self.manager.value, self.here, profile):
+            ready = self.verify_model(model, profile)
+        changes = {'requires_download': not (model / 'config.yaml').is_file() or any(not (model / file['name']).is_file() for file in profile.get('files', []))}
+        if ready:
+            changes.update(state='ready', proof=proof, readiness_key=current,
+                           checked_at=item.get('checked_at') or time.time(),
+                           device=self.manager.value.get('diarization_device', 'cpu'),
+                           requested_device=self.manager.value.get('diarization_requested_device', 'auto'),
+                           message='Проверка сохранена; модель, окружение и устройство не изменились.')
+        elif saved_key or item['state'] == 'ready':
+            changes.update(state='installed', message='Компоненты изменились. Проверим их перед следующим запуском.')
+        item.update(changes)
+        if item != previous_item:
+            self.save()
+            record('component_state',component='diarization',stage='setup',status=item['state'],device=item.get('device'),reason='saved_proof_reused' if ready else 'inputs_changed')
 
     def save(self):
         atomic(self.path, self.components)
@@ -185,6 +231,8 @@ class ComponentManager:
     def update(self, key, state=None, **fields):
         with self.lock:
             previous = self.components[key].get('state')
+            if key=='diarization' and state=='error':
+                fields.update(readiness_key=None,readiness_invalidated=True)
             if state is not None:
                 if state not in STATES:
                     raise ValueError('Неизвестное состояние компонента')
@@ -205,6 +253,7 @@ class ComponentManager:
                 if isinstance(saved, dict):
                     self.components.update({key: value for key, value in saved.items()
                                             if key in NAMES and isinstance(value, dict) and value.get('state') in STATES})
+            self.refresh_diarization_readiness()
             rows = []
             for key, title in NAMES.items():
                 item = dict(self.components[key])
@@ -343,7 +392,7 @@ class ComponentManager:
     def publish(self, changes):
         self.check_cancel()
         with self.manager._lock:
-            config = self.here / 'config.local.json'
+            config = Path(os.getenv('VIDEO_DESCRIPTOR_CONFIG', str(self.here / 'config.local.json')))
             original = config.read_bytes() if config.exists() else None
             try:
                 local = json.loads(original.decode('utf-8-sig')) if original is not None else {}
@@ -384,7 +433,8 @@ class ComponentManager:
         device = body.get('device', 'auto')
         if device not in {'auto', 'cpu', 'xpu'}:
             raise ValueError('Выберите поддерживаемое устройство для определения участников')
-        if 'diarization' in features and body.get('hf_consent') is not True:
+        model_present = (Path(self.manager.value.get('diarization_model_directory') or '__missing__') / 'config.yaml').is_file()
+        if 'diarization' in features and not model_present and body.get('hf_consent') is not True:
             raise ValueError('Для участников примите условия community-1 и отметьте согласие Hugging Face в разделе «Участники»')
         if 'diarization' in features and not body.get('token') and not (self.root / 'hf-token.dpapi').is_file():
             profile = self.manifest.get('diarization_model', {})
@@ -888,6 +938,14 @@ class ComponentManager:
         from diarization_setup import choose_device, detect_adapters
         requested = body.get('device', 'auto')
         selected = choose_device(requested, detect_adapters() if requested == 'auto' else [])
+        from video_descriptor.diarization_readiness import fingerprint
+        saved = self.components['diarization']
+        current = fingerprint(self.manager.value, self.here, self.manifest.get('diarization_model', {}))
+        if (action == 'check' and current and saved.get('readiness_key')==current and not saved.get('readiness_invalidated') and saved.get('device') == selected
+                and saved.get('proof', {}).get('turns')):
+            if self.manager.value.get('diarization_requested_device')!=requested:
+                self.publish({'diarization_requested_device':requested})
+            return saved['proof']
         model = Path(self.manager.value.get('diarization_model_directory', ''))
         if action == 'install' and not self.verify_model(model, self.manifest['diarization_model']):
             model = self.hf_model(self.token(body.get('token')))
@@ -909,8 +967,10 @@ class ComponentManager:
         self.publish({'diarization_python': str(runtime), 'diarization_model_directory': str(model),
                       'diarization_device': selected, 'diarization_requested_device': requested,
                       'diarization_setup_warning': warning, 'diarization_probe': proof})
+        from video_descriptor.diarization_readiness import fingerprint
+        readiness_key = fingerprint(self.manager.value, self.here, self.manifest.get('diarization_model', {}))
         self.update('diarization', path=str(runtime.parent.parent), model=str(model), device=selected, requested_device=requested,
-                    version=proof.get('torch', ''), fallback_reason=warning,
+                    version=proof.get('torch', ''), fallback_reason=warning, readiness_key=readiness_key, readiness_invalidated=False, checked_at=time.time(),
                     bytes_on_disk=self.size(runtime.parent.parent) + self.size(model))
         return proof
 
