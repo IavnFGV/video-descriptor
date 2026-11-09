@@ -273,6 +273,7 @@ def main():
                 installed = test_root / 'Installer тест с пробелом'
                 install_args = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS=', '/NOICONS', '/DIR=' + str(installed)]
                 run([args.installer.resolve(), *install_args])
+                assert json.loads((installed / 'release-manifest.json').read_text(encoding='utf-8')) == manifest, 'Installer payload differs from the accepted ZIP'
                 manifest_check(installed)
                 report['installed'] = smoke(installed)
                 # Keep user data/config/settings while replacing tracked payload files.

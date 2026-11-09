@@ -1,0 +1,56 @@
+name: Windows release
+'on':
+  push:
+    tags:
+    - v*.*.*
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+        check-latest: false
+    - name: Require a matching version tag on main history
+      run: python scripts/windows_release.py validate
+  verify:
+    needs: version
+    uses: ./.github/workflows/full-acceptance.yml
+    with:
+      windows_only: true
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+        check-latest: false
+    - name: Download the exact accepted Windows artifacts
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh run download "$GITHUB_RUN_ID" --name VideoDescriptor-full-acceptance --dir accepted-windows
+    - name: Enforce public package policy and accepted revision
+      run: python scripts/ci_artifacts.py --directory accepted-windows
+    - name: Stage, verify downloaded assets and publish the Windows release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python scripts/windows_release.py publish --directory accepted-windows

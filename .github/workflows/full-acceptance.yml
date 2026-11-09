@@ -6,7 +6,12 @@ name: Full Acceptance
         type: string
         default: qwen3.5:0.8b
         description: Public model for explicit full acceptance
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      windows_only:
+        type: boolean
+        default: false
+        description: Skip container acceptance for native Windows releases
   release:
     types:
     - prereleased
@@ -163,6 +168,7 @@ jobs:
           dist/ollama-acceptance/**
         retention-days: 7
   container:
+    if: ${{ !inputs.windows_only }}
     uses: ./.github/workflows/container-smoke.yml
     with:
       retain_image: true

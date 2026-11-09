@@ -138,3 +138,23 @@ PR-cycle подтверждает применённую маршрутизац�
 При повторной попытке actionlint/Inno Setup используют официальный api.github.com/repos/.../releases/assets/ID с Accept: application/octet-stream. ID закреплён вместе с версией; уникальный query исключает повтор закэшированного перенаправления. SHA256 и подпись не ослабляются, сторонние зеркала не используются.
 
 08.11.2026: локальный post-merge использует полный кешируемый офлайн EXE, без изменения GitHub CI routing. Компоненты content-addressed и проверяются SHA256 архива на cache hit; CPU proof кешируется для одинакового backend/runtime/installer и хоста. Каждый merge сохраняет Fast tests и проверку точного полученного EXE (install/reinstall/health/uninstall в отдельном AppId). Полный ZIP/некешируемый путь и clean-VM/hardware acceptance остаются явными отдельными проверками.
+
+
+### Граница публичного релиза — 09.11.2026
+
+По уточнению владельца GitHub Releases предназначен только для стандартного пакета. Domestic и полный пакет из component cache остаются личными: переименование файлов не делает их публичными. `ci_artifacts.py` перед записью/проверкой provenance требует `profile=standard`, `domestic=null`, `whisper_weights_included=false`, отсутствие component cache и приватных файлов. Проверяется реальный список ZIP, а не только декларация manifest; неизвестные веса блокируются. Исключения ONNX ограничены точными SHA256 VAD из pinned faster-whisper и тремя тестовыми примерами pinned onnxruntime. Для VAD требуется отдельное уведомление Silero MIT, включаемое source allowlist сборщика. Это техническая граница, а не завершённый аудит всех транзитивных лицензий (см. THIRD-PARTY.md).
+
+Publish job повторяет проверку в каталоге accepted-windows до registry push и gh release create. Посторонние ZIP/EXE в каталоге публикации запрещены. SHA256SUMS содержит только созданные текущим запуском артефакты, а не старые файлы по glob. Inno PublicRelease несовместим с Domestic/CachedComponents; lifecycle проверяет полное равенство manifest установленного EXE и принятого ZIP.
+
+Модели Whisper, community-1 и LLM не переносятся из личного cache в public assets. Настройка после установки использует официальные источники и пользовательский доступ/согласие. Не сохранять токены в дистрибутиве. Наличие уже проверенной локальной модели не требует повторного скачивания, нового inference или HF-доступа.
+
+
+### Windows release 0.9.0 — 09.11.2026
+
+`windows-release.yml` — единственный автоматический publisher тегов `v*.*.*`. Ручной Run workflow разрешён только на существующем matching version tag; main/feature ref отклоняется до тяжёлых работ. Тег обязан совпадать с release-inputs.json и указывать на commit в origin/main. Concurrency по ref не прерывает активный выпуск.
+
+Verify повторно использует full-acceptance.yml с windows_only=true: та же Windows сборка, детерминированный rebuild, WebView/installer lifecycle и CPU functional acceptance с внешними fixture-моделями; container job пропускается. Manual Full и прежний Container release сохраняют полный профиль по умолчанию. Container release теперь запускается только вручную, не конкурирует за native version tags.
+
+Publish имеет только contents:write/actions:read, получает accepted artifact текущего run без пересборки и повторяет public gate. scripts/windows_release.py повторно проверяет tag, revision, hashes и размер каждого файла (<2 GiB), загружает только четыре явно перечисленных файла. Релиз сначала draft; все четыре файла скачиваются и сверяются по SHA256 до публикации. Rerun дополняет только отсутствующие assets draft; существующие файлы не заменяются. Несовпадение байтов/посторонние файлы останавливают публикацию. Уже опубликованный полный релиз только сверяется, не перезаписывается. Версионные release notes обязательны в docs/releases/X.Y.Z.md.
+
+Для 0.9.0: merge проверенных изменений в main, push main, создать и отправить v0.9.0 на этот commit. GITHUB_TOKEN публикует релиз после уже пройденной приёмки, без рекурсивного release-event запуска. Пользовательский/external published release по-прежнему проходит существующую Full проверку точных assets.

@@ -45,3 +45,6 @@ DLL; LICENSE.txt из проверенного nupkg включается ряд
 Проверенные размер/SHA256 FFmpeg binary и модельный digest — `component-manifest.json`.
 Отдельные библиотеки могут иметь дополнительные notices и транзитивные зависимости:
 полный SBOM и third-party bundle нужны перед публичным installer, а не подразумеваются готовыми.
+
+
+09.11.2026: Domestic/полный кешируемый offline-пакет запрещён к автоматической публикации в GitHub Releases. Standard-пакет не включает загруженные Whisper/community-1/LLM; они устанавливаются пользователем из официальных источников. При этом standard не является строго «без моделей»: pinned faster-whisper включает `silero_vad_v6.onnx`. Его SHA256 закреплён public gate, а `windows-app/licenses/SILERO-VAD-LICENSE.txt` включён в дистрибутив. Три ONNX-примера из onnxruntime также закреплены отдельно; остальные неизвестные веса блокируются. Это не заменяет перечисленные выше требования GPL/third-party notices или выбор лицензии проекта.

@@ -120,6 +120,7 @@ def source_paths():
         'Start-App.ps1', 'Ensure-WebView2.ps1', 'Open-App.cmd', 'config.example.json', 'README.md', 'THIRD-PARTY.md',
         'component-manifest.json', 'release-inputs.json', 'requirements-release.txt')]
     paths += [p for p in (HERE / 'ui').iterdir() if p.is_file()]
+    paths += [HERE / 'licenses/SILERO-VAD-LICENSE.txt']
     paths += [HERE / 'samples' / name for name in ('speech-check.wav', 'speech-check.mp4', 'README.md')]
     paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md',
               ROOT / 'requirements-diarization.txt', ROOT / 'requirements-diarization-xpu.txt']
@@ -267,10 +268,13 @@ def main():
         if args.iscc:
             print('Building Windows installer (Inno Setup)', flush=True)
             subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
-                            *(['/DDomestic=1'] if args.domestic else []),
+                            *(['/DDomestic=1'] if args.domestic else ['/DPublicRelease=1']),
                             f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
+        accepted = [output]
+        if args.iscc:
+            accepted.append(output.with_name(output.stem + '-setup.exe'))
         artifacts = [{'file': p.name, 'bytes': p.stat().st_size, 'sha256': sha256(p)}
-                     for p in sorted(args.output.glob(f'VideoDescriptor-{inputs["version"]}-windows-x64*'))]
+                     for p in sorted(accepted)]
         (args.output / 'SHA256SUMS.json').write_text(json.dumps(artifacts, indent=2) + '\n', encoding='utf-8')
         print('Packaging complete; temporary payload is being removed', flush=True)
 

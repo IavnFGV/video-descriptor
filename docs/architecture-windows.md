@@ -673,3 +673,15 @@ Advanced settings can save `ai_components_directory` for the next process start 
 Конспекты/статьи используют существующие construction config, очередь, проверки Markdown, revision/dirty guards и сохранение результатов. Автоматический контекст читается из `loaded_instances[].config.context_length` native `/api/v1/models`; теоретический максимум не выдаётся за загруженный размер. При отсутствии метаданных требуется ручной контекст. Планирование использует консервативную байтовую границу без скачивания токенизатора. Перевод сохраняет marker validation и готовые блоки; worker получает зафиксированные provider/model/base URL. Токен не включается в задания и диагностические payload.
 
 Метаданные и inference вызывают общую `action_history.record` с operation id, stage и status; RequestJournal сохраняет request lifecycle и артефакты рядом с записью. Общий журнал не содержит URL с credentials, токен, prompt или transcript. Неполный, пустой или некорректный ответ — ошибка; наличие модели в inventory не устанавливает readiness proof. Существующие `/api/translation-settings`, `/api/construction-models` и `/api/native/postprocess` расширены без новых HTTP endpoints и состояний заданий.
+
+
+### Публичная поставка и личный offline-пакет (09.11.2026)
+
+Public GitHub Release использует только standard ZIP/EXE. Domestic/cached offline packages с Whisper/community-1 не являются входом публичной публикации. Общий CI artifact verifier проверяет профиль и фактический ZIP, запрещает private cache/config/weights и неизвестные model assets; publish повторяет этот gate. Встроенный зависимый Silero VAD и три ONNX-примера runtime разрешены только по закреплённым SHA256, с notice Silero. Имена артефактов сами по себе не подтверждают профиль. Installer lifecycle сравнивает manifest EXE с принятым ZIP.
+
+Публичное приложение сохраняет существующее первоначальное подключение/скачивание моделей с официальных источников по запросу пользователя. Согласие Hugging Face и личный token нужны только для требующей доступа загрузки community-1, а не для переиспользования локальной модели. Общий HTTP/action audit настройки не меняется. Полный сторонний license/notices audit остаётся отдельным условием готовности публичной поставки.
+
+
+### Автоматический native Windows release 0.9.0
+
+Один workflow windows-release.yml владеет version tags vX.Y.Z: main ancestry/version gate → reusable Windows Full (windows_only) → public artifact policy → draft/upload/download SHA256 verification → publish. Container release переведён в manual-only, native путь не требует Docker/GHCR. Стандартный комплект из четырёх assets: ZIP, EXE, SHA256SUMS.json, acceptance-provenance.json. Private Domestic/cached bundles не участвуют. Модели fixture для CI не являются release assets. Повторный запуск не заменяет опубликованные байты; версия в native diagnostics читается из release-inputs.json, как и health/build.
