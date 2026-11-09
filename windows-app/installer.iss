@@ -17,6 +17,10 @@ AppId={{CA05C8BE-4CF2-4BCA-9B3C-597742FF04D1}
 #endif
 AppName=Video Descriptor
 AppVersion={#AppVersion}
+#ifdef BuildNumber
+AppVerName=Video Descriptor {#AppVersion} (Build {#BuildNumber})
+VersionInfoDescription=Video Descriptor {#AppVersion} (Build {#BuildNumber})
+#endif
 AppPublisher=Video Descriptor contributors
 DefaultDirName={localappdata}\Programs\VideoDescriptor
 DefaultGroupName=Video Descriptor

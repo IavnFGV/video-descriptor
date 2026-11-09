@@ -28,6 +28,7 @@ def installation(tmp_path, monkeypatch):
                     ignore=shutil.ignore_patterns('__pycache__'))
     folder = tmp_path / 'windows-app'
     folder.mkdir()
+    shutil.copyfile(ROOT / 'BUILD', tmp_path / 'BUILD')
     for name in ('app.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component_manager.py', 'storage_service.py', 'release_lifecycle.py', 'model_download.py', 'component-manifest.json', 'release-inputs.json'):
         shutil.copyfile(ROOT / 'windows-app' / name, folder / name)
     shutil.copytree(ROOT / 'windows-app/ui', folder / 'ui')
@@ -100,6 +101,7 @@ def test_desktop_launch_repeat_api_and_active_job_survives(installation):
     assert requests.get(base, timeout=3).status_code == 200
     assert requests.get(base + '/health', timeout=3).json()['version'] == json.loads(
         (folder / 'release-inputs.json').read_text(encoding='utf-8'))['version']
+    assert requests.get(base + '/health', timeout=3).json()['build'] == int((folder.parent / 'BUILD').read_text())
     job = folder / 'runtime/workspace/output/jobs/active/job.json'
     job.parent.mkdir(parents=True)
     job.write_text('{"status":"running"}')

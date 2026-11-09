@@ -29,6 +29,7 @@ sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
 VERSION = json.loads((HERE / 'release-inputs.json').read_text(encoding='utf-8'))['version']
+BUILD = int((REPOSITORY / 'BUILD').read_text(encoding='ascii').strip()) if (REPOSITORY / 'BUILD').is_file() else None
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 
@@ -134,7 +135,7 @@ def doctor(value):
         startup = json.loads(state_path.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         startup = None
-    return {'app': APP, 'version': VERSION, 'workspace': value['workspace'],
+    return {'app': APP, 'version': VERSION, 'build': BUILD, 'workspace': value['workspace'],
             'python': sys.version.split()[0], 'packages': packages,
             'ffmpeg': ffmpeg_path(), 'probe': 'ffprobe' if shutil.which('ffprobe') else 'PyAV',
             'ram_gib': round(psutil.virtual_memory().total / 1024**3, 1),
@@ -272,7 +273,7 @@ def make_handler(value, instance):
                 if value.get('development'):
                     version = read_json(HERE / 'release-inputs.json', {}).get('version', VERSION)
                     development = {'development': True, 'source_commit': os.getenv('VIDEO_DESCRIPTOR_DEV_COMMIT', '')}
-                return self.json_response(200, {'app': APP, 'version': version,
+                return self.json_response(200, {'app': APP, 'version': version, 'build': BUILD,
                                                'instance': instance, 'workspace': value['workspace'],
                                                'installation': installation_id(), 'desktop_protocol': 1, **development})
             if path == '/api/doctor':

@@ -16,6 +16,13 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 
 
+def read_build():
+    number = int((ROOT / 'BUILD').read_text(encoding='ascii').strip())
+    if number < 1:
+        raise ValueError('BUILD must contain a positive integer')
+    return number
+
+
 def sha256(path):
     with Path(path).open('rb') as source:
         return hashlib.file_digest(source, 'sha256').hexdigest()
@@ -123,6 +130,7 @@ def source_paths():
     paths += [HERE / 'licenses/SILERO-VAD-LICENSE.txt']
     paths += [HERE / 'samples' / name for name in ('speech-check.wav', 'speech-check.mp4', 'README.md')]
     paths += [ROOT / 'scripts/whisper_npu_server.py', ROOT / 'README.md',
+              ROOT / 'BUILD',
               ROOT / 'requirements-diarization.txt', ROOT / 'requirements-diarization-xpu.txt']
     paths += [ROOT / 'docs' / name for name in ('architecture-windows.md', 'device-policy-and-release.md',
                                                'competitive-analysis.md', 'verification-devices.md',
@@ -255,7 +263,7 @@ def main():
                     'bytes': cached_files[p]['bytes'] if p in cached_files else p.stat().st_size,
                     'sha256': cached_files[p]['sha256'] if p in cached_files else sha256(p)}
                    for p in sorted(folder.rglob('*')) if p.is_file()]
-        manifest = {'version': inputs['version'], 'architecture': 'windows-x64', 'whisper_weights_included': args.domestic,
+        manifest = {'version': inputs['version'], 'build': read_build(), 'architecture': 'windows-x64', 'whisper_weights_included': args.domestic,
                     'profile': 'domestic' if args.domestic else 'standard', 'domestic': domestic,
                     'vad_asset_in_faster_whisper': True,
                     'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
@@ -268,6 +276,7 @@ def main():
         if args.iscc:
             print('Building Windows installer (Inno Setup)', flush=True)
             subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
+                            f'/DBuildNumber={read_build()}',
                             *(['/DDomestic=1'] if args.domestic else ['/DPublicRelease=1']),
                             f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
         accepted = [output]

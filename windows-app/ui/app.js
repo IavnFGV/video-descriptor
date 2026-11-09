@@ -596,6 +596,6 @@
   $('cancel-preparation').onclick=async()=>{const d=await api('/api/components');if(d.active)await componentAction(d.active,'cancel');};
 
   for(const section of document.querySelectorAll('.ai-section')){const summary=section.querySelector(':scope > summary');summary.setAttribute('aria-expanded',String(section.open));section.addEventListener('toggle',()=>summary.setAttribute('aria-expanded',String(section.open)));}
-  api('/health').then(h=>{instance=h.instance;return Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics(),storageStatus()]));}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  api('/health').then(h=>{instance=h.instance;$('build-label').textContent='Video Descriptor '+h.version+(h.build!=null?' · билд '+h.build:'');return Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics(),storageStatus()]));}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
   const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
 })();

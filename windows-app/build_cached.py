@@ -10,7 +10,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from build_release import HERE, ROOT, safe_member, sha256, source_paths
+from build_release import HERE, ROOT, read_build, safe_member, sha256, source_paths
 from component_cache import PREFIXES, digest, runtime_contract, validation_key
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name, parse_wheel_filename
@@ -131,7 +131,7 @@ def build(cache, output, iscc, seed=None, domestic_inputs=None, seed_sha=None):
         files = [{'path': p.relative_to(app).as_posix(), 'bytes': p.stat().st_size, 'sha256': sha256(p)}
                  for p in sorted(app.rglob('*')) if p.is_file()]
         manifest = {**{name: record[name] for name in ('domestic', 'python_source', 'vcrt_source', 'wheels')},
-                    'version': release['version'], 'architecture': 'windows-x64', 'profile': 'domestic',
+                    'version': release['version'], 'build': read_build(), 'architecture': 'windows-x64', 'profile': 'domestic',
                     'whisper_weights_included': True, 'component_cache_key': record['key'],
                     'files': sorted([*record['files'], *files], key=lambda item: item['path'])}
         manifest['component_validation_key'] = validation_key(manifest)
@@ -139,6 +139,7 @@ def build(cache, output, iscc, seed=None, domestic_inputs=None, seed_sha=None):
         print(f'Building complete offline EXE: {len(files)} app files plus cached runtime '
               f'({len(record["files"])} files); runtime stored without recompression', flush=True)
         subprocess.run([str(iscc), f'/DPayload={app}', f'/DAppVersion={release["version"]}',
+                        f'/DBuildNumber={read_build()}',
                         '/DDomestic=1', f'/DCachedComponents={bundle}',
                         f'/DComponentsSize={sum(item["bytes"] for item in record["files"])}',
                         f'/O{output.resolve()}', str(HERE / 'installer.iss')], check=True)

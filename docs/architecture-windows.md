@@ -685,3 +685,8 @@ Public GitHub Release использует только standard ZIP/EXE. Domest
 ### Автоматический native Windows release 0.9.0
 
 Один workflow windows-release.yml владеет version tags vX.Y.Z: main ancestry/version gate → reusable Windows Full (windows_only) → public artifact policy → draft/upload/download SHA256 verification → publish. Container release переведён в manual-only, native путь не требует Docker/GHCR. Стандартный комплект из четырёх assets: ZIP, EXE, SHA256SUMS.json, acceptance-provenance.json. Private Domestic/cached bundles не участвуют. Модели fixture для CI не являются release assets. Повторный запуск не заменяет опубликованные байты; версия в native diagnostics читается из release-inputs.json, как и health/build.
+
+
+### Номер билда из репозитория (0.9.0)
+
+По уточнению владельца единственный источник — текстовый BUILD в Git. Он инкрементируется и коммитится только при подготовке нового релиза, до создания version tag. Local/Domestic/cached и GitHub читают одно значение; retry и deterministic rebuild его не меняют. BUILD включён в source allowlist, manifest.build, acceptance-provenance.build, API /health и /api/doctor, footer и Inno AppVerName. Дополнительных локальных счётчиков или build-info.json нет. Ключи моделей/component cache не включают номер.

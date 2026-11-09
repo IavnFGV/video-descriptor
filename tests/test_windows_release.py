@@ -1,5 +1,6 @@
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -20,9 +21,44 @@ def test_release_accepts_matching_tag():
     assert windows_release.validate_ref('refs/tags/v0.9.0', '0.9.0') == 'v0.9.0'
 
 
+def test_prepare_commits_one_build_increment_and_tag_then_dispatches_once(tmp_path, monkeypatch):
+    repo, remote = tmp_path / 'repo with spaces', tmp_path / 'remote.git'
+    def git(*args, cwd=repo):
+        return subprocess.check_output(['git', *map(str, args)], cwd=cwd, text=True, stderr=subprocess.DEVNULL).strip()
+    git('init', '--bare', remote, cwd=tmp_path)
+    repo.mkdir()
+    git('init', '-b', 'main')
+    git('config', 'user.name', 'Test')
+    git('config', 'user.email', 'test@example.invalid')
+    git('config', 'commit.gpgsign', 'false')
+    (repo / 'windows-app').mkdir()
+    (repo / 'windows-app/release-inputs.json').write_text('{"version":"0.9.1"}')
+    (repo / 'docs/releases').mkdir(parents=True)
+    (repo / 'docs/releases/0.9.1.md').write_text('Next release')
+    (repo / 'BUILD').write_text('1\n')
+    git('add', '.')
+    git('commit', '-m', 'Ready for release')
+    git('remote', 'add', 'origin', remote)
+    git('push', '-u', 'origin', 'main')
+    monkeypatch.setattr(windows_release, 'ROOT', repo)
+    monkeypatch.setenv('GITHUB_REF', 'refs/heads/main')
+    dispatch = Mock()
+    monkeypatch.setattr(windows_release, 'gh', dispatch)
+    windows_release.prepare()
+    assert (repo / 'BUILD').read_text() == '2\n'
+    assert git('show', 'v0.9.1:BUILD') == '2'
+    assert git('show', 'main:BUILD', cwd=remote) == '2'
+    dispatch.assert_called_once_with('workflow', 'run', 'windows-release.yml', '--ref', 'v0.9.1')
+    with pytest.raises(ValueError, match='already exists'):
+        windows_release.prepare()
+    assert (repo / 'BUILD').read_text() == '2\n'
+    assert dispatch.call_count == 1
+
+
 @pytest.mark.parametrize('existing,corrupt', [(None, False), (True, False), (False, False), (None, True)])
 def test_publication_checks_downloaded_bytes_before_exposing_draft(tmp_path, monkeypatch, existing, corrupt):
     monkeypatch.setattr(windows_release, 'ROOT', tmp_path)
+    (tmp_path / 'BUILD').write_text('1\n')
     notes = tmp_path / 'docs/releases/0.9.0.md'
     notes.parent.mkdir(parents=True)
     notes.write_text('Release notes', encoding='utf-8')

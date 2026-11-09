@@ -14,6 +14,8 @@ APPROVED_ONNX = {
     'python/Lib/site-packages/onnxruntime/datasets/mul_1.onnx': '71f431c4e9321ec6fbeb158d02ed240459a7dcc98673fa79a4f439ce42efaf10',
     'python/Lib/site-packages/onnxruntime/datasets/sigmoid.onnx': '5340aba67a7e3475162ad794378af55f1718f55f9a5d74b4af60ecc7f7a624b6',
 }
+DEPENDENCY_MODEL_CODE = tuple('python/Lib/site-packages/' + name for name in (
+    'ctranslate2/models/', 'onnxruntime/transformers/models/', 'tokenizers/models/'))
 
 
 def require_public_payload(manifest, names):
@@ -25,8 +27,10 @@ def require_public_payload(manifest, names):
     for name in names:
         normalized = name.replace('\\', '/').lower()
         parts = normalized.split('/')
+        dependency_code = name.startswith(DEPENDENCY_MODEL_CODE) and name.endswith(('.py', '.pyi'))
         if (normalized.startswith('/') or '..' in parts or ':' in normalized
-                or any(part in {'domestic', 'models', 'model-cache', '.cache', '.env', '.huggingface'} for part in parts)
+                or any(part in {'domestic', 'model-cache', '.cache', '.env', '.huggingface'} for part in parts)
+                or ('models' in parts and not dependency_code)
                 or parts[-1].startswith('.env') or parts[-1] in {'config.local.json', 'components.zip', 'cache-reference.json',
                                                                              'domestic_setup.py', 'domestic-manifest.json'}
                 or normalized.endswith(('.gguf', '.safetensors', '.pt', '.pth', '.ckpt', '.bin'))
@@ -37,6 +41,9 @@ def require_public_payload(manifest, names):
 
 def check_public_zip(archive):
     manifest = json.loads(archive.read('release-manifest.json'))
+    if 'build' in manifest and (type(manifest['build']) is not int or manifest['build'] < 1
+                                or int(archive.read('BUILD').decode('ascii').strip()) != manifest['build']):
+        raise ValueError('Packaged build number differs from the release manifest')
     require_public_payload(manifest, archive.namelist())
     expected = {item['path'] for item in manifest['files']} | {'release-manifest.json'}
     names = archive.namelist()
@@ -71,12 +78,15 @@ def main():
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
     with zipfile.ZipFile(directory / f'VideoDescriptor-{version}-windows-x64.zip') as archive:
         manifest = check_public_zip(archive)
+    if (ROOT / 'BUILD').is_file():
+        assert manifest.get('build') == int((ROOT / 'BUILD').read_text(encoding='ascii').strip()), 'Release build differs from the repository BUILD file'
     provenance_path = directory / 'acceptance-provenance.json'
     if args.record:
-        provenance_path.write_text(json.dumps({'git_sha': revision, 'artifacts': entries}, indent=2), encoding='utf-8')
+        provenance_path.write_text(json.dumps({'git_sha': revision, 'build': manifest.get('build'), 'artifacts': entries}, indent=2), encoding='utf-8')
     provenance = json.loads(provenance_path.read_text(encoding='utf-8'))
     assert provenance['git_sha'] == revision, 'Release artifact does not belong to the checked-out tag revision'
     assert provenance['artifacts'] == entries, 'Release hashes differ from accepted artifacts'
+    assert provenance.get('build') == manifest.get('build'), 'Release build differs from accepted build identity'
     assert manifest['version'] == version
     print('PASS: exact artifact checksums and source revision', revision)
 
