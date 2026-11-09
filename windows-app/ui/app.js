@@ -318,6 +318,12 @@
   }
   async function componentStatus() {
     const data=await api('/api/components');componentProfiles=data.profiles;
+    const diarization=data.components.find(item=>item.id==='diarization');
+    $('open-hf-settings').hidden=diarization?.requires_download===false;
+    $('diarization-hf-fields').hidden=diarization?.requires_download===false;
+    $('diarization-prepare-fields').hidden=diarization?.state==='ready';
+    $('diarization-setup-help').hidden=diarization?.state==='ready';
+    $('diarization-prepare-help').textContent=diarization?.state==='ready'?'Участники готовы. Повторная настройка и доступ Hugging Face не требуются.':diarization?.requires_download===false?'Локальная модель уже установлена. При смене устройства подготовим только необходимое окружение.':'Для первой загрузки модели примите условия и укажите токен в разделе «Участники».';
     $('hf-token').placeholder=data.has_hf_token?'Токен сохранён — повторно вводить не нужно':'Токен чтения Hugging Face для первой загрузки';
     const plan=data.preparation||{},preparing=plan.state==='running';componentBusy=!!data.active||preparing;
     if(!$('prepare-selected').loaded){
@@ -335,12 +341,12 @@
     $('setup-callout-message').textContent=plan.message||'Откройте настройки, выберите нужные функции и разрешите загрузки. Приложение само подготовит выбранные компоненты.';
     $('setup-open').classList.toggle('needs-setup',plan.state!=='ready');
     const whisper=data.profiles.whisper_model,ollama=data.profiles.ollama;
-    $('prepare-sources').textContent='Источники: '+(whisper?whisper.source+' (распознавание ≈'+Math.ceil((whisper.recorded_download_bytes||whisper.files.reduce((sum,file)=>sum+file.bytes,0))/1024**2)+' МиБ); ':'')+'Hugging Face / PyPI / PyTorch (участники: несколько ГиБ, требуется 8 ГиБ свободного места); '+(ollama?ollama.source+' (Ollama)':'Ollama')+'. Размер языковой модели указан в каталоге ниже. Загружаются только компоненты выбранных функций.';
+    $('prepare-sources').textContent='Источники: '+(whisper?whisper.source+' (распознавание ≈'+Math.ceil((whisper.recorded_download_bytes||whisper.files.reduce((sum,file)=>sum+file.bytes,0))/1024**2)+' МиБ); ':'')+(diarization?.state==='ready'?'Участники подготовлены, повторная загрузка не нужна; ':'Hugging Face / PyPI / PyTorch (участники: несколько ГиБ, требуется 8 ГиБ свободного места); ')+(ollama?ollama.source+' (Ollama)':'Ollama')+'. Размер языковой модели указан в каталоге ниже. Загружаются только компоненты выбранных функций.';
     $('cancel-preparation').hidden=!data.active;
     if(data.active){const active=data.components.find(c=>c.id===data.active);$('bootstrap-message').textContent=deviceMessage(active.message)+(active.total?' · '+Math.floor(100*(active.bytes||0)/active.total)+'%':'');$('prepare-speech').hidden=true;}
     for(const item of data.components){
       const box=$('component-'+item.id);
-      if(item.id==='diarization'&&!box.deviceLoaded){$('diarization-device').value=plan.device||item.requested_device||'auto';box.deviceLoaded=true;}
+      if(item.id==='diarization'&&!box.deviceLoaded){$('diarization-device').value=item.requested_device||plan.device||'auto';box.deviceLoaded=true;}
       if(item.id==='diarization'&&!$('diarization-consent').loaded){$('diarization-consent').checked=item.download_consent===true&&item.consent_revision===data.profiles.diarization_model?.revision;$('diarization-consent').loaded=true;}
       if(!box.componentControls){
         const state=document.createElement('p'),details=document.createElement('p'),progress=document.createElement('progress'),caption=document.createElement('p'),activity=document.createElement('p'),button=document.createElement('button'),remove=document.createElement('button');
@@ -362,6 +368,7 @@
       const quiet=Math.max(0,Date.now()/1000-(item.activity_at||item.step_started_at));
       activity.textContent='Выполняется: '+durationText(Date.now()/1000-item.step_started_at)+'. '+(quiet>=60?'Новых сообщений нет уже '+durationText(quiet)+'. Процесс ещё запущен.':'Последняя активность: '+durationText(quiet)+' назад.');
       activity.classList.toggle('warning',quiet>=60);
+      button.hidden=item.id==='diarization'&&item.state==='ready';
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
       if(item.id==='diarization'&&data.active!==item.id&&$('diarization-device').value==='xpu'&&item.device==='cpu'){button.disabled=true;button.textContent='Для видеокарты нужна подготовка';}
       button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:$('ollama-model').value,task:$('ollama-task').value}:{});
@@ -388,7 +395,7 @@
       const features=['whisper','diarization','ollama'].filter(key=>$('prepare-'+key).checked);
       if(!features.length)throw Error('Выберите хотя бы одну функцию.');
       if(!$('prepare-consent').checked){$('prepare-consent').focus();throw Error('Отметьте разрешение на загрузку и установку выбранных компонентов. Для GPU нужно это же разрешение.');}
-      if(features.includes('diarization')&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для участников примите условия community-1 и отметьте согласие в разделе «Участники».');}
+      if(features.includes('diarization')&&!$('diarization-hf-fields').hidden&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для участников примите условия community-1 и отметьте согласие в разделе «Участники».');}
       const mode=$('ollama-mode').value,model=mode==='managed'?$('ollama-catalog').value:$('ollama-model').value;
       if(features.includes('ollama')&&!model){$('ollama-mode').closest('details').open=true;$('ollama-mode').focus();throw Error('Выберите подключение и языковую модель в разделе «Локальный AI».');}
       await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'prepare_selected',features,device:$('diarization-device').value,mode,model,token:$('hf-token').value,hf_consent:$('diarization-consent').checked,confirmed:true})});
@@ -500,12 +507,13 @@
     speakerNeedsInstall=health.diarization?.state!=='configured';
     if(!speakerPending&&!preserveDevice)$('speaker-device').value=health.diarization?.requested_device||'auto';
     if($('speaker-device').value==='xpu'&&health.diarization?.device!=='xpu')speakerNeedsInstall=true;
-    for(const option of $('speaker-device').options){const unavailable=option.value==='npu'||option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&!!item.proof?.turns?.length&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=(option.value==='auto'?'Автоматически (рекомендуется)':deviceName(option.value))+' · '+(option.value==='npu'?'не поддерживается для этой задачи':unavailable?'не обнаружена совместимая видеокарта':ready?'готово':'потребуется проверка или подготовка');}
+    for(const option of $('speaker-device').options){const unavailable=option.value==='npu'||option.value==='xpu'&&!diagnostics.hardware.intel_gpu.length;option.disabled=unavailable;const ready=!speakerNeedsInstall&&item.state==='ready'&&(option.value==='auto'||option.value===health.diarization?.device);option.textContent=(option.value==='auto'?'Автоматически (рекомендуется)':deviceName(option.value))+' · '+(option.value==='npu'?'не поддерживается для этой задачи':unavailable?'не обнаружена совместимая видеокарта':ready?'готово':'потребуется проверка или подготовка');}
     if(!preserveDevice)$('speaker-consent').checked=item.download_consent===true&&item.consent_revision===d.profiles.diarization_model?.revision;
+    $('speaker-hf-fields').hidden=item.requires_download===false;
     $('speaker-token').placeholder=d.has_hf_token?'Токен сохранён; можно оставить пустым':'Введите токен чтения';
     $('speaker-install-fields').open=speakerNeedsInstall;
     $('speaker-install-fields').hidden=!speakerNeedsInstall;
-    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':(item.proof?.turns?.length?'Готово для ':'Окружение найдено для ')+deviceName(health.diarization?.device||'cpu')+'. Способ обработки проверим перед запуском.';
+    $('speaker-status').textContent=speakerNeedsInstall?'Потребуется подготовка. Подтвердите загрузку и доступ к модели.':(item.state==='ready'?'Готово для ':'Окружение найдено для ')+deviceName(health.diarization?.device||'cpu')+(item.state==='ready'?'. Можно запускать.':'. Проверим автоматически перед запуском.');
     $('speaker-go').textContent=speakerNeedsInstall?'Скачать, подготовить и запустить':'Разделить по участникам';
   }
   $('speaker-device').onchange=async()=>{$('speaker-go').disabled=true;try{await speakerStatus(true);}catch(e){$('speaker-status').textContent=e.message;}finally{$('speaker-go').disabled=false;}};
@@ -522,7 +530,7 @@
       const health=await api('/api/doctor');
       const saved=await api('/api/components');
       const previous=saved.components.find(c=>c.id==='diarization');
-      const cached=health.diarization?.state==='configured'&&previous.proof?.turns?.length&&health.diarization.requested_device===device;
+      const cached=health.diarization?.state==='configured'&&previous.state==='ready'&&(device==='auto'||health.diarization.device===device);
       if(!cached)await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({component:'diarization',action:speakerNeedsInstall?'install':'check',device,token,resume:{folder,task:'diarize'},confirmed:$('speaker-consent').checked})});
       await componentStatus();
       $('speaker-token').value='';
