@@ -147,3 +147,14 @@ PR-cycle подтверждает применённую маршрутизац�
 Publish job повторяет проверку в каталоге accepted-windows до registry push и gh release create. Посторонние ZIP/EXE в каталоге публикации запрещены. SHA256SUMS содержит только созданные текущим запуском артефакты, а не старые файлы по glob. Inno PublicRelease несовместим с Domestic/CachedComponents; lifecycle проверяет полное равенство manifest установленного EXE и принятого ZIP.
 
 Модели Whisper, community-1 и LLM не переносятся из личного cache в public assets. Настройка после установки использует официальные источники и пользовательский доступ/согласие. Не сохранять токены в дистрибутиве. Наличие уже проверенной локальной модели не требует повторного скачивания, нового inference или HF-доступа.
+
+
+### Windows release 0.9.0 — 09.11.2026
+
+`windows-release.yml` — единственный автоматический publisher тегов `v*.*.*`. Ручной Run workflow разрешён только на существующем matching version tag; main/feature ref отклоняется до тяжёлых работ. Тег обязан совпадать с release-inputs.json и указывать на commit в origin/main. Concurrency по ref не прерывает активный выпуск.
+
+Verify повторно использует full-acceptance.yml с windows_only=true: та же Windows сборка, детерминированный rebuild, WebView/installer lifecycle и CPU functional acceptance с внешними fixture-моделями; container job пропускается. Manual Full и прежний Container release сохраняют полный профиль по умолчанию. Container release теперь запускается только вручную, не конкурирует за native version tags.
+
+Publish имеет только contents:write/actions:read, получает accepted artifact текущего run без пересборки и повторяет public gate. scripts/windows_release.py повторно проверяет tag, revision, hashes и размер каждого файла (<2 GiB), загружает только четыре явно перечисленных файла. Релиз сначала draft; все четыре файла скачиваются и сверяются по SHA256 до публикации. Rerun дополняет только отсутствующие assets draft; существующие файлы не заменяются. Несовпадение байтов/посторонние файлы останавливают публикацию. Уже опубликованный полный релиз только сверяется, не перезаписывается. Версионные release notes обязательны в docs/releases/X.Y.Z.md.
+
+Для 0.9.0: merge проверенных изменений в main, push main, создать и отправить v0.9.0 на этот commit. GITHUB_TOKEN публикует релиз после уже пройденной приёмки, без рекурсивного release-event запуска. Пользовательский/external published release по-прежнему проходит существующую Full проверку точных assets.

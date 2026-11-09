@@ -90,9 +90,6 @@ jobs:
       if: always()
       run: docker logout ghcr.io
 'on':
-  push:
-    tags:
-    - v*.*.*
   workflow_dispatch: null
 concurrency:
   group: container-release-${{ github.ref }}-${{ github.run_id }}
