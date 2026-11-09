@@ -144,9 +144,14 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('articleCalls.length')==0
             evaluate('window.speechReplyEditing=originalEditing')
             c.click('#construction-article')
+            assert evaluate('articleCalls.length')==0
+            assert 'статьи' in c.visible_text('#construction-heading')
+            evaluate('document.querySelector("#construction-article-prompt").value="Custom article instruction"')
+            c.click('#construction-run')
             wait_for(lambda:evaluate('articleCalls.length===1'))
             payload=evaluate('articleCalls[0]')
             assert payload['task']=='notes' and payload['construction']['result_kind']=='article'
+            assert payload['construction']['article_prompt']=='Custom article instruction'
             assert payload['translate_after'] is False and payload['construction']['model']=='model-a'
             assert evaluate('document.querySelector("#construction-article").disabled')
             assert evaluate('document.querySelector("#construction-article").getAttribute("aria-busy")==="true"')
@@ -156,6 +161,12 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             wait_for(lambda:'уже находится' in c.visible_text('#article-status'))
             assert evaluate('document.querySelector("#article-status").classList.contains("vd-error")')
             assert not evaluate('document.querySelector("#construction-article").disabled')
+            evaluate('window.constructionUI.openSettings("notes")')
+            assert 'конспекта' in c.visible_text('#construction-heading')
+            assert evaluate('!document.querySelector("#construction-notes-instruction").hidden')
+            evaluate('window.constructionUI.openSettings("article")')
+            assert evaluate('document.querySelector("#construction-article-prompt").value')=='Custom article instruction'
+            evaluate('document.querySelector("#construction-heading").scrollIntoView({block:"start"})')
             c.screenshot(out/'article-action.png')
             assert evaluate('window.uiErrors')==[]
             print('PASS: article action sends chosen model, full-transcript result kind, no translation; dirty/busy/error guards preserved',flush=True)

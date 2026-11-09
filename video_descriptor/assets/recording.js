@@ -201,7 +201,7 @@
       $('shared-player').hidden=false;
     }catch(error){notice.textContent=error.message;}finally{loading=false;if(requested){requested=false;library();}}
   }
-  function showNewNotes(){newNotes.hidden=false;$('notes-settings').open=true;$('construction-model').focus();}
+  function showNewNotes(){window.constructionUI?.openSettings('notes');newNotes.hidden=false;$('notes-settings').open=true;$('construction-model').focus();}
   $('new-notes').addEventListener('click',showNewNotes);
   $('cancel-new-notes').onclick=()=>{newNotes.hidden=true;};
   speechSelect.onchange=()=>{
