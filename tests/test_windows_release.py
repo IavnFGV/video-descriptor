@@ -103,7 +103,10 @@ def test_native_workflow_has_one_tag_publisher_and_no_container_dependency():
     assert workflow['on']['push'] == {'tags': ['v*.*.*']}
     assert workflow['jobs']['verify']['with'] == {'windows_only': True}
     assert workflow['jobs']['verify']['needs'] == 'version'
+    # A tag push skips prepare; explicit status checks must bridge that skipped ancestor.
+    assert workflow['jobs']['verify']['if'] == "${{ !cancelled() && needs.version.result == 'success' }}"
     assert workflow['jobs']['publish']['needs'] == 'verify'
+    assert workflow['jobs']['publish']['if'] == "${{ !cancelled() && needs.verify.result == 'success' }}"
     assert workflow['jobs']['publish']['permissions'] == {'contents': 'write', 'actions': 'read'}
     assert workflow['concurrency']['cancel-in-progress'] is False
     steps = workflow['jobs']['publish']['steps']
