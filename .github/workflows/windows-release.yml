@@ -46,11 +46,13 @@ jobs:
       run: python scripts/windows_release.py validate
   verify:
     needs: version
+    if: ${{ !cancelled() && needs.version.result == 'success' }}
     uses: ./.github/workflows/full-acceptance.yml
     with:
       windows_only: true
   publish:
     needs: verify
+    if: ${{ !cancelled() && needs.verify.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
