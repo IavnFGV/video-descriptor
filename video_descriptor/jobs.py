@@ -99,6 +99,28 @@ def start_worker(root):
                          stderr=subprocess.STDOUT, **subprocess_options())
 
 
+def recover_interrupted(root):
+    """Clear abandoned running states without starting jobs or stopping processes."""
+    with (jobs_dir(root) / 'worker.lock').open('a') as lock:
+        try:
+            lock_file(lock)
+        except BlockingIOError:
+            return []
+        # A child pipeline may have survived its queue worker. Leave it alone.
+        if pipeline_busy() or any(Path(arg).name == 'diarization_worker.py'
+                                  for args, _ in windows_processes() for arg in args):
+            return []
+        recovered = []
+        for path in jobs_dir(root).glob('*/job.json'):
+            job = read_json(path, {})
+            if job.get('status') == 'running':
+                job.update(status='error', finished=time.time(),
+                           error='Рабочий процесс был прерван; расшифровка, результаты и кэш сохранены. Можно повторить обработку.')
+                write_json(path, job)
+                recovered.append(job['id'])
+        return recovered
+
+
 def pipeline_busy():
     """Respect existing terminal runs on this devcontainer, as well as queued jobs."""
     if os.name == 'nt':

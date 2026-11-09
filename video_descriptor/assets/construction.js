@@ -49,7 +49,14 @@
     $('preview').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript;
     $('run').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
     $('article').disabled = !ready || busy || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
-    $('article').title = 'Полная расшифровка → статья · ' + $('model').value;
+    const active=selected?.running||['queued','running'].includes(selected?.job?.status);
+    const reason=!ready?'Загружаем настройки генерации…':busy?'Добавляем задание в очередь…':
+      !selected?.has_ready_transcript?'Сначала дождитесь готовой расшифровки.':
+      active?(selected?.job?.status==='queued'?'Для этой записи уже есть задание в очереди. Дождитесь его завершения или отмените обработку.':'Для этой записи уже выполняется задание. Дождитесь завершения или нажмите «Остановить обработку».'):
+      modelLoading?'Получаем список доступных моделей…':!validModel()?'Выберите доступную модель из списка выше.':'';
+    $('run-reason').textContent=reason;
+    $('run').title=$('run').disabled?reason:'';
+    $('article').title=$('article').disabled?reason:'Настроить статью по полной расшифровке';
   }
   async function preview() {
     if (!ready || !selected?.has_ready_transcript || !validModel()) return;
