@@ -522,7 +522,7 @@
     $('response-feed').textContent = snapshot.response || 'Ожидаем ответ.';
     $('errors-card').hidden = !gaps;
     changed('errors-feed', snapshot.errors, node => { node.replaceChildren(); snapshot.errors.forEach(error => node.append(text('p', 'Блок ' + error.block + ': ' + error.error, 'error-item'))); });
-    $('log-feed').textContent = snapshot.log.join('\n');
+    $('log-feed').textContent = snapshot.log.length?snapshot.log.join('\n'):'События обработки ещё не поступили.';
 
     $('retry-job').hidden = !job || (!error && !(done && gaps));
     $('retry-job').textContent = 'Продолжить из кэша';

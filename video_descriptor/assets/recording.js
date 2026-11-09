@@ -52,23 +52,81 @@
     try{
       const state=await recoveryPost({folder});if(snapshot?.folder!==folder)return;
       const dialog=document.createElement('dialog');dialog.className='vd-dialog construction-recovery';dialog.setAttribute('aria-labelledby','recovery-title');
-      dialog.innerHTML='<form><h2 id="recovery-title">Исправить конспект</h2><p>Исправьте метки в оглавлении и конспекте. Используйте начала реплик из списка. Ответ модели сохранится отдельно; новый запрос к модели не нужен.</p><label>Начала реплик<select data-anchors><option value="">Выберите реплику…</option></select></label><p class="hint">Выделите неверную метку в тексте и выберите реплику, чтобы заменить её.</p><label>Текст конспекта<textarea rows="16" required></textarea></label><p role="alert" data-error></p><div class="vd-actions"><button type="submit">Проверить и сохранить</button><button type="button" data-cancel>Отмена</button></div></form>';
-      const text=dialog.querySelector('textarea'),anchors=dialog.querySelector('[data-anchors]'),error=dialog.querySelector('[data-error]'),save=dialog.querySelector('[type=submit]');text.value=state.text;
+      dialog.innerHTML='<form><h2 id="recovery-title">Проверить и исправить конспект</h2><p>Ответ модели сохранён. Проверка нужна для переходов от тем к видео: метки должны совпадать с началами реплик, а оглавление — идти по времени. Новый запрос к модели не нужен.</p><p data-summary role="status" aria-live="polite"></p><button type="button" data-fix-all>Исправить все метки</button><ul class="recovery-issues" data-issues aria-label="Места, требующие исправления"></ul><label>Текст конспекта<textarea rows="12" required aria-describedby="recovery-help"></textarea></label><p id="recovery-help" class="hint">«Исправить все метки» выбирает ближайшие подтверждённые начала реплик. Проверьте замены по смыслу, затем нажмите «Проверить всё».</p><details><summary>Выбрать другую реплику</summary><label>Подтверждённые начала реплик<select data-anchors><option value="">Выберите реплику…</option></select></label><p class="hint">Сначала выделите только метку времени в тексте, затем выберите реплику.</p></details><p role="alert" data-error></p><div class="vd-actions"><button type="button" data-check>Проверить всё</button><button type="submit">Сохранить и завершить конспект</button><button type="button" data-cancel>Отмена</button></div></form>';
+      const text=dialog.querySelector('textarea'),anchors=dialog.querySelector('[data-anchors]'),error=dialog.querySelector('[data-error]'),save=dialog.querySelector('[type=submit]'),check=dialog.querySelector('[data-check]'),summary=dialog.querySelector('[data-summary]'),issueList=dialog.querySelector('[data-issues]'),fixAll=dialog.querySelector('[data-fix-all]');text.value=state.text;
       const clock=t=>[Math.floor(t/3600),Math.floor(t/60)%60,t%60].map(x=>String(x).padStart(2,'0')).join(':');
       for(const anchor of state.anchors){const item=document.createElement('option');item.value=clock(anchor.time);item.textContent=item.value+' · '+anchor.text.slice(0,160);anchors.append(item);}
-      anchors.onchange=()=>{if(!anchors.value)return;text.setRangeText(anchors.value,text.selectionStart,text.selectionEnd,'select');text.focus();anchors.value='';};
-      let saving=false,saved=false;const dirty=()=>!saved&&text.value!==state.text;
+      let saving=false,saved=false,checking=false,checkedText=state.text,currentIssues=state.issues||[],manualChanged=false;
+      const replacements=new Map();
+      const dirty=()=>!saved&&text.value!==state.text;
+      function jump(issue){
+        text.focus();text.setSelectionRange(issue.start,issue.end);
+        const measure=text.cloneNode();measure.className='recovery-measure';measure.removeAttribute('required');measure.removeAttribute('aria-describedby');measure.setAttribute('aria-hidden','true');measure.tabIndex=-1;measure.style.width=text.getBoundingClientRect().width+'px';measure.value=text.value.slice(0,issue.start);text.parentElement.append(measure);
+        text.scrollTop=Math.max(0,measure.scrollHeight-text.clientHeight/3);measure.remove();
+      }
+      function changed(){
+        error.textContent='';manualChanged=true;fixAll.disabled=true;
+        summary.textContent='Текст изменён вручную. Список оставлен до общей проверки; нажмите «Проверить всё», когда закончите.';
+        issueList.querySelectorAll('[data-candidate]').forEach(button=>{button.disabled=true;});
+      }
+      function position(issue){
+        let shift=0;for(const [index,value] of replacements){const previous=currentIssues[index];if(previous.start<issue.start)shift+=value.length-(previous.end-previous.start);}
+        const index=currentIssues.indexOf(issue),value=replacements.get(index);
+        return {...issue,start:issue.start+shift,end:issue.start+shift+(value?.length??(issue.end-issue.start))};
+      }
+      function applyReplacements(){
+        let value=checkedText;
+        for(const [index,replacement] of [...replacements].sort((a,b)=>currentIssues[b[0]].start-currentIssues[a[0]].start)){
+          const issue=currentIssues[index];value=value.slice(0,issue.start)+replacement+value.slice(issue.end);
+        }
+        text.value=value;error.textContent='';
+        summary.textContent='Заменено меток: '+replacements.size+' из '+currentIssues.length+'. Список сохранён. Нажмите «Проверить всё» после завершения правок.';
+        for(const [index,replacement] of replacements){const row=issueList.children[index];if(row)row.querySelector('[data-resolution]').textContent='Исправлено на '+replacement+' · ожидает проверки';}
+      }
+      text.oninput=changed;
+      fixAll.onclick=()=>{
+        if(saving||checking||manualChanged)return;
+        currentIssues.forEach((issue,index)=>{if(issue.code==='unknown_time'&&issue.candidates.length&&!replacements.has(index))replacements.set(index,issue.candidates[0].time);});
+        applyReplacements();
+      };
+      async function validateCurrent(){
+        const input=text.value;checking=true;check.disabled=true;
+        try{const result=await recoveryPost({folder,revision:state.revision,text:input,action:'validate'});
+          if(text.value!==input){changed();return false;}
+          checkedText=input;currentIssues=result.issues;manualChanged=false;replacements.clear();renderIssues();return result.valid;
+        }finally{checking=false;check.disabled=saving;}
+      }
+      function renderIssues(){
+        issueList.replaceChildren();summary.textContent=currentIssues.length?'Найдено мест для исправления: '+currentIssues.length+'. Исходный текст сохранён.':'Проверка пройдена. Можно сохранить и завершить конспект.';
+        fixAll.disabled=!currentIssues.some(issue=>issue.code==='unknown_time'&&issue.candidates.length);
+        for(const [index,issue] of currentIssues.entries()){
+          const item=document.createElement('li'),title=document.createElement('strong'),description=document.createElement('p'),show=document.createElement('button');
+          title.textContent=[issue.section,'строка '+issue.line,issue.value?'['+issue.value+']':''].filter(Boolean).join(' · ');description.textContent=issue.message;
+          show.type='button';show.textContent='Показать в тексте';show.onclick=()=>{if(!manualChanged)jump(position(issue));else error.textContent='Позиции изменились после ручной правки. Нажмите «Проверить всё», чтобы обновить их.';};const resolution=document.createElement('p');resolution.className='hint';resolution.dataset.resolution='';item.append(title,description,show,resolution);
+          for(const candidate of issue.candidates){
+            const context=document.createElement('p'),replace=document.createElement('button');context.className='hint';context.textContent=candidate.time+' · '+candidate.text.slice(0,240);
+            replace.type='button';replace.textContent='Заменить на '+candidate.time;replace.dataset.candidate=candidate.time;
+            replace.onclick=()=>{if(saving||checking||manualChanged)return;replacements.set(index,candidate.time);applyReplacements();jump(position(issue));};
+            item.append(context,replace);
+          }
+          issueList.append(item);
+        }
+      }
+      anchors.onchange=()=>{if(!anchors.value||saving)return;const selected=text.value.slice(text.selectionStart,text.selectionEnd);if(!/^\d{2,}:\d{2}:\d{2}$/.test(selected)){error.textContent='Выделите в тексте только метку ЧЧ:ММ:СС, которую нужно заменить.';anchors.value='';return;}text.setRangeText(anchors.value,text.selectionStart,text.selectionEnd,'select');text.focus();anchors.value='';changed();};
+      check.onclick=async()=>{if(saving||checking)return;error.textContent='Проверяем…';try{await validateCurrent();error.textContent='';}catch(exc){error.textContent=exc.message;}};
       const close=async()=>{if(saving)return;if(!dirty()||await window.confirmDiscard('Исправленный конспект ещё не сохранён. Закрыть без сохранения?'))dialog.close();};
       dialog.oncancel=e=>{e.preventDefault();close();};dialog.querySelector('[data-cancel]').onclick=close;
       const unload=e=>{if(dirty()){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',unload);
       dialog.onclose=()=>{window.removeEventListener('beforeunload',unload);dialog.remove();repairNotes.focus();};
       dialog.querySelector('form').onsubmit=async e=>{
-        e.preventDefault();if(saving)return;saving=true;save.disabled=true;error.textContent='Проверяем и сохраняем…';
-        try{const value=await recoveryPost({folder,revision:state.revision,text:text.value});saved=true;dialog.close();document.dispatchEvent(new CustomEvent('construction-started',{detail:value.job}));}
-        catch(exc){error.textContent=exc.message;const stamp=exc.message.match(/\[(\d{2,}:\d{2}:\d{2})\]/)?.[1],at=stamp?text.value.indexOf(stamp):-1;if(at>=0){text.focus();text.setSelectionRange(at,at+stamp.length);}}
-        finally{saving=false;save.disabled=false;}
+        e.preventDefault();if(saving||checking)return;saving=true;save.disabled=true;check.disabled=true;text.readOnly=true;anchors.disabled=true;error.textContent='Проверяем…';
+        try{if(!await validateCurrent()){error.textContent='Остались ошибки. Исправьте отмеченные места; текст не сохранён.';if(currentIssues.length)jump(currentIssues[0]);return;}
+          error.textContent='Сохраняем исправленный ответ и завершаем конспект…';
+          const value=await recoveryPost({folder,revision:state.revision,text:text.value});saved=true;dialog.close();document.dispatchEvent(new CustomEvent('construction-started',{detail:value.job}));
+        }catch(exc){error.textContent=exc.message;}
+        finally{saving=false;save.disabled=false;check.disabled=false;text.readOnly=false;anchors.disabled=false;}
       };
-      document.body.append(dialog);dialog.showModal();text.focus();text.setSelectionRange(0,0);text.scrollTop=0;
+      document.body.append(dialog);dialog.showModal();renderIssues();if(currentIssues.length)dialog.querySelector('[data-issues] button')?.focus();else text.focus();text.setSelectionRange(0,0);text.scrollTop=0;
     }catch(error){jobError.textContent=error.message;}finally{repairNotes.disabled=false;}
   };
   retryJob.onclick=async()=>{
@@ -222,7 +280,8 @@
     jobError.hidden=job?.status!=='error';
     retryJob.hidden=jobError.hidden||!window.recordingUI.native;
     repairNotes.hidden=jobError.hidden||!snapshot.construction_answer_saved||job.cancelled||job.stage!=='notes';
-    retryJob.textContent=snapshot.construction_answer_saved?'Продолжить с сохранённым ответом':'Повторить обработку';
+    retryJob.textContent=snapshot.construction_answer_saved?'Повторить обработку сохранённого ответа':'Повторить обработку';
+    retryJob.title=snapshot.construction_answer_saved?'Если ошибка связана с текстом или метками, сначала откройте «Исправить конспект вручную». Повтор без правок вернёт ту же ошибку.':'';
     if(!jobError.hidden){const message=(job.cancelled?'Обработка остановлена. ':'Ошибка обработки. ')+((!job.cancelled&&job.stage==='notes'&&snapshot.construction_error)||job.error||snapshot.status?.message||'Откройте подробности обработки.');if(jobError.textContent!==message)jobError.textContent=message;}
     if(changed){newNotes.hidden=true;$('speech-settings').open=false;currentTimeKey='';library();}
     $('construction-cloud-label').hidden=$('construction-provider').value!=='gemini';
@@ -262,6 +321,7 @@
   fetch('/health').then(response=>response.json()).then(value=>{
     if(value.app!=='video-descriptor-windows')return;
     window.recordingUI.native=true;window.recordingUI.instance=value.instance;
+    if(value.development){const notice=document.createElement('p');notice.className='feedback';notice.textContent='Локальная версия '+value.version+' · '+(value.source_commit||'').slice(0,12)+' · общие записи с установленным приложением';workspace.prepend(notice);document.title='Локальная версия '+value.version+' · Video Descriptor';}
     document.querySelector('.vd-global-nav a[aria-current="page"]').href='/#records';
     $('construction-input').value='speech';$('construction-input').closest('label').hidden=true;
     const engine=$('speech-engine');engine.replaceChildren(option('whisper-local','Локальное распознавание · устройство из настроек AI'));engine.value='whisper-local';

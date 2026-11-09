@@ -11,6 +11,7 @@ import uuid
 from contextlib import ExitStack
 from pathlib import Path
 
+from video_descriptor.action_history import record
 from video_descriptor.jobs import read_json, write_json
 from video_descriptor.platform_support import lock_file
 
@@ -91,6 +92,10 @@ class StorageService:
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         write_json(self.path, self.state)
+        status = self.state.get('status')
+        if status != getattr(self, '_logged_status', None):
+            record('storage_state', stage='storage', status=status)
+            self._logged_status = status
 
     def snapshot(self):
         with self.lock:

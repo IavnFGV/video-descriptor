@@ -3,10 +3,12 @@
 import hashlib
 import json
 
+from .action_history import record
 from .construction import material, parsed_notes
 from .editor import EditConflict
 from .jobs import jobs_dir, read_json, write_json
 from .models import Source
+from .notes_validation import notes_issues
 from .platform_support import lock_file
 from .versions import checked_version
 
@@ -22,6 +24,7 @@ def recovery_state(folder):
     text = manual.get('text', raw)
     revision = hashlib.sha256((source_revision + text).encode()).hexdigest()
     return {'text': text, 'revision': revision, 'source_revision': source_revision,
+            'issues': notes_issues(text, sources),
             'anchors': [{'time': int(s.start), 'text': s.text} for s in sources]}, sources, result
 
 
@@ -43,6 +46,16 @@ def recover(root, value):
             raise ValueError('Введите конспект размером до 400 000 символов')
         if value.get('revision') != state['revision']:
             raise EditConflict('Ответ или расшифровка изменились. Сохраните свой текст и откройте исправление заново')
+        if value.get('action') == 'validate':
+            issues = notes_issues(text, sources)
+            if not issues:
+                # Keep the final parser authoritative if it gains another check.
+                try:
+                    parsed_notes(text, sources)
+                except ValueError as exc:
+                    issues = [{'code': 'validation', 'message': str(exc), 'section': '',
+                               'line': 1, 'start': 0, 'end': 0, 'value': '', 'candidates': []}]
+            return {'issues': issues, 'valid': not issues}
         parsed_notes(text, sources)
         write_json(folder / 'construction-manual.json',
                    {'text': text, 'source_revision': state['source_revision']})
@@ -53,4 +66,5 @@ def recover(root, value):
         job.pop('finished', None)
         job.update(status='queued', error=None)
         write_json(path, job)
+        record('recovery_saved', folder=folder, job_id=job['id'], stage='notes', status='queued')
         return {'job': job}

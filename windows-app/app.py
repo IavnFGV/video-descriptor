@@ -51,7 +51,7 @@ class NativeHTTPServer(ThreadingHTTPServer):
 
 def config():
     value = json.loads((HERE / 'config.example.json').read_text(encoding='utf-8'))
-    local = HERE / 'config.local.json'
+    local = Path(os.environ.get('VIDEO_DESCRIPTOR_CONFIG', str(HERE / 'config.local.json')))
     if local.exists():
         value.update(json.loads(local.read_text(encoding='utf-8')))
     if type(value['port']) is not int or not 1024 <= value['port'] <= 65535:
@@ -153,7 +153,8 @@ def environment(value):
                       WHISPER_BACKEND='openvino-http', OLLAMA_BASE_URL=value['ollama_url'],
                       OLLAMA_MODEL=value['ollama_model'],
                       HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
-    os.environ['VIDEO_DESCRIPTOR_EVENTS'] = str(HERE / 'runtime/logs/events.jsonl')
+    os.environ['VIDEO_DESCRIPTOR_EVENTS'] = str(Path(value.get('application_log_directory') or HERE / 'runtime/logs') / 'events.jsonl')
+    os.environ['VIDEO_DESCRIPTOR_WORKSPACE'] = value['workspace']
     if value['diarization_python']:
         os.environ['VIDEO_DESCRIPTOR_DIARIZATION_PYTHON'] = value['diarization_python']
     executable = ffmpeg_path()
@@ -266,9 +267,14 @@ def make_handler(value, instance):
         def do_GET(self):
             path = urlsplit(self.path).path
             if path == '/health':
-                return self.json_response(200, {'app': APP, 'version': VERSION,
+                development = {}
+                version = VERSION
+                if value.get('development'):
+                    version = read_json(HERE / 'release-inputs.json', {}).get('version', VERSION)
+                    development = {'development': True, 'source_commit': os.getenv('VIDEO_DESCRIPTOR_DEV_COMMIT', '')}
+                return self.json_response(200, {'app': APP, 'version': version,
                                                'instance': instance, 'workspace': value['workspace'],
-                                               'installation': installation_id(), 'desktop_protocol': 1})
+                                               'installation': installation_id(), 'desktop_protocol': 1, **development})
             if path == '/api/doctor':
                 result = doctor(value)
                 if manager is not None:
@@ -287,7 +293,7 @@ def make_handler(value, instance):
             if path == '/api/setup/ollama' and setup is not None:
                 return self.json_response(200, ollama_status(value, discover=parse_qs(urlsplit(self.path).query).get('discover') == ['1']))
             if path == '/api/native/events':
-                event_file = HERE / 'runtime/logs/events.jsonl'
+                event_file = Path(os.getenv('VIDEO_DESCRIPTOR_EVENTS', str(HERE / 'runtime/logs/events.jsonl')))
                 events = []
                 if event_file.exists():
                     with event_file.open('rb') as source:
@@ -295,9 +301,11 @@ def make_handler(value, instance):
                         source.seek(max(0, source.tell() - 128 * 1024))
                         for line in source.read().decode('utf-8', errors='replace').splitlines()[-80:]:
                             try:
-                                events.append(json.loads(line))
-                            except ValueError:
-                                continue  # A truncated first line or concurrently appended last line.
+                                from video_descriptor.action_history import describe
+                                event = json.loads(line)
+                                events.append({**event, 'label': describe(event)})
+                            except (ValueError, KeyError, TypeError):
+                                continue  # Ignore truncated or invalid event records.
                 return self.json_response(200, events)
             if path in {'/', '/native.js', '/native.css'}:
                 name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css'}[path]
@@ -491,7 +499,9 @@ def make_handler(value, instance):
                     if storage and storage.active:
                         return self.json_response(409, {'error': 'Дождитесь завершения переноса данных'})
                     jobs = Path(value['workspace']) / 'output' / 'jobs'
-                    if any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
+                    # Development reloads only this HTTP process. Queue workers and
+                    # device services are independent and keep their own locks.
+                    if not value.get('development') and any(read_json(p, {}).get('status') in {'queued', 'running'} for p in jobs.glob('*/job.json')):
                         return self.json_response(409, {'error': 'Дождитесь завершения очереди. Закрытие вкладки не прерывает обработку.'})
                     if components and (components.active or components.plan.get('state') == 'running'):
                         return self.json_response(409, {'error': 'Остановите подготовку компонентов перед закрытием приложения'})

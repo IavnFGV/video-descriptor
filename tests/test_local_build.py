@@ -210,6 +210,11 @@ def test_actual_post_merge_hook_runs_only_on_local_main(modules, repo):
         'param([switch]$Background, [switch]$Domestic)\n'
         'if ($env:GIT_DIR -or $env:GIT_INDEX_FILE) { throw "Inherited Git state" }\n'
         'Set-Content -LiteralPath (Join-Path $PSScriptRoot "../.git/hook-fired") -Value yes\n')
+    (scripts / 'Run-Dev.ps1').write_text(
+        'param([switch]$Restart, [switch]$Open)\n'
+        'if (-not $Restart -or -not $Open) { throw "Missing preview flags" }\n'
+        'if (-not (Test-Path (Join-Path $PSScriptRoot "../.git/hook-fired"))) { throw "Build not queued first" }\n'
+        'Set-Content -LiteralPath (Join-Path $PSScriptRoot "../.git/preview-fired") -Value yes\n')
     subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True)
     subprocess.run(['git', '-C', str(repo), 'commit', '-m', 'hook fixture'], check=True, capture_output=True)
     build.install_hook(repo)
@@ -220,6 +225,7 @@ def test_actual_post_merge_hook_runs_only_on_local_main(modules, repo):
     subprocess.run(['git', '-C', str(repo), 'checkout', 'main'], check=True, capture_output=True)
     subprocess.run(['git', '-C', str(repo), 'merge', '--ff-only', 'topic'], check=True, capture_output=True)
     assert (repo / '.git/hook-fired').read_text().strip() == 'yes'
+    assert (repo / '.git/preview-fired').read_text().strip() == 'yes'
 
 
 def test_cleanup_preserves_latest_versions_models_and_tracked_files(modules, repo, tmp_path):

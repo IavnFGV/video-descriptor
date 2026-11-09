@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import uuid
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -23,6 +24,38 @@ from .live import runs, snapshot
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
     byte_range = None
+
+    def parse_request(self):
+        accepted = super().parse_request()
+        if accepted and self.command in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            route = urlsplit(self.path).path
+            if route.startswith('/api/') or route.endswith(('/editor.json', '/title.json')):
+                self._operation = {'operation_id': uuid.uuid4().hex,
+                                   'route': route if route.startswith('/api/') else '/output/document'}
+                record('operation_started', path=os.getenv('VIDEO_DESCRIPTOR_EVENTS') or Path(self.directory) / 'output/application-events.jsonl',
+                       status='running', **self._operation)
+        return accepted
+
+    def send_response(self, code, message=None):
+        self._operation_status = code
+        return super().send_response(code, message)
+
+    def handle_one_request(self):
+        self._operation = None
+        self._operation_status = 500
+        reason = None
+        try:
+            return super().handle_one_request()
+        except Exception as exc:
+            reason = type(exc).__name__
+            raise
+        finally:
+            if self._operation:
+                code = self._operation_status
+                record('operation_failed' if code >= 400 or reason else 'operation_finished',
+                       path=os.getenv('VIDEO_DESCRIPTOR_EVENTS') or Path(self.directory) / 'output/application-events.jsonl',
+                       status='error' if code >= 400 or reason else 'done', code=code,
+                       reason=reason, **self._operation)
 
     def editor_folder(self):
         path = urlsplit(self.path).path
@@ -305,7 +338,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                 if path == "/api/speech-edit":
                     from .speech import edit_utterance
                     result = edit_utterance(root, value)
-                    record('transcript_edited', stage='speech')
+                    record('transcript_edited', folder=root / 'output' / value['folder'], stage='speech', status='done')
                     return self.json_response(200, result)
                 if path.endswith("names"):
                     name = value["folder"]
@@ -320,6 +353,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                         raise ValueError("Имя до 100 символов")
                     result["speaker_names"] = names
                     write_json(file, result)
+                    record('speaker_names_saved', folder=file.parent, stage='speech', status='done')
                     return self.json_response(200, {"saved": True})
                 if 'speech_only' in value and type(value['speech_only']) is not bool:
                     raise TypeError('Некорректный режим запуска речи')

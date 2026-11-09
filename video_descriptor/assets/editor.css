@@ -13,6 +13,7 @@
   --vd-caption:12px; --vd-label:13px; --vd-body:14px; --vd-reading:16px; --vd-h3:18px; --vd-h2:22px; --vd-h1:28px;
   --vd-normal:400; --vd-medium:600; --vd-heading:650;
   --vd-space-1:4px; --vd-space-2:8px; --vd-space-3:12px; --vd-space-4:16px; --vd-space-6:24px; --vd-space-8:32px; --vd-space-12:48px;
+  --vd-control-gap:var(--vd-space-2); --vd-group-gap:var(--vd-space-4);
   --vd-radius-control:8px; --vd-radius-card:12px; --vd-radius-dialog:16px; --vd-radius-pill:999px;
   --vd-control-height:40px; --vd-compact-height:32px; --vd-nav-width:208px; --vd-content-width:1200px;
   --vd-backdrop:#122a2466;
@@ -54,7 +55,7 @@
 .vd-progress{width:100%;height:8px;accent-color:var(--vd-accent)}
 .vd-dialog{width:min(var(--vd-dialog-width),calc(100% - 32px));max-height:90dvh;overflow:auto;overscroll-behavior:contain;padding:var(--vd-space-6);border:1px solid var(--vd-border);border-radius:var(--vd-radius-dialog);box-shadow:var(--vd-dialog-shadow);font:var(--vd-body)/1.5 var(--vd-font);color:var(--vd-text);background:var(--vd-surface)}
 .vd-dialog::backdrop{background:#122a2466}
-.vd-actions{display:flex;align-items:center;gap:var(--vd-space-3);flex-wrap:wrap}
+.vd-actions{display:flex;align-items:center;gap:var(--vd-control-gap);flex-wrap:wrap}
 .vd-button:focus-visible,.vd-link:focus-visible,.vd-input:focus-visible,.vd-select:focus-visible,.vd-textarea:focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.vd-button{transition:none}}
 @media(forced-colors:active){.vd-button:focus-visible,.vd-link:focus-visible,.vd-input:focus-visible,.vd-select:focus-visible,.vd-textarea:focus-visible,.vd-file:focus-within{outline-color:Highlight}.vd-status{border:1px solid CanvasText}}
@@ -74,6 +75,13 @@
 .dialog-speaker-controls{display:flex;align-items:center;gap:var(--vd-space-2);flex-wrap:wrap}.dialog-speaker-controls select{flex:1;min-width:160px}.dialog-speaker-controls button{flex-shrink:0}.dialog-speaker-controls input{flex-basis:100%;min-width:0}
 
 .reply-editor{padding:0}.reply-editor-toolbar{position:sticky;top:0;z-index:var(--vd-layer-sticky);display:flex;align-items:center;justify-content:space-between;gap:var(--vd-space-3);flex-wrap:wrap;padding:var(--vd-space-4) var(--vd-space-6);background:var(--vd-surface);border-bottom:1px solid var(--vd-border)}.reply-editor-toolbar h2{margin:0}.reply-editor-body{padding:var(--vd-space-6)}
+
+/* A field and its related actions share one spacing contract on every surface. */
+.vd-control-group{display:grid;gap:var(--vd-control-gap);min-width:0}
+.vd-control-group>.vd-actions{margin:0}
+.vd-control-group+.vd-control-group{margin-block-start:var(--vd-group-gap)}
+:where(details,section,article,.card,dialog)>:where(label,.vd-field,textarea,select,input)+:where(button,.vd-button,.vd-actions){margin-block-start:var(--vd-control-gap)}
+:where(details,section,article,.card,dialog)>button+button{margin-inline-start:var(--vd-control-gap)}
 
 /* Source: design-system/surfaces.css */
 /* Shared production foundations, including dynamically created controls. */
@@ -121,9 +129,9 @@ dialog.reply-editor{width:min(var(--vd-editor-width),calc(100% - 32px))}.reply-e
 .utterance{padding:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border)}.utterance p{margin:var(--vd-space-1) 0;white-space:pre-wrap}
 .utterance.active,.current-note{background:var(--vd-accent-tint);border-radius:var(--vd-radius-control)}
 .subtitle-ru{color:var(--vd-success)}body[data-subtitles=original] .subtitle-ru{display:none}body[data-subtitles=ru] .subtitle-original{display:none}
-.subtitle-tools,.construction-actions,.notes-actions,.notes-toolbar,.finish-actions,.card-heading,.follow,.run-heading{display:flex;gap:var(--vd-space-3);align-items:center;flex-wrap:wrap}
+.subtitle-tools,.construction-actions,.notes-actions,.notes-toolbar,.finish-actions,.card-heading,.follow,.run-heading{display:flex;gap:var(--vd-control-gap);align-items:center;flex-wrap:wrap}
 .card-heading,.run-heading,.follow{justify-content:space-between}
-.subtitle-tools,.notes-actions,.finish-actions{margin:var(--vd-space-3) 0}
+.subtitle-tools,.notes-actions,.finish-actions{margin:var(--vd-group-gap) 0}
 .subtitle-tools a[download],.construction-actions a[download]{display:inline-flex;padding:var(--vd-space-2) var(--vd-space-3);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);min-height:var(--vd-control-height);align-items:center}
 @media(max-width:800px){body{padding:var(--vd-space-4)}section,article{padding:var(--vd-space-4)}.vd-global-nav{gap:var(--vd-space-1)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

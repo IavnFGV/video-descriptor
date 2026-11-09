@@ -47,6 +47,18 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     identity='a'*32
     job_folder=root/'output/jobs'/identity;job_folder.mkdir(parents=True)
     write_json(job_folder/'job.json',{'id':identity,'video':str(video),'filename':video.name,'folder':'notes-a','status':'done','mode':'postprocess','task':'notes','created':1})
+    if '--recovery-only' in sys.argv:
+        from video_descriptor import serve
+        serve.start_worker = lambda _: None
+        failed = root / 'output/failed-notes'
+        failed.mkdir()
+        for name in ['manifest.json', 'speech.json']:
+            (failed/name).write_bytes((root/'output/original'/name).read_bytes())
+        write_json(failed/'construction-settings.json', construction.validate({}))
+        write_json(failed/'construction-error.json', {'error':'Invalid source timestamps'})
+        raw = '## Оглавление\n### [00:00:05] Topic\n\n## Конспект\n### [00:00:05] Topic\nSummary.'
+        (failed/'construction-result.md').write_text(raw, encoding='utf-8')
+        write_json(job_folder/'job.json', {'id':identity,'video':str(video),'filename':video.name,'folder':'failed-notes','status':'error','stage':'notes','mode':'postprocess','task':'notes','created':1})
     class Handler(RangeRequestHandler):
         def do_GET(self):
             path=urlsplit(self.path).path
@@ -94,6 +106,43 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--spacing-only' in sys.argv:
+            measurements=evaluate("""(()=>{const rect=s=>document.querySelector(s).getBoundingClientRect(),gap=(a,b)=>rect(b).top-rect(a).bottom;const groups=document.querySelectorAll('.recording-notes-heading>.vd-control-group');return {notes:gap('#recording-notes','#open-recording-notes'),article:gap('#recording-article','#open-recording-article'),buttons:rect('#construction-article').left-rect('#open-recording-article').right,groups:groups[1].getBoundingClientRect().top-groups[0].getBoundingClientRect().bottom}})()""")
+            assert measurements=={'notes':8,'article':8,'buttons':8,'groups':16},measurements
+            evaluate('document.querySelector(".recording-notes-heading").scrollIntoView({block:"start"})')
+            c.screenshot(out/'consistent-control-spacing.png')
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: related field/action gaps 8 px, action button gaps 8 px, independent groups 16 px',flush=True)
+            sys.exit(0)
+        if '--recovery-only' in sys.argv:
+            evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent==="Исправить конспект вручную").click()')
+            wait_for(lambda:evaluate('!!document.querySelector(".construction-recovery[open]")'))
+            assert '2' in c.visible_text('[data-summary]')
+            assert evaluate('document.querySelectorAll("[data-issues] li").length')==2
+            c.click('[data-issues] li button')
+            assert evaluate('(()=>{const t=document.querySelector(".construction-recovery textarea");return t.value.slice(t.selectionStart,t.selectionEnd)})()')=='00:00:05'
+            c.screenshot(out/'recovery-diagnostics.png')
+            c.call('Emulation.setDeviceMetricsOverride',width=760,height=560,deviceScaleFactor=1,mobile=False)
+            assert evaluate('(()=>{const r=document.querySelector(".construction-recovery").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.height<=innerHeight})()')
+            c.screenshot(out/'recovery-diagnostics-760.png')
+            c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
+            c.click('[data-candidate="00:00:00"]')
+            assert evaluate('document.querySelectorAll("[data-issues] li").length')==2
+            assert 'ожидает проверки' in c.visible_text('[data-resolution]')
+            assert 'Оглавление\n### [00:00:00]' in evaluate('document.querySelector(".construction-recovery textarea").value')
+            c.click('[data-fix-all]')
+            assert evaluate('document.querySelectorAll("[data-issues] li").length')==2
+            assert evaluate('document.querySelector(".construction-recovery textarea").value.includes("00:00:05")') is False
+            c.click('[data-check]')
+            wait_for(lambda:'Проверка пройдена' in c.visible_text('[data-summary]'))
+            assert not (failed/'construction-manual.json').exists()
+            c.click('.construction-recovery [type=submit]')
+            wait_for(lambda:not evaluate('!!document.querySelector(".construction-recovery[open]")'))
+            assert (failed/'construction-result.md').read_text(encoding='utf-8')==raw
+            assert '00:00:05' not in json.loads((failed/'construction-manual.json').read_text(encoding='utf-8'))['text']
+            assert evaluate('window.uiErrors')==[]
+            print('PASS: recovery lists all errors, selects exact occurrences, previews grounded replacements, validates without saving, preserves raw answer',flush=True)
+            sys.exit(0)
         if '--independent-versions-only' in sys.argv:
             original = evaluate('document.querySelector("#recording-speech").value')
             assert not evaluate('[...document.querySelector("#recording-speech").options].some(item=>item.value==="notes-a")')

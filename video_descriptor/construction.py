@@ -13,6 +13,7 @@ from pathlib import Path
 
 import requests
 
+from .action_history import record
 from .jobs import jobs_dir, read_json, write_json
 from .local_tokens import byte_bound, load_counter
 from .models import Chapter, Note, Notes, Source, VideoSection
@@ -538,6 +539,7 @@ def parsed_notes(markdown, sources):
 
 
 def save_notes_result(folder, answer, sources, result, notes, chapters, article=False):
+    record('result_saving', folder=folder, result_kind='article' if article else 'notes', status='running')
     write_json(folder / 'transcript.json', [source.model_dump() for source in sources if not source.image])
     write_json(folder / 'notes.json', notes.model_dump())
     write_json(folder / 'notes-live.json', notes.model_dump())
@@ -550,12 +552,14 @@ def save_notes_result(folder, answer, sources, result, notes, chapters, article=
     if article:
         (folder / 'article.md').write_text(answer, encoding='utf-8')
     (folder / 'construction-error.json').unlink(missing_ok=True)
+    record('result_saved', folder=folder, result_kind='article' if article else 'notes', status='done')
 
 
 def run(root, folder, value, ask=generate):
     config = validate(value)
     article = config['result_kind'] == 'article'
     label = 'Статья' if article else 'Конспект'
+    record('generation_started', folder=folder, result_kind=config['result_kind'], model=config['model'], status='running')
     manual = read_json(folder / 'construction-manual.json', {})
     if manual:
         from .construction_recovery import recovery_state
@@ -577,6 +581,7 @@ def run(root, folder, value, ask=generate):
             output.write(message + '\n')
     log = ProgressLog(emit, folder.name, folder / 'requests')
     log.progress_file = folder / 'progress.json'
+    log.update(result_kind=config['result_kind'])
     log.thinking_enabled = False
     if config['input'] == 'slides' and not read_json(folder / 'frames.json', []):
         from .frames import extract_scene_frames
@@ -644,6 +649,7 @@ def run(root, folder, value, ask=generate):
     (folder / 'construction-result.md').write_text(answer, encoding='utf-8')
     sources = [Source(id=row.get('id', f's{index}'), start=row['start'], end=row['end'], text=row['text'])
                for index, row in enumerate(result['segments'], 1)] + [Source.model_validate(frame) for frame in frames]
+    record('answer_validation', folder=folder, result_kind=config['result_kind'], status='running')
     notes, chapters = (Notes(notes=[]), []) if article else parsed_notes(answer, sources)
     save_notes_result(folder, answer, sources, result, notes, chapters, article)
     update_status(log, stage='[5/5] Сохранение отчёта', message='Статья готова' if article else 'Конспект и оглавление готовы',
@@ -661,6 +667,7 @@ if __name__ == '__main__':
     try:
         run(args.root.resolve(), args.folder.resolve(), read_json(args.settings))
     except (ValueError, OSError, requests.RequestException, RuntimeError) as exc:
+        record('generation_failed', folder=args.folder, stage='notes', status='error', reason=type(exc).__name__)
         write_json(args.folder / 'construction-error.json', {'error': str(exc)})
         print(str(exc), flush=True)
         raise SystemExit(1)

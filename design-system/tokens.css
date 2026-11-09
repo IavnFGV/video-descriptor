@@ -10,6 +10,7 @@
   --vd-caption:12px; --vd-label:13px; --vd-body:14px; --vd-reading:16px; --vd-h3:18px; --vd-h2:22px; --vd-h1:28px;
   --vd-normal:400; --vd-medium:600; --vd-heading:650;
   --vd-space-1:4px; --vd-space-2:8px; --vd-space-3:12px; --vd-space-4:16px; --vd-space-6:24px; --vd-space-8:32px; --vd-space-12:48px;
+  --vd-control-gap:var(--vd-space-2); --vd-group-gap:var(--vd-space-4);
   --vd-radius-control:8px; --vd-radius-card:12px; --vd-radius-dialog:16px; --vd-radius-pill:999px;
   --vd-control-height:40px; --vd-compact-height:32px; --vd-nav-width:208px; --vd-content-width:1200px;
   --vd-backdrop:#122a2466;

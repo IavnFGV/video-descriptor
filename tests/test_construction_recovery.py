@@ -97,6 +97,10 @@ def test_recovery_http_conflict_origin_and_success(tmp_path, monkeypatch):
         conflict = requests.post(url, json={'folder': folder.name, 'text': FIXED,
                                            'revision': 'stale'}, timeout=5)
         assert conflict.status_code == 409 and not started
+        checked = requests.post(url, json={'folder': folder.name, 'text': FIXED,
+                                           'revision': revision, 'action': 'validate'}, timeout=5)
+        assert checked.status_code == 200 and checked.json() == {'valid': True, 'issues': []}
+        assert not started and not (folder / 'construction-manual.json').exists()
         saved = requests.post(url, json={'folder': folder.name, 'text': FIXED,
                                         'revision': revision}, timeout=5)
         assert saved.status_code == 200 and saved.json()['job']['status'] == 'queued'
@@ -105,3 +109,48 @@ def test_recovery_http_conflict_origin_and_success(tmp_path, monkeypatch):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_recovery_reports_all_locations_and_dry_run_never_saves(tmp_path):
+    folder, job_folder = setup_failed(tmp_path)
+    state = recover(tmp_path, {'folder': folder.name})
+    assert [issue['line'] for issue in state['issues']] == [2, 5]
+    assert all(issue['code'] == 'unknown_time' for issue in state['issues'])
+    assert state['issues'][0]['candidates'] == [{'time': '00:00:10', 'text': 'Topic source'}]
+    checked = recover(tmp_path, {'folder': folder.name, 'revision': state['revision'],
+                                 'text': FIXED, 'action': 'validate'})
+    assert checked == {'issues': [], 'valid': True}
+    assert not (folder / 'construction-manual.json').exists()
+    assert jobs.read_json(job_folder / 'job.json')['status'] == 'error'
+    assert (folder / 'construction-result.md').read_text(encoding='utf-8') == RAW
+
+
+def test_validation_offsets_select_exact_duplicate_after_emoji():
+    from video_descriptor.models import Source
+    from video_descriptor.notes_validation import notes_issues
+    text = '😀\n' + RAW
+    issues = notes_issues(text, [Source(id='s', start=10, end=20, text='Source')])
+    encoded = text.encode('utf-16-le')
+    assert len(issues) == 2
+    for issue in issues:
+        assert encoded[issue['start'] * 2:issue['end'] * 2].decode('utf-16-le') == '00:00:05'
+    assert issues[1]['start'] > issues[0]['end']
+
+
+def test_diagnostics_distinguish_chronology_and_ranges():
+    from video_descriptor.models import Source
+    from video_descriptor.notes_validation import notes_issues
+    sources = [Source(id='a', start=10, end=20, text='A'), Source(id='b', start=30, end=40, text='B')]
+    text = '## Оглавление\n### [00:00:30] Later\n### [00:00:10] Earlier\n## Конспект\n### [00:00:10–00:00:20] Topic\nText'
+    issues = notes_issues(text, sources)
+    assert [issue['code'] for issue in issues] == ['chronology']
+    assert issues[0]['line'] == 3 and '00:00:30' in issues[0]['message']
+    assert notes_issues(text.replace('00:00:20', '00:00:09'), sources)[-1]['code'] == 'range'
+
+
+def test_diagnostics_explain_missing_sections_and_malformed_headings():
+    from video_descriptor.models import Source
+    from video_descriptor.notes_validation import notes_issues
+    sources = [Source(id='a', start=10, end=20, text='A')]
+    assert notes_issues('# Just text', sources)[0]['code'] == 'sections'
+    assert notes_issues('## Оглавление\n### 00:00:10 Topic\n## Конспект\n### [00:00:10] Topic', sources)[0]['code'] == 'heading'
