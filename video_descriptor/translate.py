@@ -61,6 +61,10 @@ def translate_batch(sources, model, base_url, log=None):
     if settings and settings["provider"] == "gemini":
         from .gemini import translate
         result = translate(PROMPT, text, settings, log)
+    elif settings and settings["provider"] == "lmstudio":
+        from .lmstudio import generate
+        from .prompt_settings import effective
+        result = generate(settings, model, effective("translate", PROMPT, log), text, log, task="translate")
     else:
         result = chat_json(PROMPT, text, None, model, base_url, log,
                            context=8192, task="translate")
@@ -112,6 +116,8 @@ def main():
     parser.add_argument("folder", type=Path, help="Папка с transcript.json и manifest.json")
     parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", ""))
     parser.add_argument('--local-model', help='Зафиксированная локальная модель задания, независимо от текущих настроек')
+    parser.add_argument("--lmstudio-model", help="Зафиксированная модель LM Studio")
+    parser.add_argument("--lmstudio-url", help="Зафиксированный адрес LM Studio")
     parser.add_argument("--gemini-model", help="Зафиксированная Google-модель этого задания")
     parser.add_argument("--base-url", default=os.getenv(
         "OLLAMA_BASE_URL", "http://host.docker.internal:11434"))
@@ -136,14 +142,16 @@ def main():
     try:
         speech = [Source.model_validate(item) for item in
                   json.loads((folder / "transcript.json").read_text())]
-        settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
+        settings = ({**translation_settings(), 'provider': 'lmstudio', 'lmstudio_model': args.lmstudio_model,
+                     'lmstudio_url': args.lmstudio_url or translation_settings().get('lmstudio_url')}
+                    if args.lmstudio_model else {'provider': 'ollama', 'ollama_model': args.local_model}
                     if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model}
                     if args.gemini_model else translation_settings())
-        active_model = settings['model'] if settings['provider'] == 'gemini' else (settings.get('ollama_model') or args.model)
+        active_model = settings['model'] if settings['provider'] == 'gemini' else (settings.get('lmstudio_model') if settings['provider'] == 'lmstudio' else settings.get('ollama_model')) or args.model
         count = load_counter(args.base_url, active_model) if settings['provider'] == 'ollama' else None
         groups = translation_groups(speech, count) if count else group_sources(speech, 0, 90)
         save(folder / 'translation-plan.json', translation_plan(
-            groups, active_model, settings['provider'], count.mode if count else 'cloud'))
+            groups, active_model, settings['provider'], count.mode if count else 'byte-bound' if settings['provider'] == 'lmstudio' else 'cloud'))
         log(f'Перевод: {len(groups)} частей; подсчёт: {count.mode if count else "cloud"}')
         translation_path = folder / "translations.json"
         translations = (json.loads(translation_path.read_text())
@@ -155,11 +163,13 @@ def main():
             for index, group in enumerate(groups, 1):
                 from .prompt_settings import effective, overrides
                 log.prompt_settings = overrides()
-                settings = ({'provider': 'ollama', 'ollama_model': args.local_model}
+                settings = ({**translation_settings(), 'provider': 'lmstudio', 'lmstudio_model': args.lmstudio_model,
+                             'lmstudio_url': args.lmstudio_url or translation_settings().get('lmstudio_url')}
+                            if args.lmstudio_model else {'provider': 'ollama', 'ollama_model': args.local_model}
                             if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model} if args.gemini_model else translation_settings())
                 log.translation_settings = settings
-                active_model = settings["model"] if settings["provider"] == "gemini" else (settings.get("ollama_model") or args.model)
-                active_base = "gemini" if settings["provider"] == "gemini" else args.base_url
+                active_model = settings["model"] if settings["provider"] == "gemini" else (settings.get("lmstudio_model") if settings["provider"] == "lmstudio" else settings.get("ollama_model")) or args.model
+                active_base = "gemini" if settings["provider"] == "gemini" else settings["lmstudio_url"] if settings["provider"] == "lmstudio" else args.base_url
                 log.reset_request()
                 log.update(model=active_model, provider=settings["provider"], estimated_usd=None)
                 update_status(log, chunk=f"{index}/{len(groups)}",

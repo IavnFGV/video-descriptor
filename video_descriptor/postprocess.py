@@ -1,4 +1,5 @@
 """Queue local notes/translation from an immutable snapshot of corrected speech."""
+import os
 import re
 import subprocess
 import sys
@@ -15,16 +16,20 @@ from .platform_support import lock_file
 from .speech import editable_result, subtitle_result
 
 
-def enqueue(root, name, task, model, base_url, *, notes_model=None, construction=None, translate_after=True):
+def enqueue(root, name, task, model, base_url, *, notes_model=None, construction=None, translate_after=True, translation_provider=None):
     root = Path(root).resolve()
     if task not in {'translate', 'notes'}:
         raise ValueError('Выберите перевод или конспект с переводом')
-    if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9._:/-]{1,150}', model):
-        raise ValueError('Выберите установленную модель Ollama')
+    if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9._:/@-]{1,150}', model):
+        raise ValueError('Выберите установленную локальную модель')
+    lm_selected = translation_provider == 'lmstudio' or (construction or {}).get('provider') == 'lmstudio'
+    if lm_selected:
+        from .lmstudio import base_url as lm_base_url
+        base_url = lm_base_url(base_url)
     parsed = urlsplit(base_url)
     if (parsed.scheme != 'http' or parsed.hostname not in {'localhost', '127.0.0.1', '::1'}
-            or parsed.username or parsed.password or parsed.path not in {'', '/'} or parsed.query or parsed.fragment):
-        raise ValueError('Для этой операции разрешена только локальная Ollama')
+            or parsed.username or parsed.password or parsed.path not in ({'', '/', '/v1'} if lm_selected else {'', '/'}) or parsed.query or parsed.fragment):
+        raise ValueError('Для этой операции разрешён только локальный сервер модели')
     if type(translate_after) is not bool:
         raise TypeError('Выберите, нужен ли перевод реплик')
     config = validate(construction) if task == 'notes' and construction is not None else None
@@ -60,6 +65,8 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None, construction
                'mode': 'postprocess', 'task': task, 'folder': version.name, 'source_folder': name,
                'translation_model': model, 'translation_base_url': base_url.rstrip('/'),
                'status': 'queued', 'created': time.time(), 'stage': 'queued'}
+        if translation_provider:
+            job['translation_provider'] = translation_provider
         if config and config['result_kind'] == 'article':
             job['title'] = 'Статья · ' + Path(video).name
         if task == 'notes':
@@ -82,6 +89,8 @@ def run(root, folder, job, log):
         diarize(root, folder, job, log)
         return
     result = root / 'output' / job['folder']
+    environment = ({**os.environ, 'VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL': job['translation_base_url']}
+                   if job.get('translation_provider') == 'lmstudio' else job_environment(job['translation_base_url']))
     if job['task'] == 'notes':
         job['stage'] = 'notes'
         write_json(folder / 'job.json', job)
@@ -89,7 +98,7 @@ def run(root, folder, job, log):
         write_json(settings, job['construction'])
         code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction', str(root),
                                str(result), str(settings)], cwd=root, stdout=log, stderr=subprocess.STDOUT,
-                              stdin=subprocess.DEVNULL, check=False, env=job_environment(job['translation_base_url'])).returncode
+                              stdin=subprocess.DEVNULL, check=False, env=environment).returncode
         if code:
             detail = read_json(result / 'construction-error.json', {}).get('error')
             label = 'статью' if job['construction'].get('result_kind') == 'article' else 'конспект'
@@ -102,11 +111,12 @@ def run(root, folder, job, log):
         return
     job['stage'] = 'translation'
     write_json(folder / 'job.json', job)
-    option = '--gemini-model' if job.get('translation_provider') == 'gemini' else '--local-model'
+    option = {'gemini': '--gemini-model', 'lmstudio': '--lmstudio-model'}.get(job.get('translation_provider'), '--local-model')
+    extra = ['--lmstudio-url', job['translation_base_url']] if job.get('translation_provider') == 'lmstudio' else []
     code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.translate', str(result),
                            '--model', job['translation_model'], option, job['translation_model'],
-                           '--base-url', job['translation_base_url']], cwd=root, stdout=log,
-                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False, env=job_environment(job['translation_base_url'])).returncode
+                           '--base-url', job['translation_base_url'], *extra], cwd=root, stdout=log,
+                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False, env=environment).returncode
     if code:
         raise RuntimeError('Перевод остановлен; готовые блоки сохранены. Нажмите «Продолжить».')
     job['stage'] = 'done'

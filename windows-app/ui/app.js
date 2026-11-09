@@ -282,6 +282,10 @@
     if(!document.activeElement.closest('#gemini-form')){$('gemini-model').value=d.gemini.model;$('gemini-billing').value=d.gemini.billing_mode;$('gemini-ack').checked=d.gemini.free_ack;}
     $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
   }
+  async function lmPreferences(){const p=await api('/api/translation-settings');$('lmstudio-url').value=p.lmstudio_url;$('lmstudio-model').value=p.lmstudio_model;$('lmstudio-key').placeholder=p.lmstudio_has_key?'Токен сохранён':'Необязательный токен';}
+  $('lmstudio-form').onsubmit=async e=>{e.preventDefault();const button=e.submitter;if(button)button.disabled=true;try{await api('/api/translation-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'lmstudio',lmstudio_url:$('lmstudio-url').value,lmstudio_model:$('lmstudio-model').value,lmstudio_api_key:$('lmstudio-key').value})});$('lmstudio-key').value='';$('lmstudio-status').textContent='Сохранено. Генерация проверяется при обработке.';}catch(e){$('lmstudio-status').textContent=e.message;}finally{if(button)button.disabled=false;}};
+  $('lmstudio-models').onclick=async()=>{const b=$('lmstudio-models');b.disabled=true;$('lmstudio-status').textContent='Проверяем сохранённое подключение…';try{const rows=await api('/api/construction-models?provider=lmstudio');$('lmstudio-status').textContent=rows.length?'Доступны: '+rows.map(r=>r.id).join(', ')+'. Генерация ещё не проверена.':'Сервер ответил, моделей нет.';}catch(e){$('lmstudio-status').textContent=e.message;}finally{b.disabled=false;}};
+  lmPreferences().catch(e=>{$('lmstudio-status').textContent=e.message;});
   $('setup-open').onclick=()=>{diagnostics().catch(e=>message(e.message,true));};
   $('setup-finish').onclick=async()=>{const b=$('setup-finish'),route=location.hash;b.disabled=true;try{await setupPost('complete');if(location.hash===route){location.hash='records';showView(true);}}catch(e){message(e.message,true);}finally{b.disabled=false;}};
   $('diagnostics-refresh').onclick=async()=>{try{await setupPost('refresh');await diagnostics();await readiness();}catch(e){message(e.message,true);}};
@@ -425,7 +429,7 @@
     if(!currentJob?.folder||processing)return;
     notesFolder=currentJob.folder;$('notes-provider').disabled=true;$('notes-confirm').disabled=true;$('notes-choice-status').textContent='Загружаем настройки подключения…';$('notes-cloud-consent').checked=false;
     $('notes-dialog').showModal();
-    try{notesDefaults=await api('/api/translation-settings');$('notes-provider').disabled=false;$('notes-provider').value=notesDefaults.provider==='gemini'&&notesDefaults.has_key?'gemini':'ollama';await notesModels();}catch(e){$('notes-provider').disabled=false;$('notes-choice-status').textContent=e.message;}
+    try{notesDefaults=await api('/api/translation-settings');$('notes-provider').disabled=false;$('notes-provider').value=notesDefaults.provider==='lmstudio'?'lmstudio':notesDefaults.provider==='gemini'&&notesDefaults.has_key?'gemini':'ollama';await notesModels();}catch(e){$('notes-provider').disabled=false;$('notes-choice-status').textContent=e.message;}
   }
   async function notesModels(){
     const provider=$('notes-provider').value,request=++notesRequest;
@@ -435,7 +439,7 @@
       if(provider==='gemini'){
         if(!notesDefaults.has_key)throw Error('Сначала сохраните API-ключ Google в настройках AI.');
         const r=await setupPost('gemini',{check:true});models=r.models.map(m=>m.id);chosen=notesDefaults.model;
-      }else{const r=await api('/api/setup/ollama');models=r.models.map(m=>m.name);chosen=r.selected;}
+      }else if(provider==='lmstudio'){const r=await api('/api/construction-models?provider=lmstudio');models=r.map(m=>m.id);chosen=notesDefaults.lmstudio_model;}else{const r=await api('/api/setup/ollama');models=r.models.map(m=>m.name);chosen=r.selected;}
       if(request!==notesRequest)return;
       $('notes-model-choice').replaceChildren(...models.map(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;return o;}));
       if(models.includes(chosen))$('notes-model-choice').value=chosen;
@@ -447,7 +451,7 @@
   $('notes-model-refresh').onclick=notesModels;
   $('notes-auto-context').onchange=()=>{$('notes-context').disabled=$('notes-auto-context').checked;};
   $('notes-cancel').onclick=()=>$('notes-dialog').close();
-  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';const target=$(provider==='gemini'?'gemini-key':'ollama-mode');target.closest('details').open=true;target.focus();};
+  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';const target=$(provider==='lmstudio'?'lmstudio-url':provider==='gemini'?'gemini-key':'ollama-mode');target.closest('details').open=true;target.focus();};
   $('notes-confirm').onclick=async()=>{
     if(notesModelsLoading||processing)return;
     const provider=$('notes-provider').value;
@@ -460,6 +464,8 @@
   let localTask=null, localFolder=null;
   async function localAI(task){
     try{
+      const prefs=await api('/api/translation-settings');
+      if(prefs.provider==='lmstudio'){await postprocess(task);return;}
       const status=await api('/api/setup/ollama');
       if(status.ready){await postprocess(task);return;}
       localTask=task;localFolder=currentJob?.folder;
