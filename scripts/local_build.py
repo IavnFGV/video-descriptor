@@ -466,6 +466,9 @@ unset $(git rev-parse --local-env-vars)
 if [ -f "$root/scripts/Build-Local.ps1" ]; then
   powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$root/scripts/Build-Local.ps1" -Background
 fi
+if [ -f "$root/scripts/Run-Dev.ps1" ]; then
+  powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$root/scripts/Run-Dev.ps1" -Restart -Open || echo "Local preview did not restart; see .git/local-dev. Installer continues in background."
+fi
 exit 0
 ''', encoding='utf-8', newline='\n')
     hook.chmod(0o755)

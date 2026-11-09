@@ -5,6 +5,8 @@ import time
 import uuid
 from pathlib import Path
 
+from .action_history import record
+
 
 class RequestJournal:
     def __init__(self, root: Path, url: str, payload: dict, context: dict, task: str):
@@ -15,6 +17,10 @@ class RequestJournal:
         self.stream = (self.folder / "events.jsonl").open("w", encoding="utf-8")
         self.parts = []
         self.thinking = []
+        self.recording_folder = root.parent
+        self.task = task
+        record('model_request_started', folder=self.recording_folder, request_id=self.folder.name,
+               model=payload.get('model'), task=task, status='running')
 
     def write(self, name, value):
         path = self.folder / name
@@ -36,3 +42,6 @@ class RequestJournal:
         (self.folder / "response.txt").write_text("".join(self.parts), encoding="utf-8")
         (self.folder / "thinking.txt").write_text("".join(self.thinking), encoding="utf-8")
         self.write("result.json", {"status": status, "error": error})
+        record('model_request_finished', folder=self.recording_folder, request_id=self.folder.name,
+               task=self.task, status=status, received=sum(map(len, self.parts)),
+               reason='request_error' if error else None)

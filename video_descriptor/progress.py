@@ -8,6 +8,8 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
+from .action_history import record
+
 TASKS = {"route": "выбор картинок", "summarize": "конспект",
          "filter": "фильтрация", "quiz_explanation": "объяснение квиза",
          "translate": "перевод", "analysis": "анализ"}
@@ -92,6 +94,9 @@ class ProgressLog:
         )
         self.emit(f"{prefix} | {message}")
         if self.progress_file is not None:
+            record('progress', folder=self.progress_file.parent, stage=state.get('stage'),
+                   task=state.get('task'), model=state.get('model'), received=state.get('received', 0),
+                   status=state.get('request_state'), result_kind=state.get('result_kind'))
             state.update(message=message, updated=time.time(), requests=requests,
                          request_seconds=round(elapsed, 1), thinking_enabled=self.thinking_enabled)
             with self.lock:

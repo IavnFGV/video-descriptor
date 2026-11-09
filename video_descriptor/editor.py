@@ -6,6 +6,8 @@ import tempfile
 import threading
 from pathlib import Path
 
+from .action_history import record
+
 LOCK = threading.Lock()
 
 
@@ -43,4 +45,5 @@ def save_document(folder: Path, text: str, revision: str) -> dict:
             temporary.replace(folder / "notes.user.md")
         finally:
             temporary.unlink(missing_ok=True)
+        record('notes_saved', folder=folder, stage='notes', status='done')
         return load_document(folder)

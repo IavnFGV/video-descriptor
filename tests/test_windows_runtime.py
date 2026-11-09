@@ -85,9 +85,10 @@ def test_native_loopback_configuration_and_workspace_isolation(tmp_path, monkeyp
         module.config()
 
 
-def test_native_stop_checks_instance_and_refuses_active_queue(tmp_path):
+@pytest.mark.parametrize('development, expected', [(False, 409), (True, 200)])
+def test_native_stop_checks_instance_and_refuses_active_queue(tmp_path, development, expected):
     module = native()
-    value = {'workspace': str(tmp_path)}
+    value = {'workspace': str(tmp_path), 'development': development}
     handler = module.make_handler(value, 'owned-instance')
     with ThreadingHTTPServer(('127.0.0.1', 0), handler) as server:
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -99,7 +100,8 @@ def test_native_stop_checks_instance_and_refuses_active_queue(tmp_path):
             job = tmp_path / 'output/jobs/abc/job.json'
             job.parent.mkdir(parents=True)
             jobs.write_json(job, {'status': 'running'})
-            assert requests.post(base + '/api/native/stop', headers={'X-App-Instance': 'owned-instance'}, timeout=3).status_code == 409
+            assert requests.post(base + '/api/native/stop', headers={'X-App-Instance': 'owned-instance'}, timeout=3).status_code == expected
+            assert jobs.read_json(job)['status'] == 'running'
         finally:
             server.shutdown()
             thread.join()
@@ -152,3 +154,14 @@ def test_failure_before_audio_preparation_still_has_retryable_job_state(tmp_path
     job = {'id': job_id, 'mode': 'audio', 'status': 'error', 'error': 'Invalid video', 'folder': 'speech-bad'}
     jobs.write_json(file, job)
     assert speech.state(tmp_path, {'job': [job_id]}) == {'job': job, 'result': None}
+
+
+def test_dev_configuration_override_keeps_default_config_separate(tmp_path, monkeypatch):
+    app = native()
+    custom = tmp_path / 'development.json'
+    records = tmp_path / 'records'
+    custom.write_text(json.dumps({'port': 8781, 'development': True, 'records_directory': str(records)}))
+    monkeypatch.setenv('VIDEO_DESCRIPTOR_CONFIG', str(custom))
+    value = app.config()
+    assert value['development'] and value['port'] == 8781
+    assert value['workspace'] == str(records.resolve())

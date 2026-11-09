@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+from .action_history import describe
 from .jobs import read_json, video_url
 from .library import lecture_info
 from .platform_support import windows_processes
@@ -61,7 +62,7 @@ def active_video(video):
 def processing_details(phase, state, speech_result, payload=None, recognition_settings=None):
     """Describe the current stage using only its recorded request settings."""
     titles = {1: "Проверка записи", 2: "Распознавание речи", 3: "Анализ изображения",
-              4: "Создание конспекта", 5: "Сохранение отчёта", 6: "Перевод субтитров"}
+              4: "Создание статьи" if state.get('result_kind') == 'article' else "Создание конспекта", 5: "Сохранение отчёта", 6: "Перевод субтитров"}
     details = {"title": titles.get(phase, "Обработка"), "task": state.get("task", "—"),
                "parameters": [], "message": "Для этого этапа параметры модели не нужны.",
                "request_available": False, "supports_thinking": False}
@@ -125,6 +126,15 @@ def snapshot(root, folder):
     if not log_file.exists() and speech_result.get("job_id"):
         log_file = root / "output" / "jobs" / speech_result["job_id"] / "run.log"
     lines = tail(log_file).splitlines()
+    construction_lines = tail(folder / 'construction.log').splitlines()
+    if construction_lines:
+        lines = [*lines[-40:], *construction_lines[-40:]]
+    for line in tail(folder / 'application-events.jsonl').splitlines()[-40:]:
+        try:
+            event = json.loads(line)
+            lines.append(event['time_utc'] + ' · ' + describe(event))
+        except (ValueError, KeyError, TypeError):
+            continue
     last = lines[-1] if lines else ""
     if not state:
         for key in ("этап", "блок", "задача", "модель"):
@@ -308,7 +318,7 @@ def snapshot(root, folder):
             "construction_error": read_json(folder / "construction-error.json", {}).get("error"),
             "construction_answer_saved": (folder / "construction-result.md").is_file(),
             "phase": phase, "done": done, "running": running, "status": state,
-            "processing": processing_details(phase, state, speech_result, request_payload,
+            "processing": processing_details(phase, {**state, 'result_kind': read_json(folder / 'construction-settings.json', {}).get('result_kind')}, speech_result, request_payload,
                                              read_json(folder / "recognition-settings.json", {})),
             "skipped_steps": [{"phase": 3, "reason": "Пропущено для этой записи: анализ изображения отключён."}] if manifest.get("mode") == "audio" else [],
             "skip_images": manifest.get("mode") == "audio",
@@ -339,7 +349,7 @@ def snapshot(root, folder):
             "response": "".join(content)[-8000:], "thinking": "".join(thinking)[-8000:],
             "request_url": request_url,
             "thinking_next": controls.get("thinking", state.get("thinking_enabled", False)),
-            "errors": errors + translation_errors, "log": lines[-8:],
+            "errors": errors + translation_errors, "log": lines[-80:],
             "report_url": "/output/" + quote(folder.name) + "/report.html" if ready else None}
 
 

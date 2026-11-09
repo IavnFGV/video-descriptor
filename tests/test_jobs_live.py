@@ -220,3 +220,19 @@ def test_legacy_translation_counter_does_not_count_failed_parts_as_ready(tmp_pat
     jobs.write_json(folder/'translation-errors.json',[{'block':1,'error':'Failure'}])
     value=live.snapshot(tmp_path,folder)['translation_progress']
     assert value['completed']==0 and value['remaining']==13
+
+
+def test_live_journal_reads_construction_and_structured_events(tmp_path, monkeypatch):
+    from video_descriptor.action_history import record
+    folder = tmp_path / 'output/article'
+    folder.mkdir(parents=True)
+    jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'data/video.mp4')})
+    jobs.write_json(folder / 'progress.json', {'stage': '[4/5] Статья по лекции'})
+    jobs.write_json(folder / 'construction-settings.json', {'result_kind': 'article'})
+    (folder / 'construction.log').write_text('Request sent\nReceiving answer', encoding='utf-8')
+    monkeypatch.setattr(live, 'active_video', lambda _: False)
+    record('result_saved', folder=folder, result_kind='article', status='done')
+    value = live.snapshot(tmp_path, folder)
+    assert 'Receiving answer' in value['log']
+    assert any('Результат сохранён' in line for line in value['log'])
+    assert value['processing']['title'] == 'Создание статьи'

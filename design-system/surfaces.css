@@ -43,9 +43,9 @@ dialog.reply-editor{width:min(var(--vd-editor-width),calc(100% - 32px))}.reply-e
 .utterance{padding:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border)}.utterance p{margin:var(--vd-space-1) 0;white-space:pre-wrap}
 .utterance.active,.current-note{background:var(--vd-accent-tint);border-radius:var(--vd-radius-control)}
 .subtitle-ru{color:var(--vd-success)}body[data-subtitles=original] .subtitle-ru{display:none}body[data-subtitles=ru] .subtitle-original{display:none}
-.subtitle-tools,.construction-actions,.notes-actions,.notes-toolbar,.finish-actions,.card-heading,.follow,.run-heading{display:flex;gap:var(--vd-space-3);align-items:center;flex-wrap:wrap}
+.subtitle-tools,.construction-actions,.notes-actions,.notes-toolbar,.finish-actions,.card-heading,.follow,.run-heading{display:flex;gap:var(--vd-control-gap);align-items:center;flex-wrap:wrap}
 .card-heading,.run-heading,.follow{justify-content:space-between}
-.subtitle-tools,.notes-actions,.finish-actions{margin:var(--vd-space-3) 0}
+.subtitle-tools,.notes-actions,.finish-actions{margin:var(--vd-group-gap) 0}
 .subtitle-tools a[download],.construction-actions a[download]{display:inline-flex;padding:var(--vd-space-2) var(--vd-space-3);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);min-height:var(--vd-control-height);align-items:center}
 @media(max-width:800px){body{padding:var(--vd-space-4)}section,article{padding:var(--vd-space-4)}.vd-global-nav{gap:var(--vd-space-1)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

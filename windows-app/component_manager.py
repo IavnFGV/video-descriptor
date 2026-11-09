@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 import requests
 from model_download import checksum
 
+from video_descriptor.action_history import record
 from video_descriptor.jobs import read_json, write_json
 from video_descriptor.ollama_connection import DEFAULT_URL, loopback_url, selected, workspace_file
 from video_descriptor.platform_support import (
@@ -183,12 +184,15 @@ class ComponentManager:
 
     def update(self, key, state=None, **fields):
         with self.lock:
+            previous = self.components[key].get('state')
             if state is not None:
                 if state not in STATES:
                     raise ValueError('Неизвестное состояние компонента')
                 fields['state'] = state
             self.components[key].update(fields)
             self.save()
+            if state is not None and state != previous:
+                record('component_state', component=key, stage='setup', status=state)
 
     def snapshot(self):
         with self.lock:

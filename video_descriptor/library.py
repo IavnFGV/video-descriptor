@@ -7,6 +7,8 @@ import threading
 from pathlib import Path
 from urllib.parse import quote
 
+from .action_history import record
+
 LOCK = threading.Lock()
 
 
@@ -46,6 +48,7 @@ def save_title(folder, title):
             temporary.replace(path)
         finally:
             temporary.unlink(missing_ok=True)
+    record('recording_title_saved', folder=root, stage='recording', status='done')
     return lecture_info(folder)
 
 
@@ -77,11 +80,11 @@ def library_page(output):
             status = "Конспект с пропущенными фрагментами"
         if not score[0]:
             status += " · фрагмент записи"
-        report_link = (f' · <a href="{url}&amp;stage=notes">Читать конспект →</a>'
+        report_link = (f'<a href="{url}&amp;stage=notes">Читать конспект →</a>'
                        if ready else "")
         cards.append(f'<article><a href="{url}">{html.escape(info["display"])}</a>'
-                     f'<p>{status}</p><a href="{url}">Открыть запись →</a>'
-                     f'{report_link}</article>')
+                     f'<p>{status}</p><div class="vd-actions"><a href="{url}">Открыть запись →</a>'
+                     f'{report_link}</div></article>')
     return ('<!doctype html><html lang="ru"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             '<title>Записи · Video Descriptor</title>'
