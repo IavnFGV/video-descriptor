@@ -79,8 +79,8 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         if path.startswith("/api/"):
             try:
                 if path == '/api/construction-settings':
-                    from .construction import PROMPTS, load_settings
-                    return self.json_response(200, {'settings': load_settings(root), 'prompts': PROMPTS})
+                    from .construction import ARTICLE_PROMPT, PROMPTS, load_settings
+                    return self.json_response(200, {'settings': load_settings(root), 'prompts': {**PROMPTS, 'article': ARTICLE_PROMPT}})
                 if path == '/api/construction-models':
                     from .construction import available_models
                     return self.json_response(200, available_models(root, params.get('provider', ['ollama'])[0]))

@@ -2,9 +2,22 @@
   const $ = id => document.getElementById('construction-' + id);
   const form = document.getElementById('construction-settings-form');
   const fields = {input:'input',material:'material',provider:'provider',model:'model',strategy:'strategy',grouping:'grouping',
-    context_tokens:'context',output_tokens:'output',chunk_seconds:'chunk',max_chunk_seconds:'max-chunk',max_chunk_chars:'max-chars',prompt:'prompt'};
+    context_tokens:'context',output_tokens:'output',chunk_seconds:'chunk',max_chunk_seconds:'max-chunk',max_chunk_chars:'max-chars',prompt:'prompt',article_prompt:'article-prompt'};
   const numeric = new Set(['context_tokens','output_tokens','chunk_seconds','max_chunk_seconds','max_chunk_chars']);
   let ready = false, selected = null, prompts = {}, lastMaterial = null, drafts = {}, previewVersion = 0, busy = false;
+  let resultKind = 'notes';
+  function openSettings(kind='notes') {
+    resultKind=kind;const article=kind==='article';
+    const panel=document.getElementById('notes-settings');panel.closest('section').hidden=false;panel.open=true;
+    $('heading').textContent=article?'Настройки новой статьи':'Настройки нового конспекта';
+    $('notes-instruction').hidden=article;$('article-instruction').hidden=!article;
+    for(const id of ['input','material','strategy','translate-after'])$(id).closest('label').hidden=article;
+    for(const id of ['grouping','chunk','max-chunk','max-chars'])$(id).closest('label').hidden=article;
+    $('source-help').textContent=article?'Модель выбирается отдельно от переводчика. В модель отправляется полная выбранная расшифровка.':'Модель выбирается отдельно от переводчика. В запрос передаётся расшифровка и, при выборе, распознанный текст слайдов.';
+    $('plan-help').textContent=article?'Перед запуском проверяем, что полная расшифровка, промпт и ответ помещаются в контекст модели.':'Перед запуском проверяем лимиты модели. При обработке по частям результаты объединяются в общий конспект и оглавление.';
+    $('status').textContent=article?'Настройте промпт статьи и нажмите «Создать статью».':'Настройте конспект и запустите создание новой версии.';
+    buttons();preview();(article?$('article-prompt'):$('model')).focus();
+  }
   const providerValues = {};
   let modelRequest=0, modelLoading=false;
   const modelLists={};
@@ -23,16 +36,16 @@
   }
   const post = (url, data) => api(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   function settings() {
-    return {...Object.fromEntries(Object.entries(fields).map(([key,id]) => [key,numeric.has(key) ? Number($(id).value) : $(id).value])),...(window.recordingUI?.native?{input:'speech'}:{}),auto_context:$('auto-context').checked};
+    return {...Object.fromEntries(Object.entries(fields).map(([key,id]) => [key,numeric.has(key) ? Number($(id).value) : $(id).value])),...(window.recordingUI?.native?{input:'speech'}:{}),auto_context:$('auto-context').checked,result_kind:resultKind};
   }
-  function fill(config) { for (const [key,id] of Object.entries(fields)) (id==='model'?setModel(config[key]):$(id).value = config[key]); $('auto-context').checked=config.auto_context!==false; $('context').disabled=$('auto-context').checked; }
+  function fill(config) { for (const [key,id] of Object.entries(fields)) (id==='model'?setModel(config[key]):$(id).value = (config[key] ?? (key==='article_prompt'?prompts.article:''))); $('auto-context').checked=config.auto_context!==false; $('context').disabled=$('auto-context').checked; }
   $('auto-context').onchange=()=>{$('context').disabled=$('auto-context').checked;preview();};
   function buttons() {
     $('save').disabled = !ready || busy || !validModel();
     $('preview').hidden = !selected?.has_ready_transcript;
     $('run').hidden = !selected?.has_ready_transcript;
     $('plan').hidden = !selected?.has_ready_transcript;
-    $('run').textContent = selected?.needs_notes ? 'Построить конспект' : 'Создать новую версию конспекта';
+    $('run').textContent = resultKind==='article' ? 'Создать статью' : selected?.needs_notes ? 'Построить конспект' : 'Создать новую версию конспекта';
     $('preview').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript;
     $('run').disabled = !ready || busy || !validModel() || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
     $('article').disabled = !ready || busy || !selected?.has_ready_transcript || selected.running || ['queued','running'].includes(selected.job?.status);
@@ -47,7 +60,7 @@
       const data = await post('/api/construction-plan', {folder,settings:settings()});
       if (version !== previewVersion || folder !== selected?.folder) return;
       const size = 'Материал: ' + data.characters.toLocaleString('ru-RU') + ' символов, ориентировочно ' + data.estimated_tokens.toLocaleString('ru-RU') + ' токенов. ';
-      $('plan').textContent = size + (data.strategy === 'whole' ? 'Весь подготовленный текст будет отправлен одним запросом. Результат: конспект и оглавление.' :
+      $('plan').textContent = size + (data.strategy === 'whole' ? (resultKind==='article'?'Вся расшифровка будет отправлена одним запросом. Результат: статья.':'Весь подготовленный текст будет отправлен одним запросом. Результат: конспект и оглавление.') :
         'Обработка по частям: ' + data.blocks + '. Затем объединение в общий конспект и оглавление. Минимум ' + data.generation_requests + ' запросов генерации.');
     } catch (error) { if (version === previewVersion) $('plan').textContent = error.message; }
   }
@@ -56,7 +69,7 @@
     if(!validModel())throw Error('Выберите доступную модель из списка');
     if (!form.checkValidity()) { window.studioUI?.openStage('notes'); document.getElementById('notes-settings').open = true; }
     if (!form.reportValidity()) throw Error('Проверьте настройки конспекта');
-    return post('/api/construction-settings', settings());
+    return post('/api/construction-settings', {...settings(),result_kind:'notes'});
   }
   $('material').onchange = () => {
     drafts[lastMaterial] = $('prompt').value;
@@ -73,6 +86,7 @@
     for (const [id,value] of Object.entries(values)) {if(id==='model')setModel(value);else $(id).value=value;}
     $('models').replaceChildren(); loadModels();
   };
+  $('reset-article-prompt').onclick=()=>{$('article-prompt').value=prompts.article;$('article-prompt').dispatchEvent(new Event('input',{bubbles:true}));preview();};
   $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; $('prompt').dispatchEvent(new Event('input',{bubbles:true})); preview(); };
   async function loadModels(){
     const provider=$('provider').value,request=++modelRequest,wanted=$('model').value;
@@ -108,6 +122,7 @@
     finally { busy = false; buttons(); }
   };
   $('run').onclick = async () => {
+    if(resultKind==='article'){await runArticle();return;}
     if (!selected?.has_ready_transcript || !validModel() || !form.reportValidity()) return;
     if(window.speechReplyEditing?.()){$('status').textContent='Сначала завершите правку реплики.';return;}
     if(document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){$('status').textContent='Сохраните правки текущего конспекта перед новым запуском.';return;}
@@ -122,29 +137,35 @@
     } catch (error) { $('status').textContent = error.message; }
     finally { busy = false; buttons(); }
   };
-  $('article').onclick = async () => {
+  $('article').onclick = () => {
+    if(window.speechReplyEditing?.()||document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){document.getElementById('article-status').textContent='Сначала сохраните или отмените текущие правки.';return;}
+    openSettings('article');
+  };
+  async function runArticle() {
+    if(busy||!selected?.has_ready_transcript)return;
     const status=document.getElementById('article-status');
     status.classList.remove('vd-error');
     if(window.speechReplyEditing?.()||document.getElementById('report-editor').contentWindow?.notesEditorDirty?.()){
-      status.textContent='Сначала сохраните или отмените текущие правки.';return;
+      $('status').textContent=status.textContent='Сначала сохраните или отмените текущие правки.';return;
     }
     const showSettings=()=>{const panel=document.getElementById('notes-settings');panel.closest('section').hidden=false;panel.open=true;$('model').focus();};
-    if(!validModel()){status.textContent='Выберите доступную модель для статьи в настройках.';showSettings();return;}
+    if(!validModel()){$('status').textContent=status.textContent='Выберите доступную модель для статьи в настройках.';showSettings();return;}
+    if(!form.reportValidity())return;
     const config={...settings(),result_kind:'article'};
-    if(config.provider==='gemini'&&!$('cloud').checked){status.textContent='Подтвердите отправку расшифровки в Google в настройках.';showSettings();return;}
+    if(config.provider==='gemini'&&!$('cloud').checked){$('status').textContent=status.textContent='Подтвердите отправку расшифровки в Google в настройках.';showSettings();return;}
     busy=true;buttons();$('article').setAttribute('aria-busy','true');
-    status.textContent='Добавляем статью в очередь…';
+    $('status').textContent=status.textContent='Добавляем статью в очередь…';
     try{
       const job=window.recordingUI?.native?await window.recordingUI.postprocess('notes',{
         construction:config,translate_after:false,cloud_confirmed:$('cloud').checked
       }):await post('/api/notes-run',{folder:selected.folder,settings:config});
-      status.textContent='Статья добавлена в очередь. Полная расшифровка будет обработана одним запросом.';
+      $('status').textContent=status.textContent='Статья добавлена в очередь. Полная расшифровка будет обработана одним запросом.';
       document.dispatchEvent(new CustomEvent('construction-started',{detail:job}));
-    }catch(error){status.classList.add('vd-error');status.textContent=error.message;}
+    }catch(error){status.classList.add('vd-error');$('status').textContent=status.textContent=error.message;}
     finally{busy=false;$('article').removeAttribute('aria-busy');buttons();}
-  };
+  }
   window.constructionUI = {
-    snapshot,
+    snapshot, openSettings,
     media(name) {
       const audio = /\.(wav|mp3|m4a|flac|ogg)$/i.test(name);
       $('input').querySelector('option[value=slides]').disabled = audio;
@@ -169,8 +190,8 @@
     }
   };
   api('/api/construction-settings').then(data => {
-    prompts = data.prompts; fill(data.settings); lastMaterial = data.settings.material; lastProvider = data.settings.provider;
+    prompts = data.prompts; fill({...data.settings,...(data.settings.result_kind==='article'?{prompt:prompts[data.settings.material]}:{})}); lastMaterial = data.settings.material; lastProvider = data.settings.provider;
     window.studioDraft?.restore(form);lastMaterial=$('material').value;lastProvider=$('provider').value;
-    ready = true; document.dispatchEvent(new Event('construction-ready')); buttons(); $('status').textContent = 'Эти настройки применяются к новым запускам конспекта.'; loadModels();
+    ready = true; document.dispatchEvent(new Event('construction-ready')); buttons(); $('status').textContent = 'Настройки применяются к новым конспектам и статьям.'; loadModels();
   }).catch(error => { $('status').textContent = error.message; });
 })();

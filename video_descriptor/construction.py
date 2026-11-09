@@ -62,7 +62,7 @@ PROMPTS = {
 DEFAULTS = {'input': 'speech', 'material': 'lecture', 'provider': 'ollama', 'model': 'qwen3.5:9b', 'result_kind': 'notes',
             'strategy': 'auto', 'grouping': 'auto', 'context_tokens': 16384, 'auto_context': True,
             'output_tokens': 4096, 'chunk_seconds': 180, 'max_chunk_seconds': 600,
-            'max_chunk_chars': 18000, 'prompt': PROMPTS['lecture']}
+            'max_chunk_chars': 18000, 'prompt': PROMPTS['lecture'], 'article_prompt': ARTICLE_PROMPT}
 
 
 def validate(value):
@@ -75,7 +75,7 @@ def validate(value):
     if config['result_kind'] not in {'notes', 'article'}:
         raise ValueError('Неизвестный вид результата')
     if config['result_kind'] == 'article':
-        config.update(input='speech', strategy='whole', prompt=ARTICLE_PROMPT)
+        config.update(input='speech', strategy='whole', prompt=config['article_prompt'])
     if 'auto_context' not in value:
         config['auto_context'] = 'context_tokens' not in value
     if type(config['auto_context']) is not bool:
@@ -98,6 +98,8 @@ def validate(value):
         raise ValueError('Оставьте место в контексте для материала и инструкции')
     if config['chunk_seconds'] > config['max_chunk_seconds']:
         raise ValueError('Целевая длина части превышает максимальную')
+    if not isinstance(config['article_prompt'], str) or not config['article_prompt'].strip() or len(config['article_prompt']) > 50000:
+        raise ValueError('Промпт статьи — от 1 до 50 000 символов')
     if not isinstance(config['prompt'], str) or not config['prompt'].strip() or len(config['prompt']) > 50000:
         raise ValueError('Промпт — от 1 до 50 000 символов')
     if 'prompt' not in value and config['result_kind'] != 'article':

@@ -126,3 +126,13 @@ def test_article_feature_preserves_existing_notes_response_cache(lecture):
     construction.run(root, folder, config, ask=ask)
     ask.assert_not_called()
     assert (folder / 'notes.md').read_text(encoding='utf-8') == answer
+
+
+def test_article_custom_prompt_is_independent_and_validated():
+    config = construction.validate({'result_kind': 'article', 'prompt': 'Notes only',
+                                    'article_prompt': 'Write an accessible article'})
+    assert config['prompt'] == 'Write an accessible article'
+    assert construction.validate({'prompt': 'Notes only', 'article_prompt': 'Article only'})['prompt'] == 'Notes only'
+    assert construction.validate(config)['prompt'] == 'Write an accessible article'
+    with pytest.raises(ValueError, match='Промпт статьи'):
+        construction.validate({'article_prompt': ' '})
