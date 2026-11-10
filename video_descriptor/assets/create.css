@@ -145,6 +145,10 @@ body:has(>.vd-global-nav){max-width:calc(var(--vd-content-width) + var(--vd-nav-
 
 /* Source: design-system/workspace.css */
 /* Recording workspace: no API or data state is encoded in layout. */
+.material-tabs{display:flex;gap:var(--vd-space-2);margin-bottom:var(--vd-space-4)}
+.material-tabs button{flex:1;font-weight:var(--vd-medium)}
+.material-tabs button[aria-selected=true]{background:var(--vd-accent-tint);border-color:var(--vd-accent);box-shadow:inset 0 -3px var(--vd-accent)}
+#material-panel{min-width:0}
 .subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
 .studio-header p{color:var(--vd-muted)}.studio-header h1{margin-bottom:var(--vd-space-2)}
 #open-connections{float:right}.record-toolbar{display:flex;align-items:center;gap:var(--vd-space-4);margin:var(--vd-space-4) 0;flex-wrap:wrap}
@@ -198,7 +202,7 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace .recording-notes-heading,.recording-workspace .recording-speech-heading{margin-bottom:var(--vd-space-4)}
 .recording-workspace .recording-notes-heading .vd-control-group>label,.recording-workspace .recording-speech-heading>label{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
 .recording-workspace .recording-notes-heading select,.recording-workspace .recording-speech-heading select{font-size:var(--vd-body);font-weight:var(--vd-normal)}
-.recording-workspace #stage-speech>section,.recording-workspace #stage-notes>section{padding:var(--vd-space-4)}
+.recording-workspace #stage-speech>section,.recording-workspace #stage-notes>section,.recording-workspace #material-panel>section{padding:var(--vd-space-4)}
 .recording-workspace #speech-feed{max-height:55vh;overflow:auto;scrollbar-gutter:stable}
 .recording-workspace #report-editor-card> .card-heading{display:none}
 .recording-workspace #report-editor{border:0;border-radius:0;height:76vh;min-height:460px}

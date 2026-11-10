@@ -23,7 +23,7 @@
   let actionPending=false;
   const newNotes=$('notes-settings').closest('section');newNotes.id='recording-notes-settings';
   if(location.search.includes('folder=')||location.search.includes('job='))newNotes.hidden=true;
-  const notesMenu=document.createElement('details'),notesSummary=document.createElement('summary');notesSummary.textContent='Действия с конспектом';notesMenu.append(notesSummary,$('delete-notes'));$('stage-notes').append(notesMenu);
+  const notesMenu=document.createElement('details'),notesSummary=document.createElement('summary');notesSummary.textContent='Действия с конспектом';notesMenu.append(notesSummary,$('delete-notes'));$('material-panel').append(notesMenu);
   notesMenu.id='recording-notes-actions';
   const originalResponse=document.createElement('button');originalResponse.id='recording-original-response';originalResponse.type='button';originalResponse.textContent='Оригинальный ответ модели';originalResponse.disabled=true;originalResponse.setAttribute('aria-controls','report-editor');
   const notesMenuActions=document.createElement('div');notesMenuActions.className='notes-actions';notesMenuActions.append($('delete-notes'),originalResponse);notesMenu.append(notesMenuActions);
@@ -168,7 +168,38 @@
   const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,detail);
   for(const id of ['run-message','translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false,epoch=0;
-  let selectedReports={notes:null,article:null}, activeReportKind='notes', recordingSource=null;
+  let selectedReports={notes:null,article:null}, activeReportKind=new URLSearchParams(location.search).get('material')==='article'?'article':'notes', recordingSource=null;
+  function paintMaterialTabs(){
+    for(const kind of ['notes','article']){
+      const active=kind===activeReportKind,tab=$('material-tab-'+kind);
+      tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+      $('material-'+kind+'-controls').hidden=!active;
+    }
+    $('material-panel').setAttribute('aria-labelledby','material-tab-'+activeReportKind);
+    const params=new URLSearchParams(location.search);
+    if(params.get('material')!==activeReportKind){params.set('material',activeReportKind);history.replaceState(null,'','/create?'+params);}
+    notesSummary.textContent=activeReportKind==='article'?'Действия со статьёй':'Действия с конспектом';
+    $('article-status').hidden=activeReportKind!=='article';
+  }
+  function selectMaterial(kind){
+    if(kind===activeReportKind)return true;
+    if($('report-editor').contentWindow?.notesEditorDirty?.()){
+      notice.textContent='Сохраните правки перед переходом на другую вкладку.';
+      $('material-tab-'+activeReportKind).focus();return false;
+    }
+    activeReportKind=kind;newNotes.hidden=true;
+    const params=new URLSearchParams(location.search);params.set('material',kind);
+    history.replaceState(null,'','/create?'+params);
+    notice.textContent='';paintMaterialTabs();paint();return true;
+  }
+  for(const kind of ['notes','article']){
+    const tab=$('material-tab-'+kind);tab.onclick=()=>selectMaterial(kind);
+    tab.onkeydown=event=>{
+      const next=event.key==='Home'?'notes':event.key==='End'?'article':['ArrowLeft','ArrowRight'].includes(event.key)?(kind==='notes'?'article':'notes'):null;
+      if(!next)return;event.preventDefault();if(selectMaterial(next))$('material-tab-'+next).focus();
+    };
+  }
+  paintMaterialTabs();
   let paused=false, currentTimeKey='', libraryKey='', statusKey='';
   const link=$('playback-link'),resume=$('resume-playback-link');
   const saved=localStorage.getItem('vd-recording-player-position');
@@ -229,13 +260,15 @@
     }
     speechSelect.value=snapshot?.folder||data.folder;
     for(const kind of ['notes','article'])$(kind==='notes'?'recording-notes':'recording-article').value=selectedReports[kind]||'';
-    if(!selectedReports[activeReportKind]&&selectedReports[activeReportKind==='notes'?'article':'notes'])activeReportKind=activeReportKind==='notes'?'article':'notes';
+    paintMaterialTabs();
     for(const kind of ['notes','article'])$('open-recording-'+kind).disabled=!selectedReports[kind];
     const own=data.reports.find(item=>item.url===selectedReports[activeReportKind]);
-    window.studioUI.chooseIndependentReport(own||null);
+    if(window.studioUI.chooseIndependentReport(own||null)===false)return;
+    if(activeReportKind==='article')$('notes-card').hidden=true;
     $('delete-notes').textContent=activeReportKind==='article'?'Удалить статью':'Удалить конспект';
     $('report-editor').title=activeReportKind==='article'?'Чтение и редактирование статьи':'Чтение и редактирование конспекта';
-    $('recording-notes-origin').textContent=own?(activeReportKind==='article'?'Открыта статья':'Открыт конспект')+' · '+when(own.created):'Создайте материал по выбранной расшифровке.';
+    $('recording-notes-origin').textContent=own?(activeReportKind==='article'?'Открыта статья':'Открыт конспект')+' · '+when(own.created):(activeReportKind==='article'?'Статья ещё не создана.':'Конспект ещё не создан.')+' Создайте материал по выбранной расшифровке.';
+    const empty=$('notes-feed').querySelector('.empty');if(empty)empty.textContent=activeReportKind==='article'?'Статья ещё не создана. Нажмите «Создать статью».':'Конспект ещё не создан. Нажмите «Создать конспект».';
     $('recording-stop').hidden=!window.recordingUI.native||!(data.active_job||['queued','running'].includes(job?.status));
     for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot?.has_ready_transcript||Boolean(data.active_job)||['queued','running'].includes(job?.status);
   }
@@ -248,7 +281,7 @@
       if(!response.ok)throw Error(value.error);
       if(version!==epoch){requested=true;return;}
       if(snapshot&&query.get('folder')!==snapshot.folder){requested=true;return;}
-      if(recordingSource!==value.video_url){recordingSource=value.video_url;selectedReports={notes:null,article:null};activeReportKind='notes';libraryKey='';window.studioUI.chooseIndependentReport(null);}
+      if(recordingSource!==value.video_url){recordingSource=value.video_url;selectedReports={notes:null,article:null};activeReportKind=new URLSearchParams(location.search).get('material')==='article'?'article':'notes';libraryKey='';window.studioUI.chooseIndependentReport(null);}
       if(data&&data.video_url===value.video_url){const added=value.reports.find(item=>!data.reports.some(old=>old.url===item.url));if(added&&!$('report-editor').contentWindow?.notesEditorDirty?.()){activeReportKind=added.result_kind||'notes';selectedReports[activeReportKind]=added.url;}}
       data=value;paint();
       const current=value.speech.find(item=>item.folder===snapshot?.folder);
@@ -259,8 +292,9 @@
       $('shared-player').hidden=false;
     }catch(error){notice.textContent=error.message;}finally{loading=false;if(requested){requested=false;library();}}
   }
-  function showNewNotes(){window.constructionUI?.openSettings('notes');newNotes.hidden=false;$('notes-settings').open=true;$('construction-model').focus();}
+  function showNewNotes(){if(!selectMaterial('notes'))return;window.constructionUI?.openSettings('notes');newNotes.hidden=false;$('notes-settings').open=true;$('construction-model').focus();}
   $('new-notes').addEventListener('click',showNewNotes);
+  $('create-recording-notes').onclick=showNewNotes;
   $('cancel-new-notes').onclick=()=>{newNotes.hidden=true;};
   speechSelect.onchange=()=>{
     if(speechSelect.value==='__new__'){speechSelect.value=snapshot?.folder||'';$('speech-settings').open=true;$('speech-engine').focus();return;}
