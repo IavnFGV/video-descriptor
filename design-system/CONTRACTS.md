@@ -195,3 +195,13 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 09.11.2026: по запросу владельца добавлен LM Studio в существующие provider selects и отдельные поля подключения (local URL/model/optional password token). Основные IDs, handlers, routes, revision/dirty guards сохранены; desktop использует существующий `/api/construction-models?provider=lmstudio`. Список моделей — только проверка доступности сервера, генерация проверяется при обработке. Контекст/устройство загружаемой модели настраиваются в LM Studio; авто-контекст требует метаданных фактически загруженного instance. Новых CSS и массовой миграции интерфейса нет.
 
 09.11.2026: readonly footer показывает version + номер билда из BUILD. Существующие handlers, API routes, revision/dirty guards сохранены; в health/doctor добавлено числовое поле build без новых endpoints.
+
+## Вкладки материала — 10.11.2026
+
+Owner-requested Конспект/Статья: additive material-tab-notes/material-tab-article и
+material-panel; все прежние IDs/API остаются. Выбор версии независим от выбранной речи;
+dirty editor блокирует переход и сохраняет DOM/frame/Undo/revision. Пустой explicit
+independent report не подменяется snapshot report другого kind. Вкладки не вызывают
+генерацию; create actions используют прежние construction handlers. Keyboard и
+responsive browser regressions: scripts/verify-recording-ui.py --material-tabs-only
+и --material-tabs-empty; старый release UI harness также проверяется локально.

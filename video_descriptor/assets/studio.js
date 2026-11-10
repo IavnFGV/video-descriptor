@@ -4,6 +4,7 @@
   let stage = new URLSearchParams(location.search).get('stage') || 'source';
   let snapshot = null, job = null, reportUrl = null, currentFolder = null;
   let independentReport = null;
+  let independentSelection = false;
   let variant = new URLSearchParams(location.search).get('report') || '';
   $('notes-variant').onchange = () => {
     if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('notes-variant').value = variant; $('report-version-notice').hidden = false; $('report-version-notice').textContent = 'Сохраните правки перед выбором другого варианта.'; return; }
@@ -56,7 +57,7 @@
   function loadReport() {
     const ownReport = snapshot?.report_variants?.find(item => item.name === variant)?.url || snapshot?.report_url || snapshot?.report_variants?.[0]?.url;
     const busy = snapshot?.running || ['queued', 'running'].includes(job?.status);
-    const url = independentReport?.url || ownReport || (busy ? snapshot?.previous_report_url : null);
+    const url = independentSelection ? independentReport?.url : ownReport || (busy ? snapshot?.previous_report_url : null);
     $('report-editor-card').hidden = !url;
     const previous = !independentReport && !ownReport && Boolean(url);
     $('report-version-notice').hidden = !previous;
@@ -219,9 +220,15 @@
   window.studioUI = {
     selectedReport: () => independentReport,
     chooseIndependentReport(report) {
-      independentReport = report; loadReport();
+      if(report?.url!==independentReport?.url&&$('report-editor').contentWindow?.notesEditorDirty?.()){
+        $('report-version-notice').hidden=false;
+        $('report-version-notice').textContent='Сохраните правки перед выбором другого материала.';
+        return false;
+      }
+      independentSelection = true; independentReport = report; loadReport();
       $('delete-notes').hidden = !report;
       $('notes-card').hidden = Boolean(report);
+      return true;
     },
     chooseReport(name) {
       variant = name; $('notes-variant').value = name;

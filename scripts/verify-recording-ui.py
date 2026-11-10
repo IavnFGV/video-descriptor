@@ -32,6 +32,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     video = root / 'data/meeting.mp4'
     video.parent.mkdir(); video.write_bytes(b'fixture')
     for name, model in [('original', ''), ('notes-a', 'model-a'), ('notes-b', 'model-b'), ('article-a', 'model-a')]:
+        if name == 'article-a' and '--material-tabs-empty' in sys.argv:
+            continue
         folder = root / 'output' / name; folder.mkdir(parents=True)
         rows = [{'id': f's{i}', 'start': i*30, 'end': i*30+30, 'text': f'Реплика {i}. Проверка синхронизации и правок.', 'speaker':'speaker_1'} for i in range(80)]
         write_json(folder / 'manifest.json', {'video': str(video), 'processed_duration': 2400})
@@ -132,13 +134,77 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert geometry['speech']['y']>geometry['video']['y']
         assert geometry['speech']['x']==geometry['video']['x']
         assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        if '--material-tabs-only' in sys.argv or '--material-tabs-empty' in sys.argv:
+            c.call('Emulation.setFocusEmulationEnabled', enabled=True)
+            original_speech = evaluate('document.querySelector("#recording-speech").value')
+            c.fill('#recording-notes', '/output/notes-b/report.html')
+            wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            c.click('#material-tab-article')
+            assert evaluate('new URLSearchParams(location.search).get("material")')=='article'
+            assert evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")')=='true'
+            assert evaluate('document.querySelector("#material-notes-controls").hidden')
+            assert evaluate('!document.querySelector("#material-article-controls").hidden')
+            if '--material-tabs-empty' in sys.argv:
+                assert evaluate('document.querySelector("#report-editor-card").hidden')
+                assert evaluate('document.querySelector("#notes-card").hidden')
+                assert 'Статья ещё не создана' in c.visible_text('#recording-notes-origin')
+                assert evaluate('document.querySelector("#construction-article").checkVisibility()')
+            else:
+                wait_for(lambda:'article-a/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            c.screenshot(out/'material-tab-article.png')
+            c.call('Input.dispatchKeyEvent',type='keyDown',key='Home',code='Home',windowsVirtualKeyCode=36)
+            wait_for(lambda:evaluate('document.activeElement.id==="material-tab-notes"'))
+            wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            wait_for(lambda:evaluate('!!document.querySelector("#report-editor").contentDocument?.querySelector(".CodeMirror")'))
+            c.screenshot(out/'material-tab-notes.png')
+
+            def click_frame(selector):
+                point=evaluate(f'''(()=>{{const f=document.querySelector('#report-editor'),e=f.contentDocument.querySelector({json.dumps(selector)});f.scrollIntoView({{block:'center'}});e.scrollIntoView({{block:'center'}});const a=f.getBoundingClientRect(),b=e.getBoundingClientRect();return [a.x+b.x+b.width/2,a.y+b.y+b.height/2]}})()''')
+                for action in ['mousePressed','mouseReleased']:
+                    c.call('Input.dispatchMouseEvent',type=action,x=point[0],y=point[1],button='left',clickCount=1)
+
+            click_frame('[data-notes-view=edit]')
+            evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror textarea").focus()')
+            c.call('Input.insertText',text='Черновик вкладки. ')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            c.click('#material-tab-article')
+            assert evaluate('document.querySelector("#material-tab-notes").getAttribute("aria-selected")')=='true'
+            assert 'Сохраните правки' in c.visible_text('#recording-status')
+            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror textarea").focus()')
+            c.call('Input.dispatchKeyEvent',type='keyDown',key='z',code='KeyZ',windowsVirtualKeyCode=90,modifiers=2)
+            wait_for(lambda:not evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()'))
+            c.call('Input.dispatchKeyEvent',type='keyDown',key='Z',code='KeyZ',windowsVirtualKeyCode=90,modifiers=10)
+            wait_for(lambda:evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()'))
+            click_frame('#save-notes')
+            wait_for(lambda:not evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()'))
+            assert 'Черновик вкладки.' in (root/'output/notes-b/notes.user.md').read_text(encoding='utf-8')
+            c.click('#material-tab-article')
+            for key,code,target in [('ArrowLeft',37,'notes'),('End',35,'article'),('Home',36,'notes')]:
+                c.call('Input.dispatchKeyEvent',type='keyDown',key=key,code=key,windowsVirtualKeyCode=code)
+                wait_for(lambda target=target:evaluate('document.activeElement.id')=='material-tab-'+target)
+            assert evaluate('document.querySelector("#recording-notes").value')=='/output/notes-b/report.html'
+            assert evaluate('document.querySelector("#recording-speech").value')==original_speech
+            for width,height in [(760,560),(1024,768),(1200,820),(1440,900)]:
+                c.call('Emulation.setDeviceMetricsOverride',width=width,height=height,deviceScaleFactor=1,mobile=False)
+                assert evaluate('document.documentElement.scrollWidth<=innerWidth+1')
+                c.screenshot(out/f'material-tabs-{width}.png')
+            assert evaluate('window.uiErrors')==[]
+            assert len(list((root/'output/jobs').glob('*/job.json')))==1, 'Tab switching created work'
+            print('PASS: material tabs, independent versions, keyboard, empty article, dirty guard, real save and four viewports',flush=True)
+            raise SystemExit(0)
         if '--spacing-only' in sys.argv:
-            measurements=evaluate("""(()=>{const rect=s=>document.querySelector(s).getBoundingClientRect(),gap=(a,b)=>rect(b).top-rect(a).bottom;const groups=document.querySelectorAll('.recording-notes-heading>.vd-control-group');return {notes:gap('#recording-notes','#open-recording-notes'),article:gap('#recording-article','#open-recording-article'),buttons:rect('#construction-article').left-rect('#open-recording-article').right,groups:groups[1].getBoundingClientRect().top-groups[0].getBoundingClientRect().bottom}})()""")
-            assert measurements=={'notes':8,'article':8,'buttons':8,'groups':16},measurements
-            evaluate('document.querySelector(".recording-notes-heading").scrollIntoView({block:"start"})')
+            def gap(first,second):
+                return evaluate(f"document.querySelector('{second}').getBoundingClientRect().top-document.querySelector('{first}').getBoundingClientRect().bottom")
+            assert gap('#recording-notes','#open-recording-notes')==8
+            assert gap('.material-tabs','#material-panel')==16
+            c.click('#material-tab-article')
+            assert gap('#recording-article','#open-recording-article')==8
+            assert evaluate("document.querySelector('#construction-article').getBoundingClientRect().left-document.querySelector('#open-recording-article').getBoundingClientRect().right")==8
             c.screenshot(out/'consistent-control-spacing.png')
             assert evaluate('window.uiErrors')==[]
-            print('PASS: related field/action gaps 8 px, action button gaps 8 px, independent groups 16 px',flush=True)
+            print('PASS: related field/action gaps 8 px, action button gaps 8 px, tab/content gap 16 px',flush=True)
             sys.exit(0)
         if '--recovery-only' in sys.argv:
             evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent==="Исправить конспект вручную").click()')
@@ -210,6 +276,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('PASS: model result moved into notes actions; read/edit remain; unsaved draft survives mode switches',flush=True)
             sys.exit(0)
         if '--article-only' in sys.argv:
+            c.click('#material-tab-article')
             wait_for(lambda:not evaluate('document.querySelector("#construction-article").disabled'))
             wait_for(lambda:evaluate('!document.querySelector("#construction-model").disabled'))
             evaluate("window.articleCalls=[];window.originalFetch=window.fetch;window.fetch=(url,options)=>url==='/api/native/postprocess'?(articleCalls.push(JSON.parse(options.body)),new Promise(resolve=>{window.replyArticle=resolve})):originalFetch(url,options)")
