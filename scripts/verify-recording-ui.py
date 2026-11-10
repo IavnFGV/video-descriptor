@@ -112,7 +112,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             wait_for(lambda: evaluate('[...document.querySelector("#construction-model").options].some(e=>e.value==="model-a")'))
             c.fill('#construction-model', 'model-a')
             c.click('#construction-notes-instruction > summary')
-            c.fill('#construction-prompt', harness.smoke_notes_config('model-a', {'segments': rows})['prompt'])
+            c.fill('#construction-prompt', construction.PROMPTS['lecture'])
             assert evaluate('document.querySelector("#construction-prompt").checkVisibility()')
             wait_for(lambda: evaluate('!document.querySelector("#construction-run").disabled'))
             evidence['checks'].append('current translation and notes controls accept explicit model/prompt; no inference claim')

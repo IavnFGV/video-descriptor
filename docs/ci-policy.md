@@ -97,15 +97,20 @@ Windows дистрибутив и отчёты 14 дней,
 
 ## Полная проверка и выпуск
 
-В Actions → Full Acceptance → Run workflow выбрать нужный ref и public Ollama model
-(по умолчанию qwen3.5:0.8b). Sandbox не нужен для каждого изменения; при изменениях
+В Actions → Full Acceptance → Run workflow выбрать нужный ref. LLM HTTP boundary
+заменяется фиксированными потоковыми ответами; Ollama и LLM-веса не скачиваются.
+CPU Whisper остаётся реальным. Сохранение, редактор/экспорт, статья/конспект и
+обработка неверного ответа проверяются штатным приложением. Это не тест качества LLM.
+Отдельный manual workflow Model and prompt behavior проверяет реальную выбранную
+модель и версионируемые промпты/примеры (см. model-behavior.md), не блокируя релиз.
+Sandbox не нужен для каждого изменения; при изменениях
 окружения отдельный существующий Run-Acceptance.ps1 запускается явно владельцем.
 
 Manual/tag preparation собирает ZIP/EXE и записывает acceptance-provenance.json:
 точный git SHA и SHA256 обоих файлов. Full тестирует эти же файлы. Для ручного
 релиза следует загрузить принятые ZIP, EXE, SHA256SUMS.json и provenance из успешного
 artifact без пересборки. Release-event скачивает эти uploaded assets и проверяет
-хеши/SHA текущего tag, затем выполняет lifecycle/inference/UI на них. Отсутствие
+хеши/SHA текущего tag, затем выполняет lifecycle/CPU Whisper/UI и LLM HTTP contract на них. Отсутствие
 assets/provenance, другой SHA или повреждение — FAIL, без fallback на rebuild.
 Старые релизы без provenance требуют новой явной подготовки, не считаются принятыми.
 

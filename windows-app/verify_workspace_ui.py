@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 sys.path.insert(0, str(Path(__file__).parent / 'sandbox'))
-from acceptance_api import InstalledAPI, smoke_notes_config
+from acceptance_api import InstalledAPI
 from acceptance_ui import CDP, read_http, wait_for
 
 
@@ -94,14 +94,12 @@ def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=No
             wait_for(lambda: cdp.evaluate(
                 f'[...document.querySelector("#construction-model").options].some(e=>e.value==={json.dumps(ollama_model)})'))
             cdp.fill('#construction-model', ollama_model)
-            cdp.click('#construction-notes-instruction > summary')
-            cdp.fill('#construction-prompt', smoke_notes_config(ollama_model, speech['result'])['prompt'])
             wait_for(lambda: cdp.evaluate('!document.querySelector("#construction-run").disabled'))
             cdp.click('#construction-run')
             notes = wait_workspace_job(cdp, base, root, output, previous=translated['job']['id'])
             notes_folder = notes['job']['folder']
             evidence['notes-run'] = notes['job']
-            evidence['checks'].append('real installed UI Ollama translation and notes in separate versions')
+            evidence['checks'].append('installed UI translation and notes through configured LLM HTTP boundary in separate versions')
         run(argparse.Namespace(base=base, debug_port=debug_port, target_id=target['id'], folder=folder,
                                notes_folder=notes_folder, output=output, edit_reply=True), evidence)
         evidence['status'] = 'PASS'

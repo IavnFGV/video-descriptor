@@ -55,7 +55,7 @@ def check_installed(args):
               else 'GitHub Actions Windows' if os.environ.get('GITHUB_ACTIONS') == 'true' else 'isolated Windows test',
               'installed_root': str(root), 'embedded_python': sys.version, 'models_downloaded': False,
               'stages': [], 'started_at': time.time(), 'git_sha': os.environ.get('GITHUB_SHA')}
-    process = log = None
+    process = log = fixture = None
     instance = None
     started = time.monotonic()
     try:
@@ -72,8 +72,16 @@ def check_installed(args):
         # changing the selected endpoint after startup, not only initial configuration.
         local.write_text(json.dumps(settings), encoding='utf-8')
         process, log, instance = start(root, port)
+        if args.llm_fixture:
+            from llm_fixture import MODEL, LLMFixture
+            fixture = LLMFixture().__enter__()
+            args.with_ollama, args.ollama_url, args.ollama_model = True, fixture.url, MODEL
+            report['llm'] = 'mocked HTTP responses; no real LLM inference claim'
+        else:
+            report['llm'] = 'real external Ollama' if args.with_ollama else 'not tested'
         driver = InstalledAPI(root, args.output.parent, model_directory=args.model,
                               ollama_model=args.ollama_model)
+        driver.llm_fixture = bool(fixture)
         if args.with_ollama:
             driver.connect()
             driver.request('/api/components', body={'component': 'ollama', 'action': 'connect',
@@ -92,17 +100,27 @@ def check_installed(args):
         stages = ['desktop', 'whisper']
         if args.with_ollama:
             stages += ['ollama-install', 'ollama-model', 'ollama-inference', 'translation', 'notes']
+        if fixture:
+            stages.append('article')
         for stage in stages:
             result = driver.run(stage)
             report['stages'].append(result)
             if result['status'] != 'PASS':
                 raise RuntimeError(result.get('error', stage + ' failed'))
+        if fixture:
+            fixture.mode = 'invalid-notes'
+            result = driver.run('notes-invalid')
+            report['stages'].append(result)
+            fixture.mode = 'valid'
+            if result['status'] != 'PASS':
+                raise RuntimeError(result.get('error', 'Invalid LLM response handling failed'))
         if args.ui:
             from verify_workspace_ui import installed_workflow
 
             ui_output = args.output.parent / 'webview2-ui'
             report['ui'] = installed_workflow(root, port, ui_output, with_ollama=args.with_ollama,
                                               ollama_model=args.ollama_model)
+            report['ui']['llm'] = report['llm']
         if args.component_devices:
             from verify_workspace_ui import installed_component_workflow
             report['component_ui'] = []
@@ -114,6 +132,9 @@ def check_installed(args):
         report['error'] = f'{type(exc).__name__}: {exc}'
         print('Installed acceptance FAIL: ' + report['error'], flush=True)
     finally:
+        if fixture:
+            report['llm_fixture'] = fixture.evidence()
+            fixture.__exit__(None, None, None)
         try:
             if process is not None:
                 try:
@@ -147,6 +168,7 @@ def main():
     parser.add_argument('--model', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--with-ollama', action='store_true')
+    parser.add_argument('--llm-fixture', action='store_true', help='Mock only the LLM HTTP boundary; real app/Whisper/UI remain')
     parser.add_argument('--component-cache', type=Path, help='Verified task-owned CPython/model cache for explicit component UI acceptance')
     parser.add_argument('--component-devices', nargs='+', choices=['cpu', 'xpu'], default=[])
     parser.add_argument('--ui', action='store_true', help='Run real installed WebView2 input/editor/export acceptance')
@@ -174,6 +196,8 @@ def main():
                  '--ollama-model', args.ollama_model]
         if args.with_ollama:
             child.append('--with-ollama')
+        if args.llm_fixture:
+            child.append('--llm-fixture')
         if args.component_cache:
             child += ['--component-cache', str(args.component_cache.resolve())]
         if args.component_devices:
