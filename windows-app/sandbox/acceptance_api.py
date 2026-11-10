@@ -45,19 +45,6 @@ def preparation_complete(state):
     return not state['preparing'] and (state['capabilities']['CPU']['ready'] or bool(state.get('error')))
 
 
-def smoke_notes_config(model, result):
-    """A short generation task for bundled synthetic speech, not a quality benchmark."""
-    anchors = sorted({int(row['start']) for row in result['segments']})
-    stamps = [f'{n // 3600:02}:{n // 60 % 60:02}:{n % 60:02}' for n in anchors]
-    return {'provider': 'ollama', 'model': model, 'strategy': 'whole',
-            'prompt': ('Составь краткий русский конспект короткой тестовой записи. '
-                       'Используй только факты из расшифровки. Верни только Markdown, без блока кода. '
-                       'Обязательны оба раздела: ## Оглавление и ## Конспект. '
-                       'В каждом разделе обязателен заголовок третьего уровня в точном формате '
-                       '### [' + stamps[0] + '] Название темы, затем одно предложение по материалу. '
-                       'Допустимые метки: ' + ', '.join(stamps) + '. Не придумывай другие метки.')}
-
-
 def validate_saved(folder, *, notes=False):
     transcript = json.loads((folder / 'transcript.json').read_text(encoding='utf-8'))
     translated = json.loads((folder / 'translations.json').read_text(encoding='utf-8'))
@@ -142,6 +129,7 @@ class InstalledAPI:
 
     def run(self, stage):
         report = {'stage': stage, 'status': 'FAIL', 'method': 'real installed application HTTP API; no UI claim'}
+        report['llm'] = 'mocked HTTP boundary' if getattr(self, 'llm_fixture', False) else 'real external model'
         started = time.monotonic()
         try:
             report['installation'] = self.connect()
@@ -194,6 +182,32 @@ class InstalledAPI:
                 if not result.get('done') or not result.get('response', '').strip():
                     raise ValueError('Real generation returned no completed text')
                 report['response'] = result
+            elif stage == 'article':
+                state = json.loads((self.reports / 'workflow-state.json').read_text(encoding='utf-8'))
+                source = self.request('/api/speech?job=' + state['source_job'])
+                job = self.request('/api/native/postprocess', body={'folder': source['job']['folder'], 'task': 'notes',
+                    'construction': {'provider': 'ollama', 'model': self.ollama_model, 'result_kind': 'article'}})
+                result = self.job_done(job)
+                folder = self.root / 'windows-app/runtime/workspace/output' / result['job']['folder']
+                if not (folder / 'article.md').read_text(encoding='utf-8').strip() or not (folder / 'report.html').is_file():
+                    raise ValueError('Saved article or HTML report missing')
+                report['job'] = result['job']
+            elif stage == 'notes-invalid':
+                state = json.loads((self.reports / 'workflow-state.json').read_text(encoding='utf-8'))
+                source = self.request('/api/speech?job=' + state['source_job'])
+                job = self.request('/api/native/postprocess', body={'folder': source['job']['folder'], 'task': 'notes'})
+                result = wait_for(lambda: self.request('/api/speech?job=' + job['id']),
+                                  lambda row: row['job']['status'] in {'done', 'error'}, timeout=120)
+                if result['job']['status'] != 'error':
+                    raise ValueError('Invalid fixture response was accepted as successful notes')
+                folder = self.root / 'windows-app/runtime/workspace/output' / result['job']['folder']
+                if not (folder / 'construction-result.md').is_file() or not result['job'].get('error'):
+                    raise ValueError('Invalid response/error was not preserved for recovery')
+                unchanged = self.request('/api/speech?job=' + state['source_job'])
+                if unchanged['result'] != source['result']:
+                    raise ValueError('Invalid notes response changed the source transcript')
+                report['job'] = result['job']
+                report['expected_error_preserved'] = True
             elif stage in {'translation', 'notes'}:
                 state = json.loads((self.reports / 'workflow-state.json').read_text(encoding='utf-8'))
                 source = self.request('/api/speech?job=' + state['source_job'])
@@ -201,8 +215,6 @@ class InstalledAPI:
                                                        'task': 'notes' if stage == 'notes' else 'translation'})
                 payload = {'folder': source['job']['folder'],
                            'task': 'notes' if stage == 'notes' else 'translate'}
-                if stage == 'notes':
-                    payload['construction'] = smoke_notes_config(self.ollama_model, source['result'])
                 job = self.request('/api/native/postprocess', body=payload)
                 result = self.job_done(job)
                 folder = (self.root / 'windows-app/runtime/workspace/output' / result['job']['folder']).resolve()

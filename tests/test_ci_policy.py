@@ -89,7 +89,8 @@ def test_heavy_acceptance_is_opt_in_and_release_tests_existing_assets():
     assert builds and all(s['if'] == "github.event_name != 'release'" for s in builds)
     assert any('gh release download' in s.get('run', '') for s in steps)
     assert sum('verify_installed.py' in s.get('run', '') for s in steps) == 1
-    assert '--with-ollama' in next(s['run'] for s in steps if 'verify_installed.py' in s.get('run', ''))
+    assert '--llm-fixture' in next(s['run'] for s in steps if 'verify_installed.py' in s.get('run', ''))
+    assert 'Prepare-TestOllama' not in str(steps)
 
 
 def test_fast_and_smoke_have_no_models_or_full_lifecycle():
@@ -160,3 +161,14 @@ def test_windows_workflows_resolve_artifact_names_from_release_inputs():
         assert 'VideoDescriptor-0.7.0' not in source and 'VideoDescriptor-0.8.0' not in source
         assert 'Resolve versioned artifact paths' in source
         assert 'release-inputs.json' in source and '$env:VD_ZIP' in source and '$env:VD_INSTALLER' in source
+
+
+def test_real_model_behavior_is_manual_and_cannot_publish_or_gate_releases():
+    behavior = workflow('model-behavior.yml')
+    assert set(behavior['on']) == {'workflow_dispatch'}
+    assert behavior['permissions'] == {'contents': 'read'}
+    assert 'few_shot' in behavior['on']['workflow_dispatch']['inputs']
+    assert 'evaluate_models.py' in str(behavior)
+    assert 'Prepare-TestOllama' in str(behavior)
+    assert 'model-behavior.yml' not in str(workflow('windows-release.yml'))
+    assert 'gh release' not in str(behavior)

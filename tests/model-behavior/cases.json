@@ -1,0 +1,32 @@
+[
+  {
+    "id": "notes-short-train",
+    "task": "notes",
+    "segments": [{"id": "s1", "start": 0, "end": 9, "text": "This is a local transcription test. The blue train arrives at the station at nine. Please save the sentence as subtitles."}],
+    "required_any": [["поезд"], ["субтитр"]],
+    "forbidden": ["трансформация времени", "изменение формы слова"]
+  },
+  {
+    "id": "notes-uncertainty-and-negation",
+    "task": "notes",
+    "segments": [{"id": "s1", "start": 62, "end": 75, "text": "Мы не проверяли GPU. Возможно, CPU подойдёт, но результат ещё неизвестен. Не представляйте предположение как подтверждённый тест."}],
+    "required_any": [["GPU"], ["не провер", "не был провер", "непровер"], ["возмож", "предполож", "неизвест"]],
+    "forbidden": ["GPU успешно проверен", "CPU гарантированно"]
+  },
+  {
+    "id": "article-preserve-uncertainty",
+    "task": "article",
+    "segments": [{"id": "s1", "start": 62, "end": 75, "text": "Локальное сохранение работает. Сетевую синхронизацию не проверяли. Поддержка GPU пока неизвестна."}],
+    "required_any": [["сохран"], ["синхронизац"], ["не провер", "не был провер", "непровер"], ["GPU"]],
+    "forbidden": ["синхронизация успешно проверена", "GPU гарантированно"]
+  },
+  {
+    "id": "translation-split-sentence",
+    "task": "translation",
+    "segments": [
+      {"id": "s1", "start": 0, "end": 3, "text": "The blue train arrives"},
+      {"id": "s2", "start": 3, "end": 7, "text": "at the station at nine."}
+    ],
+    "required_any": [["поезд"], ["девят", "9"]]
+  }
+]

@@ -91,22 +91,6 @@ def test_acceptance_refuses_nonlocal_services_before_transmitting():
         client.request('/api/generate', base='https://example.com')
 
 
-def test_short_notes_generation_keeps_real_source_anchors_and_strict_contract():
-    from video_descriptor.construction import parsed_notes, validate
-    from video_descriptor.models import Source
-
-    sample = speech()
-    sample['segments'][0]['start'] = 62.5
-    config = validate(api.smoke_notes_config('qwen3.5:0.8b', sample))
-    assert config['model'] == 'qwen3.5:0.8b'
-    assert '### [00:01:02]' in config['prompt']
-    assert '## Оглавление' in config['prompt'] and '## Конспект' in config['prompt']
-    # A malformed response must still fail; the harness supplies no generated answer.
-    with pytest.raises(ValueError, match='Нужны заголовки'):
-        parsed_notes('## Оглавление\nText\n## Конспект\nText',
-                     [Source(id='s1', start=62.5, end=65, text='A train.')])
-
-
 def test_failed_generation_preserves_answer_in_test_artifacts_and_remains_failed(tmp_path):
     client = api.InstalledAPI.__new__(api.InstalledAPI)
     client.root = tmp_path

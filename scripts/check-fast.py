@@ -33,7 +33,7 @@ def main():
             'scripts/ci_artifacts.py', 'scripts/check-installer-smoke.py',
             'scripts/smoke_compose.py', 'scripts/whisper_npu_server.py',
             'scripts/local_build.py', 'scripts/run_dev.py', 'scripts/clean_local.py', 'scripts/download_build_file.py',
-            'scripts/windows_release.py')
+            'scripts/windows_release.py', 'scripts/evaluate_models.py')
         run(sys.executable, 'scripts/check-ui-audit.py')  # includes CSS consistency once
         node = shutil.which('node')
         if not node:
