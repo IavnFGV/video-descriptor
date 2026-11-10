@@ -101,7 +101,8 @@ def check_installed(args):
             from verify_workspace_ui import installed_workflow
 
             ui_output = args.output.parent / 'webview2-ui'
-            report['ui'] = installed_workflow(root, port, ui_output, with_ollama=args.with_ollama)
+            report['ui'] = installed_workflow(root, port, ui_output, with_ollama=args.with_ollama,
+                                              ollama_model=args.ollama_model)
         if args.component_devices:
             from verify_workspace_ui import installed_component_workflow
             report['component_ui'] = []
@@ -111,6 +112,7 @@ def check_installed(args):
         report['status'] = 'PASS'
     except Exception as exc:  # noqa: BLE001 -- acceptance runner persists every failure
         report['error'] = f'{type(exc).__name__}: {exc}'
+        print('Installed acceptance FAIL: ' + report['error'], flush=True)
     finally:
         try:
             if process is not None:
