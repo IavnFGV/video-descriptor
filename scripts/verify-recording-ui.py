@@ -97,6 +97,32 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--release-harness-only' in sys.argv:
+            import argparse
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('release_workspace_ui', ROOT / 'windows-app/verify_workspace_ui.py')
+            harness = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(harness)
+            evidence = {'checks': [], 'screens': []}
+            c.click('#translation-settings-panel > summary')
+            assert evaluate('document.querySelector("#recording-translate").checkVisibility()')
+            c.fill('#recording-notes', '__new__')
+            wait_for(lambda: evaluate('!document.querySelector("#recording-notes-settings").hidden'))
+            c.fill('#construction-provider', 'ollama')
+            wait_for(lambda: evaluate('[...document.querySelector("#construction-model").options].some(e=>e.value==="model-a")'))
+            c.fill('#construction-model', 'model-a')
+            c.click('#construction-notes-instruction > summary')
+            c.fill('#construction-prompt', harness.smoke_notes_config('model-a', {'segments': rows})['prompt'])
+            assert evaluate('document.querySelector("#construction-prompt").checkVisibility()')
+            wait_for(lambda: evaluate('!document.querySelector("#construction-run").disabled'))
+            evidence['checks'].append('current translation and notes controls accept explicit model/prompt; no inference claim')
+            harness_output = root / 'release-harness'
+            harness_output.mkdir()
+            harness.run(argparse.Namespace(base=f'http://127.0.0.1:{server.server_port}', debug_port=debug,
+                        target_id=None, folder='original', notes_folder='notes-a', output=harness_output, edit_reply=True), evidence)
+            print('PASS: release workspace harness against disposable UI fixtures; no inference claim', flush=True)
+            print(json.dumps(evidence['checks'], ensure_ascii=False), flush=True)
+            raise SystemExit(0)
         assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
         assert evaluate('location.pathname==="/create" && recordingUI.native')
         assert evaluate('document.querySelectorAll("#process-video").length') == 1

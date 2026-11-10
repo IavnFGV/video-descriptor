@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import time
 import urllib.request
 from pathlib import Path
@@ -42,6 +43,19 @@ def preparation_complete(state):
     # A snapshot can finish collecting capabilities just before the background
     # preparation flips its flag. Require positive readiness or a concrete error.
     return not state['preparing'] and (state['capabilities']['CPU']['ready'] or bool(state.get('error')))
+
+
+def smoke_notes_config(model, result):
+    """A short generation task for bundled synthetic speech, not a quality benchmark."""
+    anchors = sorted({int(row['start']) for row in result['segments']})
+    stamps = [f'{n // 3600:02}:{n // 60 % 60:02}:{n % 60:02}' for n in anchors]
+    return {'provider': 'ollama', 'model': model, 'strategy': 'whole',
+            'prompt': ('Составь краткий русский конспект короткой тестовой записи. '
+                       'Используй только факты из расшифровки. Верни только Markdown, без блока кода. '
+                       'Обязательны оба раздела: ## Оглавление и ## Конспект. '
+                       'В каждом разделе обязателен заголовок третьего уровня в точном формате '
+                       '### [' + stamps[0] + '] Название темы, затем одно предложение по материалу. '
+                       'Допустимые метки: ' + ', '.join(stamps) + '. Не придумывай другие метки.')}
 
 
 def validate_saved(folder, *, notes=False):
@@ -109,7 +123,21 @@ class InstalledAPI:
         result = wait_for(lambda: self.request('/api/speech?job=' + job['id']),
                           lambda value: value['job']['status'] in {'done', 'error'}, timeout=600)
         if result['job']['status'] != 'done':
-            raise RuntimeError(result['job'].get('error', 'Job failed'))
+            failed = result['job']
+            # Only disposable acceptance output; never copy credentials or request journals.
+            folder = (self.root / 'windows-app/runtime/workspace/output' / failed['folder']).resolve()
+            output = (self.root / 'windows-app/runtime/workspace/output').resolve()
+            if not folder.is_relative_to(output):
+                raise ValueError('Failed result escaped isolated test workspace')
+            evidence = self.reports / ('failed-job-' + failed['id'])
+            evidence.mkdir(exist_ok=True)
+            (evidence / 'job.json').write_text(json.dumps({key: failed.get(key) for key in
+                ['id', 'status', 'stage', 'task', 'folder', 'error']}, ensure_ascii=False, indent=2), encoding='utf-8')
+            for name in ['construction-result.md', 'construction-error.json', 'construction-plan.json']:
+                if (folder / name).is_file():
+                    shutil.copyfile(folder / name, evidence / name)
+            raise RuntimeError(f"Job {failed['id']} failed at {failed.get('stage', 'unknown')}: "
+                               + failed.get('error', 'Job failed'))
         return result
 
     def run(self, stage):
@@ -171,8 +199,11 @@ class InstalledAPI:
                 source = self.request('/api/speech?job=' + state['source_job'])
                 self.request('/api/setup/ollama', body={'model': self.ollama_model,
                                                        'task': 'notes' if stage == 'notes' else 'translation'})
-                job = self.request('/api/native/postprocess', body={'folder': source['job']['folder'],
-                                    'task': 'notes' if stage == 'notes' else 'translate'})
+                payload = {'folder': source['job']['folder'],
+                           'task': 'notes' if stage == 'notes' else 'translate'}
+                if stage == 'notes':
+                    payload['construction'] = smoke_notes_config(self.ollama_model, source['result'])
+                job = self.request('/api/native/postprocess', body=payload)
                 result = self.job_done(job)
                 folder = (self.root / 'windows-app/runtime/workspace/output' / result['job']['folder']).resolve()
                 if not folder.is_relative_to((self.root / 'windows-app/runtime/workspace/output').resolve()):
@@ -190,6 +221,8 @@ class InstalledAPI:
             report['status'] = 'PASS'
         except Exception as exc:  # noqa: BLE001 -- persist test failures before returning to orchestrator
             report['error'] = f'{type(exc).__name__}: {exc}'
+        print(f"Acceptance {stage}: {report['status']}" +
+              (f" — {report['error']}" if report.get('error') else ''), flush=True)
         report['elapsed_seconds'] = round(time.monotonic() - started, 3)
         (self.reports / (stage + '.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         return report

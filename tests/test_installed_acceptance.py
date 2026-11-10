@@ -89,3 +89,69 @@ def test_acceptance_refuses_nonlocal_services_before_transmitting():
     client.origin = 'http://127.0.0.1:8000'
     with pytest.raises(ValueError, match='loopback'):
         client.request('/api/generate', base='https://example.com')
+
+
+def test_short_notes_generation_keeps_real_source_anchors_and_strict_contract():
+    from video_descriptor.construction import parsed_notes, validate
+    from video_descriptor.models import Source
+
+    sample = speech()
+    sample['segments'][0]['start'] = 62.5
+    config = validate(api.smoke_notes_config('qwen3.5:0.8b', sample))
+    assert config['model'] == 'qwen3.5:0.8b'
+    assert '### [00:01:02]' in config['prompt']
+    assert '## Оглавление' in config['prompt'] and '## Конспект' in config['prompt']
+    # A malformed response must still fail; the harness supplies no generated answer.
+    with pytest.raises(ValueError, match='Нужны заголовки'):
+        parsed_notes('## Оглавление\nText\n## Конспект\nText',
+                     [Source(id='s1', start=62.5, end=65, text='A train.')])
+
+
+def test_failed_generation_preserves_answer_in_test_artifacts_and_remains_failed(tmp_path):
+    client = api.InstalledAPI.__new__(api.InstalledAPI)
+    client.root = tmp_path
+    client.reports = tmp_path / 'reports'
+    client.reports.mkdir()
+    folder = tmp_path / 'windows-app/runtime/workspace/output/processed-test'
+    folder.mkdir(parents=True)
+    (folder / 'construction-result.md').write_text('Malformed model answer', encoding='utf-8')
+    (folder / 'request-journal.json').write_text('must not be copied', encoding='utf-8')
+    job = {'id': 'a' * 32, 'folder': folder.name, 'stage': 'notes', 'status': 'error',
+           'error': 'Invalid headings', 'task': 'notes'}
+    client.request = lambda _: {'job': job}
+    with pytest.raises(RuntimeError, match='failed at notes: Invalid headings'):
+        client.job_done(job)
+    evidence = client.reports / ('failed-job-' + job['id'])
+    assert (evidence / 'construction-result.md').read_text(encoding='utf-8') == 'Malformed model answer'
+    assert not (evidence / 'request-journal.json').exists()
+    assert json.loads((evidence / 'job.json').read_text(encoding='utf-8'))['status'] == 'error'
+
+
+def test_workspace_wait_follows_new_create_job_and_propagates_failure(monkeypatch, tmp_path):
+    spec = importlib.util.spec_from_file_location('workspace_acceptance', ROOT / 'windows-app/verify_workspace_ui.py')
+    workspace = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(workspace)
+
+    class Browser:
+        def evaluate(self, expression):
+            assert '#status' not in expression
+            return 'new-job' if 'location.pathname' in expression else True
+
+    expected = {'job': {'id': 'new-job', 'status': 'done'}}
+    seen = []
+
+    def completed(self, job):
+        seen.append(job)
+        return expected
+
+    monkeypatch.setattr(workspace.InstalledAPI, 'job_done', completed)
+    assert workspace.wait_workspace_job(Browser(), 'http://127.0.0.1:1234', tmp_path,
+                                        tmp_path, previous='old-job') == expected
+    assert seen == [{'id': 'new-job'}]
+
+    def failed(self, job):
+        raise RuntimeError('Real job failed')
+
+    monkeypatch.setattr(workspace.InstalledAPI, 'job_done', failed)
+    with pytest.raises(RuntimeError, match='Real job failed'):
+        workspace.wait_workspace_job(Browser(), 'http://127.0.0.1:1234', tmp_path, tmp_path)

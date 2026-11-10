@@ -15,10 +15,31 @@ from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 sys.path.insert(0, str(Path(__file__).parent / 'sandbox'))
+from acceptance_api import InstalledAPI, smoke_notes_config
 from acceptance_ui import CDP, read_http, wait_for
 
 
-def installed_workflow(root, port, output, *, with_ollama=False):
+def wait_workspace_job(cdp, base, root, output, previous=None, timeout=600):
+    """Follow the current /create route; read actual job state instead of legacy #status."""
+    def selected_job():
+        try:
+            return cdp.evaluate('location.pathname === "/create" && new URLSearchParams(location.search).get("job")')
+        except RuntimeError as error:
+            if any(message in str(error) for message in ['Execution context was destroyed', 'Cannot find context']):
+                return None  # The native upload page is navigating to the workspace.
+            raise
+
+    job = wait_for(selected_job,
+                   lambda value: value and value != previous, timeout=timeout)
+    driver = InstalledAPI.__new__(InstalledAPI)
+    driver.root, driver.reports, driver.origin, driver.instance = root, output, base, None
+    result = driver.job_done({'id': job})
+    wait_for(lambda: cdp.evaluate('!!document.querySelector("#speech-feed .edit-subtitle")'))
+    print(f"UI job {job}: done", flush=True)
+    return result
+
+
+def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=None):
     """Called by the installer verifier; all data and processes belong to its fresh installation."""
     output.mkdir(parents=True, exist_ok=True)
     with socket.socket() as probe:
@@ -54,28 +75,32 @@ def installed_workflow(root, port, output, *, with_ollama=False):
         cdp.fill('#language', 'en')
         wait_for(lambda: not cdp.evaluate('document.querySelector("#start").disabled'))
         cdp.click('#start')
-        wait_for(lambda: cdp.visible_text('#status'), lambda value: value in {'Готово', 'Нужна проверка'}, timeout=240)
-        job = cdp.evaluate('new URLSearchParams(location.search).get("job")')
-        speech = json.loads(read_http(base + '/api/speech?' + urlencode({'job': job})))
+        speech = wait_workspace_job(cdp, base, root, output, timeout=240)
+        job = speech['job']['id']
         assert speech['job']['status'] == 'done' and speech['result']['segments'], speech
         folder = speech['job']['folder']
         evidence['ui_speech'] = speech
         evidence['checks'].append('installed WebView2 file input, actual MP4 upload, CPU Whisper and saved result')
         notes_folder = None
         if with_ollama:
-            for button in ['#translate-run', '#notes-run']:
-                cdp.call('Page.navigate', url=base + '/?job=' + job + '#records')
-                wait_for(lambda button=button: cdp.evaluate(
-                    f'!!document.querySelector({json.dumps(button)})?.getClientRects().length&&!document.querySelector({json.dumps(button)}).disabled'))
-                cdp.click(button)
-                wait_for(lambda: cdp.evaluate('new URLSearchParams(location.search).get("job")'), lambda value: value and value != job)
-                wait_for(lambda: cdp.visible_text('#status'), lambda value: value in {'Готово', 'Нужна проверка'}, timeout=600)
-                current = cdp.evaluate('new URLSearchParams(location.search).get("job")')
-                result = json.loads(read_http(base + '/api/speech?' + urlencode({'job': current})))
-                assert result['job']['status'] == 'done', result
-                evidence[button[1:]] = result['job']
-                if button == '#notes-run':
-                    notes_folder = result['job']['folder']
+            cdp.click('#translation-settings-panel > summary')
+            wait_for(lambda: cdp.evaluate('!document.querySelector("#recording-translate").disabled'))
+            cdp.click('#recording-translate')
+            translated = wait_workspace_job(cdp, base, root, output, previous=job)
+            evidence['translate-run'] = translated['job']
+            cdp.fill('#recording-notes', '__new__')
+            wait_for(lambda: cdp.evaluate('!document.querySelector("#recording-notes-settings").hidden'))
+            cdp.fill('#construction-provider', 'ollama')
+            wait_for(lambda: cdp.evaluate(
+                f'[...document.querySelector("#construction-model").options].some(e=>e.value==={json.dumps(ollama_model)})'))
+            cdp.fill('#construction-model', ollama_model)
+            cdp.click('#construction-notes-instruction > summary')
+            cdp.fill('#construction-prompt', smoke_notes_config(ollama_model, speech['result'])['prompt'])
+            wait_for(lambda: cdp.evaluate('!document.querySelector("#construction-run").disabled'))
+            cdp.click('#construction-run')
+            notes = wait_workspace_job(cdp, base, root, output, previous=translated['job']['id'])
+            notes_folder = notes['job']['folder']
+            evidence['notes-run'] = notes['job']
             evidence['checks'].append('real installed UI Ollama translation and notes in separate versions')
         run(argparse.Namespace(base=base, debug_port=debug_port, target_id=target['id'], folder=folder,
                                notes_folder=notes_folder, output=output, edit_reply=True), evidence)
@@ -130,6 +155,7 @@ def run(args, report):
     if len(matches) != 1:
         raise ValueError('Expected exactly one WebView2 page for the supplied application')
     cdp = CDP(matches[0]['webSocketDebuggerUrl'])
+    cdp.call('Emulation.setFocusEmulationEnabled', enabled=True)
     cdp.call('Emulation.setDeviceMetricsOverride', width=1200, height=820, deviceScaleFactor=1, mobile=False)
     report['health'] = json.loads(read_http(args.base + '/health'))
     report['rendering'] = 'real WebView2; CSS viewport and DPR emulation, not OS scaling'
@@ -182,12 +208,8 @@ def run(args, report):
             assert abs(saved['segments'][0][boundary] - original['segments'][0][boundary]) <= .0005, boundary
         assert saved['edit_revision'] != original['edit_revision'], 'revision did not advance'
         report['checks'].append('reply dirty Escape retained input; real save/revision and timestamps verified')
-    cdp.click('#tab-source')
+    cdp.click('#source-details > summary')
     cdp.fill('#source-title', 'Несохранённое название / Незбережена назва')
-    cdp.click('#tab-notes')
-    cdp.call('Runtime.evaluate', expression='history.back()')
-    wait_for(lambda: cdp.evaluate('document.querySelector("#tab-source").getAttribute("aria-selected")==="true"'))
-    assert cdp.evaluate('document.querySelector("#source-title").value') == 'Несохранённое название / Незбережена назва'
     assert cdp.evaluate('new URLSearchParams(location.search).get("acceptance")') == 'preserved'
     cdp.click('.vd-global-nav a[href*="#settings"]')
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#records-open")'))
@@ -195,24 +217,7 @@ def run(args, report):
     cdp.click('#records-open')
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#source-title")'))
     wait_for(lambda: cdp.evaluate('document.querySelector("#source-title").value') == 'Несохранённое название / Незбережена назва')
-    report['checks'].append('stage Back, query parameters, AI round trip and unsaved title recovery')
-    cdp.click('#tab-notes')
-    cdp.evaluate('document.querySelector("#prompt-settings-panel").open=true')
-    tasks=cdp.evaluate('[...document.querySelector("#prompt-task").options].map(e=>e.value)')
-    assert len(tasks)>1
-    cdp.fill('#prompt-task',tasks[0]);cdp.fill('#model-prompt','Acceptance draft A / черновик A')
-    cdp.fill('#prompt-task',tasks[1]);cdp.fill('#model-prompt','Acceptance draft B / чернетка B')
-    cdp.click('.vd-global-nav a[href*="#settings"]')
-    wait_for(lambda:cdp.evaluate('document.querySelector("#records-open")?.getAttribute("href").startsWith("/create?")'))
-    cdp.click('#records-open')
-    wait_for(lambda:cdp.evaluate('document.querySelector("#prompt-task")?.options.length>1'))
-    assert cdp.evaluate('document.querySelector("#prompt-task").value')==tasks[1]
-    assert cdp.evaluate('document.querySelector("#model-prompt").value')=='Acceptance draft B / чернетка B'
-    cdp.fill('#prompt-task',tasks[0])
-    assert cdp.evaluate('document.querySelector("#model-prompt").value')=='Acceptance draft A / черновик A'
-    report['checks'].append('two independent prompt drafts and selected task survive AI navigation')
-
-    cdp.click('#tab-speech')
+    report['checks'].append('query parameters, AI round trip and unsaved title recovery')
     for selector, extension in [('#download-srt', '.srt'), ('#download-subtitles', '.vtt'), ('#download-transcript', '.txt')]:
         # Returning from AI settings reloads the workspace asynchronously.
         wait_for(lambda selector=selector: cdp.evaluate(
@@ -220,14 +225,14 @@ def run(args, report):
         cdp.click(selector)
         wait_for(lambda extension=extension: list(downloads.glob('*' + extension)))
     report['checks'].append('real SRT/VTT/TXT downloads through production links')
-    cdp.click('#tab-source')
-    cdp.call('Input.dispatchKeyEvent',type='keyDown',key='ArrowRight',code='ArrowRight',windowsVirtualKeyCode=39)
-    assert cdp.evaluate('document.querySelector("#tab-speech").getAttribute("aria-selected")==="true"&&document.activeElement.id==="tab-speech"')
-    report['checks'].append('keyboard stage arrows update selection and focus')
-    cdp.evaluate('document.querySelector(".vd-skip").focus()')
-    cdp.click('.vd-skip')
-    assert cdp.evaluate('document.activeElement.id==="stage-speech"'), 'skip link did not focus the current stage'
-    report['checks'].append('skip link focuses the active stage without losing URL context')
+    if cdp.evaluate('document.querySelector("#transcript-disclosure").open'):
+        cdp.click('#transcript-disclosure > summary')
+    cdp.evaluate('document.querySelector("#transcript-disclosure > summary").focus()')
+    cdp.call('Input.dispatchKeyEvent', type='keyDown', key='Enter', code='Enter', windowsVirtualKeyCode=13,
+             text='\r', unmodifiedText='\r')
+    cdp.call('Input.dispatchKeyEvent', type='keyUp', key='Enter', code='Enter', windowsVirtualKeyCode=13)
+    wait_for(lambda: cdp.evaluate('document.querySelector("#transcript-disclosure").open'))
+    report['checks'].append('keyboard Enter reopens the transcript disclosure')
     cdp.call('Emulation.setDeviceMetricsOverride',width=760,height=560,deviceScaleFactor=1,mobile=False)
     cdp.evaluate("""(() => {const feed=document.querySelector('#speech-feed'),template=feed.querySelector('.utterance');
       if(!template)throw Error('No real utterance to stress');
@@ -240,10 +245,8 @@ def run(args, report):
 
     for width, height in [(760, 560), (1024, 768), (1200, 820), (1440, 900)]:
         cdp.call('Emulation.setDeviceMetricsOverride', width=width, height=height, deviceScaleFactor=1, mobile=False)
-        for stage in ['source', 'speech', 'notes']:
-            cdp.click('#tab-' + stage)
-            cdp.evaluate('scrollTo(0,0)')
-            capture(f'{stage}-{width}x{height}')
+        cdp.evaluate('scrollTo(0,0)')
+        capture(f'workspace-{width}x{height}')
         navigate('/output/', '#records')
         capture(f'library-{width}x{height}')
         navigate('/create?' + query, '#speech-feed .edit-subtitle')
