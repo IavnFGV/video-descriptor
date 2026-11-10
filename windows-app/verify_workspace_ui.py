@@ -33,7 +33,7 @@ def wait_workspace_job(cdp, base, root, output, previous=None, timeout=600):
                    lambda value: value and value != previous, timeout=timeout)
     driver = InstalledAPI.__new__(InstalledAPI)
     driver.root, driver.reports, driver.origin, driver.instance = root, output, base, None
-    result = driver.job_done({'id': job})
+    result = driver.job_done({'id': job}, timeout=timeout)
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#speech-feed .edit-subtitle")'))
     print(f"UI job {job}: done", flush=True)
     return result
@@ -107,6 +107,12 @@ def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=No
     except Exception as error:
         evidence['error'] = f'{type(error).__name__}: {error}'
         evidence['traceback'] = traceback.format_exc()
+        if cdp:
+            try:
+                evidence['page'] = cdp.evaluate('({path:location.pathname,query:location.search,error:document.querySelector("#recording-job-error")?.textContent})')
+                cdp.screenshot(output / 'failure.png')
+            except (OSError, RuntimeError, TimeoutError):
+                pass
         raise
     finally:
         (output / 'workspace-ui.json').write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf-8')

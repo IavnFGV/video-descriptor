@@ -124,7 +124,7 @@ def test_workspace_wait_follows_new_create_job_and_propagates_failure(monkeypatc
     expected = {'job': {'id': 'new-job', 'status': 'done'}}
     seen = []
 
-    def completed(self, job):
+    def completed(self, job, **kwargs):
         seen.append(job)
         return expected
 
@@ -133,9 +133,37 @@ def test_workspace_wait_follows_new_create_job_and_propagates_failure(monkeypatc
                                         tmp_path, previous='old-job') == expected
     assert seen == [{'id': 'new-job'}]
 
-    def failed(self, job):
+    def failed(self, job, **kwargs):
         raise RuntimeError('Real job failed')
 
     monkeypatch.setattr(workspace.InstalledAPI, 'job_done', failed)
     with pytest.raises(RuntimeError, match='Real job failed'):
         workspace.wait_workspace_job(Browser(), 'http://127.0.0.1:1234', tmp_path, tmp_path)
+
+
+def test_timeout_keeps_last_state_and_only_disposable_worker_diagnostics(tmp_path, monkeypatch):
+    client = api.InstalledAPI.__new__(api.InstalledAPI)
+    client.root = tmp_path
+    client.reports = tmp_path / 'reports'
+    client.reports.mkdir()
+    job = {'id': 'a' * 32, 'status': 'queued', 'folder': None, 'engine': 'whisper-local'}
+    client.request = lambda _: {'job': job, 'result': None}
+    worker = tmp_path / 'windows-app/runtime/workspace/output/jobs/worker.log'
+    worker.parent.mkdir(parents=True)
+    worker.write_text('Synthetic worker exception', encoding='utf-8')
+
+    def deadline(read, *args, **kwargs):
+        read()
+        assert kwargs['timeout'] == 240
+        raise TimeoutError('deadline')
+
+    monkeypatch.setattr(api, 'wait_for', deadline)
+    with pytest.raises(TimeoutError, match='status=queued'):
+        client.job_done(job, timeout=240)
+    evidence = client.reports / ('timeout-job-' + job['id'])
+    assert json.loads((evidence / 'state.json').read_text(encoding='utf-8'))['status'] == 'queued'
+    assert not (evidence / 'worker.log').exists()
+    (tmp_path / '.acceptance-installation.json').write_text('{}')
+    with pytest.raises(TimeoutError, match='240s'):
+        client.job_done(job, timeout=240)
+    assert (evidence / 'worker.log').read_text(encoding='utf-8') == 'Synthetic worker exception'

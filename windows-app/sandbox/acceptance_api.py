@@ -106,13 +106,59 @@ class InstalledAPI:
         self.instance = health['instance']
         return {key: value for key, value in health.items() if key != 'instance'}
 
-    def job_done(self, job):
-        result = wait_for(lambda: self.request('/api/speech?job=' + job['id']),
-                          lambda value: value['job']['status'] in {'done', 'error'}, timeout=600)
+    def job_done(self, job, timeout=600):
+        last = {}
+        state = None
+
+        def snapshot():
+            nonlocal last, state
+            last = self.request('/api/speech?job=' + job['id'])
+            current = last.get('job') or {}
+            key = (current.get('status'), current.get('stage'), current.get('folder'))
+            if key != state:
+                print(f"Job {job['id']}: status={key[0]}, stage={key[1]}, result={key[2]}", flush=True)
+                state = key
+            return last
+
+        try:
+            result = wait_for(snapshot, lambda value: value['job']['status'] in {'done', 'error'}, timeout=timeout)
+        except TimeoutError as error:
+            current = last.get('job') or job
+            evidence = self.reports / ('timeout-job-' + job['id'])
+            evidence.mkdir(exist_ok=True)
+            summary = {key: current.get(key) for key in ['id', 'status', 'stage', 'engine', 'task', 'folder', 'error', 'created', 'started']}
+            result = last.get('result') or {}
+            summary['speech'] = {key: result.get(key) for key in ['status', 'message', 'processed', 'duration', 'device']}
+            plan = current.get('device_plan') or {}
+            summary['device'] = {key: plan.get(key) for key in ['requested', 'selected']}
+            summary['progress'] = {key: (last.get('progress') or {}).get(key) for key in
+                                   ['stage', 'task', 'request_state', 'completed', 'total']}
+            (evidence / 'state.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+            workspace = self.root / 'windows-app/runtime/workspace'
+            # Only diagnostics from this disposable marked test installation, never host logs/config.
+            if (self.root / '.acceptance-installation.json').is_file():
+                import psutil
+                modules = {'video_descriptor', 'video_descriptor.jobs', 'video_descriptor.speech',
+                           'video_descriptor.construction', 'video_descriptor.translate'}
+                processes = []
+                for process in psutil.process_iter(['pid', 'cmdline']):
+                    try:
+                        recognized = sorted(modules.intersection(process.info['cmdline'] or []))
+                        if recognized:
+                            processes.append({'pid': process.pid, 'modules': recognized})
+                    except (psutil.AccessDenied, psutil.NoSuchProcess):
+                        continue
+                (evidence / 'pipeline-processes.json').write_text(json.dumps(processes), encoding='utf-8')
+                for source, name in [(workspace / 'output/jobs/worker.log', 'worker.log'),
+                                     (workspace / 'output/jobs' / job['id'] / 'run.log', 'run.log')]:
+                    if source.is_file():
+                        (evidence / name).write_bytes(source.read_bytes()[-128_000:])
+            raise TimeoutError(f"Job {job['id']} timed out after {timeout}s: status={summary.get('status')}, "
+                               f"stage={summary.get('stage')}, speech={summary['speech']}") from error
         if result['job']['status'] != 'done':
             failed = result['job']
             # Only disposable acceptance output; never copy credentials or request journals.
-            folder = (self.root / 'windows-app/runtime/workspace/output' / failed['folder']).resolve()
+            folder = (self.root / 'windows-app/runtime/workspace/output' / (failed.get('folder') or '.')).resolve()
             output = (self.root / 'windows-app/runtime/workspace/output').resolve()
             if not folder.is_relative_to(output):
                 raise ValueError('Failed result escaped isolated test workspace')
