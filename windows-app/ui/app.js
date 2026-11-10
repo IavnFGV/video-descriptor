@@ -45,6 +45,23 @@
   showView();
   $('records-open').onclick=async e=>{if($('records-open').getAttribute('href').startsWith('/create'))return;if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(!await window.mayLeaveQuickReply())return;const url=new URL(location.href);url.searchParams.delete('job');url.hash='records';history.pushState(null,'',url);clearTimeout(timer);selected=null;resetResult();showView(true);};
   $('skip-link').onclick=e=>{e.preventDefault();$('main').focus();};
+  const SIDEBAR_STORAGE_KEY='video-descriptor:ui:sidebar';
+  const SIDEBAR_TOGGLE_ICONS={collapsed:'M9 5l7 7-7 7',expanded:'M15 5l-7 7 7 7'};
+  function readSidebarState(){try{return localStorage.getItem(SIDEBAR_STORAGE_KEY)==='1';}catch(_e){return false;}}
+  function writeSidebarState(collapsed){try{localStorage.setItem(SIDEBAR_STORAGE_KEY,collapsed?'1':'0');}catch(_e){}}
+  function setSidebarCollapsed(collapsed) {
+    const shell=$('app-shell');
+    if(shell){shell.classList.toggle('sidebar-collapsed',collapsed);}
+    const toggle=$('sidebar-toggle');
+    if(toggle){
+      toggle.setAttribute('aria-expanded',String(!collapsed));
+      toggle.setAttribute('aria-label',collapsed?'Показать панель навигации':'Свернуть панель навигации');
+      toggle.querySelector('path').setAttribute('d',collapsed?SIDEBAR_TOGGLE_ICONS.expanded:SIDEBAR_TOGGLE_ICONS.collapsed);
+    }
+    writeSidebarState(collapsed);
+  }
+  $('sidebar-toggle').onclick=()=>setSidebarCollapsed($('sidebar-toggle').getAttribute('aria-expanded')==='true');
+  setSidebarCollapsed(readSidebarState());
   async function api(url, options) {
     let response;
     try{response=await fetch(url,options);}catch(e){throw Error('Нет связи с приложением. Повторите действие.');}
