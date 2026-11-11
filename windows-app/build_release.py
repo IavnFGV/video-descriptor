@@ -192,6 +192,7 @@ def main():
     parser.add_argument('--cache', type=Path, default=HERE / 'runtime/build-cache')
     parser.add_argument('--output', type=Path, default=ROOT / 'dist')
     parser.add_argument('--iscc', type=Path)
+    parser.add_argument('--build-qualified', action='store_true', help='Include BUILD in public artifact filenames')
     parser.add_argument('--domestic', action='store_true', help='Bundle offline speech and CPU diarization inputs')
     parser.add_argument('--domestic-inputs', type=Path, help='Local JSON paths to verified models, CPU wheelhouse and WebView2 CAB')
     parser.add_argument('--refresh-lock', action='store_true', help='Explicitly record hashes after resolving pinned wheels')
@@ -269,14 +270,15 @@ def main():
                     'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
                     'wheels': lock, 'files': entries}
         (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-        output = args.output / f'VideoDescriptor-{inputs["version"]}-windows-x64.zip'
+        prefix = f'VideoDescriptor-{inputs["version"]}' + (f'-build.{read_build()}' if args.build_qualified else '') + '-windows-x64'
+        output = args.output / (prefix + '.zip')
         print('Writing reproducible ZIP', flush=True)
         deterministic_zip(folder, output, cached_files)
         print('ZIP:', output, 'SHA256:', sha256(output), flush=True)
         if args.iscc:
             print('Building Windows installer (Inno Setup)', flush=True)
             subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
-                            f'/DBuildNumber={read_build()}',
+                            f'/DBuildNumber={read_build()}', f'/DArtifactPrefix={prefix}',
                             *(['/DDomestic=1'] if args.domestic else ['/DPublicRelease=1']),
                             f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
         accepted = [output]

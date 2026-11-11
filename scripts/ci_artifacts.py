@@ -60,13 +60,18 @@ def check_public_zip(archive):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--build-qualified', action='store_true')
     parser.add_argument('--record', action='store_true')
     parser.add_argument('--directory', type=Path, help='Exact accepted assets directory; default: dist')
     args = parser.parse_args()
     directory = args.directory or ROOT / 'dist'
     entries = json.loads((directory / 'SHA256SUMS.json').read_text(encoding='utf-8'))
     version = json.loads((ROOT / 'windows-app/release-inputs.json').read_text())['version']
-    expected = {f'VideoDescriptor-{version}-windows-x64.zip', f'VideoDescriptor-{version}-windows-x64-setup.exe'}
+    build = int((ROOT / 'BUILD').read_text(encoding='ascii').strip()) if args.build_qualified else None
+    if build is not None and build < 1:
+        raise ValueError('BUILD must be positive')
+    prefix = f'VideoDescriptor-{version}' + (f'-build.{build}' if build is not None else '') + '-windows-x64'
+    expected = {prefix + '.zip', prefix + '-setup.exe'}
     assert {entry['file'] for entry in entries} == expected, 'Release must supply ZIP and installer checksums'
     if {p.name for suffix in ('*.zip', '*.exe') for p in directory.glob(suffix)} != expected:
         raise ValueError('Publication directory contains extra or missing distributables')
@@ -76,7 +81,7 @@ def main():
         with path.open('rb') as source:
             assert hashlib.file_digest(source, 'sha256').hexdigest() == entry['sha256'], path.name
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-    with zipfile.ZipFile(directory / f'VideoDescriptor-{version}-windows-x64.zip') as archive:
+    with zipfile.ZipFile(directory / (prefix + '.zip')) as archive:
         manifest = check_public_zip(archive)
     if (ROOT / 'BUILD').is_file():
         assert manifest.get('build') == int((ROOT / 'BUILD').read_text(encoding='ascii').strip()), 'Release build differs from the repository BUILD file'

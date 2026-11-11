@@ -29,7 +29,11 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
+#ifdef ArtifactPrefix
+OutputBaseFilename={#ArtifactPrefix}-setup
+#else
 OutputBaseFilename=VideoDescriptor-{#AppVersion}-windows-x64-setup
+#endif
 Compression=lzma2/fast
 SolidCompression=yes
 #ifdef CachedComponents

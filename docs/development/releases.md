@@ -14,16 +14,25 @@ exist under `docs/releases/X.Y.Z.md`.
 For an authorized new release, merge and validate intended source and version/notes
 on main, then use **Windows release → Run workflow on main**. Its prepare job:
 
-1. Requires main at current origin/main and an absent matching version tag.
+1. Requires main at current origin/main and an absent next build tag.
 2. Increments and commits BUILD.
-3. Creates annotated `vX.Y.Z` and atomically pushes main and that tag.
+3. Creates annotated `vX.Y.Z-build.N` and atomically pushes main and that tag.
 4. Explicitly dispatches the tagged workflow; GITHUB_TOKEN push alone does not
    provide that follow-up execution.
 
-An existing version tag is rejected by preparation; retry its tagged workflow
-without bumping BUILD. Tagged validation requires matching release-input version,
-commit on origin/main history and BUILD greater than previous version tags that
-contain BUILD. Workflow run/attempt IDs are not the current build-number source.
+The product version can stay unchanged: after `0.9.2` build 3, a new preparation
+creates `v0.9.2-build.4` with BUILD 4. Existing `v0.9.2` and previous build tags
+are never moved or deleted. Retry the tagged workflow to retry the same source
+and BUILD; run preparation on current main to build changed source.
+Tagged validation requires matching product version and BUILD, a commit on
+origin/main history and a BUILD greater than earlier release/build tags.
+Legacy `vX.Y.Z` tags remain valid for their existing workflows. Workflow run/attempt
+IDs are not the build number.
+
+Public Full Acceptance uses `--build-qualified` packaging and gates: for example,
+`VideoDescriptor-0.9.2-build.4-windows-x64.zip` and the matching `-setup.exe`.
+The ZIP, installer, checksums, provenance and publisher use the same build identity.
+Local packaging keeps its existing filenames unless this flag is supplied.
 
 ## Acceptance and publishing
 

@@ -119,8 +119,9 @@ def test_pr_routing_uses_merge_base_and_accounts_for_renames(monkeypatch):
     assert '--no-renames' in commands[1]
 
 
+@pytest.mark.parametrize('qualified', [False, True])
 @pytest.mark.parametrize('corruption', ['bytes', 'revision', 'provenance', 'extra-installer'])
-def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch, corruption):
+def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch, corruption, qualified):
     spec = importlib.util.spec_from_file_location('ci_artifacts', ROOT / 'scripts/ci_artifacts.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -130,18 +131,24 @@ def test_release_rejects_artifact_or_revision_substitution(tmp_path, monkeypatch
     (tmp_path / 'windows-app/release-inputs.json').write_text('{"version":"0.7.0"}')
     dist = tmp_path / 'dist'
     dist.mkdir()
-    archive = dist / 'VideoDescriptor-0.7.0-windows-x64.zip'
+    prefix = 'VideoDescriptor-0.7.0' + ('-build.4' if qualified else '') + '-windows-x64'
+    if qualified:
+        (tmp_path / 'BUILD').write_text('4\n')
+    archive = dist / (prefix + '.zip')
     with zipfile.ZipFile(archive, 'w') as package:
         package.writestr('release-manifest.json', json.dumps({'version': '0.7.0', 'profile': 'standard',
                                                             'domestic': None, 'whisper_weights_included': False,
-                                                            'files': []}))
-    installer = dist / 'VideoDescriptor-0.7.0-windows-x64-setup.exe'
+                                                            'files': [{'path': 'BUILD'}] if qualified else [],
+                                                            **({'build': 4} if qualified else {})}))
+        if qualified:
+            package.writestr('BUILD', '4\n')
+    installer = dist / (prefix + '-setup.exe')
     installer.write_bytes(b'unit fixture, never executable')
     entries = [{'file': p.name, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in [archive, installer]]
     (dist / 'SHA256SUMS.json').write_text(json.dumps(entries))
-    monkeypatch.setattr(sys, 'argv', ['ci_artifacts.py', '--record'])
+    monkeypatch.setattr(sys, 'argv', ['ci_artifacts.py', '--record', *(['--build-qualified'] if qualified else [])])
     module.main()
-    monkeypatch.setattr(sys, 'argv', ['ci_artifacts.py'])
+    monkeypatch.setattr(sys, 'argv', ['ci_artifacts.py', *(['--build-qualified'] if qualified else [])])
     if corruption == 'bytes':
         installer.write_bytes(b'different artifact')
     elif corruption == 'revision':
