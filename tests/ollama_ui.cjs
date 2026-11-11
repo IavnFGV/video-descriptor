@@ -7,10 +7,11 @@ const functions = source.slice(source.indexOf('  function clearOllamaModels()'),
 const endpointHandler = source.slice(source.indexOf("  $('ollama-service-url').oninput="), source.indexOf("  $('ollama-use-connection').onclick="));
 function field(value = '') {
   return {value, options: [], disabled: false, textContent: '',
+    attributes: {}, setAttribute(name, value) {this.attributes[name] = value;},
     replaceChildren(...options) {this.options = options; this.value = options[0]?.value || '';},
     add(option) {this.options.push(option);}};
 }
-const fields = Object.fromEntries(['ollama-service-url', 'ollama-model', 'ollama-connect', 'ollama-test', 'ollama-feedback', 'ollama-connection-current'].map(id => [id, field()]));
+const fields = Object.fromEntries(['ollama-service-url', 'ollama-model', 'ollama-connect', 'ollama-test', 'ollama-task', 'ollama-feedback', 'ollama-connection-current'].map(id => [id, field()]));
 fields['ollama-service-url'].value = 'http://server-a:11434';
 const pending = [];
 const context = vm.createContext({$: id => fields[id], api: url => new Promise((resolve, reject) => pending.push({url, resolve, reject})),
@@ -43,5 +44,34 @@ const inventory = (url, names, selected='') => ({url, models: names.map(name => 
   refresh = run(); pending.at(-1).reject(Error('Connection refused')); await refresh;
   assert.deepEqual(fields['ollama-model'].options.map(o => o.value), ['']);
   assert.equal(fields['ollama-feedback'].textContent, 'Connection refused');
-  console.log('PASS: endpoint invalidation, refresh, empty/unavailable, explicit selection, stale responses');
+  const staleError = run(), oldRequest = pending.at(-1);
+  fields['ollama-service-url'].value = 'http://server-c:11434';fields['ollama-service-url'].oninput();
+  pending.at(-1).resolve(inventory('http://server-c:11434', ['c']));
+  await new Promise(resolve => setImmediate(resolve));
+  oldRequest.reject(Error('Old endpoint failed'));await staleError;
+  assert.equal(fields['ollama-feedback'].textContent, 'connected');
+  assert.deepEqual(fields['ollama-model'].options.map(o => o.value), ['', 'c']);
+  refresh = run();pending.at(-1).resolve({...inventory('http://server-c:11434', []),service_ready:false,message:'Server unavailable'});await refresh;
+  assert.equal(fields['ollama-feedback'].textContent, 'Server unavailable');
+  assert.equal(fields['ollama-test'].disabled, true);
+
+  const checks=[];
+  context.componentAction=async(...args)=>checks.push(args);
+  const testHandler = source.slice(source.indexOf("  $('ollama-test').onclick="), source.indexOf("  $('ollama-model').onchange="));
+  const selectionHandler = source.split('\n').find(line=>line.includes("$('ollama-model').onchange="));
+  vm.runInContext('ollamaEndpointChanged=false;' + testHandler + selectionHandler, context);
+  fields['ollama-model'].value='c';fields['ollama-task'].value='translation';
+  fields['ollama-model'].onchange();assert.equal(checks.length,0);
+  await fields['ollama-test'].onclick();assert.equal(checks.length,1);assert.equal(checks[0][1],'check');
+
+  const busy = source.slice(source.indexOf("    $('ollama-test').setAttribute('aria-busy'"), source.indexOf("    if(!$('ollama-model').value)"));
+  vm.runInContext('let data={active:"ollama"};' + busy,context);
+  assert.equal(fields['ollama-test'].attributes['aria-busy'],'true');
+  assert.equal(fields['ollama-service-url'].disabled,true);assert.equal(fields['ollama-model'].disabled,true);
+  vm.runInContext('data={active:null};'+busy,context);
+  assert.equal(fields['ollama-test'].attributes['aria-busy'],'false');assert.equal(fields['ollama-model'].disabled,false);
+  const button=context.button=field();
+  vm.runInContext('data={active:"ollama"};let item={id:"ollama",cancel_requested:true};' + source.split('\n').find(line=>line.includes("item.id==='ollama'&&data.active===item.id&&item.cancel_requested")),context);
+  assert.equal(button.disabled,true);assert(button.textContent.includes('Ожидаем'));
+  console.log('PASS: inventories, stale success/error, selection without inference, explicit test, busy/cancel feedback');
 })().catch(error => {console.error(error); process.exitCode=1;});

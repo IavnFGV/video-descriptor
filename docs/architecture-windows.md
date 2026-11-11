@@ -410,7 +410,7 @@ config.local.json, сохраняя прочие поля, и обновляет
 
 ### Подключение существующей Ollama
 
-GET `/api/setup/ollama` получает локальный `/api/tags`, возвращает имена/размеры,
+GET `/api/setup/ollama` получает `/api/version` и `/api/tags` выбранного внешнего сервера, возвращает имена/размеры,
 выбранную модель и отдельно service_ready/ready. Диагностика использует тот же
 контракт: доступность HTTP-сервиса без выбранной модели не означает готовность.
 Запросы к loopback не используют системный HTTP proxy, timeout — 5 секунд.
@@ -586,7 +586,7 @@ POST `/api/native/cancel?id=<job>` требует X-App-Instance и same-origin.
 
 ## AI Component Manager (20.10.2026)
 
-`windows-app/component_manager.py` расширяет SetupService/ComputeManager: GET/POST `/api/components`, прежние instance/origin guards и блокировка активных jobs. Состояния компонентов не меняют job.status. Журнал, скачивания, CPython, pyannote venv и модели находятся в `%LOCALAPPDATA%/VideoDescriptor/ai-components`; конфигурация указателей сохраняется существующим механизмом config.local.json. Операции сериализованы также файловой блокировкой. HF-токен — только current-user DPAPI. CPU/XPU используют полный CPython, а не embedded venv. Новое окружение создаётся по уникальному конечному пути (venv нельзя переносить), проверяется существующим diarization_worker на встроенном WAV и только затем публикуется. Whisper использует прежний manifest/SHA256/downloader и прежний ComputeManager Auto NPU→GPU→CPU. Ollama использует существующий API либо собственный процесс с отдельным loopback-портом и каталогом моделей; чужие процессы не останавливаются.
+`windows-app/component_manager.py` расширяет SetupService/ComputeManager: GET/POST `/api/components`, прежние instance/origin guards и блокировка активных jobs. Состояния компонентов не меняют job.status. Журнал, скачивания, CPython, pyannote venv и модели находятся в `%LOCALAPPDATA%/VideoDescriptor/ai-components`; конфигурация указателей сохраняется существующим механизмом config.local.json. Операции сериализованы также файловой блокировкой. HF-токен — только current-user DPAPI. CPU/XPU используют полный CPython, а не embedded venv. Новое окружение создаётся по уникальному конечному пути (venv нельзя переносить), проверяется существующим diarization_worker на встроенном WAV и только затем публикуется. Whisper использует прежний manifest/SHA256/downloader и прежний ComputeManager Auto NPU→GPU→CPU. Ollama — только внешний HTTP(S)-сервер с настраиваемым endpoint (по умолчанию `http://127.0.0.1:11434`). Video Descriptor не устанавливает, не запускает, не останавливает, не обновляет и не удаляет Ollama; не скачивает и не управляет её моделями. Установленные модели обнаруживаются свежим `/api/tags`, без собственного каталога моделей или runtime.
 
 11.11.2026: Ollama — исключительно внешний HTTP(S)-сервер, `ollama_url` по умолчанию
 http://127.0.0.1:11434. Runtime, lifecycle, собственные порты/модели и установка исключены.
@@ -618,7 +618,7 @@ Advanced settings can save `ai_components_directory` for the next process start 
 21.10.2026: пользовательские названия устройств унифицированы (CPU/GPU/NPU), внутреннее API значение `xpu` сохранено для совместимости. NPU диаризации недоступен, capability распознавания проверяется отдельно. GPU check не использует сохранённый CPU runtime; смена на GPU из записи открывает подготовку с согласием. Ошибка последней операции и ранее проверенное устройство отображаются раздельно; сообщения subprocess различают установку пакетов и пробный inference, не сохраняя сырой вывод с возможными credentials.
 
 
-21.10.2026, 0.8.2: /api/components action=prepare_selected принимает выбранные функции, устройство, режим/модель Ollama, общее согласие и отдельное HF consent. Backend сохраняет preparation.json без токена и последовательно использует существующие guarded операции. preparation.lock защищает очередь между экземплярами; компонентный lease и прежние guards сохранены. cancel_selected отменяет текущий шаг и остаток. После перезапуска незавершённая очередь становится явной ошибкой с повтором, без самовольной новой загрузки. GET /api/components.preparation возвращает общий прогресс; уход со страницы не останавливает backend.
+21.10.2026, 0.8.2: /api/components action=prepare_selected принимает выбранные функции, устройство, модель внешней Ollama, общее согласие и отдельное HF consent. Backend сохраняет preparation.json без токена и последовательно использует существующие guarded операции. preparation.lock защищает очередь между экземплярами; компонентный lease и прежние guards сохранены. cancel_selected отменяет текущий шаг и остаток. После перезапуска незавершённая очередь становится явной ошибкой с повтором, без самовольной новой загрузки. GET /api/components.preparation возвращает общий прогресс; уход со страницы не останавливает backend.
 
 
 21.10.2026, 0.8.3: ComponentManager.run асинхронно читает bounded stdout/stderr pipe дочернего процесса. В состояние попадают только разрешённые фазы/имена пакетов/счётчики pip raw progress; неизвестный сырой вывод отбрасывается. Отдельный reader не блокирует cancel/timeout. activity_at отражает реальный вывод или изменение структурированного progress.json, step_started_at — начало subprocess, process_running — состояние дочернего процесса. diarization_worker сохраняет stage/completed/total с прежним message; родитель принимает только известные фазы и конечные счётчики. progress_scope=file означает текущий файл, stage — текущий этап; глобальный процент не синтезируется.
@@ -704,3 +704,14 @@ Public GitHub Release использует только standard ZIP/EXE. Domest
 ### Номер билда из репозитория (0.9.0)
 
 По уточнению владельца единственный источник — текстовый BUILD в Git. Он инкрементируется и коммитится только при подготовке нового релиза, до создания version tag. Local/Domestic/cached и GitHub читают одно значение; retry и deterministic rebuild его не меняют. BUILD включён в source allowlist, manifest.build, acceptance-provenance.build, API /health и /api/doctor, footer и Inno AppVerName. Дополнительных локальных счётчиков или build-info.json нет. Ключи моделей/component cache не включают номер.
+
+### Уточнение внешней Ollama — 11.11.2026
+
+Открытие настроек, подключение, Refresh Models и сохранение выбора не выполняют
+генерацию. Только явный Test Model проверяет inventory, capability `completion`
+через `/api/show` и делает один `/api/generate`. Рабочие задания выполняют свою
+генерацию без предварительного пробного inference. Проверка работает в существующем
+фоновом component worker; HTTP/UI остаются доступны. При отмене новые шаги не
+начинаются, но текущий HTTP-запрос ожидается до ответа/таймаута (генерация — 180 с).
+UI явно показывает ожидание; сервер и его модель не останавливаются. Отменённая
+проверка не записывается как успешная и не сохраняет выбор модели.
