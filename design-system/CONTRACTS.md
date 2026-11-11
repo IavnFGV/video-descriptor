@@ -218,3 +218,22 @@ responsive browser regressions: scripts/verify-recording-ui.py --material-tabs-o
 При cancel_requested кнопка явно сообщает ожидание ответа/таймаута и не допускает
 повторной отмены; indeterminate progress и polling существующие. Генерация только
 по явному действию, discovery/refresh/save её не вызывают.
+
+
+11.11.2026: Milestone 1, согласованная единая форма Ollama / LM Studio в существующих
+настройках. Исторические `ollama-form`, `ollama-service-url`, `ollama-model`,
+`ollama-use-connection`, `ollama-refresh`, `ollama-test`, `ollama-feedback` и
+`ollama-guide` теперь обслуживают оба провайдера. Отдельные LM Studio form/URL/model/
+status/test handlers и панели удалены; optional password token показывается только
+для LM Studio. Общая инструкция меняется вместе с провайдером. Выбор Ollama для
+конспекта сохранён; конспект/статья LM Studio используют прежний отдельный выбор.
+Endpoint/model и черновик токена изолированы по провайдерам; выбор модели привязан
+к endpoint. Каждый новый discovery получает свежие `/api/tags` или `/v1/models`;
+сохранённая модель восстанавливается только при наличии в ответе сервера. Ошибка,
+пустой/неверный inventory и исчезнувшая модель не приводят к скрытой подстановке.
+Счётчик запроса и provider/endpoint/model guards отсекают устаревшие результаты,
+включая verification. Discovery/save не запускают генерацию. Test Model использует
+существующий Ollama worker либо action=verify на `/api/translation-settings` для
+LM Studio (повторный inventory перед генерацией); HTTP audit и action_history
+содержат начало/результат/ошибку без токенов или текста запросов. CSS, маршруты,
+очередь, revision/dirty guards и release inputs сохранены.

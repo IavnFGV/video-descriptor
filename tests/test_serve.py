@@ -178,3 +178,69 @@ def test_invalid_speech_only_flag_does_not_create_a_job(server, tmp_path, monkey
     assert response.status_code == 400
     assert not list(tmp_path.glob('output/jobs/*/job.json'))
     start.assert_not_called()
+
+
+@pytest.mark.parametrize('action', ['models', 'verify'])
+def test_local_model_actions_use_draft_endpoint_without_saving(server, tmp_path, monkeypatch, action):
+    from video_descriptor import lmstudio, translation_settings
+
+    events = tmp_path / 'events.jsonl'
+    monkeypatch.setenv('VIDEO_DESCRIPTOR_EVENTS', str(events))
+    translation_settings.save(tmp_path, {'provider': 'ollama', 'ollama_model': 'ollama-kept',
+                                         'lmstudio_model': 'saved-lm'})
+    inventories, generations = [], []
+
+    def models(settings):
+        inventories.append(dict(settings))
+        return [{'id': 'draft-lm', 'title': 'draft-lm'}]
+
+    monkeypatch.setattr(lmstudio, 'models', models)
+    monkeypatch.setattr(lmstudio, 'generate', lambda *args, **kwargs: generations.append(args))
+    base = server.removesuffix('/video.mp4')
+    response = requests.post(base + '/api/translation-settings', json={
+        'action': action, 'lmstudio_url': 'http://127.0.0.1:4321/v1',
+        'lmstudio_model': 'draft-lm', 'lmstudio_api_key': 'private-draft-token'}, timeout=5)
+    assert response.status_code == 200
+    assert response.json() == [{'id': 'draft-lm', 'title': 'draft-lm'}]
+    assert inventories[0]['lmstudio_url'] == 'http://127.0.0.1:4321/v1'
+    assert inventories[0]['lmstudio_api_key'] == 'private-draft-token'
+    assert len(generations) == (1 if action == 'verify' else 0)
+    prefs = translation_settings.load(tmp_path)
+    assert prefs['provider'] == 'ollama' and prefs['ollama_model'] == 'ollama-kept'
+    assert prefs['lmstudio_model'] == 'saved-lm'
+    assert prefs['lmstudio_url'] == lmstudio.DEFAULT_URL
+    import json
+    audit = [json.loads(line) for line in events.read_text(encoding='utf-8').splitlines()]
+    stage = 'verification' if action == 'verify' else 'inventory'
+    operation = [event for event in audit if event.get('stage') == stage]
+    assert [event['status'] for event in operation] == ['running', 'done']
+    assert operation[0]['operation_id'] == operation[1]['operation_id']
+    assert 'private-draft-token' not in events.read_text(encoding='utf-8')
+
+
+@pytest.mark.parametrize('failure', ['missing', 'unavailable', 'invalid', 'generation'])
+def test_local_model_verification_rejects_missing_and_failed_models(server, tmp_path, monkeypatch, failure):
+    import json
+
+    from video_descriptor import lmstudio
+
+    events = tmp_path / 'events.jsonl'
+    monkeypatch.setenv('VIDEO_DESCRIPTOR_EVENTS', str(events))
+    generation = Mock(side_effect=ValueError('Generation failed') if failure == 'generation' else None)
+    monkeypatch.setattr(lmstudio, 'generate', generation)
+
+    def call(*args, **kwargs):
+        if failure == 'unavailable':
+            raise ValueError('Server unavailable')
+        return {'data': {}} if failure == 'invalid' else {'data': [{'id': 'available'}]}
+
+    monkeypatch.setattr(lmstudio, 'call', call)
+    response = requests.post(server.removesuffix('/video.mp4') + '/api/translation-settings', json={
+        'action': 'verify', 'lmstudio_model': 'available' if failure == 'generation' else 'missing'}, timeout=5)
+    assert response.status_code == 400
+    assert 'error' in response.json()
+    assert generation.call_count == (1 if failure == 'generation' else 0)
+    audit = [json.loads(line) for line in events.read_text(encoding='utf-8').splitlines()]
+    operation = [event for event in audit if event.get('stage') == 'verification']
+    assert [event['status'] for event in operation] == ['running', 'error']
+    assert operation[0]['operation_id'] == operation[1]['operation_id']

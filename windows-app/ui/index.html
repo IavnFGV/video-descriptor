@@ -217,37 +217,26 @@
 </p>
 </details>
 
-<details class="card ai-section"><summary>Локальный AI (Ollama)</summary>
-<div class="card-title">
-<h2>Перевод через Ollama</h2>
-<button type="button" id="ollama-refresh" class="vd-button vd-button--quiet">Обновить список</button>
+<details class="card ai-section"><summary>Языковая модель · локальные серверы</summary>
+<form id="ollama-form" class="vd-form">
+<label class="vd-field">Провайдер<select id="local-provider" class="vd-select"><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option></select></label>
+<div class="vd-control-group">
+<label class="vd-field">Адрес сервера / API<input id="ollama-service-url" type="url" class="vd-input" value="http://127.0.0.1:11434" maxlength="256" autocomplete="off" required aria-describedby="ollama-connection-current"></label>
+<label id="local-token-field" class="vd-field" hidden>API-токен LM Studio (пустое поле сохраняет прежний)<input id="local-token" class="vd-input" type="password" autocomplete="off" maxlength="512"></label>
+<div class="vd-actions"><button id="ollama-use-connection" type="button" class="vd-button">Проверить подключение</button><button id="ollama-guide" type="button" class="vd-button vd-button--quiet" aria-expanded="false" aria-controls="local-guide">Инструкция по настройке</button></div>
+<p id="ollama-connection-current" role="status" aria-live="polite" class="footnote">Подключение ещё не проверено.</p>
+<p id="local-guide" class="footnote" hidden></p>
 </div>
-<p class="footnote">Ollama выполняет перевод и создаёт материалы на выбранном сервере. Установите и запустите Ollama самостоятельно.</p>
-<p id="ollama-connection-current" role="status" class="footnote"></p>
-<div class="vd-control-group"><label class="vd-field">Адрес сервера<input id="ollama-service-url" type="url" class="vd-input" value="http://127.0.0.1:11434" maxlength="256" autocomplete="off"></label>
-<div class="vd-actions"><button id="ollama-use-connection" type="button" class="vd-button">Проверить и сохранить подключение</button><button id="ollama-guide" type="button" class="vd-button vd-button--quiet">Инструкция по установке</button></div></div>
-<div id="component-ollama"></div>
-<form id="ollama-form">
-<label class="vd-field">Установленные модели<select id="ollama-model" class="vd-select" name="ollama-model">
-<option value="">Проверяем Ollama…</option>
-</select>
-</label>
-<label class="vd-field">Назначение<select id="ollama-task" class="vd-select" name="ollama-task">
-<option value="translation">Перевод</option>
-<option value="notes">Конспект</option>
-</select>
-</label>
-<div class="vd-actions"><button type="submit" id="ollama-connect" disabled class="vd-button">Сохранить модель</button><button id="ollama-test" type="button" disabled class="vd-button">Проверить генерацию</button></div>
-<p id="ollama-feedback" class="footnote" role="status" aria-live="polite">
-</p>
+<div class="vd-control-group">
+<label class="vd-field">Доступные модели<select id="ollama-model" class="vd-select" name="ollama-model" aria-describedby="ollama-feedback"><option value="">Обновите список моделей</option></select></label>
+<div class="vd-actions"><button type="button" id="ollama-refresh" class="vd-button">Обновить модели</button><button id="ollama-test" type="button" disabled class="vd-button">Проверить модель</button></div>
+</div>
+<label id="local-task-field" class="vd-field">Назначение<select id="ollama-task" class="vd-select" name="ollama-task"><option value="translation">Перевод</option><option value="notes">Конспект</option></select></label>
+<div class="vd-actions"><button type="submit" id="ollama-connect" disabled class="vd-button">Сохранить модель и провайдера</button></div>
+<p id="ollama-feedback" class="footnote" role="status" aria-live="polite"></p>
 </form>
+<div id="component-ollama"></div>
 </details>
-<details><summary>LM Studio · локальный сервер</summary><form id="lmstudio-form" class="vd-form">
-<p>Включите Local Server и загрузите модель в LM Studio. Устройство и контекст выбираются в LM Studio. Сохранённая модель используется для перевода; конспект и статья имеют отдельный выбор.</p>
-<label class="vd-field">Адрес API<input id="lmstudio-url" class="vd-input" value="http://127.0.0.1:1234/v1"></label>
-<label class="vd-field">API-токен (если требуется; пустое поле сохраняет прежний)<input id="lmstudio-key" class="vd-input" type="password" autocomplete="off" maxlength="512"></label>
-<label class="vd-field">Модель для перевода<input id="lmstudio-model" class="vd-input" maxlength="150"></label>
-<div class="vd-actions"><button type="submit" class="vd-button">Сохранить и использовать LM Studio</button><button id="lmstudio-models" type="button" class="vd-button">Проверить подключение и показать модели</button></div><p id="lmstudio-status" role="status"></p></form></details>
 <details class="card ai-section"><summary>Облачный AI (Gemini)</summary>
 <h2>Gemini · необязательно</h2>
 <p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p>

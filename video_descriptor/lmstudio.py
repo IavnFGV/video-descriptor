@@ -57,10 +57,13 @@ def call(settings, method, endpoint, **kwargs):
 
 
 def models(settings):
-    try:
-        return [{'id': row['id'], 'title': row['id']} for row in call(settings, 'GET', '/models')['data']]
-    except (KeyError, TypeError):
-        raise ValueError('LM Studio: некорректный список моделей') from None
+    result = call(settings, 'GET', '/models')
+    rows = result.get('data') if isinstance(result, dict) else None
+    if not isinstance(rows, list) or any(
+            not isinstance(row, dict) or not isinstance(row.get('id'), str)
+            or not row['id'].strip() for row in rows):
+        raise ValueError('LM Studio: некорректный список моделей')
+    return [{'id': row['id'], 'title': row['id']} for row in rows]
 
 
 def context_limit(settings, model):

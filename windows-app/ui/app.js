@@ -1,7 +1,8 @@
 (() => {
   const $ = id => document.getElementById(id);
-  let wizardLoaded=false, setupPolling=false, ollamaConnectionLoaded=false, ollamaRequest=0, ollamaEndpointChanged=false;
+  let wizardLoaded=false, setupPolling=false, ollamaEndpointChanged=false;
   let diarizationConfigured=false, storageLocked=false;
+  let componentTimer, componentBusy=false;
   let instance, selected = new URLSearchParams(location.search).get('job'), timer, uploading=false, currentJob, processing=false;
   const statusNames = {queued:'В очереди', running:'Обрабатываем', done:'Готово', error:'Ошибка обработки'};
   const actionNames = {translation_model_configured:'Модель перевода подключена',model_configured:'Модель подключена',settings_changed:'Настройки сохранены',device_selected:'Устройство выбрано',device_loading:'Загрузка модели',device_ready:'Модель готова',device_skipped:'Устройство пропущено',device_attempt_failed:'Ошибка устройства',device_fallback:'Переход на другое устройство',job_added:'Запись добавлена',job_device_snapshot:'Устройство закреплено за записью',job_started:'Обработка начата',job_finished:'Обработка завершена',job_failed:'Ошибка обработки',job_retried:'Повтор обработки',transcript_edited:'Текст исправлен',export:'Экспорт'};
@@ -95,26 +96,90 @@
       if(save){await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await setupStatus();await readiness();}
     } catch(e){$('setup-feedback').textContent=e.message;}finally{buttons.forEach(b=>b.disabled=false);}
   }
+  // Historical ollama-* DOM ids now belong to the single local-provider form.
+  const localConfigs={ollama:{url:'',savedUrl:'',savedModel:'',choices:new Map()},lmstudio:{url:'',savedUrl:'',savedModel:'',choices:new Map(),token:''}};
+  let localRequest=0, localBusy=false, localLoaded=false, localWorkerTest=null;
+  const localProvider=()=>$('local-provider').value;
+  const localCurrent=(request,provider,endpoint,model)=>request===localRequest&&provider===localProvider()&&endpoint===$('ollama-service-url').value&&(model===undefined||model===$('ollama-model').value);
+  function localControls() {
+    const worker=localProvider()==='ollama'&&componentBusy;
+    $('local-provider').disabled=!localLoaded;
+    for(const id of ['ollama-use-connection','ollama-refresh'])$(id).disabled=!localLoaded||localBusy||worker;
+    for(const id of ['ollama-connect','ollama-test'])$(id).disabled=!localLoaded||localBusy||worker||!$('ollama-model').value;
+    $('ollama-test').setAttribute('aria-busy',String(localBusy||!!localWorkerTest&&worker));
+    $('ollama-test').textContent=localWorkerTest&&worker?'Проверяем модель…':'Проверить модель';
+    $('ollama-service-url').disabled=!!localWorkerTest&&worker;
+    $('ollama-model').disabled=!!localWorkerTest&&worker;
+  }
   function clearOllamaModels() {
-    $('ollama-model').replaceChildren(new Option('Выберите модель', ''));
-    $('ollama-connect').disabled=true;$('ollama-test').disabled=true;
+    $('ollama-model').replaceChildren(new Option('Обновите список моделей', ''));
+    localControls();
+  }
+  function localRemember() {
+    const config=localConfigs[localProvider()];
+    config.url=$('ollama-service-url').value;
+    if($('ollama-model').value)config.choices.set(config.url,$('ollama-model').value);
+    if(localProvider()==='lmstudio')config.token=$('local-token').value;
+  }
+  function localRender() {
+    ++localRequest;localBusy=false;
+    const provider=localProvider(), config=localConfigs[provider], lm=provider==='lmstudio';
+    $('ollama-service-url').value=config.url;
+    $('local-token').value=lm?config.token:'';
+    $('local-provider').dataset.previous=provider;
+    $('component-ollama').hidden=lm;
+    $('local-token-field').hidden=!lm;$('local-task-field').hidden=lm;
+    $('local-guide').textContent=lm?'LM Studio: скачайте и загрузите языковую модель в приложении, откройте Developer / Local Server и запустите сервер. Укажите адрес API с /v1 (обычно http://127.0.0.1:1234/v1). При включённой авторизации введите токен. Устройство и контекст настраиваются в LM Studio. Затем проверьте подключение, выберите модель и выполните проверку генерации.':'Ollama: установите и запустите внешний сервер самостоятельно. Добавьте модель командой ollama pull <model-name>. Укажите HTTP(S)-адрес (обычно http://127.0.0.1:11434), проверьте подключение и выберите модель. Приложение не устанавливает и не останавливает Ollama. Проверка генерации запускается отдельно.';
+    $('ollama-connection-current').textContent='Подключение ещё не проверено.';
+    $('ollama-feedback').textContent='Обновите список. Отображаются только модели выбранного сервера.';
+    ollamaEndpointChanged=localConfigs.ollama.url!==localConfigs.ollama.savedUrl;
+    clearOllamaModels();
+  }
+  async function localDiscover(saveConnection=false) {
+    if(!localLoaded)return;
+    localRemember();
+    const provider=localProvider(),config=localConfigs[provider],endpoint=config.url,request=++localRequest;
+    const chosen=config.choices.get(endpoint)||(endpoint===config.savedUrl?config.savedModel:'');
+    localBusy=true;clearOllamaModels();
+    $('ollama-connection-current').textContent='Проверяем подключение…';
+    $('ollama-feedback').textContent='Получаем список моделей…';
+    try {
+      let rows;
+      if(provider==='ollama'){
+        if(saveConnection){await setupPost('ollama',{endpoint});if(endpoint!==config.savedUrl)config.savedModel='';config.savedUrl=endpoint;ollamaEndpointChanged=config.url!==config.savedUrl;}
+        if(!localCurrent(request,provider,endpoint))return;
+        const status=await api('/api/setup/ollama'+'?endpoint='+encodeURIComponent(endpoint));
+        if(!status.service_ready)throw Error(status.message||'Сервер недоступен.');
+        if(!Array.isArray(status.models)||status.models.some(row=>!row||typeof row.name!=='string'||!row.name.trim()))throw Error('Некорректный список моделей сервера.');
+        rows=status.models.map(row=>({id:row.name,title:row.name}));
+      }else{
+        rows=await localLM('models',endpoint);
+        if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||!row.id.trim()))throw Error('Некорректный список моделей сервера.');
+      }
+      if(!localCurrent(request,provider,endpoint))return;
+      const list=$('ollama-model');list.replaceChildren(new Option('Выберите модель', ''));
+      for(const row of rows)list.add(new Option(row.title||row.id,row.id));
+      list.value=rows.some(row=>row.id===chosen)?chosen:'';
+      if(chosen&&!list.value)config.choices.delete(endpoint);
+      ollamaEndpointChanged=localConfigs.ollama.url!==localConfigs.ollama.savedUrl;
+      $('ollama-connection-current').textContent='Сервер подключён · '+endpoint;
+      $('ollama-feedback').textContent=!rows.length?'Сервер ответил, моделей нет. Добавьте модель на сервере и обновите список.':chosen&&!list.value?'Сохранённая модель отсутствует на сервере. Выбор сброшен. Выберите модель.':'Модели получены. Генерация ещё не проверена.';
+    }catch(e){if(localCurrent(request,provider,endpoint)){clearOllamaModels();$('ollama-connection-current').textContent='Подключение не проверено.';$('ollama-feedback').textContent=e.message;}}
+    finally{if(localCurrent(request,provider,endpoint)){localBusy=false;localControls();}}
+  }
+  function localLM(action,endpoint,model) {
+    return api('/api/translation-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,lmstudio_url:endpoint,lmstudio_model:model,lmstudio_api_key:$('local-token').value})});
+  }
+  async function localPreferences() {
+    const [prefs,status]=await Promise.all([api('/api/translation-settings'),api('/api/setup/ollama')]);
+    Object.assign(localConfigs.ollama,{url:status.url,savedUrl:status.url,savedModel:prefs.ollama_model||status.selected});
+    Object.assign(localConfigs.lmstudio,{url:prefs.lmstudio_url,savedUrl:prefs.lmstudio_url,savedModel:prefs.lmstudio_model});
+    $('local-token').placeholder=prefs.lmstudio_has_key?'Токен сохранён':'Необязательный токен';
+    $('local-provider').value=prefs.provider==='lmstudio'?'lmstudio':'ollama';
+    localLoaded=true;localRender();await localDiscover();
   }
   async function ollamaStatus() {
-    const request=++ollamaRequest, endpoint=$('ollama-service-url').value;
-    const previous=$('ollama-model').value;
-    clearOllamaModels();
-    try {
-      const s=await api('/api/setup/ollama'+(ollamaConnectionLoaded?'?endpoint='+encodeURIComponent(endpoint):''));
-      if(request!==ollamaRequest||endpoint!==$('ollama-service-url').value)return;
-      if(!ollamaConnectionLoaded){$('ollama-service-url').value=s.url;ollamaConnectionLoaded=true;}
-      $('ollama-connection-current').textContent=s.url+' · '+(s.version?'версия '+s.version:'Сервер недоступен');
-      const list=$('ollama-model');
-      for(const m of s.models)list.add(new Option(m.name,m.name));
-      const chosen=previous||(!ollamaEndpointChanged?s.selected:'');
-      list.value=s.models.some(m=>m.name===chosen)?chosen:'';
-      $('ollama-connect').disabled=componentBusy||!list.value;$('ollama-test').disabled=componentBusy||!list.value;
-      $('ollama-feedback').textContent=chosen&&!list.value&&s.service_ready?'Сохранённая модель отсутствует на сервере. Выбор сброшен. '+s.message:s.message;
-    }catch(e){if(request===ollamaRequest){clearOllamaModels();$('ollama-feedback').textContent=e.message;}}
+    if(localLoaded&&localProvider()==='ollama'&&!localBusy&&!localWorkerTest)await localDiscover();
   }
   function check(label, ready, suffix) { const row=document.createElement('div');row.className='check';const a=document.createElement('span');a.textContent=label;const b=document.createElement('span');b.className='vd-status';b.dataset.tone=ready?'success':'warning';b.textContent=deviceMessage(suffix||(ready?'Готово':'Не подключено'));row.append(a,b);return row; }
   function systemStatus(ready, preparing=false) {
@@ -285,14 +350,6 @@
   $('translate-run').onclick=()=>localAI('translate');
   $('notes-run').onclick=openNotes;
   $('setup-toggle').onclick=()=>{$('setup-form').hidden=!$('setup-form').hidden;$('setup-toggle').setAttribute('aria-expanded',String(!$('setup-form').hidden));};
-  $('ollama-refresh').onclick=ollamaStatus;
-  $('ollama-form').onsubmit=async e=>{e.preventDefault();try{
-    if(ollamaEndpointChanged)throw Error('Сначала сохраните подключение.');
-    await setupPost('ollama',{model:$('ollama-model').value,task:$('ollama-task').value});
-    $('ollama-feedback').textContent='Модель сохранена. Генерация проверяется отдельно.';
-  }catch(e){$('ollama-feedback').textContent=e.message;}};
-  $('ollama-test').onclick=async()=>{if(ollamaEndpointChanged){$('ollama-feedback').textContent='Сначала сохраните подключение.';return;}await componentAction('ollama','check',{model:$('ollama-model').value,task:$('ollama-task').value});};
-  $('ollama-model').onchange=()=>{$('ollama-connect').disabled=componentBusy||!$('ollama-model').value;$('ollama-test').disabled=componentBusy||!$('ollama-model').value;};
   $('inspect-model').onclick=()=>modelAction(false);
   $('setup-form').onsubmit=e=>{e.preventDefault();modelAction(true);};
   $('pick-model').onclick=async()=>{const b=$('pick-model');b.disabled=true;$('setup-feedback').textContent='Выберите папку в окне Windows…';try{const r=await api('/api/setup/pick-model',{method:'POST',headers:{'X-App-Instance':instance}});if(r.path)$('model-path').value=r.path;$('setup-feedback').textContent=r.path?'Папка выбрана. Теперь проверьте и подключите модель.':'Выбор отменён.';}catch(e){$('setup-feedback').textContent=e.message;}finally{b.disabled=false;}};
@@ -312,10 +369,52 @@
     if(!document.activeElement.closest('#gemini-form')){$('gemini-model').value=d.gemini.model;$('gemini-billing').value=d.gemini.billing_mode;$('gemini-ack').checked=d.gemini.free_ack;}
     $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
   }
-  async function lmPreferences(){const p=await api('/api/translation-settings');$('lmstudio-url').value=p.lmstudio_url;$('lmstudio-model').value=p.lmstudio_model;$('lmstudio-key').placeholder=p.lmstudio_has_key?'Токен сохранён':'Необязательный токен';}
-  $('lmstudio-form').onsubmit=async e=>{e.preventDefault();const button=e.submitter;if(button)button.disabled=true;try{await api('/api/translation-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'lmstudio',lmstudio_url:$('lmstudio-url').value,lmstudio_model:$('lmstudio-model').value,lmstudio_api_key:$('lmstudio-key').value})});$('lmstudio-key').value='';$('lmstudio-status').textContent='Сохранено. Генерация проверяется при обработке.';}catch(e){$('lmstudio-status').textContent=e.message;}finally{if(button)button.disabled=false;}};
-  $('lmstudio-models').onclick=async()=>{const b=$('lmstudio-models');b.disabled=true;$('lmstudio-status').textContent='Проверяем сохранённое подключение…';try{const rows=await api('/api/construction-models?provider=lmstudio');$('lmstudio-status').textContent=rows.length?'Доступны: '+rows.map(r=>r.id).join(', ')+'. Генерация ещё не проверена.':'Сервер ответил, моделей нет.';}catch(e){$('lmstudio-status').textContent=e.message;}finally{b.disabled=false;}};
-  lmPreferences().catch(e=>{$('lmstudio-status').textContent=e.message;});
+  $('local-provider').onchange=()=>{
+    // The selector already has its new value; remember the old provider before rendering.
+    const previous=$('local-provider').dataset.previous||'ollama',current=localProvider();
+    $('local-provider').value=previous;localRemember();$('local-provider').value=current;
+    $('local-provider').dataset.previous=current;
+    localRender();localDiscover();
+  };
+  $('ollama-refresh').onclick=()=>localDiscover();
+  $('ollama-use-connection').onclick=()=>localDiscover(true);
+  $('ollama-model').onchange=()=>{++localRequest;localBusy=false;localRemember();$('ollama-feedback').textContent='Выбор изменён. Генерация ещё не проверена.';localControls();};
+  $('ollama-form').onsubmit=async e=>{
+    e.preventDefault();localRemember();
+    const provider=localProvider(),config=localConfigs[provider],endpoint=config.url,model=$('ollama-model').value,token=config.token,task=$('ollama-task').value,request=++localRequest;
+    localBusy=true;localControls();
+    try{
+      if(!model)throw Error('Обновите список и выберите модель.');
+      if(provider==='ollama'){
+        if(ollamaEndpointChanged)throw Error('Сначала проверьте и сохраните подключение.');
+        await setupPost('ollama',{model,task});
+      }else{
+        const saved=await api('/api/translation-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,lmstudio_url:endpoint,lmstudio_model:model,lmstudio_api_key:token})});
+        config.savedUrl=endpoint;config.savedModel=saved.lmstudio_model;if(config.token===token)config.token='';
+      }
+      if(provider==='ollama'&&task==='translation')config.savedModel=model;
+      if(localCurrent(request,provider,endpoint,model)){$('local-token').value='';$('ollama-feedback').textContent='Модель и провайдер сохранены. Генерация проверяется отдельно.';}
+    }catch(e){if(localCurrent(request,provider,endpoint))$('ollama-feedback').textContent=e.message;}
+    finally{if(localCurrent(request,provider,endpoint)){localBusy=false;localControls();}}
+  };
+  $('ollama-test').onclick=async()=>{
+    const provider=localProvider(),endpoint=$('ollama-service-url').value,model=$('ollama-model').value,request=++localRequest;
+    localBusy=true;localControls();$('ollama-feedback').textContent='Проверяем генерацию…';
+    try{
+      if(!model)throw Error('Выберите модель.');
+      if(provider==='ollama'){
+        if(ollamaEndpointChanged)throw Error('Сначала проверьте и сохраните подключение.');
+        localWorkerTest={request,provider,endpoint,model};
+        await componentAction('ollama','check',{model,task:$('ollama-task').value});
+      }else{
+        await localLM('verify',endpoint,model);
+        if(localCurrent(request,provider,endpoint,model))$('ollama-feedback').textContent='Генерация проверена.';
+      }
+    }catch(e){if(localCurrent(request,provider,endpoint,model))$('ollama-feedback').textContent=e.message;}
+    finally{if(localCurrent(request,provider,endpoint)){localBusy=false;localControls();}}
+  };
+  localControls();
+  localPreferences().catch(e=>{$('ollama-feedback').textContent=e.message;});
   $('setup-open').onclick=()=>{diagnostics().catch(e=>message(e.message,true));};
   $('setup-finish').onclick=async()=>{const b=$('setup-finish'),route=location.hash;b.disabled=true;try{await setupPost('complete');if(location.hash===route){location.hash='records';showView(true);}}catch(e){message(e.message,true);}finally{b.disabled=false;}};
   $('diagnostics-refresh').onclick=async()=>{try{await setupPost('refresh');await diagnostics();await readiness();}catch(e){message(e.message,true);}};
@@ -336,7 +435,6 @@
   $('gemini-form').onsubmit=async e=>{e.preventDefault();try{await setupPost('gemini',{api_key:$('gemini-key').value,model:$('gemini-model').value,billing_mode:$('gemini-billing').value,free_ack:$('gemini-ack').checked});$('gemini-key').value='';$('gemini-feedback').textContent='Настройки сохранены. Перевод через Gemini доступен в расширенном редакторе.';await diagnostics();}catch(error){$('gemini-feedback').textContent=error.message;}};
   $('gemini-check').onclick=async()=>{const b=$('gemini-check');b.disabled=true;try{const r=await setupPost('gemini',{check:true});$('gemini-models').replaceChildren(...r.models.map(m=>{const o=document.createElement('option');o.value=m.id;return o;}));$('gemini-feedback').textContent=r.message+(r.available?' Выбранная модель доступна.':' Выберите доступную модель из списка.');}catch(e){$('gemini-feedback').textContent=e.message;}finally{b.disabled=false;}};
 
-  let componentTimer, componentBusy=false;
   const deviceNames={AUTO:'Автоматически',auto:'Автоматически',CPU:'Процессор (CPU)',cpu:'Процессор (CPU)',GPU:'Видеокарта (GPU)',xpu:'Видеокарта (GPU)',NPU:'Нейропроцессор (NPU)',npu:'Нейропроцессор (NPU)'};
   const deviceName=value=>deviceNames[value]||value;
   const durationText=seconds=>{const value=Math.max(0,Math.floor(seconds));return Math.floor(value/60)+' мин '+String(value%60).padStart(2,'0')+' с';};
@@ -403,23 +501,26 @@
       const quiet=Math.max(0,Date.now()/1000-(item.activity_at||item.step_started_at));
       activity.textContent='Выполняется: '+durationText(Date.now()/1000-item.step_started_at)+'. '+(quiet>=60?'Новых сообщений нет уже '+durationText(quiet)+'. Процесс ещё запущен.':'Последняя активность: '+durationText(quiet)+' назад.');
       activity.classList.toggle('warning',quiet>=60);
-      button.hidden=item.id==='diarization'&&item.state==='ready';
+      button.hidden=item.id==='diarization'&&item.state==='ready'||item.id==='ollama'&&data.active!=='ollama';
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
       if(item.id==='ollama'&&data.active===item.id&&item.cancel_requested){button.textContent='Ожидаем завершения запроса…';button.disabled=true;}
       if(item.id==='diarization'&&data.active!==item.id&&$('diarization-device').value==='xpu'&&item.device==='cpu'){button.disabled=true;button.textContent='Для видеокарты нужна подготовка';}
-      button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:$('ollama-model').value,task:$('ollama-task').value}:{});
+      button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:localProvider()==='ollama'?$('ollama-model').value:localConfigs.ollama.savedModel,task:$('ollama-task').value}:{});
       remove.hidden=!item.path||!!data.active||item.id==='ollama';remove.textContent='Удалить окружение';remove.onclick=()=>{if(window.confirm('Удалить только управляемое приложением окружение? Модели и пользовательские файлы сохранятся.'))componentAction(item.id,'remove',{confirmed:true});};
     }
     $('component-summary').replaceChildren(...data.components.map(item=>check(item.name,item.state==='ready',componentNames[item.state])));
     if(!$('component-root').value)$('component-root').value=data.root;
     $('component-directory').textContent='Модели, окружения и проверенные загрузки: '+data.root+'. При обновлении приложения сохраняются.';
-    for(const id of ['diarization-install','ollama-use-connection','ollama-connect','ollama-test'])$(id).disabled=!!data.active;
-    $('ollama-test').setAttribute('aria-busy',String(data.active==='ollama'));
-    $('ollama-test').textContent=data.active==='ollama'?'Проверяем модель…':'Проверить генерацию';
-    $('ollama-service-url').disabled=data.active==='ollama';$('ollama-model').disabled=data.active==='ollama';
-    if(!$('ollama-model').value){$('ollama-connect').disabled=true;$('ollama-test').disabled=true;}
+    $('diarization-install').disabled=!!data.active;
+    if(localWorkerTest&&data.active!=='ollama'){
+      const {request,provider,endpoint,model}=localWorkerTest;
+      const result=data.components.find(item=>item.id==='ollama');
+      if(localCurrent(request,provider,endpoint,model))$('ollama-feedback').textContent=result?.message||'Проверка завершена.';
+      localWorkerTest=null;
+    }
+    localControls();
     clearTimeout(componentTimer);
-    if(data.active||preparing)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){ollamaStatus();readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
+    if(data.active||preparing)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
   }
   for(const [button,field] of [['open-hf-settings','hf-token'],['open-local-settings','ollama-service-url']])$(button).onclick=()=>{const target=$(field);target.closest('details').open=true;target.focus();};
   for(const key of ['whisper','diarization','ollama'])$('prepare-'+key).onchange=()=>{$('prepare-consent').checked=false;};
@@ -432,7 +533,7 @@
       if(!$('prepare-consent').checked){$('prepare-consent').focus();throw Error('Отметьте разрешение на загрузку и установку выбранных компонентов. Для GPU нужно это же разрешение.');}
       if(features.includes('diarization')&&!$('diarization-hf-fields').hidden&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для участников примите условия community-1 и отметьте согласие в разделе «Участники».');}
       if(features.includes('ollama')&&ollamaEndpointChanged)throw Error('Сначала сохраните подключение Ollama.');
-      const model=$('ollama-model').value;
+      const model=localProvider()==='ollama'?$('ollama-model').value:localConfigs.ollama.savedModel;
       if(features.includes('ollama')&&!model){$('ollama-service-url').closest('details').open=true;$('ollama-service-url').focus();throw Error('Выберите подключение и языковую модель в разделе «Локальный AI».');}
       await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'prepare_selected',features,device:$('diarization-device').value,model,token:$('hf-token').value,hf_consent:$('diarization-consent').checked,confirmed:true})});
       $('hf-token').value='';await componentStatus();
@@ -440,21 +541,12 @@
   };
   $('prepare-selected-stop').onclick=async()=>{try{await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'cancel_selected'})});await componentStatus();}catch(e){message(e.message,true);}};
   $('ollama-service-url').oninput=()=>{
-    ++ollamaRequest;ollamaConnectionLoaded=true;ollamaEndpointChanged=true;clearOllamaModels();
-    $('ollama-connection-current').textContent='Адрес изменён. Проверяем сервер…';
-    ollamaStatus();
+    ++localRequest;localBusy=false;localConfigs[localProvider()].url=$('ollama-service-url').value;
+    ollamaEndpointChanged=localConfigs.ollama.url!==localConfigs.ollama.savedUrl;
+    clearOllamaModels();$('ollama-connection-current').textContent='Адрес изменён. Проверьте подключение.';$('ollama-feedback').textContent='Список моделей сброшен.';
   };
-  $('ollama-use-connection').onclick=async()=>{
-    const endpoint=$('ollama-service-url').value, request=++ollamaRequest;
-    clearOllamaModels();
-    try{
-      await setupPost('ollama',{endpoint});
-      // Ignore responses for an endpoint that has since changed.
-      if(request!==ollamaRequest||endpoint!==$('ollama-service-url').value)return;
-      ollamaEndpointChanged=false;await ollamaStatus();await componentStatus();
-    }catch(e){if(request===ollamaRequest)$('ollama-feedback').textContent=e.message;}
-  };
-  $('ollama-guide').onclick=()=>setupPost('external',{page:'ollama-guide'}).catch(e=>message(e.message,true));
+  $('local-token').oninput=()=>{localConfigs.lmstudio.token=$('local-token').value;++localRequest;localBusy=false;clearOllamaModels();$('ollama-connection-current').textContent='Токен изменён. Проверьте подключение.';};
+  $('ollama-guide').onclick=()=>{const guide=$('local-guide');guide.hidden=!guide.hidden;$('ollama-guide').setAttribute('aria-expanded',String(!guide.hidden));};
   $('diarization-device').onchange=()=>componentStatus().catch(e=>message(e.message,true));
   $('diarization-install').onclick=()=>{const token=$('hf-token').value;$('hf-token').value='';componentAction('diarization','install',{confirmed:$('diarization-consent').checked,device:$('diarization-device').value,token});};
   for(const [id,page] of [['hf-terms','terms'],['hf-tokens','tokens']])$(id).onclick=()=>setupPost('external',{page}).catch(e=>message(e.message,true));
@@ -487,7 +579,7 @@
   $('notes-model-choice').onchange=()=>{$('notes-confirm').disabled=notesModelsLoading||!$('notes-model-choice').value;};
   $('notes-auto-context').onchange=()=>{$('notes-context').disabled=$('notes-auto-context').checked;};
   $('notes-cancel').onclick=()=>$('notes-dialog').close();
-  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';const target=$(provider==='lmstudio'?'lmstudio-url':provider==='gemini'?'gemini-key':'ollama-service-url');target.closest('details').open=true;target.focus();};
+  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';if(provider!=='gemini'&&provider!==localProvider()){$('local-provider').value=provider;$('local-provider').onchange();}const target=$(provider==='gemini'?'gemini-key':'ollama-service-url');target.closest('details').open=true;target.focus();};
   $('notes-confirm').onclick=async()=>{
     if(notesModelsLoading||processing)return;
     const provider=$('notes-provider').value;

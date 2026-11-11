@@ -1,77 +1,88 @@
-// Exercise production discovery code with controlled HTTP completion order.
+// Exercise the production shared settings controller with deliberately reordered HTTP replies.
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync('windows-app/ui/app.js', 'utf8');
-const functions = source.slice(source.indexOf('  function clearOllamaModels()'), source.indexOf('  function check('));
-const endpointHandler = source.slice(source.indexOf("  $('ollama-service-url').oninput="), source.indexOf("  $('ollama-use-connection').onclick="));
+const source = fs.readFileSync('windows-app/ui/app.js', 'utf8').replace(/\r\n/g,'\n');
+const html = fs.readFileSync('windows-app/ui/index.html', 'utf8');
+const controller = source.slice(source.indexOf('  // Historical ollama-*'), source.indexOf('  function check('));
+const handlers = source.slice(source.indexOf("  $('local-provider').onchange="), source.indexOf("  $('setup-open').onclick="))
+  .replace(/  localControls\(\);\n  localPreferences\(\)\.catch[^\n]+\n/, '');
+const endpointHandlers = source.slice(source.indexOf("  $('ollama-service-url').oninput="), source.indexOf("  $('diarization-device').onchange="));
 function field(value = '') {
-  return {value, options: [], disabled: false, textContent: '',
-    attributes: {}, setAttribute(name, value) {this.attributes[name] = value;},
+  return {value, options: [], disabled: false, hidden: false, textContent: '', dataset: {}, attributes: {},
+    setAttribute(name, value) {this.attributes[name] = value;},
     replaceChildren(...options) {this.options = options; this.value = options[0]?.value || '';},
     add(option) {this.options.push(option);}};
 }
-const fields = Object.fromEntries(['ollama-service-url', 'ollama-model', 'ollama-connect', 'ollama-test', 'ollama-task', 'ollama-feedback', 'ollama-connection-current'].map(id => [id, field()]));
-fields['ollama-service-url'].value = 'http://server-a:11434';
-const pending = [];
-const context = vm.createContext({$: id => fields[id], api: url => new Promise((resolve, reject) => pending.push({url, resolve, reject})),
+const fields = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(m => [m[1], field()]));
+fields['local-guide'].hidden=true;
+fields['local-provider'].value = 'ollama';fields['ollama-task'].value = 'translation';
+const pending = [], checks = [];
+const context = vm.createContext({$: id => {assert(fields[id], id);return fields[id];},
+  api: (url, options) => new Promise((resolve, reject) => pending.push({url, options, resolve, reject})),
+  setupPost: (action, body) => new Promise((resolve, reject) => pending.push({action, body, resolve, reject})),
+  componentAction: async (...args) => {checks.push(args);vm.runInContext('componentBusy=true', context);},
   Option: function(text, value) {this.text = text; this.value = value;}, encodeURIComponent});
-vm.runInContext('let ollamaRequest=0,ollamaConnectionLoaded=true,ollamaEndpointChanged=false,componentBusy=false;' + functions + endpointHandler, context);
-const run = () => vm.runInContext('ollamaStatus()', context);
-const inventory = (url, names, selected='') => ({url, models: names.map(name => ({name})), selected, service_ready: true, version: 'test', message: names.length ? 'connected' : 'No models installed'});
+vm.runInContext('let componentBusy=false,ollamaEndpointChanged=false;' + controller + handlers + endpointHandlers, context);
+const run = code => vm.runInContext(code, context);
+const inventory = (names, selected='') => ({models: names.map(name => ({name})), selected, service_ready: true, message: 'connected'});
+const lmInventory = names => names.map(id => ({id, title:id}));
+const tick = () => new Promise(resolve => setImmediate(resolve));
+const models = () => fields['ollama-model'].options.map(o => o.value);
+const switchTo = provider => {fields['local-provider'].value=provider;fields['local-provider'].onchange();};
+const select = model => {fields['ollama-model'].value=model;fields['ollama-model'].onchange();};
+const endpoint = url => {fields['ollama-service-url'].value=url;fields['ollama-service-url'].oninput();};
+const refresh = () => fields['ollama-refresh'].onclick();
+const watchdog=setTimeout(()=>{console.error('Unresolved UI request',pending.map(p=>p.url||p.action));process.exit(1);},5000);
 (async () => {
-  const old = run();
-  fields['ollama-service-url'].value = 'http://server-b:11434';
-  fields['ollama-service-url'].oninput();
-  assert.equal(fields['ollama-model'].value, '');
-  assert.equal(fields['ollama-test'].disabled, true);
-  assert(pending[1].url.includes('server-b'));
-  pending[1].resolve(inventory('http://server-b:11434', ['b']));
-  await new Promise(resolve => setImmediate(resolve));
-  pending[0].resolve(inventory('http://server-a:11434', ['stale'], 'stale'));
-  await old;
-  assert.deepEqual(fields['ollama-model'].options.map(o => o.value), ['', 'b']);
-  assert.equal(fields['ollama-model'].value, ''); // Never silently choose b.
-  fields['ollama-model'].value = 'b';
-  let refresh = run(); pending.at(-1).resolve(inventory('http://server-b:11434', ['b', 'new'])); await refresh;
-  assert.equal(fields['ollama-model'].value, 'b');
-  refresh = run(); pending.at(-1).resolve(inventory('http://server-b:11434', ['new'])); await refresh;
-  assert.equal(fields['ollama-model'].value, '');
-  assert(fields['ollama-feedback'].textContent.includes('сброшен'));
-  refresh = run(); pending.at(-1).resolve(inventory('http://server-b:11434', [])); await refresh;
-  assert.equal(fields['ollama-test'].disabled, true);
-  assert.equal(fields['ollama-feedback'].textContent, 'No models installed');
-  refresh = run(); pending.at(-1).reject(Error('Connection refused')); await refresh;
-  assert.deepEqual(fields['ollama-model'].options.map(o => o.value), ['']);
-  assert.equal(fields['ollama-feedback'].textContent, 'Connection refused');
-  const staleError = run(), oldRequest = pending.at(-1);
-  fields['ollama-service-url'].value = 'http://server-c:11434';fields['ollama-service-url'].oninput();
-  pending.at(-1).resolve(inventory('http://server-c:11434', ['c']));
-  await new Promise(resolve => setImmediate(resolve));
-  oldRequest.reject(Error('Old endpoint failed'));await staleError;
-  assert.equal(fields['ollama-feedback'].textContent, 'connected');
-  assert.deepEqual(fields['ollama-model'].options.map(o => o.value), ['', 'c']);
-  refresh = run();pending.at(-1).resolve({...inventory('http://server-c:11434', []),service_ready:false,message:'Server unavailable'});await refresh;
-  assert.equal(fields['ollama-feedback'].textContent, 'Server unavailable');
-  assert.equal(fields['ollama-test'].disabled, true);
-
-  const checks=[];
-  context.componentAction=async(...args)=>checks.push(args);
-  const testHandler = source.slice(source.indexOf("  $('ollama-test').onclick="), source.indexOf("  $('ollama-model').onchange="));
-  const selectionHandler = source.split('\n').find(line=>line.includes("$('ollama-model').onchange="));
-  vm.runInContext('ollamaEndpointChanged=false;' + testHandler + selectionHandler, context);
-  fields['ollama-model'].value='c';fields['ollama-task'].value='translation';
-  fields['ollama-model'].onchange();assert.equal(checks.length,0);
-  await fields['ollama-test'].onclick();assert.equal(checks.length,1);assert.equal(checks[0][1],'check');
-
-  const busy = source.slice(source.indexOf("    $('ollama-test').setAttribute('aria-busy'"), source.indexOf("    if(!$('ollama-model').value)"));
-  vm.runInContext('let data={active:"ollama"};' + busy,context);
-  assert.equal(fields['ollama-test'].attributes['aria-busy'],'true');
-  assert.equal(fields['ollama-service-url'].disabled,true);assert.equal(fields['ollama-model'].disabled,true);
-  vm.runInContext('data={active:null};'+busy,context);
-  assert.equal(fields['ollama-test'].attributes['aria-busy'],'false');assert.equal(fields['ollama-model'].disabled,false);
-  const button=context.button=field();
-  vm.runInContext('data={active:"ollama"};let item={id:"ollama",cancel_requested:true};' + source.split('\n').find(line=>line.includes("item.id==='ollama'&&data.active===item.id&&item.cancel_requested")),context);
-  assert.equal(button.disabled,true);assert(button.textContent.includes('Ожидаем'));
-  console.log('PASS: inventories, stale success/error, selection without inference, explicit test, busy/cancel feedback');
-})().catch(error => {console.error(error); process.exitCode=1;});
+  // One form, endpoint, model dropdown and action group; no hidden duplicate forms.
+  for (const old of ['lmstudio-form','lmstudio-url','lmstudio-model','lmstudio-test','local-ollama-panel','local-lmstudio-panel']) {
+    assert(!html.includes(`id="${old}"`));assert(!source.includes(`$('${old}')`));
+  }
+  for (const id of ['local-provider','ollama-service-url','ollama-use-connection','ollama-connection-current','ollama-model','ollama-refresh','ollama-test','ollama-guide']) {
+    assert.equal([...html.matchAll(new RegExp(`id="${id}"`, 'g'))].length,1);
+  }
+  const init=run('localPreferences()');
+  pending[0].resolve({provider:'ollama',ollama_model:'a',lmstudio_url:'http://127.0.0.1:1234/v1',lmstudio_model:'lm'});
+  pending[1].resolve({...inventory(['a'],'a'),url:'http://server-a:11434'});
+  await tick();pending.at(-1).resolve(inventory(['a'],'a'));await init;
+  assert.equal(fields['ollama-model'].value,'a');assert.equal(fields['ollama-test'].disabled,false);
+  switchTo('lmstudio');const oldLM=pending.at(-1);
+  assert.equal(fields['ollama-service-url'].value,'http://127.0.0.1:1234/v1');assert.equal(fields['local-token-field'].hidden,false);
+  switchTo('ollama');pending.at(-1).resolve(inventory(['a']));await tick();
+  oldLM.resolve(lmInventory(['stale']));await tick();assert.deepEqual(models(),['','a']);
+  switchTo('lmstudio');pending.at(-1).resolve(lmInventory(['lm','other']));await tick();
+  assert.equal(fields['ollama-model'].value,'lm');assert(fields['local-guide'].textContent.includes('LM Studio'));
+  assert.equal(checks.length,0); // Switching/discovery never generates.
+  let request=refresh();pending.at(-1).resolve(lmInventory(['other']));await request;
+  assert.equal(fields['ollama-model'].value,'');assert(fields['ollama-feedback'].textContent.includes('сброшен'));
+  select('other');endpoint('http://127.0.0.1:4321/v1');
+  assert.deepEqual(models(),['']);assert.equal(fields['ollama-test'].disabled,true);
+  request=refresh();const oldEndpoint=pending.at(-1);
+  endpoint('http://127.0.0.1:4322/v1');let latest=refresh();pending.at(-1).resolve(lmInventory(['new']));await latest;
+  oldEndpoint.reject(Error('Old endpoint failed'));await request;assert.deepEqual(models(),['','new']);
+  assert(!fields['ollama-feedback'].textContent.includes('failed'));assert.equal(fields['ollama-model'].value,'');
+  request=refresh();pending.at(-1).resolve([]);await request;assert.equal(fields['ollama-test'].disabled,true);assert(fields['ollama-feedback'].textContent.includes('моделей нет'));
+  request=refresh();pending.at(-1).resolve({data:{}});await request;assert.deepEqual(models(),['']);assert(fields['ollama-feedback'].textContent.includes('Некорректный'));
+  request=refresh();pending.at(-1).reject(Error('Connection refused'));await request;assert.deepEqual(models(),['']);assert.equal(fields['ollama-feedback'].textContent,'Connection refused');
+  request=refresh();pending.at(-1).resolve(lmInventory(['new','second']));await request;select('new');
+  request=fields['ollama-test'].onclick();assert.equal(JSON.parse(pending.at(-1).options.body).action,'verify');const oldTest=pending.at(-1);
+  select('second');oldTest.resolve([]);await request;assert(!fields['ollama-feedback'].textContent.includes('Генерация проверена'));
+  request=fields['ollama-test'].onclick();const oldTestError=pending.at(-1);switchTo('ollama');pending.at(-1).resolve(inventory(['a']));await tick();oldTestError.reject(Error('Old verification failed'));await request;
+  assert.equal(fields['ollama-model'].value,'a');assert(!fields['ollama-feedback'].textContent.includes('failed'));
+  switchTo('lmstudio');pending.at(-1).resolve(lmInventory(['new','second']));await tick();assert.equal(fields['ollama-model'].value,'second');
+  request=fields['ollama-test'].onclick();pending.at(-1).resolve([]);await request;assert.equal(fields['ollama-feedback'].textContent,'Генерация проверена.');
+  request=fields['ollama-form'].onsubmit({preventDefault(){}});
+  const saved=JSON.parse(pending.at(-1).options.body);assert.equal(saved.provider,'lmstudio');assert.equal(saved.lmstudio_model,'second');assert(!('ollama_model' in saved));
+  pending.at(-1).resolve({lmstudio_url:saved.lmstudio_url,lmstudio_model:saved.lmstudio_model});await request;
+  switchTo('ollama');pending.at(-1).resolve(inventory(['a']));await tick();assert.equal(fields['ollama-model'].value,'a');assert.equal(fields['ollama-service-url'].value,'http://server-a:11434');
+  endpoint('http://server-b:11434');request=refresh();pending.at(-1).resolve(inventory(['b'],'a'));await request;assert.equal(fields['ollama-model'].value,'');
+  request=fields['ollama-use-connection'].onclick();assert.equal(pending.at(-1).body.endpoint,'http://server-b:11434');pending.at(-1).resolve({});await tick();pending.at(-1).resolve(inventory(['b']));await request;
+  select('b');assert.equal(checks.length,0);
+  request=fields['ollama-form'].onsubmit({preventDefault(){}});assert.equal(pending.at(-1).body.model,'b');pending.at(-1).resolve({});await request;
+  await fields['ollama-test'].onclick();assert.equal(checks.length,1);assert.equal(checks[0][1],'check');assert.equal(fields['ollama-model'].disabled,true);assert.equal(fields['ollama-test'].attributes['aria-busy'],'true');
+  switchTo('lmstudio');pending.at(-1).resolve(lmInventory(['second']));await tick();assert.equal(fields['ollama-service-url'].value,'http://127.0.0.1:4322/v1');assert.equal(fields['ollama-model'].value,'second');
+  assert.equal(fields['ollama-model'].disabled,false);assert.equal(fields['component-ollama'].hidden,true);
+  fields['ollama-guide'].onclick();assert.equal(fields['local-guide'].hidden,false);assert.equal(fields['ollama-guide'].attributes['aria-expanded'],'true');
+  console.log('PASS: one shared form, saved provider/endpoint/model isolation, missing/empty/invalid/unavailable inventory, stale discovery/verification, explicit tests, busy states and guide');
+})().catch(error => {console.error(error);process.exitCode=1;}).finally(()=>clearTimeout(watchdog));

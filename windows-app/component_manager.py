@@ -526,11 +526,11 @@ class ComponentManager:
         if action == 'cancel':
             if self.active != key:
                 raise ValueError('У этого компонента нет активной операции')
-            self.cancel.set()
-            self.plan_cancel.set()
             self.update(key, pending_action=None)
             if key == 'ollama':
                 self.update(key, cancel_requested=True, message='Отмена запрошена. Ждём завершения текущего HTTP-запроса (таймаут генерации — 180 с). Сервер Ollama не останавливается.')
+            self.plan_cancel.set()
+            self.cancel.set()
             return {'cancel_requested': True}
         if (key == 'ollama' and action not in {'check', 'connect'}) or action not in {'install', 'check', 'remove', 'connect'}:
             raise ValueError('Неизвестное действие')
