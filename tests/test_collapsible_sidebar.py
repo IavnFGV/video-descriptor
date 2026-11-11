@@ -19,21 +19,25 @@ def test_sidebar_toggle_markup_and_ids():
     assert 'aria-expanded="true"' in html
     assert 'aria-label=' in html
     assert '<svg viewBox="0 0 24 24" aria-hidden="true">' in html
-    assert html.index('<button id="sidebar-toggle"') < html.index('<a href="#records" class="brand">')
+    shell_children = html.split('<div class="app-shell" id="app-shell">', 1)[1].split('<header class="topbar">', 1)[0]
+    assert 'sidebar-toggle' not in shell_children
     topbar = html.split('<header class="topbar">', 1)[1].split('</header>', 1)[0]
-    assert 'sidebar-toggle' not in topbar
+    assert topbar.index('<button id="sidebar-toggle"') < topbar.index('<p>Video Descriptor')
 
 
 def test_sidebar_collapse_css_scoped_to_desktop_layout():
     css = LAYOUT.read_text(encoding='utf-8')
     desktop = css.split('@media(min-width:801px)', 1)[1]
+    assert '.app-shell.sidebar-collapsed{grid-template-columns:minmax(0,1fr)}' in desktop
+    assert '.app-shell.sidebar-collapsed>.app-content{grid-column:1}' in desktop
     assert '.app-shell.sidebar-collapsed .sidebar{display:none}' in desktop
-    assert '.app-shell>#sidebar-toggle{grid-column:1;grid-row:1;justify-self:start}' in css
-    assert '.app-shell>.sidebar{grid-column:1;grid-row:2}' in css
-    assert '.app-shell>.app-content{grid-column:2;grid-row:1/-1}' in css
+    assert '.app-shell>.sidebar{grid-column:1;grid-row:1}' in css
+    assert '.app-shell>.app-content{grid-column:2;grid-row:1}' in css
+    assert '.topbar .sidebar-toggle{flex-shrink:0}' in css
     mobile = css.split('@media(max-width:800px)', 1)[1]
     assert '.sidebar-toggle{display:none}' in mobile
     assert '.app-shell{grid-template-columns:1fr}' in mobile
+    assert '.app-shell>.app-content{grid-column:1;grid-row:2}' in mobile
     surfaces = (ROOT / 'design-system' / 'surfaces.css').read_text(encoding='utf-8')
     assert 'body:has(>.vd-global-nav).sidebar-collapsed .vd-global-nav{display:none}' in surfaces
     assert 'body:has(>.vd-global-nav).sidebar-collapsed{max-width:var(--vd-content-width);padding-left:var(--vd-space-6)}' in surfaces
