@@ -212,3 +212,9 @@ independent report не подменяется snapshot report другого ki
 генерацию; create actions используют прежние construction handlers. Keyboard и
 responsive browser regressions: scripts/verify-recording-ui.py --material-tabs-only
 и --material-tabs-empty; старый release UI harness также проверяется локально.
+
+11.11.2026 external-Ollama polish: прежние IDs/API/handlers сохранены. Test Model
+показывает aria-busy и текущую проверку, блокирует endpoint/model на её время.
+При cancel_requested кнопка явно сообщает ожидание ответа/таймаута и не допускает
+повторной отмены; indeterminate progress и polling существующие. Генерация только
+по явному действию, discovery/refresh/save её не вызывают.

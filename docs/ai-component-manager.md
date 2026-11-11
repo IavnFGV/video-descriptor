@@ -38,6 +38,13 @@ servers have distinct messages. No model is selected implicitly.
 The workspace connection pointer and immutable job environment keep notes and
 translation on the configured endpoint. Before generation, fresh discovery checks
 that the selected model still exists. Models need not be loaded in memory.
+Opening settings, connecting, refreshing and saving a model never generate text.
+Explicit Test Model checks `/api/show` completion capability and makes exactly one
+`/api/generate` in the existing background component worker. Cancellation prevents
+subsequent steps and rejects late success; the current HTTP request still waits for
+its response/timeout (180 s for generation). The UI shows this wait without claiming
+the external server has stopped. Jobs use their own generation, without this probe.
+
 The small `Provider` protocol covers connection, model IDs/discovery and verification;
 Ollama HTTP details live in `video_descriptor/ollama_provider.py`.
 

@@ -405,6 +405,7 @@
       activity.classList.toggle('warning',quiet>=60);
       button.hidden=item.id==='diarization'&&item.state==='ready';
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
+      if(item.id==='ollama'&&data.active===item.id&&item.cancel_requested){button.textContent='Ожидаем завершения запроса…';button.disabled=true;}
       if(item.id==='diarization'&&data.active!==item.id&&$('diarization-device').value==='xpu'&&item.device==='cpu'){button.disabled=true;button.textContent='Для видеокарты нужна подготовка';}
       button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:$('ollama-model').value,task:$('ollama-task').value}:{});
       remove.hidden=!item.path||!!data.active||item.id==='ollama';remove.textContent='Удалить окружение';remove.onclick=()=>{if(window.confirm('Удалить только управляемое приложением окружение? Модели и пользовательские файлы сохранятся.'))componentAction(item.id,'remove',{confirmed:true});};
@@ -413,6 +414,9 @@
     if(!$('component-root').value)$('component-root').value=data.root;
     $('component-directory').textContent='Модели, окружения и проверенные загрузки: '+data.root+'. При обновлении приложения сохраняются.';
     for(const id of ['diarization-install','ollama-use-connection','ollama-connect','ollama-test'])$(id).disabled=!!data.active;
+    $('ollama-test').setAttribute('aria-busy',String(data.active==='ollama'));
+    $('ollama-test').textContent=data.active==='ollama'?'Проверяем модель…':'Проверить генерацию';
+    $('ollama-service-url').disabled=data.active==='ollama';$('ollama-model').disabled=data.active==='ollama';
     if(!$('ollama-model').value){$('ollama-connect').disabled=true;$('ollama-test').disabled=true;}
     clearTimeout(componentTimer);
     if(data.active||preparing)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){ollamaStatus();readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);

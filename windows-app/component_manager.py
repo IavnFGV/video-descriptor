@@ -529,6 +529,8 @@ class ComponentManager:
             self.cancel.set()
             self.plan_cancel.set()
             self.update(key, pending_action=None)
+            if key == 'ollama':
+                self.update(key, cancel_requested=True, message='Отмена запрошена. Ждём завершения текущего HTTP-запроса (таймаут генерации — 180 с). Сервер Ollama не останавливается.')
             return {'cancel_requested': True}
         if (key == 'ollama' and action not in {'check', 'connect'}) or action not in {'install', 'check', 'remove', 'connect'}:
             raise ValueError('Неизвестное действие')
@@ -568,6 +570,7 @@ class ComponentManager:
             self.cancel.clear()
             self.update(key, 'verifying' if action == 'check' else 'installing', message='Проверяем внешний сервер' if key == 'ollama' else 'Начинаем подготовку', bytes=0, total=0,
                         step_started_at=None, activity_at=None, process_running=False, preparing_device=None,
+                        **({'cancel_requested': False} if key == 'ollama' else {}),
                         progress_scope=None, progress_unit=None, operation_id=uuid.uuid4().hex)
 
         def work():
@@ -653,7 +656,8 @@ class ComponentManager:
         model = body.get('model')
         if not model:
             return {'version': version, 'generation_checked': False}
-        provider.verify(model)
+        self.update('ollama', message='Проверяем возможности и генерацию модели. Первая загрузка в память может занять до 180 с; страницу можно использовать.')
+        provider.verify(model, check_cancel=self.check_cancel)
         self.check_cancel()
         task = body.get('task', 'translation')
         self.update('ollama', model=model, version=version)
