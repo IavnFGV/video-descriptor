@@ -19,6 +19,8 @@ def test_sidebar_toggle_markup_and_ids():
     assert 'aria-expanded="true"' in html
     assert 'aria-label=' in html
     assert '<svg viewBox="0 0 24 24" aria-hidden="true">' in html
+    assert '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>' in html
+    assert 'M9 5l7' not in html
     shell_children = html.split('<div class="app-shell" id="app-shell">', 1)[1].split('<header class="topbar">', 1)[0]
     assert 'sidebar-toggle' not in shell_children
     topbar = html.split('<header class="topbar">', 1)[1].split('</header>', 1)[0]
@@ -62,6 +64,9 @@ def test_recording_workspace_toggle_contract():
     assert "collapsed?'Показать панель навигации':'Свернуть панель навигации'" in studio
     assert 'localStorage.getItem(SIDEBAR_STORAGE_KEY)' in studio
     assert 'localStorage.setItem(SIDEBAR_STORAGE_KEY' in studio
+    assert "sidebarToggle.querySelector('svg').innerHTML=collapsed?SIDEBAR_TOGGLE_ICONS.open:SIDEBAR_TOGGLE_ICONS.close;" in studio
+    assert '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>' in create
+    assert 'M9 5l7' not in create and 'M9 5l7' not in studio
 
 
 def test_sidebar_toggle_wired_with_persisted_state():
@@ -72,3 +77,7 @@ def test_sidebar_toggle_wired_with_persisted_state():
     assert 'localStorage' in js
     assert 'document.body.classList.toggle' in js
     assert 'hashchange' in js
+    assert "open:'<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M9 3v18\"/><path d=\"m14 9 3 3-3 3\"/>'" in js
+    assert "close:'<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M9 3v18\"/><path d=\"m16 15-3-3 3-3\"/>'" in js
+    assert "toggle.querySelector('svg').innerHTML=collapsed?SIDEBAR_TOGGLE_ICONS.open:SIDEBAR_TOGGLE_ICONS.close;" in js
+    assert 'M9 5l7' not in js

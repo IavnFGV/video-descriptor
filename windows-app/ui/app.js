@@ -46,7 +46,7 @@
   $('records-open').onclick=async e=>{if($('records-open').getAttribute('href').startsWith('/create'))return;if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(!await window.mayLeaveQuickReply())return;const url=new URL(location.href);url.searchParams.delete('job');url.hash='records';history.pushState(null,'',url);clearTimeout(timer);selected=null;resetResult();showView(true);};
   $('skip-link').onclick=e=>{e.preventDefault();$('main').focus();};
   const SIDEBAR_STORAGE_KEY='video-descriptor:ui:sidebar';
-  const SIDEBAR_TOGGLE_ICONS={collapsed:'M9 5l7 7-7 7',expanded:'M15 5l-7 7 7 7'};
+  const SIDEBAR_TOGGLE_ICONS={open:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',close:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>'};
   function readSidebarState(){try{return localStorage.getItem(SIDEBAR_STORAGE_KEY)==='1';}catch(_e){return false;}}
   function writeSidebarState(collapsed){try{localStorage.setItem(SIDEBAR_STORAGE_KEY,collapsed?'1':'0');}catch(_e){}}
   function setSidebarCollapsed(collapsed) {
@@ -56,7 +56,7 @@
     if(toggle){
       toggle.setAttribute('aria-expanded',String(!collapsed));
       toggle.setAttribute('aria-label',collapsed?'Показать панель навигации':'Свернуть панель навигации');
-      toggle.querySelector('path').setAttribute('d',collapsed?SIDEBAR_TOGGLE_ICONS.expanded:SIDEBAR_TOGGLE_ICONS.collapsed);
+      toggle.querySelector('svg').innerHTML=collapsed?SIDEBAR_TOGGLE_ICONS.open:SIDEBAR_TOGGLE_ICONS.close;
     }
     writeSidebarState(collapsed);
     document.body.classList.toggle('sidebar-collapsed',collapsed);
