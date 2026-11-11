@@ -297,3 +297,24 @@ def test_release_verifier_cleans_all_scratch_and_logs_on_success_or_failure(tmp_
         assert json.loads(report.read_text())['portable']['loopback_ui']
     assert not list(tmp_path.glob('vd-release-*'))
     assert archive_path.exists()
+
+
+@pytest.mark.parametrize('executable,args,blocks', [
+    ('Code.exe', ['{root}/windows-app/runtime/workspace/output/vad.json'], False),
+    ('Code.exe', ['{root}/windows-app/app.py'], False),
+    ('powershell.exe', ['-NoExit', '{root}'], False),
+    ('python.exe', ['{root}/windows-app/whisper_worker.py'], True),
+    ('python3.12.exe', ['{root}/windows-app/app.py'], True),
+    ('pwsh.exe', ['-File', '{root}/windows-app/Start-App.ps1'], True),
+    ('cmd.exe', ['/c', '{root}/windows-app/Open-App.cmd'], True),
+])
+def test_lifecycle_ignores_open_documents_but_guards_executed_code(tmp_path, monkeypatch, executable, args, blocks):
+    module = lifecycle_module()
+    root = tmp_path / 'installation'
+    root.mkdir()
+    command = [str(tmp_path / 'external' / executable), *(arg.format(root=root) for arg in args)]
+    process = Mock(pid=2, info={'exe': command[0], 'cmdline': command})
+    monkeypatch.setattr(module.psutil, 'process_iter', lambda attrs: [process])
+    monkeypatch.setattr(module.psutil, 'Process', lambda: Mock(pid=1, parents=list))
+    assert module.busy(root) == ([2] if blocks else [])
+    process.terminate.assert_not_called()

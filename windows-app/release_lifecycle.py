@@ -1,6 +1,7 @@
 """Guard replacement; stop an identified installation only after installer consent."""
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -15,7 +16,20 @@ def busy(root):
         if process.pid == psutil.Process().pid or process.pid in parents:
             continue
         try:
-            paths = [process.info['exe'], *(process.info['cmdline'] or [])]
+            executable = process.info['exe']
+            command = process.info['cmdline'] or []
+            name = Path(executable or (command[0] if command else '')).name.lower()
+            # Opening a recording or folder in an editor/shell is not execution
+            # of this installation. Foreign interpreters running its code still
+            # block replacement, but setup must never terminate them.
+            suffixes = ()
+            if re.fullmatch(r'(?:python(?:w|[0-9.]*)?|pypy[0-9.]*)(?:\.exe)?', name):
+                suffixes = ('.py', '.pyw')
+            elif name in {'powershell.exe', 'powershell', 'pwsh.exe', 'pwsh'}:
+                suffixes = ('.ps1',)
+            elif name in {'cmd.exe', 'cmd'}:
+                suffixes = ('.cmd', '.bat')
+            paths = [executable, *(arg for arg in command if suffixes and arg.lower().endswith(suffixes))]
             for value in paths:
                 candidate = Path(value) if value else None
                 # Reject foreign/UNC paths lexically before resolving; never probe other apps' network paths.
