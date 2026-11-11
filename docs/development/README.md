@@ -1,0 +1,97 @@
+# Development guide
+
+Start with [AGENTS.md](../../AGENTS.md), the [architecture map](../architecture/README.md)
+and [owner safety requirements](safety.md). This guide describes source development;
+installed users run the packaged launcher and configure components in the app.
+
+## Environment and launch
+
+Use Windows x64 and Python 3.11+ (CI uses 3.12); Node is required for JS checks.
+The desktop host also needs .NET tooling and WebView2. AI workers have separate
+runtimes: never install development dependencies into the benchmark `.venv-npu`.
+
+For a new source environment, inspect [Install-App.ps1](../../windows-app/Install-App.ps1)
+and the [Windows README](../../windows-app/README.md). That script prepares
+`.venv-windows` from `windows-app/requirements-lock.txt`; it installs dependencies.
+Do not run it over a working environment just to validate documentation.
+`requirements-ci.txt` pins check tooling; `requirements-dev.txt` has initial broad
+ranges, not the release lock.
+
+With the source environment already prepared, from the repository root:
+
+```powershell
+.\windows-app\Start-App.ps1 -Doctor
+.\windows-app\Start-App.ps1
+```
+
+Doctor inspects configuration/dependencies without starting recognition; the
+second command opens the native desktop host. Model setup/download remains a
+separate consented action. See [component setup](../ai-component-manager.md).
+
+For the configured local source preview:
+
+```powershell
+.\scripts\Run-Dev.ps1 -Open
+```
+
+This requires `local-dev/config.json` under the Git **common directory** with an
+existing dev Python, separate port, `development=true` and `records_directory`
+pointing to an existing workspace containing `data` and `output`. The config is
+machine-local. `scripts/run_dev.py` validates instance/workspace identity;
+restart/stop refuse unrelated instances and active work. The preview can share
+installed recordings: it is not disposable test storage.
+
+The shared web server can run separately without the desktop host:
+
+```powershell
+python -X utf8 -m video_descriptor.serve --bind 127.0.0.1 --port 8000 --directory .
+python -X utf8 -m video_descriptor --help
+```
+
+The explicit loopback bind avoids the web server's `0.0.0.0` default. This is the
+legacy web/CLI path, not a replacement for native worker/configuration checks.
+Do not start old queues containing Linux paths.
+
+## Git and worktrees
+
+Inspect before editing:
+
+```powershell
+git status --short
+git branch --show-current
+git worktree list
+git log -5 --oneline
+git fetch origin
+git rev-list --left-right --count HEAD...origin/main
+```
+
+Use the current agreed worktree. A task branch based on updated main is normal;
+keep other agents' changes untouched. For a separate checkout, choose a new unused
+path and branch:
+
+```powershell
+git worktree add ../video-descriptor-agent -b codex/task-name origin/main
+```
+
+Do not check out main in two worktrees or force-remove a worktree with data. Inspect
+local hooks before merging: the configured post-merge can queue a local installer
+build and restart its guarded preview. Coordinate those side effects with live work.
+
+Run [focused checks](testing.md), inspect the diff and commit locally. Push, remote
+merge and publication require a user request. Add README history for substantial
+changes; maintain `docs/architecture-windows.md` for changed runtime contracts.
+
+## Task routes and dependencies
+
+- [Testing and CI](testing.md): commands, regression ownership and evidence limits.
+- [Debugging](debugging.md): model errors, checkpoints, logs and manual edits.
+- [Release procedure](releases.md): version source, BUILD and automatic tag handling.
+- [Agent discovery](agents.md): portable workflows and assistant-specific entry points.
+- [Documentation audit](documentation-audit.md): historical contradictions and gaps.
+
+Dependency updates require intentional lock/input changes and packaging validation.
+`pyproject.toml` does not pin Windows runtime bytes. Inspect
+`windows-app/requirements-lock.txt`, `requirements-container.lock`,
+`windows-app/release-inputs.json`, `windows-app/release-wheels.json` and the separate
+component/diarization manifests before changing dependencies. Do not regenerate
+locks or install AI components during ordinary local checks.

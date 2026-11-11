@@ -1,5 +1,7 @@
 # CI: стоимость, события и релизные артефакты
 
+> Current workflow navigation: [testing](development/testing.md) and [release procedure](development/releases.md). Dated audit sections below describe their stated version; current YAML defines triggers.
+
 ## Аудит 19.10.2026
 
 Было 3 workflow: container-ci, windows-release, container-release.

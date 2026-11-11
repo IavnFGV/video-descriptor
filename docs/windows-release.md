@@ -1,5 +1,7 @@
 # Windows preview: ZIP, installer и CI
 
+> Current BUILD/tag/publication procedure: [release guide](development/releases.md). Historical numbering schemes below are superseded by tracked BUILD.
+
 Текущая версия исходников пакета 0.7.0, Windows x64. Desktop целевой сценарий — Windows 11.
 Добавлены WinForms EXE, pinned WebView2 SDK и трей. Установщик проверяет WebView2 Runtime
 через официальный loader API и наличие файлов обнаруженной версии. При отсутствии

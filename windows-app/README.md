@@ -1,5 +1,7 @@
 # Video Descriptor — нативный desktop preview Windows
 
+> Current source workflow: [development guide](../docs/development/README.md). Prototype-version installation claims below are historical; use the [release guide](../docs/development/releases.md) and versioned acceptance evidence for release status.
+
 В 0.7 ярлык открывает собственное WinForms/WebView2 окно с прежним UI.
 Docker не нужен; backend запускается прежним способом. Крестик скрывает окно в трей,
 «Завершить приложение» в меню трея отказывает при active queue. Требуется установленный

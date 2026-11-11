@@ -1,70 +1,68 @@
-# Рабочий контекст
+# Video Descriptor: agent entry point
 
-09.11.2026: Windows 0.8.34 — успешная проверка диаризации сохраняется между запусками и UI-обновлениями. Готовность привязана к модели, Python/метаданным пакетов, lock-файлу, worker и устройству/драйверу; отсутствие proof не выдаётся за готовность. При неизменных входах не запускать повторный inference и не требовать Hugging Face, токен или ручную проверку. Доступ HF показывать только для необходимой загрузки модели. Ошибка проверки сбрасывает кеш.
+Video Descriptor turns local video/audio into editable transcripts, subtitles,
+translations, notes and articles. Windows uses a native WinForms/WebView2 shell
+and a local Python HTTP backend; CLI/web and container paths also exist.
+Python 3.11+, Pydantic, Requests, FFmpeg/PyAV, OpenVINO/Whisper and plain HTML/CSS/JS
+are the main technologies. Pyannote runs in a separate managed environment.
 
-Обязательное правило журналирования (09.11.2026): все изменяющие API-операции автоматически проходят общий HTTP audit; worker, взаимодействие с моделью, проверка и сохранение результата вызывают video_descriptor.action_history.record — единую точку структурированной записи. Фиксировать начало, успешный результат и ошибку; сохранять operation/job/request id, этап и статус. Не писать ключи, credentials, тела запросов, промпты и расшифровку в общий журнал. Общий журнал задаётся VIDEO_DESCRIPTOR_EVENTS (Windows: application_log_directory или runtime/logs/events.jsonl), события записи — рядом с её артефактами. Общий файл находится вне переносимой папки записей, чтобы журналирование не нарушало проверку её контрольных сумм. Новый endpoint/фоновая операция проверяются на наличие событий и видимость в UI; отдельный logger вместо общего механизма не допускается. Legacy run.log/construction.log остаются диагностическими дополнениями.
+Read [owner constraints](docs/development/safety.md) before making changes.
+They retain the machine, data, model, audit and publication requirements from
+this file's former working-context notes. Current user instructions take priority.
 
-Перед push сначала выполняй доступные локальные проверки:
-`python scripts/check-fast.py`. Команда использует установленные dev dependencies,
-не устанавливает AI-компоненты. Не используй GitHub Actions как постоянную
-интерактивную среду для отладки мелких ошибок. Sandbox — интеграционная проверка
-установки/окружения; обычные UI и инфраструктурные правки проверять локально.
-Fast CI автоматически выполняется на PR и main; Full Acceptance запускать явно
-или перед релизом. Подробности: docs/ci-policy.md.
+## Find the right code
 
-UI/UX: перед изменениями `windows-app/ui/`, `video_descriptor/assets/`, библиотеки
-и генерируемых отчётов читать `design-system/MASTER.md`, page overrides и
-`design-system/CONTRACTS.md`. Токены и компоненты едины для всех поверхностей.
-Этап 0 — аудит и отдельный прототип; массовый перенос только после согласования
-владельцем. Не терять обработчики, API, состояния заданий, revision и dirty guards.
+| Area | Entry points and guidance |
+| --- | --- |
+| Pipeline, API, persistence and editor | [video_descriptor/AGENTS.md](video_descriptor/AGENTS.md) |
+| Windows launcher, workers, setup and packaging | [windows-app/AGENTS.md](windows-app/AGENTS.md) |
+| Native UI | [windows-app/ui/AGENTS.md](windows-app/ui/AGENTS.md) |
+| Component and data-flow map | [docs/architecture/README.md](docs/architecture/README.md) |
+| Setup, checks, debugging, Git and releases | [docs/development/README.md](docs/development/README.md) |
+| Agent discovery and reusable workflows | [docs/development/agents.md](docs/development/agents.md) |
 
-Актуальное уточнение владельца 17.10.2026 после Sandbox: цель — пригодный установщик
-и пользование продуктом, а не нативность всех компонентов и не обязательная контейнеризация
-всего. Сохранять проверенные native UI/launcher и NPU; Docker/Compose применять там,
-где это действительно упрощает зависимости/поставку. Не начинать переписывание ради
-единого технологического стека. Приоритет — setup моделей/сервисов и полный сценарий
-после установки; оставить расширение backend на потом. См. docs/release-readiness.md.
+Read applicable nested AGENTS.md files before editing their scope; search for
+additional instructions rather than assuming every assistant loads them.
+The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`.
 
-Рабочая папка проекта: `E:\LocalAI\video desriptor` (написание выбрано пользователем).
-Уточнение пользователя 17.10.2026: продукт обязан поддерживать выбор устройства
-в настройках и режим Auto с приоритетом NPU → GPU → CPU для распознавания.
-Проверять работоспособность backend/модели, а не только наличие устройства.
-Явный выбор устройства не подменять молча. Для диаризации/перевода использовать
-отдельные capability checks: поддержку NPU нельзя предполагать для каждой модели.
-В финальном CI/CD нужны воспроизводимые ZIP и Windows installer, их smoke/install/
-upgrade/uninstall проверки на чистой Windows VM/runner. Аппаратные NPU/GPU случаи
-проверять отдельно на реальных устройствах; имитация и Windows-контейнер не являются
-доказательством аппаратной совместимости. Подробности: docs/device-policy-and-release.md.
-После каждого существенного изменения обновлять историю в README.md; при изменении
-архитектуры/контрактов обновлять docs/architecture-windows.md. Проверенные изменения
-коммитить локально с осмысленным сообщением. Не публиковать/push без запроса.
-Пользователь 16.10.2026 дал разрешение продолжать исследование и реализацию
-автономно до завершения; не запрашивать повторное разрешение на согласованные шаги.
-Пользователь хочет работать здесь из Codex без переключения в VS Code/devcontainer.
-Направление: нативный запуск Windows; большую реализацию начинать после исследования,
-показа архитектурного решения и оценки объёма. Сначала прочитать
-`windows-migration/START-HERE.md` и `windows-migration/ORIGINAL-REQUEST.txt`.
+## Non-negotiable boundaries
 
-Исходный проект сохранён в Ubuntu WSL: `/home/ivand/projects/video-descriptor`.
-Не синхронизировать изменения обратно автоматически. Не удалять исходник.
-`.devcontainer` сохранён как часть исходного проекта, включая настройки интерфейса;
-его наличие не означает, что для дальнейшей работы нужен VS Code.
+- Preserve genuine model timestamps, completed checkpoints, original responses,
+  manual edits, source IDs, revisions and dirty guards. Never manufacture an end
+  for `end_ts=-1`, silently skip failed audio or silently substitute an explicit device.
+- Speech Auto selects usable NPU → GPU → CPU backends. Diarization and translation
+  have separate capability checks; detected hardware is not proof of model readiness.
+- Use `video_descriptor.action_history.record` for structured operation events and
+  the shared HTTP audit for mutations. Keep secrets, prompts and transcript content
+  out of the general log; keep it outside portable recording folders.
+- Runtime data, models, credentials and recordings stay out of Git. Inspect
+  configuration structure without printing `.env*` or credential-bearing values.
+- Before UI, library or generated-report changes, read
+  [MASTER](design-system/MASTER.md), relevant page overrides and
+  [CONTRACTS](design-system/CONTRACTS.md). Stage 0 is an audit and separate prototype;
+  broad migration requires owner agreement. Preserve the native launcher and NPU path.
 
-Windows Whisper и модели остаются в `C:\Users\ivand\Downloads\windows-benchmark`.
-Не изменять его `.venv-npu`, не останавливать и не перезапускать действующие сервисы
-и задания без необходимости. Рабочий профиль: Whisper small FP16 OpenVINO, NPU,
-STATIC_PIPELINE=True, num_beams=1, порт 8766; word_timestamps не включать.
-Отсутствующую конечную метку end_ts=-1 не заменять выдуманным временем.
-Не обещать нативную GPU-диаризацию до фактической проверки.
+## Change and validation workflow
 
-Не устанавливать системные компоненты и не скачивать большие модели без согласования.
-17.10.2026 пользователь отдельно согласовал включение Windows Sandbox для проверки
-установщика. Разрешён Containers-DisposableClientVM с зависимостями; использовать
-NoRestart. Перезагрузку автоматически не выполнять. Это не разрешение менять
-драйверы, рабочие NPU/GPU сервисы или устанавливать другие системные компоненты.
-Не выводить содержимое `.env*` и токены в ответы или журналы.
-Существующие результаты и очередь содержат Linux-пути: не запускать старую очередь
-автоматически; сначала спроектировать явное преобразование путей и состояние заданий.
+Inspect branch, worktrees, status and upstream before editing. Keep unrelated changes.
+For concurrent work use separate branches/worktrees and explicit file ownership;
+do not share an index or runtime workspace blindly. Prefer `codex/` for new Codex
+branches. Commit verified work locally with a meaningful message; push/publication
+requires a user request. Do not automatically sync the preserved WSL source.
 
+Run focused tests while developing and `python scripts/check-fast.py` for final
+local verification (installed dev dependencies only). Documentation-only checks
+can use `python scripts/check-fast.py --config-only`; see the
+[testing guide](docs/development/testing.md) for coverage and limits.
+Do not use Actions as an interactive debugger. Full Acceptance and Sandbox are
+explicit integration/release checks, not a substitute for local UI validation.
 
-09.11.2026: уточнение владельца о распространении — GitHub Releases только для standard-пакета; Domestic и cached полный offline installer с моделями предназначены для личного использования и не публикуются. Public artifact gate обязателен перед upload, независимо от имени файла. Whisper/community-1/LLM пользователь получает из официальных источников при первоначальной настройке с собственным согласием/доступом; при наличии подходящей локальной модели повторное скачивание и HF-токен не требуются. Встроенные dependency assets разрешаются только после отдельного учёта лицензии/notices и закрепления байтов; отсутствие Domestic не равно автоматической юридической готовности всего runtime.
+Update README history after substantial changes and
+[architecture-windows.md](docs/architecture-windows.md) when architecture/contracts
+change. Do not claim hardware support from mocks or containers.
+
+Only standard packages may be public. Domestic/cached offline packages are private;
+a public artifact gate is mandatory before upload. Never create a tag or dispatch
+release preparation as a harmless validation step: preparation commits BUILD,
+pushes main and a tag, then dispatches a release. See the
+[release guide](docs/development/releases.md).
