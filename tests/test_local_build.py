@@ -64,21 +64,20 @@ def test_queue_drains_commit_arriving_during_build(modules, tmp_path, monkeypatc
     assert not list((state / 'queue').iterdir())
 
 
-def test_queue_keeps_domestic_and_standard_requests_for_same_commit(modules, tmp_path, monkeypatch):
+def test_queue_drains_standard_requests_under_single_profile(modules, tmp_path, monkeypatch):
     build, _ = modules
     state, sha = tmp_path / 'state', 'a' * 40
     build.write_json(state / 'queue' / (sha + '.json'), {'commit': sha})
-    build.write_json(state / 'queue' / (sha + '-domestic.json'), {'commit': sha, 'domestic': True})
-    profiles = []
+    calls = []
 
     def run(repo, state, config, commit):
         assert commit == sha
-        profiles.append(config['domestic'])
+        calls.append(config)
         return True
 
     monkeypatch.setattr(build, 'run_build', run)
     assert build.drain(tmp_path, state, {})
-    assert sorted(profiles) == [False, True]
+    assert calls == [{}]
 
 
 def test_reuse_requires_exact_artifact_hash(modules, tmp_path):
@@ -128,13 +127,12 @@ def test_status_publish_retries_transient_windows_file_lock(modules, tmp_path, m
     assert json.loads((tmp_path / 'status.json').read_text()) == {'state': 'ready'}
 
 
-def test_domestic_build_keeps_existing_dashboard_location(modules, tmp_path):
+def test_standard_build_dashboard_lives_at_configured_output(modules, tmp_path):
     build, _ = modules
     output = tmp_path / 'local'
-    build.update_status(tmp_path / 'state', {'output': str(output / 'domestic'), 'status_output': str(output)},
+    build.update_status(tmp_path / 'state', {'output': str(output)},
                         {'state': 'running', 'stage': 'build'})
     assert (output / 'build-status.html').is_file()
-    assert not (output / 'domestic/build-status.html').exists()
 
 
 def test_ready_downloads_are_published_under_version(modules, tmp_path):
@@ -207,7 +205,7 @@ def test_actual_post_merge_hook_runs_only_on_local_main(modules, repo):
     scripts = repo / 'scripts'
     scripts.mkdir()
     (scripts / 'Build-Local.ps1').write_text(
-        'param([switch]$Background, [switch]$Domestic)\n'
+        'param([switch]$Background)\n'
         'if ($env:GIT_DIR -or $env:GIT_INDEX_FILE) { throw "Inherited Git state" }\n'
         'Set-Content -LiteralPath (Join-Path $PSScriptRoot "../.git/hook-fired") -Value yes\n')
     (scripts / 'Run-Dev.ps1').write_text(
@@ -300,11 +298,11 @@ def test_status_excludes_active_request_and_shows_live_packaging_details(modules
     build, _ = modules
     state, output = tmp_path / 'state', tmp_path / 'output'
     current, pending = 'a' * 40, 'b' * 40
-    build.write_json(state / 'queue/current.json', {'commit': current, 'domestic': True})
-    build.write_json(state / 'queue/next.json', {'commit': pending, 'domestic': True})
+    build.write_json(state / 'queue/current.json', {'commit': current})
+    build.write_json(state / 'queue/next.json', {'commit': pending})
     log = tmp_path / 'build.log'
     log.write_text('Writing reproducible ZIP\nZIP: package.zip\nPreprocessing\n<script>unsafe</script>')
-    record = {'state': 'running', 'stage': 'build', 'commit': current, 'profile': 'domestic',
+    record = {'state': 'running', 'stage': 'build', 'commit': current, 'profile': 'standard',
               'started': build.now(), 'stage_started': build.now(), 'log': str(log)}
     build.update_status(state, {'output': str(output)}, record)
     details = build.status_details(state, record)
@@ -378,16 +376,44 @@ def test_idle_cleanup_removes_small_generated_logs_but_keeps_current_evidence(mo
     assert repo.joinpath('.env.private.log').is_file()
 
 
-def test_cached_full_requests_are_distinct_from_legacy_full_requests(modules, tmp_path, monkeypatch):
+@pytest.mark.parametrize('flag', ['--domestic', '--cached'])
+def test_cli_rejects_legacy_profile_flags(modules, tmp_path, monkeypatch, flag):
+    build, _ = modules
+    monkeypatch.setattr(build, 'git', lambda *args: str(tmp_path.resolve()))
+    import sys
+    monkeypatch.setattr(sys, 'argv', ['local_build.py', 'build', flag])
+    with pytest.raises(SystemExit) as excinfo:
+        build.main()
+    assert excinfo.value.code == 2
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows PowerShell parameter binding')
+def test_powershell_rejects_domestic_before_reading_local_config():
+    script = Path(__file__).resolve().parents[1] / 'scripts/Build-Local.ps1'
+    result = subprocess.run(
+        ['powershell.exe', '-NoProfile', '-NonInteractive', '-File', str(script), '-Domestic'],
+        check=False, capture_output=True)
+    assert result.returncode != 0
+    assert b'Domestic' in result.stderr
+    assert b'config.json' not in result.stderr
+
+
+@pytest.mark.parametrize('profile', ['domestic', 'cached'])
+def test_legacy_domestic_and_cached_requests_are_rejected_without_running(modules, tmp_path, monkeypatch, profile):
     build, _ = modules
     state, sha = tmp_path / 'state', 'a' * 40
-    build.write_json(state / 'queue' / (sha + '-domestic.json'), {'commit': sha, 'domestic': True})
-    build.write_json(state / 'queue' / (sha + '-cached.json'), {'commit': sha, 'cached': True})
-    profiles = []
+    legacy = state / 'queue' / (sha + '-' + profile + '.json')
+    queued = {'commit': sha, profile: True}
+    build.write_json(legacy, queued)
+    build.write_json(state / 'queue' / (sha + '.json'), {'commit': sha})
+    ran = []
     monkeypatch.setattr(build, 'run_build', lambda repo, state, config, commit:
-                        profiles.append((config['domestic'], config['cached'])) or True)
-    assert build.drain(tmp_path, state, {})
-    assert set(profiles) == {(True, False), (False, True)}
+                        ran.append(commit) or True)
+    with pytest.raises(ValueError, match='Unsupported domestic/cached build request preserved'):
+        build.drain(tmp_path, state, {})
+    assert ran == []
+    assert json.loads(legacy.read_text(encoding='utf-8')) == queued
+    assert (state / 'queue' / (sha + '.json')).is_file()
 
 
 def test_component_cache_cleanup_keeps_current_key_even_if_it_is_old(modules, repo, tmp_path):

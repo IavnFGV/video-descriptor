@@ -193,12 +193,8 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / 'dist')
     parser.add_argument('--iscc', type=Path)
     parser.add_argument('--build-qualified', action='store_true', help='Include BUILD in public artifact filenames')
-    parser.add_argument('--domestic', action='store_true', help='Bundle offline speech and CPU diarization inputs')
-    parser.add_argument('--domestic-inputs', type=Path, help='Local JSON paths to verified models, CPU wheelhouse and WebView2 CAB')
     parser.add_argument('--refresh-lock', action='store_true', help='Explicitly record hashes after resolving pinned wheels')
     args = parser.parse_args()
-    if args.domestic and not args.domestic_inputs:
-        parser.error('--domestic requires --domestic-inputs; incomplete domestic builds are not allowed')
     args.cache.mkdir(parents=True, exist_ok=True)
     args.output.mkdir(parents=True, exist_ok=True)
     inputs = json.loads((HERE / 'release-inputs.json').read_text())
@@ -255,17 +251,13 @@ def main():
         (python_dir / 'python312._pth').write_text('python312.zip\n.\nLib/site-packages\n..\n../windows-app\nimport site\n', encoding='ascii')
         # Keep packaged subprocesses on this runtime; ignore system PYTHONPATH/registry.
         (folder / 'Open Video Descriptor.cmd').write_text('@echo off\r\ncall "%~dp0windows-app\\Open-App.cmd"\r\n', encoding='ascii')
-        domestic = None
-        if args.domestic:
-            from domestic_bundle import stage
-            domestic = stage(folder, args.domestic_inputs, python_zip, cached_files)
         print('Recording payload manifest', flush=True)
         entries = [{'path': p.relative_to(folder).as_posix(),
                     'bytes': cached_files[p]['bytes'] if p in cached_files else p.stat().st_size,
                     'sha256': cached_files[p]['sha256'] if p in cached_files else sha256(p)}
                    for p in sorted(folder.rglob('*')) if p.is_file()]
-        manifest = {'version': inputs['version'], 'build': read_build(), 'architecture': 'windows-x64', 'whisper_weights_included': args.domestic,
-                    'profile': 'domestic' if args.domestic else 'standard', 'domestic': domestic,
+        manifest = {'version': inputs['version'], 'build': read_build(), 'architecture': 'windows-x64', 'whisper_weights_included': False,
+                    'profile': 'standard', 'domestic': None,
                     'vad_asset_in_faster_whisper': True,
                     'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
                     'wheels': lock, 'files': entries}
@@ -279,7 +271,7 @@ def main():
             print('Building Windows installer (Inno Setup)', flush=True)
             subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
                             f'/DBuildNumber={read_build()}', f'/DArtifactPrefix={prefix}',
-                            *(['/DDomestic=1'] if args.domestic else ['/DPublicRelease=1']),
+                            '/DPublicRelease=1',
                             f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
         accepted = [output]
         if args.iscc:

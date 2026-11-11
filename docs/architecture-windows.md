@@ -32,14 +32,13 @@
 08.11.2026: POST `/api/construction-recovery` открывает сохранённый Markdown ошибочного notes job с revision и началами реплик. Сохранение проверяет parsed_notes, source revision и отсутствие активных задач, записывает отдельный construction-manual.json и возвращает то же задание в очередь. Construction worker принимает проверенный ручной ответ до проверки AI-провайдера и собирает отчёт без генерации; последующий перевод, если был заказан, остаётся отдельным этапом. Оригинальный construction-result.md не изменяется.
 
 
-08.11.2026: профиль упаковки `--domestic` не меняет runtime-контракты приложения.
-Builder добавляет только проверенные модельные файлы, isolated embedded CPython с CPU
-pyannote wheels и WebView2 CAB. Inno Setup вызывает отдельный `domestic_setup.py`,
-который заполняет отсутствующие пути config.local.json и проверяет inference через
-существующие workers/ComponentManager. Сохранённые устройства и внешние модели
-сохраняются. На новой установке диаризация — CPU, распознавание — прежний Auto.
-Hook main передаёт профиль в локальную очередь; результаты и reuse разделены по
-профилю. Подробнее: [domestic installer](domestic-installer.md).
+12.11.2026: профили упаковки `--domestic` и cached удалены. Единственный профиль —
+стандартный установщик; нижележащие runtime-контракты приложения не меняются.
+Историческое описание прежнего `--domestic` (встроенные Whisper small FP16, community-1,
+изолированный CPU runtime pyannote и WebView2 CAB) сохранено только как справка о
+раньше существовавшем личном offline-варианте и больше не описывает текущую поставку.
+Распознавание сохраняет Auto; диаризация на новой установке выбирается пользователем
+через прежнюю подготовку компонентов.
 
 22.10.2026, 0.8.13: история правок конспекта остаётся локальной CodeMirror history,
 включая правку раздела native dialog и сброс к savedText. Дисковый save по-прежнему
@@ -710,13 +709,17 @@ Advanced settings can save `ai_components_directory` for the next process start 
 
 08.11.2026: build/verification scratch owns temporary directories through TemporaryDirectory/final cleanup. Local build removes its own detached worktree and TEMP root after child completion, including failure; published artifacts and compact result evidence live outside these roots. Launcher output is not duplicated into separate files.
 
-## Кеш полного автономного установщика (0.8.29)
+## Кеш полного автономного установщика (0.8.29) — удалён 12.11.2026
+
+Секция ниже описывает удалённый 12.11.2026 профиль полного автономного установщика
+(`build_cached.py`/`component_cache.py`) с встроенными моделями. Оставлена как
+историческая справка; текущий единственный профиль — стандартный установщик.
 
 `build_cached.py` готовит content-addressed `component-bundles/<input-hash>/components.zip` из принятого полного ZIP либо из локальных pinned inputs при холодном кеше. Каждый runtime member проверяется по SHA256 один раз перед упаковкой кеша; при повторной сборке проверяется SHA256 готового архива. Python/Lib и domestic runtime/models не распаковываются и не сжимаются заново ради правки приложения. Inno Setup встраивает этот ZIP с `nocompression` и извлекает его нативным `extractarchive`; результат — один полный автономный EXE, без внешних файлов и обязательного интернета.
 
 Перед обновлением новый stdlib-only helper проверяет идентичность component inputs, подготовку исходной установки, присутствие/размер компонентов и SHA256 Python executables. Неизменившийся runtime остаётся на месте; при отсутствии/несовместимости извлекается полный комплект из того же EXE. Настройки, устройства, записи и model paths не перезаписываются. Inno process consent/identity guards сохранены. CPU model proof привязан к backend hashes, runtime hash и конкретному хосту; UI-only изменение не требует повторного inference. На новом компьютере первая установка выполняет настоящую подготовку/CPU-проверку. NPU/GPU совместимость из CPU-proof не выводится.
 
-Локальный post-merge по умолчанию запускает `--cached`; `-Domestic` остаётся явным старым полным циклом ZIP+EXE и всеми проверками. Автоматическая проверка кешируемого пакета запускает точный готовый EXE с изолированным AppId через `/VDLocalTest=1`, без повторной компиляции, проверяет install/reinstall/health/uninstall и сохранность данных. Это проверка на текущем Windows-хосте, не замена clean-VM acceptance опубликованного EXE.
+Локальный post-merge после удаления профилей 12.11.2026 запускает только стандартный профиль; прежние `--cached`/`-Domestic` циклы больше недоступны.
 
 
 ### LM Studio (09.11.2026)

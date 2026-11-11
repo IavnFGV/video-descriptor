@@ -54,9 +54,7 @@ def update_status(state, config, record, *, render_only=False):
         json.loads(previous_file.read_text(encoding='utf-8')) if previous_file.exists() else None)
     labels = {'checkout': 'Подготавливаем исходники', 'desktop-sdk': 'Подготавливаем desktop SDK',
               'checks': 'Выполняем локальные проверки', 'build': 'Собираем ZIP и установщик',
-              'cached-build': 'Собираем полный установщик из кеша компонентов',
-              'cached-smoke': 'Проверяем установку и обновление полного пакета',
-              'portable-smoke': 'Проверяем запуск пакета', 'domestic-smoke': 'Проверяем встроенные модели', 'done': 'Готово'}
+              'portable-smoke': 'Проверяем запуск пакета', 'done': 'Готово'}
     heading = {'running': 'Сборка выполняется', 'ready': 'Сборка готова', 'failed': 'Ошибка сборки'}[record['state']]
 
     def link(path, title):
@@ -77,9 +75,9 @@ def update_status(state, config, record, *, render_only=False):
     stage_elapsed = duration(record.get('stage_started') or detail['stage_started'], record.get('finished'))
     details_html = f'<p><strong>{html.escape(detail["step"])}</strong></p>'
     details_html += f'<p>Всего: {elapsed} · На этапе: {stage_elapsed}</p>'
-    details_html += '<p>Коммит: <code>' + html.escape(record.get('commit', '')[:12]) + '</code> · Профиль: ' + ({'domestic':'Полный · без кеша', 'cached':'Полный · кеш компонентов'}.get(record.get('profile'), 'Стандартный')) + '</p>'
+    details_html += '<p>Коммит: <code>' + html.escape(record.get('commit', '')[:12]) + '</code> · Профиль: Стандартный</p>'
     details_html += '<section><h2>Очередь: ' + str(len(detail['queue'])) + '</h2>'
-    details_html += ('<ol>' + ''.join('<li><code>' + html.escape(item['commit'][:12]) + '</code> · ' + ('Полный · кеш компонентов' if item.get('cached') else 'Полный · без кеша' if item.get('domestic') else 'Стандартный') + '</li>' for item in detail['queue']) + '</ol>') if detail['queue'] else '<p>Ожидающих сборок нет.</p>'
+    details_html += ('<ol>' + ''.join('<li><code>' + html.escape(item['commit'][:12]) + '</code> · Стандартный</li>' for item in detail['queue']) + '</ol>') if detail['queue'] else '<p>Ожидающих сборок нет.</p>'
     details_html += '</section><section><h2>Последние сообщения — новые сверху</h2><p>' + html.escape(detail['activity']) + '</p><pre>' + html.escape('\n'.join(reversed(detail['tail'].splitlines())) if detail['tail'] else 'Журнал пока пуст.') + '</pre></section>'
     page = f'''<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="3">
@@ -114,11 +112,8 @@ def status_details(state, record):
             pass
     step = {'checkout': 'Создание отдельной копии исходников', 'checks': 'Проверка кода и тесты',
             'desktop-sdk': 'Подготовка оболочки Windows', 'build': 'Подготовка файлов приложения',
-            'portable-smoke': 'Проверка запуска готового ZIP', 'domestic-smoke': 'Проверка моделей в пакете',
-            'done': 'Готовый пакет опубликован локально', 'cached-build': 'Переиспользуем готовый архив Python, библиотек и моделей',
-            'cached-smoke': 'Проверяем полный установщик и сохранность данных при обновлении'}.get(record.get('stage'), 'Ожидаем сведения об этапе')
-    if record.get('stage') == 'cached-build' and 'CACHE MISS' in tail:
-        step = 'Первый прогрев кеша: проверяем и сжимаем компоненты один раз'
+            'portable-smoke': 'Проверка запуска готового ZIP',
+            'done': 'Готовый пакет опубликован локально'}.get(record.get('stage'), 'Ожидаем сведения об этапе')
     if record.get('stage') == 'build':
         if any(marker in tail for marker in ('ZIP:', 'Preprocessing', 'Building Windows installer',
                                                'Parsing [', 'Creating setup files', 'Compressing:',
@@ -134,7 +129,7 @@ def status_details(state, record):
             item = json.loads(path.read_text(encoding='utf-8'))
         except FileNotFoundError:
             continue
-        active = record.get('state') == 'running' and item.get('commit') == record.get('commit') and ('cached' if item.get('cached') else 'domestic' if item.get('domestic') else 'standard') == record.get('profile', 'standard')
+        active = record.get('state') == 'running' and item.get('commit') == record.get('commit') and 'standard' == record.get('profile', 'standard')
         if not active:
             queue.append(item)
     activity = ('Последняя запись в журнале: ' + duration(modified) + ' назад. ' if modified else '')
@@ -281,11 +276,7 @@ def cleanup_run(repo, source, scratch, run):
 
 
 def run_build(repo, state, config, sha):
-    domestic = config.get('domestic', False)
-    cached = config.get('cached', False)
-    if domestic or cached:
-        config = {**config, 'status_output': config['output'], 'output': str(Path(config['output']) / ('cached' if cached else 'domestic'))}
-    result_file = state / 'results' / (sha + ('-cached' if cached else '-domestic' if domestic else '') + '.json')
+    result_file = state / 'results' / (sha + '.json')
     if result_file.exists():
         previous = json.loads(result_file.read_text(encoding='utf-8'))
         if reusable(previous):
@@ -300,7 +291,7 @@ def run_build(repo, state, config, sha):
     run.mkdir(parents=True)
     output.mkdir()
     status = {'state': 'running', 'commit': sha, 'started': now(), 'output': str(output),
-              'profile': 'cached' if cached else 'domestic' if domestic else 'standard',
+              'profile': 'standard',
               'log': str(run / 'build.log'), 'stage': 'checkout'}
     env = build_environment(config, run.name)
     status['temporary_directory'] = env['TEMP']
@@ -352,57 +343,20 @@ def run_build(repo, state, config, sha):
                                      source / 'windows-app/Prepare-Desktop.ps1'])
             python = config['python']
             step('checks', [python, 'scripts/check-fast.py'])
-            if cached:
-                seed = None
-                seed_sha = None
-                for result in sorted((state / 'results').glob('*-domestic.json'), key=lambda p: p.stat().st_mtime, reverse=True):
-                    record = json.loads(result.read_text(encoding='utf-8'))
-                    archives = [Path(item['path']) for item in record.get('artifacts', [])
-                                if item['path'].endswith('.zip') and Path(item['path']).is_file()]
-                    if record.get('state') == 'ready' and archives:
-                        seed = archives[0]
-                        seed_sha = next(item['sha256'] for item in record['artifacts'] if Path(item['path']) == seed)
-                        break
-                arguments = [python, 'windows-app/build_cached.py', '--cache', config['cache'],
-                             '--output', output, '--iscc', config['iscc']]
-                if seed:
-                    arguments += ['--seed', seed, '--seed-sha', seed_sha]
-                if config.get('domestic_inputs'):
-                    arguments += ['--domestic-inputs', config['domestic_inputs']]
-                step('cached-build', arguments)
-                step('cached-smoke', [python, 'windows-app/verify_cached.py', '--output', output])
-                installer = output / f'VideoDescriptor-{inputs["version"]}-windows-x64-setup.exe'
-                status['component_cache_key'] = json.loads((output / 'cache-reference.json').read_text(encoding='utf-8'))['key']
-                (output / 'app-payload.zip').unlink(missing_ok=True)
-                (output / 'cache-reference.json').unlink(missing_ok=True)
-                write_json(output / 'SHA256SUMS.json', [{'file': installer.name, 'sha256': digest(installer), 'bytes': installer.stat().st_size}])
-                status.update(state='ready', stage='done', version=inputs['version'], finished=now(), artifacts=[
-                    {'path': str(installer), 'sha256': digest(installer), 'bytes': installer.stat().st_size}])
-                status['limits'] = ['Complete offline installer; cached runtime and host-scoped CPU validation',
-                                    'Isolated fixture AppId lifecycle; not a clean VM or NPU/GPU acceptance']
-            else:
-                profile_args = []
-                if domestic:
-                    if not config.get('domestic_inputs'):
-                        raise ValueError('Configure --domestic-inputs before requesting a domestic build')
-                    profile_args = ['--domestic', '--domestic-inputs', config['domestic_inputs']]
-                step('build', [python, 'windows-app/build_release.py', '--cache', config['cache'],
-                               '--output', output, '--iscc', config['iscc'], *profile_args])
-                version = inputs['version']
-                archive = output / f'VideoDescriptor-{version}-windows-x64.zip'
-                installer = output / f'VideoDescriptor-{version}-windows-x64-setup.exe'
-                if not installer.is_file():
-                    raise ValueError('Installer was not produced')
-                step('portable-smoke', [python, 'windows-app/verify_release.py', archive,
-                                        '--output', output / 'verification-release.json'])
-                if domestic:
-                    step('domestic-smoke', [python, 'windows-app/verify_domestic.py', archive,
-                                           '--output', output / 'verification-domestic.json'])
-                status.update(state='ready', stage='done', version=version, finished=now(), artifacts=[
-                    {'path': str(path), 'sha256': digest(path), 'bytes': path.stat().st_size}
-                    for path in (archive, installer)])
-                status['limits'] = ['No automatic installation or publication',
-                                    'Portable smoke only; no clean VM installer lifecycle or hardware inference']
+            step('build', [python, 'windows-app/build_release.py', '--cache', config['cache'],
+                           '--output', output, '--iscc', config['iscc']])
+            version = inputs['version']
+            archive = output / f'VideoDescriptor-{version}-windows-x64.zip'
+            installer = output / f'VideoDescriptor-{version}-windows-x64-setup.exe'
+            if not installer.is_file():
+                raise ValueError('Installer was not produced')
+            step('portable-smoke', [python, 'windows-app/verify_release.py', archive,
+                                    '--output', output / 'verification-release.json'])
+            status.update(state='ready', stage='done', version=version, finished=now(), artifacts=[
+                {'path': str(path), 'sha256': digest(path), 'bytes': path.stat().st_size}
+                for path in (archive, installer)])
+            status['limits'] = ['No automatic installation or publication',
+                                'Portable smoke only; no clean VM installer lifecycle or hardware inference']
             status = publish_ready(status, config['output'])
         except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
             status.update(state='failed', finished=now(), error=str(error))
@@ -440,7 +394,11 @@ def drain(repo, state, config):
                 sha = queued['commit']
                 if not re.fullmatch(r'[0-9a-f]{40,64}', sha):
                     raise ValueError('Invalid queued commit')
-                success = run_build(repo, state, {**config, 'domestic': queued.get('domestic', False), 'cached': queued.get('cached', False)}, sha) and success
+                if queued.get('domestic') or queued.get('cached'):
+                    raise ValueError(
+                        f'Unsupported domestic/cached build request preserved at {request}; '
+                        'cancel this legacy request explicitly before building the standard installer')
+                success = run_build(repo, state, config, sha) and success
                 request.unlink(missing_ok=True)
         if not acquired:
             time.sleep(1)
@@ -481,11 +439,13 @@ def main():
     parser.add_argument('--repo', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--ref', default='HEAD')
     profiles = parser.add_mutually_exclusive_group()
-    profiles.add_argument('--domestic', action='store_true')
-    profiles.add_argument('--cached', action='store_true')
-    for name in ('python', 'cache', 'iscc', 'desktop-sdk', 'output', 'domestic-inputs', 'temp-root'):
+    profiles.add_argument('--domestic', action='store_true', help=argparse.SUPPRESS)
+    profiles.add_argument('--cached', action='store_true', help=argparse.SUPPRESS)
+    for name in ('python', 'cache', 'iscc', 'desktop-sdk', 'output', 'temp-root'):
         parser.add_argument('--' + name, type=Path)
     args = parser.parse_args()
+    if args.domestic or args.cached:
+        parser.error('The domestic/cached offline profiles were removed; only the standard installer profile is supported. Cancel any legacy queued builds.')
     repo = Path(git(args.repo, 'rev-parse', '--show-toplevel')).resolve()
     state = state_dir(repo)
     config_file = state / 'config.json'
@@ -500,8 +460,6 @@ def main():
         settings['output'] = str((args.output or repo / 'dist/local').resolve())
         if args.temp_root:
             settings['temp_root'] = str(args.temp_root.resolve())
-        if args.domestic_inputs:
-            settings['domestic_inputs'] = str(args.domestic_inputs.resolve())
         write_json(config_file, settings)
         print(config_file)
         return 0
@@ -518,8 +476,8 @@ def main():
         watch_status(state, config)
         return 0
     sha = git(repo, 'rev-parse', '--verify', '--end-of-options', args.ref + '^{commit}')
-    write_json(state / 'queue' / (sha + ('-cached' if args.cached else '-domestic' if args.domestic else '') + '.json'),
-               {'commit': sha, 'requested': now(), 'domestic': args.domestic, 'cached': args.cached})
+    write_json(state / 'queue' / (sha + '.json'),
+               {'commit': sha, 'requested': now()})
     success = drain(repo, state, config)
     # Once the queue is idle, purge known generated leftovers under the same OS lock.
     with build_lock(state) as acquired:

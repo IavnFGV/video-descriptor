@@ -95,6 +95,7 @@ def test_publication_gate_runs_before_publishing_assets_and_registry_image():
     publish = [i for i, step in enumerate(steps) if any(command in step.get('run', '') for command in ['gh release create', 'docker push'])]
     assert publish and all(gate < index for index in publish)
     builder = (root / 'windows-app/build_release.py').read_text(encoding='utf-8')
-    assert "['/DPublicRelease=1']" in builder
+    assert '/DPublicRelease=1' in builder and '/DDomestic=1' not in builder
     installer = (root / 'windows-app/installer.iss').read_text(encoding='utf-8')
-    assert '#error PublicRelease cannot include Domestic or CachedComponents payloads' in installer
+    assert '#if defined(Domestic) || defined(CachedComponents)' in installer
+    assert '#error Retired packaging profiles are not supported' in installer

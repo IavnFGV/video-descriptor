@@ -1,20 +1,15 @@
 #ifndef Payload
   #error Payload must name the prepared application directory
 #endif
-#if defined(PublicRelease) && (defined(Domestic) || defined(CachedComponents))
-  #error PublicRelease cannot include Domestic or CachedComponents payloads
+#if defined(Domestic) || defined(CachedComponents)
+  #error Retired packaging profiles are not supported
 #endif
 #ifndef AppVersion
   #define AppVersion "0.4.0"
 #endif
 #include "WebView2Runtime.iss"
 [Setup]
-#ifdef CachedComponents
-AppId={code:CachedApplicationId}
-UsePreviousLanguage=no
-#else
 AppId={{CA05C8BE-4CF2-4BCA-9B3C-597742FF04D1}
-#endif
 AppName=Video Descriptor
 AppVersion={#AppVersion}
 #ifdef BuildNumber
@@ -36,9 +31,6 @@ OutputBaseFilename=VideoDescriptor-{#AppVersion}-windows-x64-setup
 #endif
 Compression=lzma2/fast
 SolidCompression=yes
-#ifdef CachedComponents
-ArchiveExtraction=full
-#endif
 WizardStyle=modern
 CloseApplications=no
 RestartApplications=no
@@ -50,15 +42,6 @@ SetupLogging=yes
 Source: "release_lifecycle.py"; DestName: "VD-release-lifecycle.py"; Flags: dontcopy
 Source: "Ensure-WebView2.ps1"; Flags: dontcopy
 Source: "{#Payload}\windows-app\desktop-sdk\WebView2Loader.dll"; DestName: "VD-WebView2Loader.dll"; Flags: dontcopy
-#if defined(Domestic) && !defined(CachedComponents)
-Source: "{#Payload}\windows-app\domestic\WebView2Runtime.x64.cab"; DestName: "WebView2Runtime.x64.cab"; Flags: dontcopy
-#endif
-#ifdef CachedComponents
-Source: "component_cache.py"; DestName: "VD-component-cache.py"; Flags: dontcopy
-Source: "{#Payload}\release-manifest.json"; DestName: "VD-component-manifest.json"; Flags: dontcopy
-Source: "{#CachedComponents}\components.zip"; DestName: "VD-components.zip"; Flags: dontcopy nocompression
-Source: "{tmp}\VD-components.zip"; DestDir: "{app}"; Flags: external extractarchive ignoreversion recursesubdirs createallsubdirs; ExternalSize: {#ComponentsSize}; Check: NeedComponents
-#endif
 Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
@@ -68,29 +51,9 @@ Name: "{autodesktop}\Video Descriptor"; Filename: "{app}\windows-app\desktop-sdk
 [Code]
 var
   WebViewDownload: TDownloadWizardPage;
-#ifdef CachedComponents
-  ComponentsRequired: Boolean;
-
-function CachedApplicationId(Param: String): String;
-begin
-  { Test the exact produced EXE without changing the real application's registration. }
-  if ExpandConstant('{param:VDLocalTest|0}') = '1' then
-    Result := '{683C5737-64A0-47EE-AC74-684EF3CD77B8}'
-  else
-    Result := '{CA05C8BE-4CF2-4BCA-9B3C-597742FF04D1}';
-end;
-
-function NeedComponents(): Boolean;
-begin
-  Result := ComponentsRequired;
-end;
-#endif
 
 procedure InitializeWizard();
 begin
-#ifdef CachedComponents
-  ComponentsRequired := True;
-#endif
   WebViewDownload := CreateDownloadPage('Microsoft Edge WebView2 Runtime',
     'WebView2 is required for the application window. Downloading from Microsoft...', nil);
 end;
@@ -129,13 +92,6 @@ begin
     Result := 'WebView2 detection failed. See ' + ExpandConstant('{tmp}\VideoDescriptor-WebView2.jsonl');
     exit;
   end;
-#ifdef Domestic
-  ExtractTemporaryFile('WebView2Runtime.x64.cab');
-  if not WebViewCheck('Install', ResultCode) then
-    Result := 'Could not start bundled WebView2 preparation.'
-  else if ResultCode <> 0 then
-    Result := 'Bundled WebView2 verification failed. See the setup log.';
-#else
   WebViewDownload.Clear;
   WebViewDownload.Add('{#WebViewRuntimeUrl}', 'WebView2Runtime.x64.cab', '{#WebViewRuntimeSha256}');
   WebViewDownload.Show;
@@ -155,24 +111,7 @@ begin
   finally
     WebViewDownload.Hide;
   end;
-#endif
 end;
-
-#ifdef Domestic
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  ResultCode: Integer;
-begin
-  if CurStep <> ssPostInstall then exit;
-  WizardForm.StatusLabel.Caption := 'Проверяем встроенные модели распознавания и участников...';
-  if not Exec(ExpandConstant('{app}\python\python.exe'),
-    '-X utf8 "' + ExpandConstant('{app}\windows-app\domestic_setup.py') + '"',
-    ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-    RaiseException('Could not prepare domestic components. Retry setup.')
-  else if ResultCode <> 0 then
-    RaiseException('Domestic model checks failed. See windows-app\runtime\domestic-setup.log or run Prepare Domestic.cmd in the installation folder, then retry setup.');
-end;
-#endif
 
 function InstallationBusy(): Boolean;
 var
@@ -231,34 +170,10 @@ begin
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
-#ifdef CachedComponents
-var
-  ResultCode: Integer;
-  PythonPath, Arguments: String;
-#endif
 begin
   Result := PrepareInstallationProcesses();
   if Result <> '' then exit;
-#ifdef CachedComponents
-  PythonPath := ExpandConstant('{app}\python\python.exe');
-  ComponentsRequired := True;
-  if FileExists(PythonPath) then begin
-    ExtractTemporaryFile('VD-component-cache.py');
-    ExtractTemporaryFile('VD-component-manifest.json');
-    Arguments := '-X utf8 "' + ExpandConstant('{tmp}\VD-component-cache.py') +
-      '" --root "' + ExpandConstant('{app}') + '" --manifest "' +
-      ExpandConstant('{tmp}\VD-component-manifest.json') + '"';
-    if Exec(PythonPath, Arguments, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-      ComponentsRequired := ResultCode <> 0;
-  end;
-  if ComponentsRequired then begin
-    Log('Component cache: installing the complete bundled runtime');
-    ExtractTemporaryFile('VD-components.zip');
-  end else
-    Log('Component cache: compatible installed runtime retained without extraction');
-#else
   Result := EnsureWebView();
-#endif
 end;
 
 function InitializeUninstall(): Boolean;

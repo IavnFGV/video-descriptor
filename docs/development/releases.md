@@ -47,18 +47,19 @@ draft is exposed. Reruns can fill missing draft assets; existing assets are not
 overwritten. Complete published releases are verified, not replaced. Unexpected
 or mismatched assets stop publication.
 
-Domestic/cached full offline installers are private regardless of filename. Local
-models must not leak into standard assets. See [public policy tests](../../tests/test_public_release_policy.py),
+Only the standard installer profile ships. Local models must not leak into standard
+assets. See [public policy tests](../../tests/test_public_release_policy.py),
 [third-party notices](../../windows-app/THIRD-PARTY.md) and [owner constraints](safety.md).
 The public gate is required, but is not a complete transitive licensing audit.
 
 ## Local builds
 
 [Build-Local.ps1](../../scripts/Build-Local.ps1) builds committed source in an isolated
-checkout. Its default cached offline profile is private, not the public standard
-profile. The configured post-merge hook can queue this build and update its guarded
-source preview; read [local-build.md](../local-build.md) before triggering it.
-Do not bypass pinned inputs, hashes or lifecycle checks to fix an acceptance failure.
+checkout using the single standard profile; the former `-Domestic`/`--cached` offline
+profiles were removed. The configured post-merge hook can queue this standard build and
+update its guarded source preview; read [local-build.md](../local-build.md) before
+triggering it. Do not bypass pinned inputs, hashes or lifecycle checks to fix an
+acceptance failure.
 
 [container-release.yml](../../.github/workflows/container-release.yml) is manual;
 it does not compete for native version-tag pushes. Historical combined container
