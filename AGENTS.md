@@ -57,7 +57,10 @@ can use `python scripts/check-fast.py --config-only`; see the
 Do not use Actions as an interactive debugger. Full Acceptance and Sandbox are
 explicit integration/release checks, not a substitute for local UI validation.
 
-Update README history after substantial changes and
+Keep the root README concise: current product state, getting started and documentation
+links. Add substantial development changes to
+[history.md](docs/development/history.md), not the README. Release descriptions live
+in GitHub Releases and versioned `docs/releases/`. Update
 [architecture-windows.md](docs/architecture-windows.md) when architecture/contracts
 change. Do not claim hardware support from mocks or containers.
 

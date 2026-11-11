@@ -80,8 +80,11 @@ push. It uses installed development dependencies and does not install AI compone
 Fast CI runs for PR/main; Full Acceptance is explicit or pre-release. Sandbox tests
 installation/environment; ordinary UI/infrastructure fixes are checked locally.
 See [CI policy](../ci-policy.md). Commit verified changes locally; do not publish or
-push without a user request. Substantial changes require README history updates;
-architecture/contracts require [architecture-windows.md](../architecture-windows.md).
+push without a user request. Substantial development changes go to
+[history.md](history.md); keep the root README focused on current state and
+documentation links. Release descriptions live in GitHub Releases and versioned
+release notes. Architecture/contracts require
+[architecture-windows.md](../architecture-windows.md).
 
 Final delivery needs reproducible ZIP/Windows installer and clean Windows VM/runner
 smoke, install, upgrade and uninstall checks. NPU/GPU support needs separate real

@@ -78,8 +78,9 @@ local hooks before merging: the configured post-merge can queue a local installe
 build and restart its guarded preview. Coordinate those side effects with live work.
 
 Run [focused checks](testing.md), inspect the diff and commit locally. Push, remote
-merge and publication require a user request. Add README history for substantial
-changes; maintain `docs/architecture-windows.md` for changed runtime contracts.
+merge and publication require a user request. Add substantial development changes
+to [history.md](history.md), keeping the root README focused on current state and
+links; maintain `docs/architecture-windows.md` for changed runtime contracts.
 
 ## Task routes and dependencies
 
