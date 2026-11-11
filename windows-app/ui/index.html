@@ -9,8 +9,8 @@
 </head>
 <body>
 <a class="skip vd-link" id="skip-link" href="#main">К содержимому</a>
-<div class="app-shell">
-<aside class="sidebar">
+<div class="app-shell" id="app-shell">
+<aside class="sidebar" id="sidebar">
 <a href="#records" class="brand">
 <span class="mark" aria-hidden="true">vd</span>
 <span>Video<br>Descriptor</span>
@@ -27,6 +27,9 @@
 </aside>
 <div class="app-content">
 <header class="topbar">
+<button id="sidebar-toggle" type="button" class="vd-button vd-button--quiet sidebar-toggle" aria-controls="sidebar" aria-expanded="true" aria-label="Свернуть панель навигации">
+<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>
+</button>
 <p>Video Descriptor · <span id="view-label">Записи</span>
 </p>
 <details class="app-menu">

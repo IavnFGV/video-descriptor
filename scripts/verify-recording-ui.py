@@ -354,6 +354,75 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('window.uiErrors')==[]
             print('PASS: toolbar controls aligned and compact; grouped exports wrap; 1920/1100/760/360 fit',flush=True)
             sys.exit(0)
+        if '--sidebar-only' in sys.argv:
+            c.call('Page.navigate', url=f'http://127.0.0.1:{server.server_port}/')
+            wait_for(lambda: evaluate('!!document.querySelector("#sidebar")'))
+            geometry = evaluate('''(()=>{const rect=s=>{const e=document.querySelector(s);const r=e.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,w:r.width,h:r.height};};return {shell:rect(".app-shell"),sidebar:rect("#sidebar"),content:rect(".app-content"),toggle:rect("#sidebar-toggle"),topbar:rect(".topbar"),inner:window.innerWidth,innerH:window.innerHeight,scroll:document.documentElement.scrollWidth};})()''')
+            assert abs(geometry['sidebar']['w']-208)<3, geometry
+            assert abs(geometry['content']['x']-geometry['sidebar']['right'])<2, geometry
+            assert abs(geometry['sidebar']['y']-geometry['content']['y'])<2, geometry
+            assert abs(geometry['sidebar']['x'])<2 and geometry['sidebar']['x']<geometry['content']['x'], geometry
+            assert geometry['sidebar']['h']>=geometry['innerH']*0.9, geometry
+            assert abs(geometry['content']['w']-(geometry['shell']['w']-208))<3, geometry
+            assert evaluate('!!document.querySelector(".topbar #sidebar-toggle")')
+            assert geometry['toggle']['x']>=geometry['content']['x'], geometry
+            assert geometry['toggle']['y']>=geometry['topbar']['y'] and geometry['toggle']['bottom']<=geometry['topbar']['bottom']+1, geometry
+            assert evaluate('document.querySelector("#sidebar-toggle").checkVisibility()') is True
+            assert geometry['scroll']<=geometry['inner'], geometry
+            c.screenshot(out/'sidebar-expanded.png')
+            c.click('#sidebar-toggle')
+            wait_for(lambda: evaluate('''(()=>{const a=document.querySelector("#sidebar");return getComputedStyle(a).display;})()''')=='none')
+            collapsed = evaluate('''(()=>{const rect=s=>{const e=document.querySelector(s);const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width};};const t=document.querySelector("#sidebar-toggle");const tr=t.getBoundingClientRect();return {display:getComputedStyle(document.querySelector("#sidebar")).display,content:rect(".app-content"),shell:rect(".app-shell"),toggle:{x:tr.x,y:tr.y,w:tr.width},toggleVisible:t.checkVisibility(),inner:window.innerWidth,scroll:document.documentElement.scrollWidth};})()''')
+            assert collapsed['display']=='none', collapsed
+            assert abs(collapsed['content']['x'])<2, collapsed
+            assert abs(collapsed['content']['w']-collapsed['shell']['w'])<3, collapsed
+            assert collapsed['toggleVisible'] is True and collapsed['toggle']['x']+collapsed['toggle']['w']<=collapsed['inner'], collapsed
+            assert collapsed['scroll']<=collapsed['inner'], collapsed
+            assert evaluate('document.querySelector("#sidebar-toggle").getAttribute("aria-expanded")')=='false', 'collapsed aria-expanded'
+            assert evaluate('document.querySelector("#sidebar-toggle").getAttribute("aria-label")')=='Показать панель навигации', 'collapsed aria-label'
+            c.screenshot(out/'sidebar-collapsed.png')
+            c.click('#sidebar-toggle')
+            wait_for(lambda: evaluate('''(()=>{const a=document.querySelector("#sidebar");return getComputedStyle(a).display;})()''')!='none')
+            restored = evaluate('''(()=>{const rect=s=>{const e=document.querySelector(s);const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width};};return {display:getComputedStyle(document.querySelector("#sidebar")).display,content:rect(".app-content"),sidebar:rect("#sidebar")};})()''')
+            assert restored['display']!='none', restored
+            assert abs(restored['content']['x']-restored['sidebar']['w'])<2, restored
+            assert evaluate('document.querySelector("#sidebar-toggle").getAttribute("aria-expanded")')=='true', 'restored aria-expanded'
+            for width in (1100,760,360):
+                c.call('Emulation.setDeviceMetricsOverride',width=width,height=900,deviceScaleFactor=1,mobile=False)
+                assert evaluate('document.documentElement.scrollWidth<=innerWidth'), width
+                toggle_visible = evaluate('!!document.querySelector("#sidebar-toggle") && document.querySelector("#sidebar-toggle").checkVisibility()')
+                assert toggle_visible is (width>800), width
+                assert evaluate('!!document.querySelector("#sidebar") && document.querySelector("#sidebar").checkVisibility()') is True
+                if width>800:
+                    stacked = evaluate('''(()=>{const s=document.querySelector("#sidebar").getBoundingClientRect(),c2=document.querySelector(".app-content").getBoundingClientRect();return {beside:c2.x>=s.right,aligned:Math.abs(s.y-c2.y)<2};})()''')
+                    assert stacked['beside'] and stacked['aligned'], (width,stacked)
+                else:
+                    stacked = evaluate('''(()=>{const s=document.querySelector("#sidebar").getBoundingClientRect(),c2=document.querySelector(".app-content").getBoundingClientRect();return {x:Math.abs(s.x-c2.x)<2,above:c2.y>=s.bottom-1};})()''')
+                    assert stacked['x'] and stacked['above'], (width,stacked)
+                c.screenshot(out/f'sidebar-{width}.png')
+            c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
+            c.call('Page.navigate', url=f'http://127.0.0.1:{server.server_port}/create?job=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+            wait_for(lambda: evaluate('!!document.querySelector(".vd-global-nav")'))
+            wait_for(lambda: evaluate('String(document.querySelector("#sidebar-toggle").onclick)!=="null"'))
+            nav_geometry = evaluate('''(()=>{const nav=document.querySelector(".vd-global-nav");const body=document.body;return {display:getComputedStyle(nav).display,paddingLeft:parseFloat(getComputedStyle(body).paddingLeft),maxWidth:parseFloat(getComputedStyle(body).maxWidth)||(window.innerWidth-parseFloat(getComputedStyle(body).paddingLeft)),inner:window.innerWidth,scroll:document.documentElement.scrollWidth};})()''')
+            assert nav_geometry['display']=='flex', nav_geometry
+            assert nav_geometry['paddingLeft']>0, nav_geometry
+            assert nav_geometry['maxWidth']>nav_geometry['paddingLeft'], nav_geometry
+            c.click('#sidebar-toggle')
+            wait_for(lambda: evaluate('''(()=>{const n=document.querySelector(".vd-global-nav");return getComputedStyle(n).display;})()''')=='none')
+            nav_collapsed = evaluate('''(()=>{const nav=document.querySelector(".vd-global-nav");const body=document.body;return {display:getComputedStyle(nav).display,paddingLeft:parseFloat(getComputedStyle(body).paddingLeft),maxWidth:parseFloat(getComputedStyle(body).maxWidth)||(window.innerWidth-parseFloat(getComputedStyle(body).paddingLeft)),inner:window.innerWidth,scroll:document.documentElement.scrollWidth};})()''')
+            assert nav_collapsed['display']=='none', nav_collapsed
+            assert nav_collapsed['paddingLeft']<nav_geometry['paddingLeft'], nav_collapsed
+            assert nav_collapsed['maxWidth']>nav_collapsed['paddingLeft'], nav_collapsed
+            assert evaluate('document.querySelector("#sidebar-toggle").getAttribute("aria-label")')=='Показать панель навигации', 'collapsed aria-label'
+            assert evaluate('(()=>{const t=document.querySelector("body>#sidebar-toggle");return Boolean(t&&t.checkVisibility());})()') is True, 'collapsed toggle hidden'
+            c.click('#sidebar-toggle')
+            wait_for(lambda: evaluate('''(()=>{const n=document.querySelector(".vd-global-nav");return getComputedStyle(n).display;})()''')!='none')
+            nav_restored = evaluate('''(()=>{const nav=document.querySelector(".vd-global-nav");const body=document.body;return {display:getComputedStyle(nav).display,paddingLeft:parseFloat(getComputedStyle(body).paddingLeft),maxWidth:parseFloat(getComputedStyle(body).maxWidth)};})()''')
+            assert nav_restored['display']!='none', nav_restored
+            assert nav_restored['paddingLeft']>0, nav_restored
+            print('PASS: sidebar tops aligned with content, beside-on-desktop/stacked-on-mobile coordinates, collapse expands content to full width, toggle visible and wired in both states, no horizontal overflow',flush=True)
+            sys.exit(0)
         if '--job-errors-only' in sys.argv:
             fixture_job=json.loads((job_folder/'job.json').read_text(encoding='utf-8'))
             fixture_job.update(status='error',stage='notes',error='См. журнал',cancelled=False)

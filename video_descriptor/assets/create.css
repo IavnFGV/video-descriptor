@@ -133,14 +133,20 @@ dialog.reply-editor{width:min(var(--vd-editor-width),calc(100% - 32px))}.reply-e
 .card-heading,.run-heading,.follow{justify-content:space-between}
 .subtitle-tools,.notes-actions,.finish-actions{margin:var(--vd-group-gap) 0}
 .subtitle-tools a[download],.construction-actions a[download]{display:inline-flex;padding:var(--vd-space-2) var(--vd-space-3);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);min-height:var(--vd-control-height);align-items:center}
-@media(max-width:800px){body{padding:var(--vd-space-4)}section,article{padding:var(--vd-space-4)}.vd-global-nav{gap:var(--vd-space-1)}}
+@media(max-width:800px){body{padding:var(--vd-space-4)}section,article{padding:var(--vd-space-4)}.vd-global-nav{gap:var(--vd-space-1)}body>.sidebar-toggle{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(forced-colors:active){:focus-visible{outline-color:Highlight}.badge,.counter{border:1px solid CanvasText}}
 
 @media(min-width:801px){
 body:has(>.vd-global-nav){max-width:calc(var(--vd-content-width) + var(--vd-nav-width));padding-left:calc(var(--vd-nav-width) + var(--vd-space-6))}
 .vd-global-nav{position:fixed;inset:0 auto 0 0;width:var(--vd-nav-width);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;background:var(--vd-surface);border-bottom:0;border-right:1px solid var(--vd-border);padding:var(--vd-space-4);margin:0}
+body>.sidebar-toggle{position:fixed;top:var(--vd-space-2);left:calc(var(--vd-nav-width) + var(--vd-space-2));z-index:var(--vd-layer-sticky)}
+body.sidebar-collapsed>.sidebar-toggle{left:var(--vd-space-2)}
+body>.sidebar-toggle svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+body:has(>.vd-global-nav):has(>.sidebar-toggle){padding-top:calc(var(--vd-space-6) + var(--vd-control-height) + var(--vd-space-2))}
 .vd-global-nav::before{content:'Video Descriptor';font-size:var(--vd-h3);font-weight:var(--vd-heading);margin:var(--vd-space-6) var(--vd-space-3)}
+body:has(>.vd-global-nav).sidebar-collapsed{max-width:var(--vd-content-width);padding-left:var(--vd-space-6)}
+body:has(>.vd-global-nav).sidebar-collapsed .vd-global-nav{display:none}
 }
 
 /* Source: design-system/workspace.css */
