@@ -75,7 +75,7 @@ def append_event(target, event):
 
 
 def describe(event):
-    labels = {'operation_started': 'Операция начата', 'operation_finished': 'Операция выполнена',
+    labels = {'llm_request': 'Обращение к языковой модели', 'llm_verification': 'Проверка генерации', 'operation_started': 'Операция начата', 'operation_finished': 'Операция выполнена',
               'operation_failed': 'Ошибка операции', 'model_request_started': 'Запрос к модели отправлен',
               'model_request_finished': 'Запрос к модели завершён', 'progress': 'Ход обработки',
               'generation_started': 'Генерация начата', 'answer_validation': 'Проверка ответа модели',

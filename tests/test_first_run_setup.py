@@ -15,6 +15,46 @@ setup_api = importlib.import_module('setup_service')
 compute_module = importlib.import_module('compute')
 
 
+def mock_ollama(monkeypatch, request):
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'request', lambda self, endpoint, body=None, timeout=5: request({'ollama_url': self.endpoint}, endpoint, body))
+
+
+def test_external_ollama_api_guide_and_audit(configured, monkeypatch, tmp_path):
+    here, _, manager, _ = configured
+    spec = importlib.util.spec_from_file_location('external_native_app', ROOT / 'windows-app/app.py')
+    app = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(app)
+    monkeypatch.setattr(app, 'HERE', here)
+    events = tmp_path / 'application-events.jsonl'
+    monkeypatch.setenv('VIDEO_DESCRIPTOR_EVENTS', str(events))
+    mock_ollama(monkeypatch, lambda value, path, body=None:
+                {'version': 'test'} if path == '/api/version' else {'models': []})
+    with ThreadingHTTPServer(('127.0.0.1', 0), app.make_handler(manager.value, 'instance')) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        try:
+            headers = {'X-App-Instance': 'instance'}
+            response = requests.post(base + '/api/setup/ollama', headers=headers,
+                                     json={'endpoint': 'https://models.example:11434'}, timeout=5)
+            assert response.status_code == 200
+            assert manager.value['ollama_url'] == 'https://models.example:11434'
+            status = requests.get(base + '/api/setup/ollama', timeout=5).json()
+            assert status['service_ready'] and not status['ready'] and status['models'] == []
+            invalid = requests.get(base + '/api/setup/ollama', params={'endpoint': 'bad'}, timeout=5).json()
+            assert not invalid['service_ready'] and not invalid['models']
+            empty = requests.get(base + '/api/setup/ollama?endpoint=', timeout=5).json()
+            assert not empty['service_ready'] and not empty['models']
+            guide = requests.get(base + '/help/ollama', timeout=5)
+            assert guide.status_code == 200 and '<h1>' in guide.text and 'ollama pull' in guide.text
+            history = requests.get(base + '/api/native/events', timeout=5).json()
+            assert any(e.get('route') == '/api/setup/ollama' for e in history)
+        finally:
+            server.shutdown()
+            thread.join()
+
+
 @pytest.fixture
 def configured(tmp_path):
     model = tmp_path / 'Модели Whisper'
@@ -134,7 +174,7 @@ def test_setup_api_requires_instance_and_origin_and_saves_valid_model(configured
 def test_ollama_service_without_selected_model_is_not_ready(configured, monkeypatch):
     _, _, manager, _ = configured
     manager.value['ollama_model'] = 'missing:9b'
-    monkeypatch.setattr(setup_api, 'ollama_request', lambda *args: {'models': [{'name': 'present:9b', 'size': 1024}]})
+    mock_ollama(monkeypatch, lambda value, endpoint, body=None: {'version': 'test'} if endpoint == '/api/version' else {'models': [{'name': 'present:9b', 'size': 1024}]})
     status = setup_api.ollama_status(manager.value)
     assert status['service_ready'] and not status['ready']
     assert status['models'] == [{'name': 'present:9b', 'bytes': 1024}]
@@ -148,9 +188,9 @@ def test_ollama_selection_uses_existing_translation_settings_and_preserves_secre
     translation_settings.save(root, {'api_key': 'keep-private', 'billing_mode': 'free'})
 
     def request(value, endpoint, body=None):
-        return {'models': [{'name': 'language:9b'}]} if endpoint == '/api/tags' else {'capabilities': ['completion']}
+        return {'version': 'test'} if endpoint == '/api/version' else {'models': [{'name': 'language:9b'}]} if endpoint == '/api/tags' else {'capabilities': ['completion']}
 
-    monkeypatch.setattr(setup_api, 'ollama_request', request)
+    mock_ollama(monkeypatch, request)
     result = setup_api.select_ollama(manager.value, 'language:9b')
     saved = translation_settings.load(root)
     assert saved['provider'] == 'ollama' and saved['ollama_model'] == 'language:9b'
@@ -161,8 +201,8 @@ def test_ollama_selection_uses_existing_translation_settings_and_preserves_secre
 
 def test_ollama_embedding_and_uninstalled_models_cannot_be_selected(configured, monkeypatch):
     _, _, manager, _ = configured
-    monkeypatch.setattr(setup_api, 'ollama_request', lambda value, endpoint, body=None:
-                        {'models': [{'name': 'embedding:latest'}]} if endpoint == '/api/tags' else
+    mock_ollama(monkeypatch, lambda value, endpoint, body=None:
+                        {'version': 'test'} if endpoint == '/api/version' else {'models': [{'name': 'embedding:latest'}]} if endpoint == '/api/tags' else
                         {'capabilities': ['embedding']})
     with pytest.raises(ValueError, match='генерацию текста'):
         setup_api.select_ollama(manager.value, 'embedding:latest')
@@ -177,7 +217,7 @@ def test_stopped_ollama_reports_a_recoverable_state(configured, monkeypatch):
     def stopped(*args):
         raise requests.ConnectionError('stopped')
 
-    monkeypatch.setattr(setup_api, 'ollama_request', stopped)
+    mock_ollama(monkeypatch, stopped)
     status = setup_api.ollama_status(manager.value)
     assert not status['ready'] and not status['service_ready'] and status['models'] == []
 
@@ -480,9 +520,9 @@ def test_ollama_show_failure_keeps_installed_models_selectable(configured, monke
             return {'models': [{'name': 'present:9b'}]}
         raise requests.HTTPError('show unavailable')
 
-    monkeypatch.setattr(setup_api, 'ollama_request', request)
+    mock_ollama(monkeypatch, request)
     status = setup_api.ollama_status(manager.value)
-    assert status['service_ready'] and status['model_present'] and not status['ready']
+    assert status['service_ready'] and status['model_present'] and status['ready']
     assert status['models'][0]['name'] == 'present:9b'
 
 
@@ -516,13 +556,11 @@ def test_bootstrap_is_nonblocking_once_and_preserves_explicit_device(configured,
     assert service.bootstrap_state['status'] == 'done'
 
 
-def test_bootstrap_optional_discovery_survives_broken_speech(configured, monkeypatch):
+def test_bootstrap_reports_broken_speech_without_external_discovery(configured, monkeypatch):
     _, _, manager, service = configured
-    seen = threading.Event()
     monkeypatch.setattr(manager, 'inventory', lambda: (_ for _ in ()).throw(ValueError('broken runtime')))
-    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: (seen.set() or {'selected': 'saved', 'models': []}))
+    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: pytest.fail('Unexpected Ollama discovery'))
     service.bootstrap()
-    assert seen.wait(3)
     import time
     deadline = time.monotonic() + 3
     while service.bootstrap_state['status'] == 'checking' and time.monotonic() < deadline:
@@ -530,17 +568,17 @@ def test_bootstrap_optional_discovery_survives_broken_speech(configured, monkeyp
     assert service.bootstrap_state['status'] == 'error'
 
 
-def test_bootstrap_selects_small_existing_text_model_without_generation(configured, monkeypatch):
+def test_bootstrap_never_selects_a_model_implicitly(configured, monkeypatch):
     _, _, manager, service = configured
     monkeypatch.setattr(manager, 'inventory', dict)
-    monkeypatch.setattr(setup_api, 'ollama_status', lambda value: {'selected': '', 'models': [
-        {'name': 'large-text', 'bytes': 5000}, {'name': 'embedding', 'bytes': 1}, {'name': 'small-text', 'bytes': 100}]})
-    monkeypatch.setattr(setup_api, 'ollama_completion', lambda value, name: name != 'embedding')
-    selected, done = [], threading.Event()
-    monkeypatch.setattr(setup_api, 'select_ollama', lambda value, name: (selected.append(name), done.set()))
+    monkeypatch.setattr(setup_api, 'select_ollama', lambda *args: pytest.fail('Implicit model selection'))
+    monkeypatch.setattr(setup_api, 'ollama_status', lambda *args: pytest.fail('Unrequested external discovery'))
     service.bootstrap()
-    assert done.wait(3)
-    assert selected == ['small-text']
+    import time
+    deadline = time.monotonic() + 3
+    while service.bootstrap_state['status'] == 'checking' and time.monotonic() < deadline:
+        time.sleep(.01)
+    assert service.bootstrap_state['status'] == 'done'
 
 
 def test_component_directory_change_preserves_files_and_requires_restart(configured):

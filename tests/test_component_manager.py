@@ -100,10 +100,10 @@ def test_real_child_reads_structured_model_progress_without_trusting_messages(ma
     assert 'hf_secret' not in manager.path.read_text()
 
 
-@pytest.mark.parametrize('action', ['install', 'pull', 'remove'])
+@pytest.mark.parametrize('action', ['install', 'remove'])
 def test_explicit_consent(manager, action):
     with pytest.raises(ValueError, match='Подтвердите'):
-        manager.action('ollama', {'action': action})
+        manager.action('diarization', {'action': action})
     assert manager.active is None
 
 
@@ -422,12 +422,6 @@ def test_startup_keeps_proof_without_claiming_live_readiness(manager):
     assert restarted.components['whisper']['proof']['segments'] == 3
 
 
-def test_managed_version_update_detection(manager):
-    manager.manifest['ollama'] = {'version': '2.0'}
-    manager.manager.value['ollama_mode'] = 'managed'
-    manager.update('ollama', 'installed', version='1.0', path=str(manager.root / 'ollama-1.0'))
-    row = next(row for row in manager.snapshot()['components'] if row['id'] == 'ollama')
-    assert row['state'] == 'update_available'
 
 
 def test_corrupt_state_schema_does_not_break_startup(manager):
@@ -456,12 +450,6 @@ def test_ollama_api_alone_does_not_claim_language_model_ready(manager, monkeypat
     assert 'Выберите модель' in manager.components['ollama']['message']
 
 
-def test_single_local_ai_preparation_requires_consent_and_managed_mode(manager):
-    with pytest.raises(ValueError, match='Подтвердите'):
-        manager.action('ollama', {'action': 'prepare', 'model': 'example'})
-    with pytest.raises(ValueError, match='управляемую'):
-        manager.action('ollama', {'action': 'prepare', 'model': 'example', 'confirmed': True})
-    assert manager.active is None
 
 
 def test_pending_action_rejects_wrong_component_before_start(manager):

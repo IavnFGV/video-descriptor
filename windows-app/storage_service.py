@@ -161,7 +161,7 @@ class StorageService:
             with ExitStack() as stack:
                 self.leases(stack, source, self.state['kind'])
                 if self.state['kind'] == 'components':
-                    self.components.close()  # Only the app-owned Ollama child, never the user's service.
+                    self.components.close()  # Cancel component preparation before moving storage.
                 self.pause_owned_readers(source)
                 entries = files(source)
                 total = sum(p.stat().st_size for p in entries)

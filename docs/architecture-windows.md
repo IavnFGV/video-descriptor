@@ -588,7 +588,15 @@ POST `/api/native/cancel?id=<job>` требует X-App-Instance и same-origin.
 
 `windows-app/component_manager.py` расширяет SetupService/ComputeManager: GET/POST `/api/components`, прежние instance/origin guards и блокировка активных jobs. Состояния компонентов не меняют job.status. Журнал, скачивания, CPython, pyannote venv и модели находятся в `%LOCALAPPDATA%/VideoDescriptor/ai-components`; конфигурация указателей сохраняется существующим механизмом config.local.json. Операции сериализованы также файловой блокировкой. HF-токен — только current-user DPAPI. CPU/XPU используют полный CPython, а не embedded venv. Новое окружение создаётся по уникальному конечному пути (venv нельзя переносить), проверяется существующим diarization_worker на встроенном WAV и только затем публикуется. Whisper использует прежний manifest/SHA256/downloader и прежний ComputeManager Auto NPU→GPU→CPU. Ollama использует существующий API либо собственный процесс с отдельным loopback-портом и каталогом моделей; чужие процессы не останавливаются.
 
-PR #5, подключения Ollama: ollama_mode=existing|service|managed и ollama_url — выбранное подключение в config.local.json; .devcontainer/ollama-connection.json передаёт его планировщику. Job snapshot передаёт OLLAMA_BASE_URL и VIDEO_DESCRIPTOR_JOB_OLLAMA_URL обоим дочерним процессам; последующие смены адреса не изменяют уже закреплённый endpoint. На старте нет inference владения по порту и нет автоматического запуска внешнего сервиса. Остановка приложения вызывает close только для сохранённого объекта принадлежащего менеджеру процесса.
+11.11.2026: Ollama — исключительно внешний HTTP(S)-сервер, `ollama_url` по умолчанию
+http://127.0.0.1:11434. Runtime, lifecycle, собственные порты/модели и установка исключены.
+`.devcontainer/ollama-connection.json` и неизменяемые job snapshots закрепляют адрес.
+Provider protocol (`llm_provider.py`) описывает connection/models/verify; Ollama parsing
+изолирован в `ollama_provider.py`. Discovery `/api/tags` не выполняет inference;
+выбранная модель повторно проверяется перед генерацией. Настройки сбрасывают inventory
+при изменении URL и игнорируют старые асинхронные ответы. Журналирование — общий
+HTTP audit и action_history.record, без содержимого запросов и ответов модели.
+Инструкция: [Ollama Windows](ollama-windows.md).
 
 Managed pyannote candidates carry the installer's reviewed Microsoft VC++ DLLs in
 venv-local `Library/bin` before dependency installation, with SHA256 checks against
@@ -602,7 +610,7 @@ is changed and venvs are never relocated.
 
 `SetupService.bootstrap()` runs once per server process after manager construction. It inventories the bundled runtime, imports a detected model only when no verified configuration exists, and uses `ComputeManager.prepare()` with the saved device preference. Speech and Ollama failures are isolated. Ollama discovery uses the selected connection and capability metadata only; no generation or Gemini request runs during bootstrap. Existing diagnostics inspect local diarization and saved Gemini configuration without sending recording data.
 
-The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. The `prepare` Ollama action explicitly opts into managed installation and then pulls/verifies one catalog model under the same lease.
+The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. Ollama is external-only: connection discovery and explicit generation verification reuse the configured HTTP server; no runtime or model preparation action exists.
 
 Advanced settings can save `ai_components_directory` for the next process start through the guarded SetupService API and the existing ComponentManager root argument. This does not move user data or modify live environments. Reinstalling a diarization runtime reuses an existing model when it still matches the reviewed manifest, including after a component-directory change.
 

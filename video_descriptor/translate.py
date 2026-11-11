@@ -120,7 +120,7 @@ def main():
     parser.add_argument("--lmstudio-url", help="Зафиксированный адрес LM Studio")
     parser.add_argument("--gemini-model", help="Зафиксированная Google-модель этого задания")
     parser.add_argument("--base-url", default=os.getenv(
-        "OLLAMA_BASE_URL", "http://host.docker.internal:11434"))
+        "OLLAMA_BASE_URL", "http://127.0.0.1:11434"))
     parser.add_argument("--refresh-only", action="store_true",
                         help="Обновить интерфейс из сохранённых данных без запросов модели")
     parser.add_argument("--device", choices=["auto", "cpu"], default="auto",
@@ -148,6 +148,10 @@ def main():
                     if args.local_model else {**translation_settings(), 'provider': 'gemini', 'model': args.gemini_model}
                     if args.gemini_model else translation_settings())
         active_model = settings['model'] if settings['provider'] == 'gemini' else (settings.get('lmstudio_model') if settings['provider'] == 'lmstudio' else settings.get('ollama_model')) or args.model
+        if settings['provider'] == 'ollama':
+            from .llm_provider import require_model
+            from .ollama_provider import Ollama
+            require_model(Ollama(args.base_url), active_model)
         count = load_counter(args.base_url, active_model) if settings['provider'] == 'ollama' else None
         groups = translation_groups(speech, count) if count else group_sources(speech, 0, 90)
         save(folder / 'translation-plan.json', translation_plan(

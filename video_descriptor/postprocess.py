@@ -6,7 +6,6 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from .action_history import record
 from .construction import checked_folder, validate, validate_provider
@@ -26,10 +25,9 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None, construction
     if lm_selected:
         from .lmstudio import base_url as lm_base_url
         base_url = lm_base_url(base_url)
-    parsed = urlsplit(base_url)
-    if (parsed.scheme != 'http' or parsed.hostname not in {'localhost', '127.0.0.1', '::1'}
-            or parsed.username or parsed.password or parsed.path not in ({'', '/', '/v1'} if lm_selected else {'', '/'}) or parsed.query or parsed.fragment):
-        raise ValueError('Для этой операции разрешён только локальный сервер модели')
+    if not lm_selected:
+        from .ollama_connection import endpoint_url
+        base_url = endpoint_url(base_url)
     if type(translate_after) is not bool:
         raise TypeError('Выберите, нужен ли перевод реплик')
     config = validate(construction) if task == 'notes' and construction is not None else None

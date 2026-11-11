@@ -82,3 +82,6 @@ def test_real_construction_pipeline_saves_or_rejects_http_fixture(tmp_path, monk
             assert (folder / 'report.html').is_file()
             assert (folder / ('article.md' if kind == 'article' else 'notes.md')).is_file()
         assert any(e.get('task') == kind for e in fixture.events)
+        routes = [e['route'] for e in fixture.events]
+        assert routes.index('/api/tags') < routes.index('/api/chat')
+        assert '/api/pull' not in routes

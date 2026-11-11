@@ -26,6 +26,8 @@ def test_audio_builds_notes_and_report_from_recognized_speech(tmp_path, monkeypa
         monkeypatch.setattr(cli, name, Mock(side_effect=AssertionError(f'{name} must be skipped')))
     summarize = Mock(return_value=Notes(notes=[Note(
         title='Cloud', explanation='Cloud computing', steps=[], limitations=[], source_ids=['s1'])]))
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': 'model'}])
     monkeypatch.setattr(cli, 'summarize', summarize)
     monkeypatch.setattr(cli, 'filter_notes', lambda result, *args: result)
     assert cli.main() == 0

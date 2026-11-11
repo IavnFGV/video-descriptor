@@ -134,7 +134,7 @@ def main() -> int:
     parser.add_argument("--image-max-side", type=positive_int, default=960)
     parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", ""))
     parser.add_argument("--base-url", default=os.getenv(
-        "OLLAMA_BASE_URL", "http://host.docker.internal:11434"
+        "OLLAMA_BASE_URL", "http://127.0.0.1:11434"
     ))
     parser.add_argument("--skip-notes", action="store_true", help="Только транскрипция и OCR")
     parser.add_argument("--audio-only", action="store_true", help="Пропустить кадры и OCR; создать обычный конспект и отчёт")
@@ -199,6 +199,10 @@ def main() -> int:
     try:
         log(f"Результаты и лог: {folder}")
         with stage("[1/5] Проверка видео", log):
+            if not args.skip_notes:
+                from .llm_provider import require_model
+                from .ollama_provider import Ollama
+                require_model(Ollama(args.base_url), args.model)
             if args.vision == "auto" and not args.skip_notes:
                 check_vision_model(args.model, args.base_url)
             info = probe(video)

@@ -17,7 +17,7 @@ from video_descriptor.action_history import record as record_action
 from video_descriptor.construction import ARTICLE_PROMPT, PROMPTS, parsed_notes
 from video_descriptor.models import Source
 from video_descriptor.notes import chat_json
-from video_descriptor.ollama_connection import loopback_url
+from video_descriptor.ollama_connection import endpoint_url
 from video_descriptor.translate import PROMPT as TRANSLATION_PROMPT
 
 
@@ -56,7 +56,7 @@ def material(case):
 
 
 def run(args):
-    base = loopback_url(args.base_url)
+    base = endpoint_url(args.base_url)
     cases = json.loads(args.cases.read_text(encoding='utf-8'))
     examples = json.loads(args.examples.read_text(encoding='utf-8')) if args.examples else []
     args.output.mkdir(parents=True, exist_ok=True)
