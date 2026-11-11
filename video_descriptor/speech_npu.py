@@ -7,6 +7,7 @@ import wave
 import requests
 
 from .jobs import read_json, write_json
+from .speech_recovery import InvalidTimestamps, InvalidWorkerTimestamps
 
 
 def worker_url():
@@ -39,10 +40,12 @@ def timed_items(response, offset, seconds):
         start = float(item.get('start', item.get('start_ts')))
         end = float(item.get('end', item.get('end_ts')))
         if end == -1:
-            raise ValueError('Whisper: модель не определила конец реплики (end_ts=-1). '
-                             'Фрагмент не сохранён: точные таймкоды недоступны.')
+            raise InvalidTimestamps('Whisper: модель не определила конец реплики (end_ts=-1). '
+                                    'Фрагмент не сохранён: точные таймкоды недоступны.',
+                                    {'start': start, 'end': end})
         if not (math.isfinite(start) and math.isfinite(end) and 0 <= start <= end <= seconds + .01):
-            raise ValueError('Whisper: модель вернула неверные таймкоды (время начала или конца реплики). Фрагмент не сохранён.')
+            raise InvalidTimestamps('Whisper: модель вернула неверные таймкоды (время начала или конца реплики). '
+                                    'Фрагмент не сохранён.', {'start': start, 'end': end})
         text = item['text'].strip()
         if text:
             result.append({'start': offset + start, 'end': offset + end,
@@ -65,10 +68,6 @@ def speech_regions(raw):
         else:
             groups.append((start, end))
     return groups
-
-
-class InvalidNPUTimestamps(RuntimeError):
-    pass
 
 
 def request_with_vad(raw, part, engine, offset, log):
@@ -108,7 +107,7 @@ def request_with_vad(raw, part, engine, offset, log):
             if not http.ok:
                 (folder / 'error.txt').write_text(http.text)
                 if http.status_code == 500 and 'invalid timestamps' in http.text:
-                    raise InvalidNPUTimestamps(f'Whisper NPU: неверные таймкоды; см. {folder}/error.txt')
+                    raise InvalidWorkerTimestamps(f'Whisper NPU: неверные таймкоды; см. {folder}/error.txt')
                 raise RuntimeError(f'Whisper NPU: HTTP {http.status_code}; см. {folder}/error.txt')
             response = http.json()
         reported = float(response.get('audio_seconds', -1))
@@ -167,7 +166,7 @@ def transcribe(audio, folder, on_chunk, log):
                 raw = stream.readframes(count)
                 try:
                     cached = request_with_vad(raw, part, engine, offset / 16000, log)
-                except InvalidNPUTimestamps:
+                except InvalidWorkerTimestamps:
                     if count <= 30 * 16000:
                         raise
                     limit = max(30 * 16000, count // 2)

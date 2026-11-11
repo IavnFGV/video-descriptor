@@ -249,3 +249,54 @@ def test_named_new_speaker_can_be_assigned_and_survives_reload(tmp_path):
     assert loaded['speaker_names']['speaker_new'] == 'Анна'
     assert loaded['segments'][0]['speaker'] == 'speaker_new'
     assert speech.read_json(folder / 'speech.json')['segments'] == original['segments']
+
+
+def test_unresolved_intervals_are_saved_and_reported(tmp_path, monkeypatch):
+    """A window without usable timestamps stays outside the transcript and is named in the result."""
+    import wave
+
+    from video_descriptor import speech_devices
+    data = tmp_path / 'data'
+    data.mkdir()
+    video = data / 'meeting.wav'
+    with wave.open(str(video), 'wb') as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(b'\0\0' * 16000)
+    job = speech.enqueue_existing(tmp_path, str(video), 'whisper-local')
+    job['device_plan'] = {'requested': 'NPU', 'selected': 'NPU',
+                          'engine': {'device': 'NPU', 'model_sha256': 'model', 'version': 1},
+                          'runtime': str(tmp_path),
+                          'backends': [{'device': 'NPU', 'url': 'http://npu'}]}
+    speech.write_json(tmp_path / 'output' / 'jobs' / job['id'] / 'job.json', job)
+    entry = {'id': 'u-0002400000-0003200000', 'start': 15.0, 'end': 20.0,
+             'status': 'unresolved', 'reason': 'invalid_timestamps'}
+
+    def transcribe(audio, folder, on_chunk, log, plan, job_id, language='auto', on_unresolved=None):
+        speech.write_json(folder / 'device-state.json',
+                          {'active': 'NPU', 'switches': [], 'engines': {}, 'identity': {}})
+        items = [{'start': 0, 'end': 1, 'text': 'Привіт', 'speaker': 'Без розметки'}]
+        on_chunk(items, 1)
+        on_unresolved(entry)
+        on_unresolved(entry)
+        return items, 'segment'
+
+    monkeypatch.setattr(speech_devices, 'transcribe', transcribe)
+    speech.run(tmp_path, tmp_path / 'output/jobs' / job['id'], job)
+    result = speech.read_json(tmp_path / 'output' / job['folder'] / 'speech.json')
+    assert result['status'] == 'done'
+    assert result['unresolved'] == [entry]
+    assert 'таймкод' in result['message']
+    assert [s['text'] for s in result['segments']] == ['Привіт']
+
+
+def test_old_speech_result_without_unresolved_stays_readable(tmp_path):
+    """Results written before the recovery field keep working unchanged."""
+    folder = tmp_path / 'output/speech-test'
+    folder.mkdir(parents=True)
+    original = {'status': 'done', 'segments': [
+        {'start': 0, 'end': 2, 'text': 'Hello', 'speaker': 'SPEAKER_00'}]}
+    speech.write_json(folder / 'speech.json', original)
+    assert speech.read_json(folder / 'speech.json') == original
+    assert speech.state(tmp_path, {'folder': ['speech-test']})['result']['segments'] == original['segments']

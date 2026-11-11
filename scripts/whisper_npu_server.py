@@ -12,6 +12,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
+class InvalidTimestamps(ValueError):
+    """The model returned timestamps that cannot be used for this window."""
+
+    def __init__(self, payload):
+        super().__init__(payload.get("error", "invalid timestamps"))
+        self.payload = payload
+
+
 def read_audio(body):
     import numpy as np
 
@@ -95,7 +103,10 @@ def make_handler(pipeline, info):
                         begin, end = float(chunk.start_ts), float(chunk.end_ts)
                         if not (math.isfinite(begin) and math.isfinite(end)
                                 and 0 <= begin <= end <= duration + 1):
-                            raise ValueError(f"{info['device']} returned invalid timestamps")
+                            raise InvalidTimestamps(
+                                {"error": f"{info['device']} returned invalid timestamps",
+                                 "code": "invalid_timestamps",
+                                 "invalid": {"start": begin, "end": end}})
                         if chunk.text.strip() and begin < duration:
                             segments.append({"start": begin, "end": min(end, duration),
                                              "text": chunk.text.strip()})
@@ -103,6 +114,8 @@ def make_handler(pipeline, info):
                     print(f"{info['device']}: done in {elapsed:.2f}s, segments={len(segments)}", flush=True)
                 self.respond(200, {"segments": segments, "audio_seconds": duration,
                                    "seconds": elapsed, "engine": info})
+            except InvalidTimestamps as exc:
+                self.respond(500, exc.payload)
             except Exception as exc:  # noqa: BLE001 — API boundary preserves diagnostics.
                 self.respond(500, {"error": str(exc)})
 

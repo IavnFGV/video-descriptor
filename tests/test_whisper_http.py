@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import requests
 
 from scripts.whisper_npu_server import make_handler
 from video_descriptor.media import transcribe
@@ -17,6 +18,7 @@ def worker(monkeypatch):
     info = {"protocol": 1, "device": "NPU", "model": "base.en", "pipeline": "static",
             "num_beams": 1, "model_sha256": "test-model", "openvino": "test", "genai": "test"}
     server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(pipeline, info))
+    pipeline.server_port = server.server_port
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     monkeypatch.setenv("WHISPER_BACKEND", "openvino-http")
@@ -81,3 +83,17 @@ def test_invalid_timestamp_block_is_split_without_losing_audio(worker, tmp_path)
     assert [len(call.args[0]) / 16000 for call in worker.generate.call_args_list] == [300, 150, 150]
     state = json.loads((tmp_path / "transcript.partial.json").read_text())
     assert state["done"] and state["completed_until"] == 300
+
+
+def test_worker_reports_invalid_timestamps_with_machine_readable_body(worker, tmp_path):
+    """The worker names the failure so the client can recover instead of guessing."""
+    worker.generate.return_value = result("Broken", -1)
+    response = requests.post(f"http://127.0.0.1:{worker.server_port}/transcribe",
+                             data=audio_file(tmp_path, 10).read_bytes(),
+                             headers={"Content-Type": "audio/wav", "X-Whisper-Model": "base.en",
+                                      "X-Language": "en"}, timeout=30)
+    assert response.status_code == 500
+    body = response.json()
+    assert body["code"] == "invalid_timestamps"
+    assert body["invalid"] == {"start": 0.0, "end": -1.0}
+    assert "Broken" not in response.text

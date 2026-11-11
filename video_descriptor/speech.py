@@ -393,6 +393,16 @@ def run(root, job_folder, job):
                 message = f"Текст: {message} | Голоса: {parallel_status['diarization']}"
             publish(message, processed)
 
+    def note_unresolved(entry):
+        """Record an interval the model could not timestamp; it never becomes a transcript row."""
+        with update_lock:
+            known = {row.get('id') for row in result.get('unresolved', [])}
+            if entry.get('id') in known:
+                return
+            result.setdefault('unresolved', []).append(entry)
+            result['unresolved'].sort(key=lambda row: (row['start'], row['end']))
+            publish('Whisper: участок без таймкодов сохранён как нераспознанный')
+
     def gpu_update(message):
         with update_lock:
             parallel_status['diarization'] = message
@@ -462,7 +472,8 @@ def run(root, job_folder, job):
             if job['engine'] == 'whisper-local':
                 from .speech_devices import transcribe as transcribe_devices
                 words, timing = transcribe_devices(audio, folder, on_chunk, update,
-                                                   job['device_plan'], job['id'], job.get('language', 'auto'))
+                                                   job['device_plan'], job['id'], job.get('language', 'auto'),
+                                                   on_unresolved=note_unresolved)
                 devices = read_json(folder / 'device-state.json')
                 result.update(device=devices['active'], device_switches=devices['switches'],
                               requested_device=job['device_plan']['requested'])
@@ -525,6 +536,13 @@ def run(root, job_folder, job):
         result.update(status='done', stage='done', processed=duration,
                       no_speech=not bool(result['segments']),
                       message='Распознавание завершено' if result['segments'] else 'Речь не обнаружена после VAD')
+        unresolved = result.get('unresolved') or []
+        if unresolved:
+            result['message'] += (f'; без корректных таймкодов: {len(unresolved)} '
+                                   f'участк(ов), перечислены в поле unresolved')
+            result['speaker_notice'] = result.get('speaker_notice', '') + (
+                f' · Участки без корректных таймкодов: {len(unresolved)}; '
+                'их текст можно вписать вручную в редакторе расшифровки')
         write_json(folder / 'speech.json', result)
     except Exception as exc:
         if pool is not None:

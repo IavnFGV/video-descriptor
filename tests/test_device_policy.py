@@ -1,3 +1,4 @@
+import io
 import itertools
 import json
 import wave
@@ -61,6 +62,14 @@ def reply(engine, end=.8):
                                       'segments': [{'start': .1, 'end': end, 'text': 'Text'}]})
 
 
+def reply_to(engine, end, data):
+    """A worker answer that reports the duration of the audio it actually received."""
+    with wave.open(io.BytesIO(data), 'rb') as request:
+        seconds = request.getnframes() / 16000
+    return Mock(ok=True, json=lambda: {'engine': engine, 'audio_seconds': seconds,
+                                      'segments': [{'start': .1, 'end': end, 'text': 'Text'}]})
+
+
 def test_runtime_fallback_keeps_completed_regions_and_provenance_on_resume(tmp_path, monkeypatch):
     audio, engines, plan = fixture(tmp_path, monkeypatch)
     transport = Mock()
@@ -111,16 +120,30 @@ def test_pending_compilation_does_not_spawn_duplicate(tmp_path, monkeypatch):
     spawn.assert_not_called()
 
 
-def test_unclosed_timestamp_is_diagnosed_without_device_fallback(tmp_path, monkeypatch):
+def test_unclosed_timestamp_is_recovered_without_device_fallback(tmp_path, monkeypatch):
+    """An unusable end marker is split into halves; the device stays the same."""
     audio, engines, plan = fixture(tmp_path, monkeypatch)
     transport = Mock()
-    transport.post.return_value = reply(engines['NPU'], -1)
+    transport.post.side_effect = lambda url, **kwargs: reply_to(engines['NPU'], -1, kwargs['data'])
     monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
-    with pytest.raises(ValueError, match='end_ts=-1'):
-        speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
-    assert transport.post.call_count == 1
+    unresolved = []
+    items, _ = speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job',
+                                         on_unresolved=unresolved.append)
+    assert items == []
+    assert unresolved and all(entry['reason'] == 'invalid_timestamps' for entry in unresolved)
+    assert read_json(tmp_path / 'device-state.json')['switches'] == []
     assert list(tmp_path.glob('local-*/speech-*/invalid-response.json'))
     assert not list(tmp_path.glob('local-*/speech-*/response.json'))
+
+
+def test_unusable_timestamps_never_invent_audio_times(tmp_path, monkeypatch):
+    """Recovered windows keep the model's own times; nothing is interpolated."""
+    audio, engines, plan = fixture(tmp_path, monkeypatch)
+    transport = Mock()
+    transport.post.side_effect = lambda url, **kwargs: reply_to(engines['NPU'], .8, kwargs['data'])
+    monkeypatch.setattr(speech_devices.requests, 'Session', lambda: transport)
+    items, _ = speech_devices.transcribe(audio, tmp_path, Mock(), Mock(), plan, 'job')
+    assert [(row['start'], row['end']) for row in items] == [(.1, .8), (300.1, 300.8)]
 
 
 def test_events_exclude_transcript_tokens_and_arbitrary_payload(tmp_path):
