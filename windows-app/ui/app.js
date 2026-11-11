@@ -393,7 +393,7 @@
         config.savedUrl=endpoint;config.savedModel=saved.lmstudio_model;if(config.token===token)config.token='';
       }
       if(provider==='ollama')config.savedModel=model;
-      if(localCurrent(request,provider,endpoint,model)){$('local-token').value='';$('ollama-feedback').textContent='Модель и провайдер сохранены. Генерация проверяется отдельно.';}
+      if(localCurrent(request,provider,endpoint,model)){$('local-token').value='';$('ollama-feedback').textContent='Провайдер и модель по умолчанию сохранены. Генерация проверяется отдельно.';}
     }catch(e){if(localCurrent(request,provider,endpoint))$('ollama-feedback').textContent=e.message;}
     finally{if(localCurrent(request,provider,endpoint)){localBusy=false;localControls();}}
   };

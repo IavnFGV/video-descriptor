@@ -228,10 +228,11 @@
 <p id="local-guide" class="footnote" hidden></p>
 </div>
 <div class="vd-control-group">
-<label class="vd-field">Доступные модели<select id="ollama-model" class="vd-select" name="ollama-model" aria-describedby="ollama-feedback"><option value="">Обновите список моделей</option></select></label>
+<label class="vd-field">Модель по умолчанию<select id="ollama-model" class="vd-select" name="ollama-model" aria-describedby="local-default-help ollama-feedback"><option value="">Обновите список моделей</option></select></label>
 <div class="vd-actions"><button type="button" id="ollama-refresh" class="vd-button">Обновить модели</button><button id="ollama-test" type="button" disabled class="vd-button">Проверить модель</button></div>
 </div>
-<div class="vd-actions"><button type="submit" id="ollama-connect" disabled class="vd-button">Сохранить модель и провайдера</button></div>
+<p id="local-default-help" class="footnote">Используется для новых переводов, конспектов и статей. Для конкретного действия над записью можно выбрать другого провайдера или модель.</p>
+<div class="vd-actions"><button type="submit" id="ollama-connect" disabled class="vd-button">Сохранить по умолчанию</button></div>
 <p id="ollama-feedback" class="footnote" role="status" aria-live="polite"></p>
 </form>
 <div id="component-ollama"></div>
