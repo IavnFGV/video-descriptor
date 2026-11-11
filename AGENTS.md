@@ -53,6 +53,17 @@ These instructions do not enforce billing limits; never promise subscription-onl
 usage without a verified account-side control.
 
 Inspect branch, worktrees, status and upstream before editing. Keep unrelated changes.
+All development changes, including code, tests, documentation and agent/configuration
+changes, must start on a dedicated task branch, never directly on main or detached
+HEAD. Create the branch before editing; use a separate worktree for concurrent work.
+Implement, run checks, inspect the diff and commit with a meaningful message on that
+branch. Merge only verified commits into main, then delete the fully merged task
+branch with safe deletion (`git branch -d`, never force deletion). If a worktree
+still checks out that branch, preserve its files and switch a clean worktree to a
+safe ref before deletion; never remove a dirty worktree to force cleanup. Remote
+branch deletion requires authorized remote access and a confirmed merge. Leave
+unrelated or unmerged branches untouched. Merge is not release authorization:
+do not change version/BUILD, create tags or dispatch releases as a merge side effect.
 For concurrent work use separate branches/worktrees and explicit file ownership;
 do not share an index or runtime workspace blindly. Prefer `codex/` for new Codex
 branches. Commit verified work locally with a meaningful message; push/publication

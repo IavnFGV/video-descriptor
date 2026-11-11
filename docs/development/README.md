@@ -65,9 +65,10 @@ git fetch origin
 git rev-list --left-right --count HEAD...origin/main
 ```
 
-Use the current agreed worktree. A task branch based on updated main is normal;
-keep other agents' changes untouched. For a separate checkout, choose a new unused
-path and branch:
+All development changes (code, tests, documentation, configuration and agent rules)
+must use a dedicated task branch. Create it before editing; do not develop directly
+on main or detached HEAD. Use the current agreed worktree and keep other agents'
+changes untouched. For a separate checkout, choose a new unused path and branch:
 
 ```powershell
 git worktree add ../video-descriptor-agent -b codex/task-name origin/main
@@ -81,6 +82,19 @@ Run [focused checks](testing.md), inspect the diff and commit locally. Push, rem
 merge and publication require a user request. Add substantial development changes
 to [history.md](history.md), keeping the root README focused on current state and
 links; maintain `docs/architecture-windows.md` for changed runtime contracts.
+
+Complete each task as: **branch → changes → checks and diff review → commit →
+merge verified commits → delete the merged task branch**. Prefer safe fast-forward
+merges when possible. Use `git branch -d`, not forced deletion; first confirm the
+task commits are ancestors of main. If a clean worktree still checks out the task
+branch, detach it at the merged main revision before deleting the branch. Preserve
+dirty worktrees and all unrelated/unmerged branches. Do not remove worktree files
+just to delete a branch. Delete a remote task branch only after its merge is confirmed
+and remote mutation is authorized.
+
+Merging does not authorize a release: no automatic version/BUILD bump, tag, release
+dispatch or publication. Explicitly authorized release automation follows the
+[release procedure](releases.md) separately.
 
 ## Task routes and dependencies
 
