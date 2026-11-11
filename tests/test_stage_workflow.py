@@ -43,7 +43,7 @@ def test_rerun_notes_creates_independent_version_and_copies_corrected_sources(tm
     jobs.write_json(folder / 'transcript-edits.json', {'segments': [
         {'id': 's1', 'start': 0, 'end': 10, 'text': 'Corrected speech', 'speaker': 'speaker_1'}]})
     before = {path.name: path.read_bytes() for path in folder.iterdir() if path.is_file()}
-    job = construction.enqueue_notes(tmp_path, folder.name, {'input': 'slides'})
+    job = construction.enqueue_notes(tmp_path, folder.name, {'input': 'slides', 'provider': 'ollama', 'model': 'qwen3.5:9b'})
     version = tmp_path / 'output' / job['folder']
     assert version != folder
     assert job['source_folder'] == folder.name

@@ -734,3 +734,26 @@ Endpoint/model и черновик токена изолированы по пр
 LM Studio (повторный inventory перед генерацией); HTTP audit и action_history
 содержат начало/результат/ошибку без токенов или текста запросов. CSS, маршруты,
 очередь, revision/dirty guards и release inputs сохранены.
+
+
+11.11.2026: Milestone 2 — общий контракт `llm_provider.snapshot/selected/runtime/generate`
+расширяет существующие адаптеры, не создавая новый менеджер провайдеров. Snapshot
+содержит version/provider/endpoint/model/parameters по allowlist; credentials остаются
+только в protected settings и памяти процесса. `jobs.capture_llm`, notes/article queue
+и postprocess сохраняют additive `llm`/`translation_llm`; worker передаёт их через
+`VIDEO_DESCRIPTOR_LLM_SNAPSHOT`. Старые задания без этих полей закрепляются однократно
+при первом запуске/продолжении с учётом прежних сохранённых URL. Speech-only/diarize
+не получают LLM snapshot; обработчики распознавания/диаризации не изменены.
+Перевод разрешает route и credentials один раз перед разбиением на блоки, включая
+pinned CLI-аргументы старых заданий; глобальные изменения не меняют последующие запросы.
+Конспект/статья используют сохранённый config и тот же route для inventory, metadata,
+токенизации и inference. При отсутствии явного task provider/model берутся из общих
+настроек, сохранённые промпты и параметры задачи не теряются. Явный выбор задачи
+имеет приоритет. Legacy summarize/filter/quiz/vision используют тот же execution route
+и прежние JSON schemas/промпты/контекст. Ollama streaming/retries и process-tree cancel
+сохранены; LM Studio остаётся non-streaming, как раньше. Gemini использует существующий
+транспорт с optional schema/images, без generic cloud API или изменения cloud consent.
+Общие журналы содержат прежние correlation/status events; raw error body не попадает
+в ошибки UI/worker. Ключ другого LM Studio endpoint не присоединяется к старому
+snapshot: для возобновления authenticated job требуется доступ к исходному endpoint.
+Завершённые checkpoints, оригинальные ответы, revisions и ручные правки сохраняются.

@@ -89,9 +89,11 @@ def test_chunked_local_notes_do_not_allocate_model_maximum(tmp_path, monkeypatch
          'text': 'Объяснение темы и практический пример. ' * 100} for i in range(3)]})
     jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'video.mp4')})
     monkeypatch.setattr(construction, 'render', lambda *a, **kw: None)
+    from video_descriptor import translation_settings
     from video_descriptor.ollama_provider import Ollama
+    translation_settings.save(tmp_path, {'provider': 'ollama', 'ollama_model': construction.DEFAULTS['model']})
     monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': construction.DEFAULTS['model']}])
-    monkeypatch.setattr(construction, 'actual_limits', lambda root, config: {**config, 'context_tokens': 262144})
+    monkeypatch.setattr(construction, 'actual_limits', lambda root, config, settings=None: {**config, 'context_tokens': 262144})
     monkeypatch.setattr(construction, 'load_counter', lambda *a: counter)
     contexts = []
 
@@ -115,9 +117,11 @@ def test_long_local_notes_use_one_request_and_small_context(tmp_path, monkeypatc
          'text': 'Длинная запись. ' * 3000}]})
     jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'video.mp4')})
     monkeypatch.setattr(construction, 'render', lambda *a, **kw: None)
+    from video_descriptor import translation_settings
     from video_descriptor.ollama_provider import Ollama
+    translation_settings.save(tmp_path, {'provider': 'ollama', 'ollama_model': construction.DEFAULTS['model']})
     monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': construction.DEFAULTS['model']}])
-    monkeypatch.setattr(construction, 'actual_limits', lambda root, config: {**config, 'context_tokens': 65536})
+    monkeypatch.setattr(construction, 'actual_limits', lambda root, config, settings=None: {**config, 'context_tokens': 65536})
     monkeypatch.setattr(construction, 'load_counter', lambda *a: counter)
     calls = []
 

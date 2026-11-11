@@ -60,7 +60,9 @@ def load(root=None):
             for line in env.read_text().splitlines():
                 if line.startswith("GEMINI_API_KEY="):
                     value["api_key"] = line.partition("=")[2].strip().strip("\"'")
-    if os.getenv('VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL'):
+    # New workers resolve their route from the secret-free snapshot. Keep the stored
+    # endpoint as credential provenance; an inherited URL must not relabel its token.
+    if os.getenv('VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL') and not os.getenv('VIDEO_DESCRIPTOR_LLM_SNAPSHOT'):
         value['lmstudio_url'] = os.environ['VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL']
     return value
 

@@ -362,7 +362,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                                        value.get("mode", "audio"), value.get("thinking", False), value.get('construction'))
                 if 'speech_only' in value:
                     job['speech_only'] = value['speech_only']
-                    write_json(jobs_dir(root) / job['id'] / 'job.json', job)
+                from .jobs import capture_llm
+                capture_llm(root, job)
+                write_json(jobs_dir(root) / job['id'] / 'job.json', job)
                 start_worker(root)
                 return self.json_response(202, job)
             except (ValueError, OSError, KeyError, TypeError) as exc:

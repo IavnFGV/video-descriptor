@@ -1,5 +1,7 @@
 # Video Descriptor
 
+11.11.2026: Milestone 2 — выбор LLM из общих настроек используется переводом, конспектами, статьями и прежними операциями анализа/фильтрации/quiz/vision. Очередь сохраняет provider/endpoint/model и параметры без ключей; subprocess получает тот же snapshot, а перевод не перечитывает выбор между блоками. Явный выбор задачи сохраняет приоритет. Старые задания получают snapshot однократно при продолжении; исходные данные и завершённые блоки сохраняются. Missing model и ошибки провайдеров не запускают fallback, setup/download отсутствуют. Регрессии используют локальные fake HTTP-серверы, реальные модели не требуются.
+
 11.11.2026: Milestone 1 — Ollama и LM Studio используют одну форму локального LLM: провайдер, адрес, проверка подключения, доступные модели, обновление, отдельная проверка генерации и инструкция. Настройки провайдеров сохраняются независимо; список берётся только с выбранного сервера, отсутствующая модель не подменяется. Смена провайдера/адреса/модели отсекает устаревшие ответы. Для LM Studio проверяются структура inventory и наличие модели перед тестом; операции видны в общем журнале. Generic cloud API отложен.
 
 11.11.2026: Added English agent instructions, architecture/development maps, portable diagnostic and release-review skills, and a Claude adapter. Shared OpenCode configuration enables LSP. Application behavior and release inputs are unchanged. Start at [AGENTS.md](AGENTS.md) or the [development guide](docs/development/README.md).
