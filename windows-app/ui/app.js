@@ -59,6 +59,7 @@
       toggle.querySelector('path').setAttribute('d',collapsed?SIDEBAR_TOGGLE_ICONS.expanded:SIDEBAR_TOGGLE_ICONS.collapsed);
     }
     writeSidebarState(collapsed);
+    document.body.classList.toggle('sidebar-collapsed',collapsed);
   }
   $('sidebar-toggle').onclick=()=>setSidebarCollapsed($('sidebar-toggle').getAttribute('aria-expanded')==='true');
   setSidebarCollapsed(readSidebarState());

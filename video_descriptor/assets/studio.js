@@ -21,6 +21,24 @@
       params.set('workspace','1');target.search=params.toString();link.href=target.href;
     });
   }
+  const SIDEBAR_STORAGE_KEY='video-descriptor:ui:sidebar';
+  const SIDEBAR_TOGGLE_ICONS={collapsed:'M9 5l7 7-7 7',expanded:'M15 5l-7 7 7 7'};
+  const sidebarToggle=$('sidebar-toggle');
+  if(sidebarToggle){
+    const readSidebarState=()=>{try{return localStorage.getItem(SIDEBAR_STORAGE_KEY)==='1';}catch(_e){return false;}};
+    const applySidebar=()=>{
+      const collapsed=readSidebarState();
+      document.body.classList.toggle('sidebar-collapsed',collapsed);
+      sidebarToggle.setAttribute('aria-expanded',String(!collapsed));
+      sidebarToggle.setAttribute('aria-label',collapsed?'Показать панель навигации':'Свернуть панель навигации');
+      sidebarToggle.querySelector('path').setAttribute('d',collapsed?SIDEBAR_TOGGLE_ICONS.expanded:SIDEBAR_TOGGLE_ICONS.collapsed);
+    };
+    sidebarToggle.onclick=()=>{
+      try{localStorage.setItem(SIDEBAR_STORAGE_KEY,readSidebarState()?'0':'1');}catch(_e){}
+      applySidebar();
+    };
+    applySidebar();
+  }
   if (!stages.includes(stage)) stage = 'source';
   function openStage(value, updateUrl = true) {
     stage = value;
