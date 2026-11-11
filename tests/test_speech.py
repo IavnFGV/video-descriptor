@@ -251,7 +251,8 @@ def test_named_new_speaker_can_be_assigned_and_survives_reload(tmp_path):
     assert speech.read_json(folder / 'speech.json')['segments'] == original['segments']
 
 
-def test_unresolved_intervals_are_saved_and_reported(tmp_path, monkeypatch):
+@pytest.mark.parametrize('recognized', [True, False])
+def test_unresolved_intervals_are_saved_and_reported(tmp_path, monkeypatch, recognized):
     """A window without usable timestamps stays outside the transcript and is named in the result."""
     import wave
 
@@ -276,7 +277,7 @@ def test_unresolved_intervals_are_saved_and_reported(tmp_path, monkeypatch):
     def transcribe(audio, folder, on_chunk, log, plan, job_id, language='auto', on_unresolved=None):
         speech.write_json(folder / 'device-state.json',
                           {'active': 'NPU', 'switches': [], 'engines': {}, 'identity': {}})
-        items = [{'start': 0, 'end': 1, 'text': 'Привіт', 'speaker': 'Без розметки'}]
+        items = [{'start': 0, 'end': 1, 'text': 'Привіт', 'speaker': 'Без розметки'}] if recognized else []
         on_chunk(items, 1)
         on_unresolved(entry)
         on_unresolved(entry)
@@ -288,7 +289,9 @@ def test_unresolved_intervals_are_saved_and_reported(tmp_path, monkeypatch):
     assert result['status'] == 'done'
     assert result['unresolved'] == [entry]
     assert 'таймкод' in result['message']
-    assert [s['text'] for s in result['segments']] == ['Привіт']
+    assert [s['text'] for s in result['segments']] == (['Привіт'] if recognized else [])
+    assert result['no_speech'] is False
+    assert 'Речь не обнаружена' not in result['message']
 
 
 def test_old_speech_result_without_unresolved_stays_readable(tmp_path):

@@ -43,6 +43,7 @@ def editable_result(folder, result):
     result['has_translation'] = bool(result['translations'])
     # Intervals the model could not timestamp stay outside the transcript until the user fills them in.
     result['unresolved'] = pending_unresolved(result.get('unresolved'), result['segments'])
+    result['no_speech'] = not result['segments'] and not result['unresolved']
     result['edit_revision'] = hashlib.sha256(
         json.dumps([result['segments'], result['translations']], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     return result
@@ -74,7 +75,9 @@ def edit_utterance(root, value):
         if value.get('action') == 'restore':
             rows = value.get('segments')
             translations = value.get('translations')
-            if not isinstance(rows, list) or not rows or len(rows) > 100000 or not isinstance(translations, dict):
+            empty_gap_recording = not original['segments'] and bool(original.get('unresolved'))
+            if (not isinstance(rows, list) or (not rows and not empty_gap_recording)
+                    or len(rows) > 100000 or not isinstance(translations, dict)):
                 raise ValueError('Некорректный снимок расшифровки')
             known = {row['speaker'] for row in original['segments']} | set(original.get('speaker_names', {})) | {'unknown'}
             identifiers = set()
@@ -575,10 +578,11 @@ def run(root, job_folder, job):
         if job.get('speech_only'):
             result['segments'] = [{**row, 'id': f's{index:05d}'}
                                   for index, row in enumerate(result['segments'], 1)]
-        result.update(status='done', stage='done', processed=duration,
-                      no_speech=not bool(result['segments']),
-                      message='Распознавание завершено' if result['segments'] else 'Речь не обнаружена после VAD')
         unresolved = result.get('unresolved') or []
+        result.update(status='done', stage='done', processed=duration,
+                      no_speech=not result['segments'] and not unresolved,
+                      message='Распознавание завершено' if result['segments'] else
+                              'Распознавание неполное' if unresolved else 'Речь не обнаружена после VAD')
         if unresolved:
             result['message'] += (f'; без корректных таймкодов: {len(unresolved)} '
                                    f'участк(ов), перечислены в поле unresolved')

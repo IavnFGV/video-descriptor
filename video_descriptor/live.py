@@ -327,7 +327,7 @@ def snapshot(root, folder):
             "speaker_names": speech_result.get("speaker_names", {}),
             "speech_edit_revision": edit_state.get('edit_revision'),
             "speaker_options": edit_state.get('speaker_options', []),
-            "speech_editor_url": "/create?folder=" + quote(folder.name) if speech else None,
+            "speech_editor_url": "/create?folder=" + quote(folder.name) if speech or unresolved else None,
             "subtitle_url": "/api/subtitles?folder=" + quote(folder.name) + "&language=original" if speech else None,
             "translation_url": "/api/subtitles?folder=" + quote(folder.name) + "&language=ru" if translations else None,
             "speaker_notice": speech_result.get("speaker_notice", ""),

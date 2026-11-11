@@ -729,3 +729,7 @@ Public GitHub Release использует только standard ZIP/EXE. Domest
 ### Номер билда из репозитория (0.9.0)
 
 По уточнению владельца единственный источник — текстовый BUILD в Git. Он инкрементируется и коммитится только при подготовке нового релиза, до создания version tag. Local/Domestic/cached и GitHub читают одно значение; retry и deterministic rebuild его не меняют. BUILD включён в source allowlist, manifest.build, acceptance-provenance.build, API /health и /api/doctor, footer и Inno AppVerName. Дополнительных локальных счётчиков или build-info.json нет. Ключи моделей/component cache не включают номер.
+
+
+11.11.2026: review recovery: restore допускает пустые segments только при исходно пустой речи с unresolved-интервалами (Undo первого ручного заполнения). no_speech означает отсутствие и распознанных реплик, и unresolved; незавершённая расшифровка не выдаётся за подтверждённую тишину.
+ Редактор также доступен для записи без распознанных реплик, если в ней есть unresolved-интервалы.

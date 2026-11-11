@@ -222,3 +222,45 @@ def test_version_keeps_the_manual_answer_as_a_recognized_reply(tmp_path):
     filled = [row for row in saved['segments'] if row['id'] == GAP['id']]
     assert len(filled) == 1 and filled[0]['text'] == 'Written by hand'
     assert filled[0]['start'] == 25.0 and filled[0]['end'] == 30.0
+
+
+def test_gap_only_recording_can_undo_and_redo_its_first_manual_reply(folder):
+    root, directory = folder
+    write_json(directory / 'speech.json', {'status': 'done', 'duration': 40, 'segments': [],
+                                           'unresolved': [GAP], 'no_speech': False})
+    write_json(directory / 'transcript.json', [])
+    before = current(directory)
+    saved = edit_utterance(root, {'folder': 'speech', 'revision': before['edit_revision'],
+                                  'action': 'resolve', 'unresolved_id': GAP['id'],
+                                  'text': 'First manual reply', 'speaker': 'unknown'})
+    undone = edit_utterance(root, {'folder': 'speech', 'revision': saved['edit_revision'],
+                                   'action': 'restore', 'segments': before['segments'],
+                                   'translations': before['translations']})
+    assert undone['segments'] == []
+    assert [gap['id'] for gap in undone['unresolved']] == [GAP['id']]
+    redone = edit_utterance(root, {'folder': 'speech', 'revision': undone['edit_revision'],
+                                   'action': 'restore', 'segments': saved['segments'],
+                                   'translations': saved['translations']})
+    assert redone['unresolved'] == []
+    assert redone['segments'][0]['text'] == 'First manual reply'
+
+
+def test_pending_intervals_are_not_reported_as_absence_of_speech(folder):
+    _, directory = folder
+    write_json(directory / 'speech.json', {'status': 'done', 'duration': 40, 'segments': [],
+                                           'unresolved': [GAP], 'no_speech': True})
+    write_json(directory / 'transcript.json', [])
+    assert current(directory)['no_speech'] is False
+
+
+def test_gap_only_recording_exposes_the_manual_editor_in_live_snapshot(folder):
+    from video_descriptor import live
+    root, directory = folder
+    write_json(directory / 'manifest.json', {'video': str(root / 'video.mp4')})
+    write_json(directory / 'speech.json', {'status': 'done', 'duration': 40, 'segments': [],
+                                           'unresolved': [GAP], 'no_speech': False})
+    write_json(directory / 'transcript.json', [])
+    value = live.snapshot(root, directory)
+    assert value['speech'] == []
+    assert value['unresolved'][0]['id'] == GAP['id']
+    assert value['speech_editor_url'] == '/create?folder=speech'
