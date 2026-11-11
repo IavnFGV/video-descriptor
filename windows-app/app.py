@@ -310,13 +310,19 @@ def make_handler(value, instance):
                             except (ValueError, KeyError, TypeError):
                                 continue  # Ignore truncated or invalid event records.
                 return self.json_response(200, events)
-            if path in {'/', '/native.js', '/native.css', '/help/ollama'}:
-                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css', '/help/ollama': 'help.html'}[path]
+            if path in {'/', '/native.js', '/native.css', '/help/ollama', '/help/lmstudio'}:
+                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css', '/help/ollama': 'help.html', '/help/lmstudio': 'help.html'}[path]
                 if path == '/help/ollama':
                     from markdown_it import MarkdownIt
                     content = MarkdownIt().enable('table').render((REPOSITORY / 'docs/ollama-windows.md').read_text(encoding='utf-8'))
                     body = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
                             '<title>Ollama — инструкция</title><link rel="stylesheet" href="/native.css">'
+                            '<body><main class="card vd-prose">' + content + '</main></body></html>').encode('utf-8')
+                elif path == '/help/lmstudio':
+                    from markdown_it import MarkdownIt
+                    content = MarkdownIt().enable('table').render((REPOSITORY / 'docs/lmstudio-windows.md').read_text(encoding='utf-8'))
+                    body = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                            '<title>LM Studio — инструкция</title><link rel="stylesheet" href="/native.css">'
                             '<body><main class="card vd-prose">' + content + '</main></body></html>').encode('utf-8')
                 else:
                     body = (HERE / 'ui' / name).read_bytes()
@@ -403,7 +409,7 @@ def make_handler(value, instance):
                             raise ValueError('Неизвестное действие с папкой')
                         return self.json_response(202, storage.start(body))
                     if path == '/api/setup/external':
-                        pages = {'ollama-guide': f'http://127.0.0.1:{self.server.server_port}/help/ollama', 'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
+                        pages = {'ollama-guide': f'http://127.0.0.1:{self.server.server_port}/help/ollama', 'lmstudio-guide': f'http://127.0.0.1:{self.server.server_port}/help/lmstudio', 'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
                         if body.get('page') not in pages:
                             raise ValueError('Неизвестная страница')
                         webbrowser.open(pages[body['page']])

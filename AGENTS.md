@@ -72,4 +72,4 @@ pushes main and a tag, then dispatches a release. See the
 managed modes или каталог моделей. Inventory только из свежего /api/tags выбранного
 endpoint; смена адреса сбрасывает выбор, stale async responses игнорируются.
 Discovery и проверка генерации раздельны; перед генерацией проверить наличие модели.
-Инструкция: docs/ollama-windows.md. LM Studio в этой задаче не расширяется.
+Инструкции: docs/ollama-windows.md и docs/lmstudio-windows.md.

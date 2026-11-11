@@ -84,5 +84,8 @@ const watchdog=setTimeout(()=>{console.error('Unresolved UI request',pending.map
   switchTo('lmstudio');pending.at(-1).resolve(lmInventory(['second']));await tick();assert.equal(fields['ollama-service-url'].value,'http://127.0.0.1:4322/v1');assert.equal(fields['ollama-model'].value,'second');
   assert.equal(fields['ollama-model'].disabled,false);assert.equal(fields['component-ollama'].hidden,true);
   fields['ollama-guide'].onclick();assert.equal(fields['local-guide'].hidden,false);assert.equal(fields['ollama-guide'].attributes['aria-expanded'],'true');
+  fields['ollama-guide-open'].onclick();const p=pending.at(-1);assert.equal(p.action,'external');assert.equal(p.body.page,'lmstudio-guide');assert.equal(Object.keys(p.body).length,1);p.resolve({});
+  switchTo('ollama');pending.at(-1).resolve(inventory(['a']));await tick();
+  fields['ollama-guide-open'].onclick();const q=pending.at(-1);assert.equal(q.action,'external');assert.equal(q.body.page,'ollama-guide');assert.equal(Object.keys(q.body).length,1);q.resolve({});
   console.log('PASS: one shared form, saved provider/endpoint/model isolation, missing/empty/invalid/unavailable inventory, stale discovery/verification, explicit tests, busy states and guide');
 })().catch(error => {console.error(error);process.exitCode=1;}).finally(()=>clearTimeout(watchdog));

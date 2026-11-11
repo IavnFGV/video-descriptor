@@ -547,6 +547,7 @@
   };
   $('local-token').oninput=()=>{localConfigs.lmstudio.token=$('local-token').value;++localRequest;localBusy=false;clearOllamaModels();$('ollama-connection-current').textContent='Токен изменён. Проверьте подключение.';};
   $('ollama-guide').onclick=()=>{const guide=$('local-guide');guide.hidden=!guide.hidden;$('ollama-guide').setAttribute('aria-expanded',String(!guide.hidden));};
+  $('ollama-guide-open').onclick=()=>setupPost('external',{page:localProvider()==='lmstudio'?'lmstudio-guide':'ollama-guide'}).catch(e=>message(e.message,true));
   $('diarization-device').onchange=()=>componentStatus().catch(e=>message(e.message,true));
   $('diarization-install').onclick=()=>{const token=$('hf-token').value;$('hf-token').value='';componentAction('diarization','install',{confirmed:$('diarization-consent').checked,device:$('diarization-device').value,token});};
   for(const [id,page] of [['hf-terms','terms'],['hf-tokens','tokens']])$(id).onclick=()=>setupPost('external',{page}).catch(e=>message(e.message,true));
