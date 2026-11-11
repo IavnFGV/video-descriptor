@@ -58,6 +58,15 @@ def chat_json(prompt, evidence, schema, model, base_url, log=None, context=16384
               images=None, metrics=None, task="analysis", output_limit=4096) -> str:
     from .prompt_settings import effective
     prompt = effective(task, prompt, log)
+    settings = getattr(log, 'llm_settings', None)
+    if settings and settings['provider'] != 'ollama':
+        from .llm_provider import generate
+        if isinstance(log, ProgressLog) and log.lecture_context is not None:
+            evidence = {'lecture_context': log.lecture_context.snapshot(), 'current_material': evidence}
+            prompt += '\n\n' + CONTEXT_PROMPT
+        text = evidence if schema is None and isinstance(evidence, str) else json.dumps(evidence, ensure_ascii=False)
+        return generate(settings, prompt, text, log, context=context, output_tokens=output_limit,
+                        task=task, schema=schema, images=images, metrics=metrics)
     for attempt in range(3):
         try:
             return _chat_json_once(prompt, evidence, schema, model, base_url, log,
@@ -139,19 +148,27 @@ def _chat_json_once(prompt, evidence, schema, model, base_url, log=None, context
     try:
         try:
             response.raise_for_status()
-        except requests.HTTPError as exc:
-            raise RuntimeError(f"Ollama HTTP {response.status_code}: {response.text[:1500]}") from exc
+        except requests.HTTPError:
+            raise RuntimeError(f"Ollama HTTP {response.status_code}: проверьте сервер и выбранную модель") from None
         for line in response.iter_lines():
             if not line:
                 continue
+            try:
+                event = json.loads(line)
+            except ValueError:
+                if journal:
+                    journal.raw(line)  # Preserve the original interrupted-stream evidence.
+                raise ValueError('Ollama: некорректный JSON в потоке ответа') from None
+            if not isinstance(event, dict) or not isinstance(event.get('message', {}), dict):
+                raise RuntimeError('Ollama: некорректный поток ответа')  # noqa: TRY004 — remote protocol failure, not a caller type error.
+            if event.get('error'):
+                raise RuntimeError('Ollama: сервер сообщил об ошибке генерации; проверьте журнал сервера')
+            content = event.get('message', {}).get('content', '')
+            if not isinstance(content, str) or not isinstance(event.get('message', {}).get('thinking', ''), str):
+                raise RuntimeError('Ollama: некорректный текст в потоке ответа')  # noqa: TRY004 — normalize malformed remote content.
             if journal:
                 journal.raw(line)
-            event = json.loads(line)
-            if journal:
                 journal.event(event)
-            if event.get("error"):
-                raise RuntimeError(f"Ollama: {event['error']}")
-            content = event.get("message", {}).get("content", "")
             parts.append(content)
             characters += len(content)
             thinking_characters += len(event.get("message", {}).get("thinking", ""))

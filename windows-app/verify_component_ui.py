@@ -22,7 +22,6 @@ def main():
     parser.add_argument('--skip-text-pipeline', action='store_true', help='Run component and diarization acceptance without rechecking translation/notes quality')
     parser.add_argument('--ollama-model', default='qwen3:0.6b')
     parser.add_argument('--diarization-device', choices=['cpu', 'xpu'], default='cpu')
-    parser.add_argument('--install-managed', action='store_true', help='Explicitly test managed installation instead of preferring an existing service')
     args = parser.parse_args()
     args.reports.mkdir(parents=True, exist_ok=True)
     report = {'status': 'RUNNING', 'method': 'real installed WebView2 DOM and pointer input',
@@ -52,7 +51,7 @@ def main():
             destination = Path(api('/api/components')['root'])
             downloads = destination / 'downloads'
             downloads.mkdir(exist_ok=True)
-            for key in (('ollama', 'managed_python') if args.install_managed else ('managed_python',)):
+            for key in ('managed_python',):
                 item = manifest[key]
                 source = args.cache / 'downloads' / item['sha256']
                 if source.is_file():
@@ -63,8 +62,6 @@ def main():
             model_name = 'community-1-' + manifest['diarization_model']['revision']
             if (args.cache / model_name).is_dir():
                 shutil.copytree(args.cache / model_name, destination / model_name, dirs_exist_ok=True)
-            if args.install_managed and (args.cache / 'ollama-models').is_dir():
-                shutil.copytree(args.cache / 'ollama-models', destination / 'ollama-models', dirs_exist_ok=True)
             report['cache_note'] = 'Reviewed archive/model cache copied; application verifies hashes and performs actual install/inference. No prebuilt environments.'
         cdp.click('#setup-open')
         wait_for(lambda: cdp.evaluate('!document.querySelector("#setup-wizard").hidden'))
@@ -82,8 +79,8 @@ def main():
             result = wait_for(lambda: api('/api/components'), lambda state: state['active'] is None, timeout=timeout)
             item = next(item for item in result['components'] if item['id'] == key)
             proof = item.get('proof', {})
-            ready = item['state'] == 'ready' or (key == 'ollama' and selector in {'#ollama-install', '#ollama-use-connection'}
-                                               and item['state'] == 'installed' and proof.get('api_version'))
+            ready = item['state'] == 'ready' or (key == 'ollama' and selector == '#ollama-use-connection'
+                                               and item['state'] == 'installed' and proof.get('version'))
             evidence = {'name': name, 'status': 'PASS' if ready else 'FAIL', 'state': item['state'], 'proof': proof,
                         'elapsed_seconds': round(time.monotonic() - started, 2), 'message': item['message']}
             report['stages'].append(evidence)
@@ -95,34 +92,21 @@ def main():
             return evidence
         run_action('Verify Whisper and prepare installed backend through UI', 'whisper', '#probe-model', timeout=300)
         report['initial_ollama_state'] = row('ollama')['state']
-        model_directory = Path(api('/api/components')['root']) / 'ollama-models'
-        private_models_before = model_directory.exists()
-        if args.install_managed:
-            cdp.fill('#ollama-mode', 'managed')
-            run_action('Install official Ollama through AI Settings', 'ollama', '#ollama-install', consent='#ollama-install-consent')
-        else:
-            cdp.fill('#ollama-mode', 'existing')
-            run_action('Use existing Ollama without second server or downloads', 'ollama', '#ollama-use-connection')
-            report['external_reuse'] = {'private_model_directory_existed_before': private_models_before, 'private_model_directory_exists_after': model_directory.exists(), 'ownership': api('/api/components')['ollama_connection']['ownership']}
-            if not private_models_before and model_directory.exists():
-                raise AssertionError('External connection unexpectedly created a private model directory')
-        wait_for(lambda: cdp.evaluate('document.querySelector("#ollama-catalog").options.length > 0'))
-        if args.ollama_model in {item['name'] for item in manifest['ollama_models']}:
-            cdp.fill('#ollama-catalog', args.ollama_model)
-        cdp.fill('#ollama-task', 'translation')
-        available = json.loads(read_http(origin + '/api/setup/ollama'))['models']
+        cdp.click('#ollama-use-connection')
+        wait_for(lambda: api('/api/setup/ollama')['service_ready'])
+        available = api('/api/setup/ollama')['models']
         if not any(item['name'] == args.ollama_model for item in available):
-            if not args.install_managed:
-                raise RuntimeError('Existing service has no selected test model; refusing an unnecessary automatic download')
-            run_action('Pull small model and verify real generation through UI', 'ollama', '#ollama-pull',
-                       consent='#ollama-pull-consent', task='translation', timeout=1200)
+            raise RuntimeError('Install the selected test model externally before acceptance')
         cdp.click('#ollama-refresh')
         wait_for(lambda: cdp.evaluate(f'[...document.querySelector("#ollama-model").options].some(o=>o.value==={json.dumps(args.ollama_model)})'))
         cdp.fill('#ollama-model', args.ollama_model)
         cdp.fill('#ollama-task', 'translation')
-        run_action('Select and test existing translation model through UI', 'ollama', '#ollama-connect', task='translation', timeout=300)
+        cdp.click('#ollama-connect')
+        wait_for(lambda: api('/api/setup/ollama')['selected'] == args.ollama_model)
+        run_action('Select and test existing translation model through UI', 'ollama', '#ollama-test', task='translation', timeout=300)
         cdp.fill('#ollama-task', 'notes')
-        run_action('Select and test notes model through UI', 'ollama', '#ollama-connect', task='notes', timeout=300)
+        cdp.click('#ollama-connect')
+        run_action('Select and test notes model through UI', 'ollama', '#ollama-test', task='notes', timeout=300)
         if args.with_diarization:
             cdp.fill('#diarization-device', args.diarization_device)
             run_action('Install isolated CPython and pyannote ' + args.diarization_device.upper() + ' through UI', 'diarization', '#diarization-install',

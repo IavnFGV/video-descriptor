@@ -135,7 +135,7 @@ def source_paths():
     paths += [ROOT / 'docs' / name for name in ('architecture-windows.md', 'device-policy-and-release.md',
                                                'competitive-analysis.md', 'verification-devices.md',
                                                'verification-devices.json', 'windows-release.md',
-                                               'desktop-windows.md', 'ai-setup-windows.md', 'ai-component-manager.md', 'native-diarization.md')]
+                                               'ollama-windows.md', 'lmstudio-windows.md', 'desktop-windows.md', 'ai-setup-windows.md', 'ai-component-manager.md', 'native-diarization.md')]
     return sorted({p for p in paths if '__pycache__' not in p.parts})
 
 

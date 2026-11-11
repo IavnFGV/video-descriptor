@@ -25,7 +25,7 @@ def call(method, url, key, **kwargs):
         raise GeminiServiceError("Gemini: ошибка соединения; готовые блоки сохранены") from None
     if not response.ok:
         raise GeminiServiceError(f"Gemini HTTP {response.status_code}: "
-                                 f"{response.text.replace(key, '[REDACTED]')[:500]}")
+                                 "проверьте доступ, квоту и журнал сервера")
     return response.json()
 
 
@@ -49,11 +49,12 @@ def models(key):
             return result
 
 
-def translate(prompt, text, settings, log=None):
+def translate(prompt, text, settings, log=None, *, output_tokens=4096, task='translate', schema=None, images=None, effective_prompt=False):
     from .prompt_settings import effective
-    prompt = effective('translate', prompt, log)
+    if not effective_prompt:
+        prompt = effective(task, prompt, log)
     model = settings["model"]
-    config = {"temperature": 0, "maxOutputTokens": 4096, "responseMimeType": "text/plain"}
+    config = {"temperature": 0, "maxOutputTokens": output_tokens, "responseMimeType": "text/plain"}
     if model == "gemini-3.5-flash-lite":
         config["thinkingConfig"] = {"thinkingLevel": "minimal"}
     elif model == "gemini-3.8-flash":
@@ -61,18 +62,22 @@ def translate(prompt, text, settings, log=None):
     payload = {"systemInstruction": {"parts": [{"text": prompt}]},
                "contents": [{"role": "user", "parts": [{"text": text}]}],
                "generationConfig": config}
+    if schema is not None:
+        payload['generationConfig'].update(responseMimeType='application/json', responseJsonSchema=schema)
+    if images:
+        payload['contents'][0]['parts'].extend({'inlineData': {'mimeType': 'image/jpeg', 'data': image}} for image in images)
     journal = None
     started = time.monotonic()
     if isinstance(log, ProgressLog):
-        log.begin_request("translate", model, len(prompt) + len(text),
-                          len(json.dumps(payload).encode()), 0, 4096)
+        log.begin_request(task, model, len(prompt) + len(text),
+                          len(json.dumps(payload).encode()), len(images or []), output_tokens)
         log.update(provider="gemini", request_thinking=False)
         if log.journal_dir:
             journal = RequestJournal(log.journal_dir, BASE + f"/models/{model}:generateContent",
-                                     {"model": model, **payload}, log.snapshot(), "translate")
+                                     {"model": model, **payload}, log.snapshot(), task)
             update_status(log, request_log=str(journal.folder))
     if log:
-        log(f"Gemini: перевод через {model}; отправляем только текст")
+        log(f"Gemini: {task} через {model}; отправляем " + ("текст и выбранные изображения" if images else "только текст"))
     try:
         data = call("POST", BASE + f"/models/{model}:generateContent", settings["api_key"],
                     json=payload)

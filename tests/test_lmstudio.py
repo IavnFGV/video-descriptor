@@ -11,13 +11,14 @@ from video_descriptor.progress import ProgressLog
 
 @pytest.fixture
 def server():
-    state = {'finish': 'stop', 'status': 200, 'calls': [], 'answer': 'Ответ'}
+    state = {'finish': 'stop', 'status': 200, 'calls': [], 'gets': [], 'answer': 'Ответ'}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
 
         def do_GET(self):
+            state['gets'].append(self.path)
             self.reply({'models': [{'type': 'llm', 'key': 'local/model',
                                    'loaded_instances': [{'id': 'local/model', 'config': {'context_length': 8192}}]}]}
                        if self.path == '/api/v1/models' else {'data': [{'id': 'local/model'}]})
@@ -49,6 +50,7 @@ def test_inventory_loaded_context_generation_and_audit(server, tmp_path, monkeyp
     events = tmp_path / 'events.jsonl'
     monkeypatch.setenv('VIDEO_DESCRIPTOR_EVENTS', str(events))
     assert lmstudio.models(settings) == [{'id': 'local/model', 'title': 'local/model'}]
+    assert state['gets'] == ['/v1/models']
     assert lmstudio.context_limit(settings, 'local/model') == 8192
     log = ProgressLog(lambda _: None, 'test', tmp_path / 'recording/requests')
     assert lmstudio.generate(settings, 'local/model', 'private-prompt', 'private-transcript', log) == 'Ответ'
@@ -78,6 +80,14 @@ def test_auth_error_does_not_expose_response_or_token(server):
     with pytest.raises(ValueError, match='API-токен') as error:
         lmstudio.models(settings)
     assert 'private-test-token' not in str(error.value)
+
+
+@pytest.mark.parametrize('response', [None, {}, {'data': {}}, {'data': [None]},
+                                      {'data': [{'id': ''}]}, {'data': [{'id': 42}]}])
+def test_invalid_model_inventory_is_rejected(monkeypatch, response):
+    monkeypatch.setattr(lmstudio, 'call', lambda *args, **kwargs: response)
+    with pytest.raises(ValueError, match='некорректный список моделей'):
+        lmstudio.models({})
 
 
 @pytest.mark.parametrize('url', ['https://example.com/v1', 'http://user:secret@localhost:1234/v1',

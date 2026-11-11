@@ -109,7 +109,10 @@ def validate(value):
 
 
 def load_settings(root):
-    return validate(read_json(root / '.devcontainer' / 'construction-settings.json', {}))
+    from .llm_provider import snapshot
+    config = validate(read_json(root / '.devcontainer' / 'construction-settings.json', {}))
+    selection = snapshot(root)
+    return {**config, 'provider': selection['provider'], 'model': selection['model']}
 
 
 def save_settings(root, value):
@@ -285,9 +288,20 @@ def validate_provider(root, config):
         raise ValueError('Подтвердите условия бесплатного проекта Gemini в настройках')
 
 
+def configured(root, value):
+    """Explicit per-task choices win; omitted choices use the unified preferences."""
+    from .llm_provider import snapshot
+    if not isinstance(value, dict):
+        raise TypeError('Некорректные настройки конспекта')
+    value = dict(value)
+    selection = snapshot(root, provider=value.get('provider'), model=value.get('model'))
+    value.update(provider=selection['provider'], model=selection['model'])
+    return validate(value)
+
+
 def enqueue_notes(root, name, value):
     folder = checked_folder(root, name)
-    config = validate(value)
+    config = configured(root, value)
     validate_provider(root, config)
     if config['provider'] == 'ollama' and not config['auto_context']:
         plan(folder, config, count=load_counter(ollama_base_url(root), config['model']))
@@ -329,6 +343,8 @@ def enqueue_notes(root, name, value):
                'created': time.time(), 'status': 'queued', 'ollama_url': ollama_base_url(root)}
         if config['provider'] == 'lmstudio':
             job['lmstudio_url'] = credentials(root)['lmstudio_url']
+        from .jobs import capture_llm
+        capture_llm(root, job)
         target = jobs_dir(root) / id
         target.mkdir()
         write_json(version / 'construction-job.json', {'id': id})
@@ -348,16 +364,18 @@ def available_models(root, provider):
         return models(credentials(root)['api_key'])
     if provider != 'ollama':
         raise ValueError('Неизвестный исполнитель конспекта')
-    base = ollama_base_url(root)
-    try:
-        response = requests.get(base + '/api/tags', timeout=10)
-        response.raise_for_status()
-        return [{'id': item['name'], 'title': item['name']} for item in response.json()['models']]
-    except (requests.RequestException, ValueError, KeyError):
-        raise ValueError('Не удалось получить список локальных моделей') from None
+    from .ollama_provider import Ollama
+    return Ollama(ollama_base_url(root)).models()
 
 
-def actual_limits(root, config):
+def execution_settings(root, config):
+    from .llm_provider import runtime, selected
+    settings = credentials(root)
+    return runtime(selected(root, settings=settings, provider=config['provider'], model=config['model'], parameters=config), settings)
+
+
+def actual_limits(root, config, settings=None):
+    settings = settings or execution_settings(root, config)
     config = dict(config)
     if config['provider'] == 'gemini':
         from .gemini import BASE, call
@@ -366,13 +384,12 @@ def actual_limits(root, config):
         config['output_tokens'] = min(config['output_tokens'], meta['outputTokenLimit'])
     elif config['provider'] == 'lmstudio':
         from .lmstudio import context_limit, models
-        settings = credentials(root)
         if config['model'] not in {item['id'] for item in models(settings)}:
             raise ValueError('Выбранная модель LM Studio недоступна; обновите список моделей')
         if config['auto_context']:
             config['context_tokens'] = min(2097152, context_limit(settings, config['model']))
     else:
-        base = ollama_base_url(root)
+        base = settings['llm_snapshot']['endpoint']
         try:
             response = requests.post(base + '/api/show', json={'model': config['model']}, timeout=15)
             response.raise_for_status()
@@ -423,18 +440,13 @@ def generate(root, config, text, log, stage='Конспект'):
         prompt += '\nОбъедини приведённые промежуточные конспекты. Удали повторы, свяжи аргументы. Не добавляй новых фактов и меток времени. Сохрани все существенные темы и хронологию оглавления.\n'
     if config['provider'] != 'gemini' and count(text) + count(prompt) + config['output_tokens'] + 1024 > config['context_tokens']:
         raise ValueError('Материал запроса превышает заданный контекст')
-    if config['provider'] == 'lmstudio':
-        from .lmstudio import generate as lm_generate
-        return lm_generate(credentials(root), config['model'], prompt, text, log,
-                           output_tokens=config['output_tokens'], task='construction')
-    if config['provider'] == 'ollama':
-        from .notes import chat_json
-        # Builder prompts are independent of the legacy lecture/filter prompts.
+    if config['provider'] in {'ollama', 'lmstudio'}:
+        from .llm_provider import generate as request
+        settings = getattr(log, 'llm_settings', None) or execution_settings(root, config)
+        # Builder prompts remain independent of the legacy lecture/filter overrides.
         log.prompt_settings = {}
-        return chat_json(prompt, text, None, config['model'],
-                         ollama_base_url(root), log,
-                         context=config['context_tokens'], task='construction',
-                         output_limit=config['output_tokens'])
+        return request(settings, prompt, text, log, context=config['context_tokens'],
+                       output_tokens=config['output_tokens'], task='construction')
     from .gemini import BASE, call
     settings = credentials(root)
     model = config['model']
@@ -572,11 +584,11 @@ def save_notes_result(folder, answer, sources, result, notes, chapters, article=
 
 
 def run(root, folder, value, ask=generate):
-    config = validate(value)
+    manual = read_json(folder / 'construction-manual.json', {})
+    config = configured(root, value) if ask is generate and not manual else validate(value)
     article = config['result_kind'] == 'article'
     label = 'Статья' if article else 'Конспект'
     record('generation_started', folder=folder, result_kind=config['result_kind'], model=config['model'], status='running')
-    manual = read_json(folder / 'construction-manual.json', {})
     if manual:
         from .construction_recovery import recovery_state
         state, sources, result = recovery_state(folder)
@@ -588,8 +600,15 @@ def run(root, folder, value, ask=generate):
                    'message': 'Исправленный конспект готов', 'request_state': 'готово', 'updated': time.time()})
         return
     validate_provider(root, config)
+    execution = None
     if ask is generate:
-        config = actual_limits(root, config)
+        from .llm_provider import check_model
+        execution = execution_settings(root, config)
+        if execution['llm_snapshot']['provider'] != config['provider'] or execution['llm_snapshot']['model'] != config['model']:
+            raise ValueError('Настройки LLM задания не совпадают с сохранённым конспектом')
+        check_model(execution)
+        config = actual_limits(root, config, execution)
+        write_json(folder / 'llm-settings.json', execution['llm_snapshot'])
     write_json(folder / 'construction-settings.json', config)
     logger_file = folder / 'construction.log'
     def emit(message):
@@ -597,6 +616,7 @@ def run(root, folder, value, ask=generate):
             output.write(message + '\n')
     log = ProgressLog(emit, folder.name, folder / 'requests')
     log.progress_file = folder / 'progress.json'
+    log.llm_settings = execution
     log.update(result_kind=config['result_kind'])
     log.thinking_enabled = False
     if config['input'] == 'slides' and not read_json(folder / 'frames.json', []):
@@ -616,7 +636,7 @@ def run(root, folder, value, ask=generate):
                                       os.getenv('OCR_LANGUAGE', 'eng'), log)
         write_json(folder / 'frames.json', [frame.model_dump() for frame in frames])
     result, _, frames = material(folder, config)
-    log.token_counter = (load_counter(ollama_base_url(root), config['model'])
+    log.token_counter = (load_counter(execution['llm_snapshot']['endpoint'], config['model'])
                          if ask is generate and config['provider'] == 'ollama' else input_bound)
     count = log.token_counter
     log.token_counts = {}

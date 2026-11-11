@@ -9,7 +9,8 @@ from .translation_settings import load
 def connections(root):
     settings = load(root)
     result = {}
-    base = os.getenv('OLLAMA_BASE_URL', 'http://host.docker.internal:11434').rstrip('/')
+    from .ollama_connection import base_url
+    base = base_url(root).rstrip('/')
     try:
         response = requests.get(base + '/api/tags', timeout=(2, 3))
         response.raise_for_status()

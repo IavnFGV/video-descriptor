@@ -4,6 +4,8 @@
 
 11.11.2026: непригодные таймкоды модели в устройство-конвейере больше не прерывают запись. `speech_devices.py` делит отказавшее окно пополам, обрабатывает половины независимо и по сетке в 5 с; окно, не прошедшее и на минимальном размере, сохраняется как нераспознанный интервал, а запись продолжается. Таймкоды не выдумываются. Инфраструктурные сбои по-прежнему прерывают задание. Нераспознанные интервалы пишутся в `speech.json` полем `unresolved`; worker отдаёт код `invalid_timestamps` без текста расшифровки. Подробности: раздел про `speech_devices.py` ниже.
 
+> Source navigation and boundaries: [architecture map](architecture/README.md). Dated decisions below retain their historical context.
+
 10.11.2026: workspace имеет вкладки Конспект/Статья над единым редактором. `recording.js` сохраняет независимые selectedReports и активный kind; query `material=notes|article` сохраняет вид без нового endpoint/запуска задания. `studioUI.chooseIndependentReport(null)` теперь явно означает отсутствие материала, без fallback к конспекту другой вкладки; dirty editor не очищается и блокирует переключение. Frame/revisions/Undo, API генерации, распознавание и выбранная речь сохранены.
 
 10.11.2026: контракт CI разделён по решению владельца. Release Full Acceptance проверяет штатные installed API/worker/UI/результаты и реальный CPU Whisper; только внешний LLM HTTP endpoint заменяется disposable loopback fixture со streaming Ollama protocol. Mock не включается в production configuration и не является доказательством inference/качества модели. Negative case сохраняет ошибочный ответ и неизменённую исходную речь. Независимый manual model-behavior.yml выполняет реальную генерацию на версионированном synthetic corpus (Ollama; CLI также поддерживает существующий LM Studio), фиксирует identity/хеш промпта/case/result и не публикует артефакты продукта. См. model-behavior.md.
@@ -443,7 +445,7 @@ config.local.json, сохраняя прочие поля, и обновляет
 
 ### Подключение существующей Ollama
 
-GET `/api/setup/ollama` получает локальный `/api/tags`, возвращает имена/размеры,
+GET `/api/setup/ollama` получает `/api/version` и `/api/tags` выбранного внешнего сервера, возвращает имена/размеры,
 выбранную модель и отдельно service_ready/ready. Диагностика использует тот же
 контракт: доступность HTTP-сервиса без выбранной модели не означает готовность.
 Запросы к loopback не используют системный HTTP proxy, timeout — 5 секунд.
@@ -619,9 +621,17 @@ POST `/api/native/cancel?id=<job>` требует X-App-Instance и same-origin.
 
 ## AI Component Manager (20.10.2026)
 
-`windows-app/component_manager.py` расширяет SetupService/ComputeManager: GET/POST `/api/components`, прежние instance/origin guards и блокировка активных jobs. Состояния компонентов не меняют job.status. Журнал, скачивания, CPython, pyannote venv и модели находятся в `%LOCALAPPDATA%/VideoDescriptor/ai-components`; конфигурация указателей сохраняется существующим механизмом config.local.json. Операции сериализованы также файловой блокировкой. HF-токен — только current-user DPAPI. CPU/XPU используют полный CPython, а не embedded venv. Новое окружение создаётся по уникальному конечному пути (venv нельзя переносить), проверяется существующим diarization_worker на встроенном WAV и только затем публикуется. Whisper использует прежний manifest/SHA256/downloader и прежний ComputeManager Auto NPU→GPU→CPU. Ollama использует существующий API либо собственный процесс с отдельным loopback-портом и каталогом моделей; чужие процессы не останавливаются.
+`windows-app/component_manager.py` расширяет SetupService/ComputeManager: GET/POST `/api/components`, прежние instance/origin guards и блокировка активных jobs. Состояния компонентов не меняют job.status. Журнал, скачивания, CPython, pyannote venv и модели находятся в `%LOCALAPPDATA%/VideoDescriptor/ai-components`; конфигурация указателей сохраняется существующим механизмом config.local.json. Операции сериализованы также файловой блокировкой. HF-токен — только current-user DPAPI. CPU/XPU используют полный CPython, а не embedded venv. Новое окружение создаётся по уникальному конечному пути (venv нельзя переносить), проверяется существующим diarization_worker на встроенном WAV и только затем публикуется. Whisper использует прежний manifest/SHA256/downloader и прежний ComputeManager Auto NPU→GPU→CPU. Ollama — только внешний HTTP(S)-сервер с настраиваемым endpoint (по умолчанию `http://127.0.0.1:11434`). Video Descriptor не устанавливает, не запускает, не останавливает, не обновляет и не удаляет Ollama; не скачивает и не управляет её моделями. Установленные модели обнаруживаются свежим `/api/tags`, без собственного каталога моделей или runtime.
 
-PR #5, подключения Ollama: ollama_mode=existing|service|managed и ollama_url — выбранное подключение в config.local.json; .devcontainer/ollama-connection.json передаёт его планировщику. Job snapshot передаёт OLLAMA_BASE_URL и VIDEO_DESCRIPTOR_JOB_OLLAMA_URL обоим дочерним процессам; последующие смены адреса не изменяют уже закреплённый endpoint. На старте нет inference владения по порту и нет автоматического запуска внешнего сервиса. Остановка приложения вызывает close только для сохранённого объекта принадлежащего менеджеру процесса.
+11.11.2026: Ollama — исключительно внешний HTTP(S)-сервер, `ollama_url` по умолчанию
+http://127.0.0.1:11434. Runtime, lifecycle, собственные порты/модели и установка исключены.
+`.devcontainer/ollama-connection.json` и неизменяемые job snapshots закрепляют адрес.
+Provider protocol (`llm_provider.py`) описывает connection/models/verify; Ollama parsing
+изолирован в `ollama_provider.py`. Discovery `/api/tags` не выполняет inference;
+выбранная модель повторно проверяется перед генерацией. Настройки сбрасывают inventory
+при изменении URL и игнорируют старые асинхронные ответы. Журналирование — общий
+HTTP audit и action_history.record, без содержимого запросов и ответов модели.
+Инструкция: [Ollama Windows](ollama-windows.md).
 
 Managed pyannote candidates carry the installer's reviewed Microsoft VC++ DLLs in
 venv-local `Library/bin` before dependency installation, with SHA256 checks against
@@ -635,7 +645,7 @@ is changed and venvs are never relocated.
 
 `SetupService.bootstrap()` runs once per server process after manager construction. It inventories the bundled runtime, imports a detected model only when no verified configuration exists, and uses `ComputeManager.prepare()` with the saved device preference. Speech and Ollama failures are isolated. Ollama discovery uses the selected connection and capability metadata only; no generation or Gemini request runs during bootstrap. Existing diagnostics inspect local diarization and saved Gemini configuration without sending recording data.
 
-The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. The `prepare` Ollama action explicitly opts into managed installation and then pulls/verifies one catalog model under the same lease.
+The UI opens immediately. Settings retain original control IDs within native disclosures. Speaker processing uses a native dialog and the existing `ComponentManager` lease and job guard. A preparation request may persist a validated workspace-scoped `resume` target. Only successful verification enqueues the original action, creating a separate result version. Cancellation clears that target. Consent records the reviewed manifest revision; restart never initiates a new download by itself. Ollama is external-only: connection discovery and explicit generation verification reuse the configured HTTP server; no runtime or model preparation action exists.
 
 Advanced settings can save `ai_components_directory` for the next process start through the guarded SetupService API and the existing ComponentManager root argument. This does not move user data or modify live environments. Reinstalling a diarization runtime reuses an existing model when it still matches the reviewed manifest, including after a component-directory change.
 
@@ -643,7 +653,7 @@ Advanced settings can save `ai_components_directory` for the next process start 
 21.10.2026: пользовательские названия устройств унифицированы (CPU/GPU/NPU), внутреннее API значение `xpu` сохранено для совместимости. NPU диаризации недоступен, capability распознавания проверяется отдельно. GPU check не использует сохранённый CPU runtime; смена на GPU из записи открывает подготовку с согласием. Ошибка последней операции и ранее проверенное устройство отображаются раздельно; сообщения subprocess различают установку пакетов и пробный inference, не сохраняя сырой вывод с возможными credentials.
 
 
-21.10.2026, 0.8.2: /api/components action=prepare_selected принимает выбранные функции, устройство, режим/модель Ollama, общее согласие и отдельное HF consent. Backend сохраняет preparation.json без токена и последовательно использует существующие guarded операции. preparation.lock защищает очередь между экземплярами; компонентный lease и прежние guards сохранены. cancel_selected отменяет текущий шаг и остаток. После перезапуска незавершённая очередь становится явной ошибкой с повтором, без самовольной новой загрузки. GET /api/components.preparation возвращает общий прогресс; уход со страницы не останавливает backend.
+21.10.2026, 0.8.2: /api/components action=prepare_selected принимает выбранные функции, устройство, модель внешней Ollama, общее согласие и отдельное HF consent. Backend сохраняет preparation.json без токена и последовательно использует существующие guarded операции. preparation.lock защищает очередь между экземплярами; компонентный lease и прежние guards сохранены. cancel_selected отменяет текущий шаг и остаток. После перезапуска незавершённая очередь становится явной ошибкой с повтором, без самовольной новой загрузки. GET /api/components.preparation возвращает общий прогресс; уход со страницы не останавливает backend.
 
 
 21.10.2026, 0.8.3: ComponentManager.run асинхронно читает bounded stdout/stderr pipe дочернего процесса. В состояние попадают только разрешённые фазы/имена пакетов/счётчики pip raw progress; неизвестный сырой вывод отбрасывается. Отдельный reader не блокирует cancel/timeout. activity_at отражает реальный вывод или изменение структурированного progress.json, step_started_at — начало subprocess, process_running — состояние дочернего процесса. diarization_worker сохраняет stage/completed/total с прежним message; родитель принимает только известные фазы и конечные счётчики. progress_scope=file означает текущий файл, stage — текущий этап; глобальный процент не синтезируется.
@@ -733,3 +743,65 @@ Public GitHub Release использует только standard ZIP/EXE. Domest
 
 11.11.2026: review recovery: restore допускает пустые segments только при исходно пустой речи с unresolved-интервалами (Undo первого ручного заполнения). no_speech означает отсутствие и распознанных реплик, и unresolved; незавершённая расшифровка не выдаётся за подтверждённую тишину.
  Редактор также доступен для записи без распознанных реплик, если в ней есть unresolved-интервалы.
+
+### Уточнение внешней Ollama — 11.11.2026
+
+Открытие настроек, подключение, Refresh Models и сохранение выбора не выполняют
+генерацию. Только явный Test Model проверяет inventory, capability `completion`
+через `/api/show` и делает один `/api/generate`. Рабочие задания выполняют свою
+генерацию без предварительного пробного inference. Проверка работает в существующем
+фоновом component worker; HTTP/UI остаются доступны. При отмене новые шаги не
+начинаются, но текущий HTTP-запрос ожидается до ответа/таймаута (генерация — 180 с).
+UI явно показывает ожидание; сервер и его модель не останавливаются. Отменённая
+проверка не записывается как успешная и не сохраняет выбор модели.
+
+
+11.11.2026: Milestone 1, согласованная единая форма Ollama / LM Studio в существующих
+настройках. Исторические `ollama-form`, `ollama-service-url`, `ollama-model`,
+`ollama-use-connection`, `ollama-refresh`, `ollama-test`, `ollama-feedback` и
+`ollama-guide` теперь обслуживают оба провайдера. Отдельные LM Studio form/URL/model/
+status/test handlers и панели удалены; optional password token показывается только
+для LM Studio. Общая инструкция меняется вместе с провайдером. Выбор Ollama для
+конспекта сохранён; конспект/статья LM Studio используют прежний отдельный выбор.
+Endpoint/model и черновик токена изолированы по провайдерам; выбор модели привязан
+к endpoint. Каждый новый discovery получает свежие `/api/tags` или `/v1/models`;
+сохранённая модель восстанавливается только при наличии в ответе сервера. Ошибка,
+пустой/неверный inventory и исчезнувшая модель не приводят к скрытой подстановке.
+Счётчик запроса и provider/endpoint/model guards отсекают устаревшие результаты,
+включая verification. Discovery/save не запускают генерацию. Test Model использует
+существующий Ollama worker либо action=verify на `/api/translation-settings` для
+LM Studio (повторный inventory перед генерацией); HTTP audit и action_history
+содержат начало/результат/ошибку без токенов или текста запросов. CSS, маршруты,
+очередь, revision/dirty guards и release inputs сохранены.
+
+
+11.11.2026: Milestone 2 — общий контракт `llm_provider.snapshot/selected/runtime/generate`
+расширяет существующие адаптеры, не создавая новый менеджер провайдеров. Snapshot
+содержит version/provider/endpoint/model/parameters по allowlist; credentials остаются
+только в protected settings и памяти процесса. `jobs.capture_llm`, notes/article queue
+и postprocess сохраняют additive `llm`/`translation_llm`; worker передаёт их через
+`VIDEO_DESCRIPTOR_LLM_SNAPSHOT`. Старые задания без этих полей закрепляются однократно
+при первом запуске/продолжении с учётом прежних сохранённых URL. Speech-only/diarize
+не получают LLM snapshot; обработчики распознавания/диаризации не изменены.
+Перевод разрешает route и credentials один раз перед разбиением на блоки, включая
+pinned CLI-аргументы старых заданий; глобальные изменения не меняют последующие запросы.
+Конспект/статья используют сохранённый config и тот же route для inventory, metadata,
+токенизации и inference. При отсутствии явного task provider/model берутся из общих
+настроек, сохранённые промпты и параметры задачи не теряются. Явный выбор задачи
+имеет приоритет. Legacy summarize/filter/quiz/vision используют тот же execution route
+и прежние JSON schemas/промпты/контекст. Ollama streaming/retries и process-tree cancel
+сохранены; LM Studio остаётся non-streaming, как раньше. Gemini использует существующий
+транспорт с optional schema/images, без generic cloud API или изменения cloud consent.
+Общие журналы содержат прежние correlation/status events; raw error body не попадает
+в ошибки UI/worker. Ключ другого LM Studio endpoint не присоединяется к старому
+snapshot: для возобновления authenticated job требуется доступ к исходному endpoint.
+Завершённые checkpoints, оригинальные ответы, revisions и ручные правки сохраняются.
+
+
+11.11.2026: по прямому запросу владельца удалены obsolete `ollama-task` и `local-task-field`
+из общей формы LLM. Save и Test Model передают task=translation в прежний Ollama API,
+сохраняя общий provider/model вместо legacy notes-settings. Общий выбор используется
+переводом/конспектами/статьями по умолчанию; явные настройки конкретного задания,
+legacy API совместимость, prompts, snapshot/revision/dirty guards сохранены.
+
+Проверка UI без inference: `python -X utf8 scripts/verify-recording-ui.py --unresolved-only` — временные артефакты, реальный редактор, Save/Undo/Redo первой реплики и адаптивные размеры.

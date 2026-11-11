@@ -14,62 +14,39 @@ from scripts.whisper_npu_server import model_digest
 from video_descriptor import translation_settings
 from video_descriptor.action_history import record
 from video_descriptor.jobs import read_json, write_json
-from video_descriptor.ollama_connection import DEFAULT_URL
 from video_descriptor.ollama_connection import selected as selected_connection
 from video_descriptor.platform_support import windows_powershell, windows_shell_environment
 
 
-def ollama_request(value, endpoint, body=None):
-    with requests.Session() as session:
-        session.trust_env = False
-        url = value.get('ollama_url', 'http://127.0.0.1:11434') + endpoint
-        response = session.get(url, timeout=5) if body is None else session.post(url, json=body, timeout=5)
-        response.raise_for_status()
-        return response.json()
-
-
-def ollama_status(value, *, discover=False):
-    from component_manager import ComponentManager
-    if discover:
-        value = {**value, 'ollama_mode': 'existing', 'ollama_url': DEFAULT_URL}
-    connection = selected_connection(value)
-    executable = ComponentManager.existing_executable()
-    details = {**connection, 'detected': bool(executable), 'executable': executable}
+def ollama_status(value):
+    from video_descriptor.ollama_provider import Ollama
+    try:
+        connection = selected_connection(value)
+    except ValueError as exc:
+        return {'url': '', 'version': '', 'ready': False, 'service_ready': False, 'selected': '', 'models': [], 'message': str(exc)}
     settings = translation_settings.load(value['workspace'])
-    selected = settings.get('ollama_model') or value.get('ollama_model', '')
+    chosen = settings.get('ollama_model') or value.get('ollama_model', '')
     try:
-        version = ollama_request(value, '/api/version')
-        data = ollama_request(value, '/api/tags')
-        models = [{'name': item['name'], 'bytes': item.get('size', 0)} for item in data['models']]
-        present = selected in {item['name'] for item in models}
-        compatible = present and ollama_completion(value, selected)
-        return {**details, 'version': version.get('version', ''), 'ready': compatible, 'model_present': present, 'compatible': compatible, 'service_ready': True, 'selected': selected, 'models': models,
-                'message': 'Языковая модель настроена; генерация проверяется при обработке' if compatible else
-                           'Выберите установленную модель для перевода'}
-    except (requests.RequestException, ValueError, KeyError, TypeError):
-        return {**details, 'version': '', 'ready': False, 'service_ready': False, 'selected': selected, 'models': [],
-                'message': ('Ваша Ollama установлена, но сервер выключен. Нажмите «Запустить мою Ollama».' if executable and connection['mode'] == 'existing' else 'Выбранный сервер недоступен. Повторите подключение. Автоматическое переключение отключено.')}
-
-
-
-def ollama_completion(value, model):
-    try:
-        details = ollama_request(value, '/api/show', {'model': model})
-        return isinstance(details, dict) and 'completion' in details.get('capabilities', [])
-    except (requests.RequestException, ValueError, TypeError):
-        return False
+        provider = Ollama(connection['url'])
+        version = provider.connection()
+        models = [{'name': m['id'], 'bytes': m['bytes']} for m in provider.models()]
+        present = chosen in {m['name'] for m in models}
+        return {**connection, 'version': version, 'ready': present, 'model_present': present,
+                'service_ready': True, 'selected': chosen if present else '', 'models': models,
+                'message': ('Нет установленных моделей. Установите модель самостоятельно: ollama pull <model-name>.' if not models else
+                            'Сохранённая модель отсутствует. Выберите модель.' if chosen and not present else
+                            'Выберите модель. Генерация проверяется отдельно.')}
+    except (ValueError, requests.RequestException) as exc:
+        return {**connection, 'version': '', 'ready': False, 'service_ready': False,
+                'selected': '', 'models': [], 'message': str(exc)}
 
 
 def validate_ollama_model(value, model):
     status = ollama_status(value)
     if not isinstance(model, str) or model not in {item['name'] for item in status['models']}:
         raise ValueError('Выберите модель из списка установленной Ollama')
-    try:
-        details = ollama_request(value, '/api/show', {'model': model})
-        if 'completion' not in details.get('capabilities', []):
-            raise ValueError('Эта модель не поддерживает генерацию текста; выберите языковую модель')
-    except (requests.RequestException, TypeError) as exc:
-        raise ValueError('Не удалось проверить возможности модели Ollama') from exc
+    from video_descriptor.ollama_provider import Ollama
+    Ollama(selected_connection(value)['url']).validate_text_model(model)
 
 
 def select_ollama(value, model, task="translation"):
@@ -158,17 +135,6 @@ class SetupService:
                     self.manager.prepare()
             except (OSError, ValueError, RuntimeError):
                 failures.append('распознавание')
-            try:
-                status = ollama_status(self.manager.value)
-                settings = translation_settings.load(self.manager.value['workspace'])
-                # Preserve saved provider, model and endpoint even when unavailable.
-                if not status['selected'] and not settings.get('ollama_model') and settings.get('provider') == 'ollama':
-                    for item in sorted(status['models'], key=lambda model: model.get('bytes') or float('inf')):
-                        if ollama_completion(self.manager.value, item['name']):
-                            select_ollama(self.manager.value, item['name'])
-                            break
-            except (OSError, ValueError, RuntimeError, requests.RequestException):
-                failures.append('локальный AI')
             self.bootstrap_state = {'status': 'error' if failures else 'done',
                                     'message': 'Требуется проверка: ' + ', '.join(failures) if failures else 'Проверка компонентов завершена'}
         threading.Thread(target=work, name='ai-bootstrap', daemon=True).start()
@@ -351,7 +317,7 @@ class SetupService:
                                    'Tesseract не найден; необязательный компонент'},
                 'translation': {'state': 'configured' if text_ready or settings['has_key'] else 'setup_required',
                                 'message': 'Модель/ключ настроены; генерация выполняется по запросу'},
-                'notes': {'state': 'configured' if lm_configured or notes and notes in {m['name'] for m in ollama['models']} and ollama_completion(self.manager.value, notes) else 'setup_required', 'selected': settings['lmstudio_model'] if lm_configured else notes,
+                'notes': {'state': 'configured' if lm_configured or notes and notes in {m['name'] for m in ollama['models']} else 'setup_required', 'selected': settings['lmstudio_model'] if lm_configured else notes,
                           'message': 'LM Studio настроен; генерация ещё не проверена' if lm_configured else 'Выберите модель Ollama для конспекта'},
                 'diarization': diarization_status(self.manager.value)}
 

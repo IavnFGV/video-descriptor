@@ -36,10 +36,14 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             continue
         folder = root / 'output' / name; folder.mkdir(parents=True)
         rows = [{'id': f's{i}', 'start': i*30, 'end': i*30+30, 'text': f'Реплика {i}. Проверка синхронизации и правок.', 'speaker':'speaker_1'} for i in range(80)]
+        gaps=[]
+        if '--unresolved-only' in sys.argv:
+            rows=[]
+            gaps=[{'id':'u-0000400000-0000480000','start':25,'end':30,'status':'unresolved','reason':'invalid_timestamps'}]
         write_json(folder / 'manifest.json', {'video': str(video), 'processed_duration': 2400})
-        write_json(folder / 'speech.json', {'folder': name, 'status': 'done', 'engine': 'whisper-local', 'segments': rows, 'speaker_names': {'speaker_1':'Саша'}})
+        write_json(folder / 'speech.json', {'folder': name, 'status': 'done', 'engine': 'whisper-local', 'segments': rows, 'speaker_names': {'speaker_1':'Саша'}, 'unresolved':gaps})
         write_json(folder / 'transcript.json', rows)
-        write_json(folder / 'translations.json', {'s0':'Сохранённый перевод'})
+        write_json(folder / 'translations.json', {} if gaps else {'s0':'Сохранённый перевод'})
         write_json(folder / 'frames.json', [])
         if model:
             write_json(folder / 'construction-settings.json', construction.validate({'model': model, 'result_kind': 'article' if name == 'article-a' else 'notes'}))
@@ -93,6 +97,30 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             except RuntimeError as error:
                 if 'navigated' in str(error) or 'context' in str(error):return False
                 raise
+        if '--unresolved-only' in sys.argv:
+            def gap_ready():
+                try:return c.evaluate('!!document.querySelector("#speech-feed .unresolved-interval .edit-subtitle")')
+                except RuntimeError as error:
+                    if 'navigated' in str(error) or 'context' in str(error):return False
+                    raise
+            wait_for(gap_ready,timeout=35)
+            c.screenshot(out/'unresolved-initial.png')
+            c.click('#speech-feed .unresolved-interval .edit-subtitle')
+            wait_for(lambda:c.evaluate('!!document.querySelector("dialog.reply-editor[open]")'))
+            c.fill('dialog.reply-editor textarea[name=left]','Manual gap text from the user')
+            c.click('dialog.reply-editor button[type=submit]')
+            wait_for(lambda:c.evaluate('!document.querySelector("dialog.reply-editor") && document.querySelector("#speech-feed")?.textContent.includes("Manual gap text from the user")'))
+            assert c.evaluate('document.querySelectorAll("#speech-feed .unresolved-interval").length')==0
+            c.click('#stage-speech .subtitle-history button:first-of-type')
+            wait_for(lambda:c.evaluate('document.querySelectorAll("#speech-feed .unresolved-interval").length===1 && !document.querySelector("#speech-feed .utterance")'))
+            c.click('#stage-speech .subtitle-history button:nth-of-type(2)')
+            wait_for(lambda:c.evaluate('document.querySelector("#speech-feed")?.textContent.includes("Manual gap text from the user")'))
+            for width in [1200,760,360]:
+                c.call('Emulation.setDeviceMetricsOverride',width=width,height=900,deviceScaleFactor=1,mobile=False)
+                assert c.evaluate('document.documentElement.scrollWidth<=innerWidth'),width
+            assert c.evaluate('window.uiErrors')==[],c.evaluate('window.uiErrors')
+            print('PASS: gap-only recording: visible interval, real manual editor, save, Undo to empty speech, Redo, responsive widths; no inference',flush=True)
+            raise SystemExit(0)
         try:
             wait_for(workspace_ready,timeout=35)
         except TimeoutError:
@@ -518,8 +546,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('document.querySelector("#recording-action-status").classList.contains("vd-error")')
             assert not evaluate('document.querySelector("#recording-diarize").disabled')
             evaluate('window.fetch=originalFetch')
+            # Speech selection is independent of the report; inspect the actual source.
+            speech_folder=evaluate('document.querySelector("#recording-speech").value')
             def saved_rows():
-                return json.loads((root/'output/notes-a/transcript-edits.json').read_text(encoding='utf-8'))
+                return json.loads((root/'output'/speech_folder/'transcript-edits.json').read_text(encoding='utf-8'))
             assert not evaluate('!!document.querySelector("#speech-feed .speaker-name")')
             assert evaluate('getComputedStyle(document.querySelector("#speech-feed .speaker-select")).minHeight')=='32px'
             c.click('#toggle-speaker-names')
@@ -535,7 +565,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             c.fill('#speech-feed .speaker-name-input','Мария')
             c.call('Input.dispatchKeyEvent',type='keyDown',key='Enter',windowsVirtualKeyCode=13)
             c.call('Input.dispatchKeyEvent',type='keyUp',key='Enter',windowsVirtualKeyCode=13)
-            wait_for(lambda:(root/'output/notes-a/transcript-edits.json').exists())
+            wait_for(lambda:(root/'output'/speech_folder/'transcript-edits.json').exists())
             assert saved_rows()['segments'][0]['speaker']!='speaker_1'
             assert saved_rows()['segments'][1]['speaker']=='speaker_1'
             assert saved_rows()['segments'][0]['text']=='Реплика 0. Проверка синхронизации и правок.'

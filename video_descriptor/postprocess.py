@@ -1,17 +1,15 @@
 """Queue local notes/translation from an immutable snapshot of corrected speech."""
-import os
 import re
 import subprocess
 import sys
 import time
 import uuid
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from .action_history import record
 from .construction import checked_folder, validate, validate_provider
 from .jobs import jobs_dir, read_json, run_process, write_json
-from .ollama_connection import job_environment
+from .llm_provider import environment, snapshot
 from .platform_support import lock_file
 from .speech import editable_result, subtitle_result
 
@@ -22,14 +20,9 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None, construction
         raise ValueError('Выберите перевод или конспект с переводом')
     if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9._:/@-]{1,150}', model):
         raise ValueError('Выберите установленную локальную модель')
-    lm_selected = translation_provider == 'lmstudio' or (construction or {}).get('provider') == 'lmstudio'
-    if lm_selected:
-        from .lmstudio import base_url as lm_base_url
-        base_url = lm_base_url(base_url)
-    parsed = urlsplit(base_url)
-    if (parsed.scheme != 'http' or parsed.hostname not in {'localhost', '127.0.0.1', '::1'}
-            or parsed.username or parsed.password or parsed.path not in ({'', '/', '/v1'} if lm_selected else {'', '/'}) or parsed.query or parsed.fragment):
-        raise ValueError('Для этой операции разрешён только локальный сервер модели')
+    provider = translation_provider or (construction or {}).get('provider') or 'ollama'
+    route = snapshot(root, provider=provider, model=model, endpoint=base_url)
+    base_url = route['endpoint']
     if type(translate_after) is not bool:
         raise TypeError('Выберите, нужен ли перевод реплик')
     config = validate(construction) if task == 'notes' and construction is not None else None
@@ -76,6 +69,11 @@ def enqueue(root, name, task, model, base_url, *, notes_model=None, construction
             job['translation_provider'] = job['construction']['provider']
             if config:
                 job['translation_model'] = config['model']
+        job['llm'] = snapshot(root, provider=provider, model=(job.get('construction') or {}).get('model', model),
+                              endpoint=base_url, parameters=job.get('construction'))
+        job['translation_llm'] = snapshot(root, provider=job.get('translation_provider', provider),
+                                          model=job['translation_model'], endpoint=base_url,
+                                          parameters={'context_tokens': 8192, 'output_tokens': 4096, 'temperature': 0})
         target = jobs_dir(root) / identity
         target.mkdir()
         write_json(target / 'job.json', job)
@@ -89,8 +87,14 @@ def run(root, folder, job, log):
         diarize(root, folder, job, log)
         return
     result = root / 'output' / job['folder']
-    environment = ({**os.environ, 'VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL': job['translation_base_url']}
-                   if job.get('translation_provider') == 'lmstudio' else job_environment(job['translation_base_url']))
+    if 'llm' not in job:
+        config = job.get('construction') or {}
+        provider = job.get('translation_provider', config.get('provider', 'ollama'))
+        job['llm'] = snapshot(root, provider=provider, model=config.get('model', job['translation_model']),
+                              endpoint=job['translation_base_url'], parameters=config)
+        job['translation_llm'] = snapshot(root, provider=provider, model=job['translation_model'],
+                                          endpoint=job['translation_base_url'], parameters={'context_tokens': 8192, 'output_tokens': 4096, 'temperature': 0})
+        write_json(folder / 'job.json', job)
     if job['task'] == 'notes':
         job['stage'] = 'notes'
         write_json(folder / 'job.json', job)
@@ -98,7 +102,7 @@ def run(root, folder, job, log):
         write_json(settings, job['construction'])
         code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction', str(root),
                                str(result), str(settings)], cwd=root, stdout=log, stderr=subprocess.STDOUT,
-                              stdin=subprocess.DEVNULL, check=False, env=environment).returncode
+                              stdin=subprocess.DEVNULL, check=False, env=environment(job['llm'])).returncode
         if code:
             detail = read_json(result / 'construction-error.json', {}).get('error')
             label = 'статью' if job['construction'].get('result_kind') == 'article' else 'конспект'
@@ -116,7 +120,7 @@ def run(root, folder, job, log):
     code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.translate', str(result),
                            '--model', job['translation_model'], option, job['translation_model'],
                            '--base-url', job['translation_base_url'], *extra], cwd=root, stdout=log,
-                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False, env=environment).returncode
+                          stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False, env=environment(job['translation_llm'])).returncode
     if code:
         raise RuntimeError('Перевод остановлен; готовые блоки сохранены. Нажмите «Продолжить».')
     job['stage'] = 'done'

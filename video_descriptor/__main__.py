@@ -132,10 +132,8 @@ def main() -> int:
     parser.add_argument("--vision-frames", type=positive_int, default=4,
                         help="Максимум запрашиваемых картинок в одном блоке")
     parser.add_argument("--image-max-side", type=positive_int, default=960)
-    parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", ""))
-    parser.add_argument("--base-url", default=os.getenv(
-        "OLLAMA_BASE_URL", "http://host.docker.internal:11434"
-    ))
+    parser.add_argument("--model", default="")
+    parser.add_argument("--base-url", default=None)
     parser.add_argument("--skip-notes", action="store_true", help="Только транскрипция и OCR")
     parser.add_argument("--audio-only", action="store_true", help="Пропустить кадры и OCR; создать обычный конспект и отчёт")
     parser.add_argument("--speech-result", type=Path, help="Готовый speech.json выбранного обработчика речи")
@@ -148,8 +146,17 @@ def main() -> int:
         parser.error(f"Видео не найдено: {args.video}")
     if not math.isfinite(args.start) or args.start < 0:
         parser.error("--start должен быть конечным неотрицательным числом")
-    if not args.skip_notes and not args.model.strip():
-        parser.error("Укажите установленную Ollama-модель через --model или OLLAMA_MODEL")
+    execution = None
+    if not args.skip_notes:
+        from .llm_provider import runtime, selected
+        from .translation_settings import load
+        preferences = load()
+        execution = runtime(selected(settings=preferences, model=args.model or preferences.get(
+            {'ollama': 'ollama_model', 'lmstudio': 'lmstudio_model', 'gemini': 'model'}[preferences['provider']]) or None,
+            endpoint=args.base_url if preferences['provider'] == 'ollama' else None,
+            parameters={'context_tokens': 16384, 'output_tokens': 4096, 'temperature': 0, 'thinking': args.think}), preferences)
+        args.model = execution['llm_snapshot']['model']
+        args.base_url = execution['llm_snapshot']['endpoint']
     video = args.video.resolve()
     stat = video.stat()
     identity = {
@@ -189,6 +196,9 @@ def main() -> int:
         logger.addHandler(handler)
     log = ProgressLog(logger.info, video.name, folder / "requests")
     log.progress_file = folder / "progress.json"
+    log.llm_settings = execution
+    if execution:
+        save(folder / "llm-settings.json", execution["llm_snapshot"])
     log.thinking_enabled = args.think
     log.update(model=args.model)
     run_started = time.monotonic()
@@ -199,7 +209,10 @@ def main() -> int:
     try:
         log(f"Результаты и лог: {folder}")
         with stage("[1/5] Проверка видео", log):
-            if args.vision == "auto" and not args.skip_notes:
+            if not args.skip_notes:
+                from .llm_provider import check_model
+                check_model(execution)
+            if args.vision == "auto" and not args.skip_notes and execution["provider"] == "ollama":
                 check_vision_model(args.model, args.base_url)
             info = probe(video)
             duration = float(info["format"]["duration"]) - args.start
@@ -331,7 +344,7 @@ def main() -> int:
                         log(f"Слайд {block['slide']}: граница — {block['reason']}")
                     try:
                         target = folder / f"notes-{block_key}-{index:04d}.json"
-                        log(f"Ollama: блок {index}/{len(groups)}, модель {args.model}")
+                        log(f"{execution['provider']}: блок {index}/{len(groups)}, модель {args.model}")
                         if target.exists():
                             update_status(log, task="конспект", request_state="из кэша")
                             cached_blocks += 1

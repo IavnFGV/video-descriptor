@@ -144,7 +144,14 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 20.10.2026: AI Component Manager adds GET/POST /api/components with existing X-App-Instance and Origin guards. POST component=whisper|ollama|diarization, action=install|check|pull|cancel|remove; install/pull/remove require confirmed=true. Existing setup endpoints/ids/handlers remain. HF links use POST /api/setup/external with fixed terms|tokens allowlist. Operations persist separately from job enums; bytes/total are real, cancellation retains verified cache. No credentials in GET responses. Standard Whisper download/probe controls now run the unified manager; custom WAV API remains.
 
-20.10.2026, PR #5: Ollama modes existing/service/managed, explicit connect and start_existing actions on /api/components; managed install additionally requires mode=managed. Read-only /api/setup/ollama?discover=1 probes 11434 without changing selection. Selected endpoint, ownership, version and models are visible; polling preserves mode/URL drafts. External check/pull never install, launch, stop or switch endpoints. Notes and translation snapshot one selected endpoint, including actual context checks.
+11.11.2026, external-only Ollama: managed mode/install/pull/start controls and their
+handlers intentionally removed by owner's task. Existing endpoint/model/task IDs,
+Whisper/Gemini/LM Studio handlers and job guards retained. `/api/setup/ollama?endpoint=`
+reads live version/tags without persisting; POST with endpoint validates and saves
+connection, POST model saves selection; explicit component check verifies generation.
+Endpoint input invalidates inventory/selection synchronously; request counter and endpoint
+comparison reject stale responses. No automatic first-model selection. `/help/ollama`
+serves the packaged guide using shared CSS. No new settings subsystem or CSS tokens.
 
 
 21.10.2026: однократная подготовка — top-level выбор функций/устройств и один submit после общего download consent; для community-1 отдельное HF consent. POST /api/components action=prepare_selected|cancel_selected; существующие операции/IDs сохранены. Главное окно подсвечивает настройки без принудительного перехода; общий прогресс доступен после ухода/возврата. Ошибка шага не отменяет готовые компоненты.
@@ -207,3 +214,35 @@ independent report не подменяется snapshot report другого ki
 генерацию; create actions используют прежние construction handlers. Keyboard и
 responsive browser regressions: scripts/verify-recording-ui.py --material-tabs-only
 и --material-tabs-empty; старый release UI harness также проверяется локально.
+
+11.11.2026 external-Ollama polish: прежние IDs/API/handlers сохранены. Test Model
+показывает aria-busy и текущую проверку, блокирует endpoint/model на её время.
+При cancel_requested кнопка явно сообщает ожидание ответа/таймаута и не допускает
+повторной отмены; indeterminate progress и polling существующие. Генерация только
+по явному действию, discovery/refresh/save её не вызывают.
+
+
+11.11.2026: Milestone 1, согласованная единая форма Ollama / LM Studio в существующих
+настройках. Исторические `ollama-form`, `ollama-service-url`, `ollama-model`,
+`ollama-use-connection`, `ollama-refresh`, `ollama-test`, `ollama-feedback` и
+`ollama-guide` теперь обслуживают оба провайдера. Отдельные LM Studio form/URL/model/
+status/test handlers и панели удалены; optional password token показывается только
+для LM Studio. Общая инструкция меняется вместе с провайдером. Выбор Ollama для
+конспекта сохранён; конспект/статья LM Studio используют прежний отдельный выбор.
+Endpoint/model и черновик токена изолированы по провайдерам; выбор модели привязан
+к endpoint. Каждый новый discovery получает свежие `/api/tags` или `/v1/models`;
+сохранённая модель восстанавливается только при наличии в ответе сервера. Ошибка,
+пустой/неверный inventory и исчезнувшая модель не приводят к скрытой подстановке.
+Счётчик запроса и provider/endpoint/model guards отсекают устаревшие результаты,
+включая verification. Discovery/save не запускают генерацию. Test Model использует
+существующий Ollama worker либо action=verify на `/api/translation-settings` для
+LM Studio (повторный inventory перед генерацией); HTTP audit и action_history
+содержат начало/результат/ошибку без токенов или текста запросов. CSS, маршруты,
+очередь, revision/dirty guards и release inputs сохранены.
+
+
+11.11.2026: по прямому запросу владельца удалены obsolete `ollama-task` и `local-task-field`
+из общей формы LLM. Save и Test Model передают task=translation в прежний Ollama API,
+сохраняя общий provider/model вместо legacy notes-settings. Общий выбор используется
+переводом/конспектами/статьями по умолчанию; явные настройки конкретного задания,
+legacy API совместимость, prompts, snapshot/revision/dirty guards сохранены.

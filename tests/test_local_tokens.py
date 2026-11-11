@@ -89,7 +89,11 @@ def test_chunked_local_notes_do_not_allocate_model_maximum(tmp_path, monkeypatch
          'text': 'Объяснение темы и практический пример. ' * 100} for i in range(3)]})
     jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'video.mp4')})
     monkeypatch.setattr(construction, 'render', lambda *a, **kw: None)
-    monkeypatch.setattr(construction, 'actual_limits', lambda root, config: {**config, 'context_tokens': 262144})
+    from video_descriptor import translation_settings
+    from video_descriptor.ollama_provider import Ollama
+    translation_settings.save(tmp_path, {'provider': 'ollama', 'ollama_model': construction.DEFAULTS['model']})
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': construction.DEFAULTS['model']}])
+    monkeypatch.setattr(construction, 'actual_limits', lambda root, config, settings=None: {**config, 'context_tokens': 262144})
     monkeypatch.setattr(construction, 'load_counter', lambda *a: counter)
     contexts = []
 
@@ -113,7 +117,11 @@ def test_long_local_notes_use_one_request_and_small_context(tmp_path, monkeypatc
          'text': 'Длинная запись. ' * 3000}]})
     jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'video.mp4')})
     monkeypatch.setattr(construction, 'render', lambda *a, **kw: None)
-    monkeypatch.setattr(construction, 'actual_limits', lambda root, config: {**config, 'context_tokens': 65536})
+    from video_descriptor import translation_settings
+    from video_descriptor.ollama_provider import Ollama
+    translation_settings.save(tmp_path, {'provider': 'ollama', 'ollama_model': construction.DEFAULTS['model']})
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': construction.DEFAULTS['model']}])
+    monkeypatch.setattr(construction, 'actual_limits', lambda root, config, settings=None: {**config, 'context_tokens': 65536})
     monkeypatch.setattr(construction, 'load_counter', lambda *a: counter)
     calls = []
 
@@ -147,16 +155,19 @@ def test_sparse_two_hour_translation_is_packed_by_text(vocabulary):
 
 @pytest.mark.parametrize('cached', [False, True])
 def test_partial_translation_resume_sends_only_missing_replicas(tmp_path, monkeypatch, cached):
+    monkeypatch.chdir(tmp_path)
     sources = [Source(id=f's{i}', start=i * 10, end=i * 10 + 5, text='Hello') for i in range(3)]
     jobs.write_json(tmp_path / 'transcript.json', [source.model_dump() for source in sources])
     jobs.write_json(tmp_path / 'translations.json', {'s0': 'Сохранено', 's2': ''})
-    monkeypatch.setattr(sys, 'argv', ['translate', str(tmp_path), '--model', 'selected'])
+    monkeypatch.setattr(sys, 'argv', ['translate', str(tmp_path), '--model', 'selected', '--base-url', 'http://127.0.0.1:11434'])
     monkeypatch.setattr(translate, 'load_counter', lambda *a: local_tokens.TokenCounter())
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': 'selected'}])
     monkeypatch.setattr(translate, 'translation_settings', lambda: {'provider': 'ollama'})
     monkeypatch.setattr(translate, 'refresh_reports', lambda *a: None)
     if cached:
         key = hashlib.sha256(json.dumps(
-            [translate.PROMPT, 'selected', 'http://host.docker.internal:11434',
+            [translate.PROMPT, 'selected', 'http://127.0.0.1:11434',
              [source.model_dump() for source in sources]], sort_keys=True,
         ).encode()).hexdigest()[:12]
         jobs.write_json(tmp_path / f'translation-{key}.json', {

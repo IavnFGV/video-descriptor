@@ -176,7 +176,7 @@
     try {
       const value = await json('/api/translation-settings');
       $('translation-provider').value = value.provider;
-      $('translation-local-model').value = value.ollama_model || 'qwen3.5:9b';
+      await refreshTranslationModels(value.ollama_model || '');
       $('lmstudio-url').value=value.lmstudio_url; $('lmstudio-model').value=value.lmstudio_model;
       $('lmstudio-key').placeholder=value.lmstudio_has_key?'Токен сохранён':'Необязательный токен';
       updateTranslationProvider();
@@ -192,16 +192,30 @@
     } catch (error) { $('translation-settings-status').textContent = error.message; }
   }
   $('gemini-billing').addEventListener('change', () => { $('gemini-free-label').hidden = $('gemini-billing').value !== 'free'; });
+  let translationModelRequest=0;
+  async function refreshTranslationModels(wanted=$('translation-local-model').value){
+    const request=++translationModelRequest,list=$('translation-local-model');
+    list.replaceChildren(new Option('Выберите модель',''));
+    try{
+      const models=await json('/api/construction-models?provider=ollama');
+      if(request!==translationModelRequest)return;
+      for(const model of models)list.add(new Option(model.title||model.id,model.id));
+      list.value=models.some(model=>model.id===wanted)?wanted:'';
+      $('translation-settings-status').textContent=!models.length?'Нет установленных моделей. Установите модель через ollama pull <model-name> и обновите список.':wanted&&!list.value?'Прежняя модель отсутствует. Выберите модель.':'';
+    }catch(error){if(request===translationModelRequest)$('translation-settings-status').textContent=error.message;}
+  }
+  $('translation-refresh-models').onclick=()=>refreshTranslationModels();
   function updateTranslationProvider() {
     const local = $('translation-provider').value !== 'gemini';
     $('translation-local-label').hidden = $('translation-provider').value !== 'ollama';
     $('translation-gemini-label').hidden = local;
     $('load-gemini-models').hidden = local;
   }
-  $('translation-provider').addEventListener('change', updateTranslationProvider);
+  $('translation-provider').addEventListener('change', ()=>{updateTranslationProvider();if($('translation-provider').value==='ollama')refreshTranslationModels();});
   async function saveTranslationSettings(event) {
     event.preventDefault();
     const connection = event.currentTarget.id === 'connections-form';
+    if(!connection&&$('translation-provider').value==='ollama'&&!$('translation-local-model').value){$('translation-settings-status').textContent='Выберите установленную модель.';return;}
     const changes = connection ? {
       lmstudio_url:$('lmstudio-url').value,lmstudio_model:$('lmstudio-model').value,lmstudio_api_key:$('lmstudio-key').value,
       api_key: $('gemini-key').value, billing_mode: $('gemini-billing').value, free_ack: $('gemini-free-ack').checked

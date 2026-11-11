@@ -17,6 +17,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--hf-token-file', type=Path)
     parser.add_argument('--reuse-directory', type=Path, help="Reuse only this runner marked isolated user-data directory")
+    parser.add_argument('--ollama-url', default='http://127.0.0.1:11434')
+    parser.add_argument('--ollama-model', required=True, help='Model already installed on the external server')
     args = parser.parse_args()
     if os.name != 'nt':
         raise SystemExit('Windows only')
@@ -39,7 +41,7 @@ def main():
     config = {'port': 18980, 'workspace': 'runtime/workspace', 'speech_device': 'CPU',
               'npu_worker_directory': str(root / 'no-benchmark'), 'whisper_model_directory': str(root / 'no-model'),
               'cpu_url': 'http://127.0.0.1:18967', 'gpu_url': 'http://127.0.0.1:18968',
-              'npu_url': 'http://127.0.0.1:18966', 'ollama_url': 'http://127.0.0.1:18934'}
+              'npu_url': 'http://127.0.0.1:18966', 'ollama_url': args.ollama_url}
     local = root / 'windows-app/config.local.json'
     if not args.reuse_directory:
         local.write_text(json.dumps(config), encoding='utf-8')
@@ -81,7 +83,7 @@ def main():
                 evidence.update(state=row['state'], message=row['message'])
                 save()
                 if not status['active']:
-                    passed = row['state'] == 'ready' or (key == 'ollama' and action == 'install' and row['state'] == 'installed' and row.get('proof', {}).get('api_version'))
+                    passed = row['state'] == 'ready' or (key == 'ollama' and action == 'connect' and row['state'] == 'installed' and row.get('proof', {}).get('version'))
                     evidence.update(status='PASS' if passed else 'FAIL', proof=row.get('proof'),
                                     elapsed_seconds=round(time.monotonic() - started, 2),
                                     version=row.get('version'), device=row.get('device'), fallback_reason=row.get('fallback_reason'))
@@ -92,9 +94,9 @@ def main():
                 time.sleep(1)
             raise RuntimeError(name + ': timeout')
         stage('Whisper automatic download and real CPU inference', 'whisper', 'install')
-        stage('Ollama official standalone installation and API', 'ollama', 'install', mode='managed')
-        stage('Ollama small model download and real generation', 'ollama', 'pull', model='qwen3:0.6b', task='translation')
-        stage('Ollama notes model generation check', 'ollama', 'check', model='qwen3:0.6b', task='notes')
+        stage('External Ollama connection', 'ollama', 'connect', url=args.ollama_url)
+        stage('External model generation', 'ollama', 'check', model=args.ollama_model, task='translation')
+        stage('Ollama notes model generation check', 'ollama', 'check', model=args.ollama_model, task='notes')
         sample = root / 'windows-app/samples/speech-check.mp4'
         uploaded = session.post('http://127.0.0.1:18980/api/upload?filename=speech-check.mp4&engine=whisper-local&device=CPU&language=en&speech_only=true',
                                 data=sample.read_bytes(), headers={'X-App-Instance': instance}, timeout=30)

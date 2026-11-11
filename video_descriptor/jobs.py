@@ -44,8 +44,8 @@ def enqueue(root, stream, length, filename, title="", thinking=False, mode="lect
     if mode not in {"lecture", "audio"}:
         raise ValueError("Неизвестный режим")
     if construction is not None:
-        from .construction import validate, validate_provider
-        construction = validate(construction)
+        from .construction import configured, validate_provider
+        construction = configured(root, construction)
         validate_provider(root, construction)
     from .speech import EXTENSIONS, validate_engine
     if mode == "audio" or construction is not None:
@@ -85,9 +85,26 @@ def enqueue(root, stream, length, filename, title="", thinking=False, mode="lect
         job['device_plan'] = device_plan
     if construction is not None:
         job['construction'] = construction
+    capture_llm(root, job)
     write_json(folder / "job.json", job)
     record('job_added', job_id=id, stage='speech', language=language)
     return job
+
+
+def capture_llm(root, job):
+    """Additive snapshot: adopt old queued jobs once, never re-resolve a pinned job."""
+    if job.get('speech_only') or job.get('task') == 'diarize':
+        return
+    from .llm_provider import snapshot
+    config = job.get('construction') or {}
+    if 'llm' not in job:
+        provider = config.get('provider')
+        endpoint = job.get('lmstudio_url') if provider == 'lmstudio' else job.get('ollama_url') if provider == 'ollama' else None
+        job['llm'] = snapshot(root, provider=provider, model=config.get('model'), endpoint=endpoint,
+                              parameters={'context_tokens': 16384, 'output_tokens': 4096, 'temperature': 0, **config, 'thinking': bool(job.get('thinking'))})
+    if 'translation_llm' not in job:
+        job['translation_llm'] = snapshot(root, parameters={'context_tokens': 8192, 'output_tokens': 4096, 'temperature': 0}) if config else {
+            **job['llm'], 'parameters': {'context_tokens': 8192, 'output_tokens': 4096, 'temperature': 0}}
 
 
 def start_worker(root):
@@ -233,6 +250,9 @@ def run_job(root, folder, job):
     stage = job.get('task', 'notes' if job.get('mode') == 'notes' else 'speech')
     record('job_started', job_id=job['id'], stage=stage, requested=job.get('device_plan', {}).get('requested'))
     try:
+        if job.get('mode') != 'postprocess':
+            capture_llm(root, job)
+            write_json(folder / 'job.json', job)
         with (folder / "run.log").open("a") as log:
             if job.get('mode') == 'postprocess':
                 from .postprocess import run
@@ -243,16 +263,14 @@ def run_job(root, folder, job):
                 record('job_finished', job_id=job['id'], stage=stage, status='done')
                 return
             if job.get('mode') == 'notes':
-                from .ollama_connection import base_url as ollama_base_url
-                from .ollama_connection import job_environment
+                from .llm_provider import environment as llm_environment
                 settings = folder / 'construction.json'
                 write_json(settings, job['construction'])
                 result = root / 'output' / job['folder']
                 code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction',
                                        str(root), str(result), str(settings)], cwd=root, stdout=log,
                                       stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False,
-                                      env=({**os.environ, 'VIDEO_DESCRIPTOR_JOB_LMSTUDIO_URL': job['lmstudio_url']}
-                                           if job.get('lmstudio_url') else job_environment(job.get('ollama_url') or ollama_base_url(root)))).returncode
+                                      env=llm_environment(job['llm'])).returncode
                 if code:
                     error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
                     raise RuntimeError('Конспект остановлен: ' + error)
@@ -289,7 +307,7 @@ def run_job(root, folder, job):
                 record('job_finished', job_id=job['id'], stage='speech', status='done')
                 return
             command = [sys.executable, "-u", "-m", "video_descriptor", job["video"],
-                       "--model", os.getenv('OLLAMA_MODEL', 'qwen3.5:9b'), "--frame-strategy", "scene", "--chunk-strategy", "slides"]
+                       "--model", job['llm']['model'], "--frame-strategy", "scene", "--chunk-strategy", "slides"]
             if job.get("mode") == "audio":
                 command.append("--audio-only")
             if job.get("folder") and (root / "output" / job["folder"] / "speech.json").is_file():
@@ -298,8 +316,9 @@ def run_job(root, folder, job):
                 command.append("--think")
             if job.get('construction'):
                 command.append('--skip-notes')
+            from .llm_provider import environment as llm_environment
             code = run_process(folder, command, cwd=root, stdout=log, stderr=subprocess.STDOUT,
-                                  stdin=subprocess.DEVNULL, check=False).returncode
+                                  stdin=subprocess.DEVNULL, check=False, env=llm_environment(job['llm'])).returncode
             result = root / "output" / job["folder"] if job.get("folder") else find_result(root, job["video"])
             if result:
                 job["folder"] = result.name
@@ -315,7 +334,7 @@ def run_job(root, folder, job):
                 (result / 'construction-error.json').unlink(missing_ok=True)
                 code = run_process(folder, [sys.executable, '-u', '-m', 'video_descriptor.construction',
                                        str(root), str(result), str(settings)], cwd=root, stdout=log,
-                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False).returncode
+                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False, env=llm_environment(job['llm'])).returncode
                 if code:
                     error = read_json(result / 'construction-error.json', {}).get('error', 'См. журнал')
                     raise RuntimeError('Конспект остановлен: ' + error)
@@ -323,14 +342,14 @@ def run_job(root, folder, job):
                 from .library import save_title
                 save_title(result, job["title"])
             code = run_process(folder, [sys.executable, "-u", "-m", "video_descriptor.translate",
-                                   str(result), "--model", os.getenv('OLLAMA_MODEL', 'qwen3.5:9b')], cwd=root,
+                                   str(result), "--model", job['translation_llm']['model']], cwd=root,
                                   stdout=log, stderr=subprocess.STDOUT,
-                                  stdin=subprocess.DEVNULL, check=False).returncode
+                                  stdin=subprocess.DEVNULL, check=False, env=llm_environment(job['translation_llm'])).returncode
             if code:
                 raise RuntimeError(f"Перевод остановился, код {code}; конспект уже доступен")
         check_stop(folder)
         job["status"] = "done"
-    except (OSError, RuntimeError) as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         updated = read_json(folder / "job.json", {})
         job["folder"] = updated.get("folder", job.get("folder"))
         stopped = (folder / "stop-request.json").exists()

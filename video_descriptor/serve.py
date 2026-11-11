@@ -365,7 +365,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                                        value.get("mode", "audio"), value.get("thinking", False), value.get('construction'))
                 if 'speech_only' in value:
                     job['speech_only'] = value['speech_only']
-                    write_json(jobs_dir(root) / job['id'] / 'job.json', job)
+                from .jobs import capture_llm
+                capture_llm(root, job)
+                write_json(jobs_dir(root) / job['id'] / 'job.json', job)
                 start_worker(root)
                 return self.json_response(202, job)
             except (ValueError, OSError, KeyError, TypeError) as exc:
@@ -380,6 +382,28 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                 changes = json.loads(self.rfile.read(length))
                 if not isinstance(changes, dict):
                     raise TypeError("Некорректные настройки")
+                if changes.get('action') in {'models', 'verify'}:
+                    from . import lmstudio
+                    settings = translation_settings.load(Path(self.directory))
+                    settings.update({key: changes[key] for key in ('lmstudio_url', 'lmstudio_model') if key in changes})
+                    if changes.get('lmstudio_api_key'):
+                        settings['lmstudio_api_key'] = changes['lmstudio_api_key']
+                    operation = uuid.uuid4().hex
+                    audit = {'operation_id': operation, 'component': 'lmstudio',
+                             'stage': 'verification' if changes['action'] == 'verify' else 'inventory'}
+                    record('operation_started', status='running', **audit)
+                    try:
+                        rows = lmstudio.models(settings)
+                        if changes['action'] == 'verify':
+                            model = settings['lmstudio_model']
+                            if model not in {row['id'] for row in rows}:
+                                raise ValueError('Выберите доступную модель LM Studio')
+                            lmstudio.generate(settings, model, 'Reply with one word: ready.', '', None, output_tokens=32)
+                    except (ValueError, OSError, TypeError, KeyError) as exc:
+                        record('operation_failed', status='error', reason=type(exc).__name__, **audit)
+                        raise
+                    record('operation_finished', status='done', **audit)
+                    return self.json_response(200, rows)
                 return self.json_response(200, translation_settings.save(Path(self.directory), changes))
             except (ValueError, OSError, TypeError) as exc:
                 return self.json_response(400, {"error": str(exc)})

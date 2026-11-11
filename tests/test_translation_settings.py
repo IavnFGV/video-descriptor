@@ -21,6 +21,8 @@ def test_translation_cli_uses_selected_model_and_fails_on_incomplete_result(tmp_
         args += ['--local-model', 'pinned-model']
     monkeypatch.setattr(sys, 'argv', args)
     monkeypatch.setattr(translate, 'translation_settings', lambda: {'provider': 'ollama', 'ollama_model': 'selected-model'})
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': 'pinned-model'}, {'id': 'selected-model'}])
     monkeypatch.setattr(translate, 'refresh_reports', lambda *args: None)
     calls = []
 

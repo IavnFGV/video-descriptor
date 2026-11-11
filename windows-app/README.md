@@ -1,5 +1,7 @@
 # Video Descriptor — нативный desktop preview Windows
 
+> Current source workflow: [development guide](../docs/development/README.md). Prototype-version installation claims below are historical; use the [release guide](../docs/development/releases.md) and versioned acceptance evidence for release status.
+
 В 0.7 ярлык открывает собственное WinForms/WebView2 окно с прежним UI.
 Docker не нужен; backend запускается прежним способом. Крестик скрывает окно в трей,
 «Завершить приложение» в меню трея отказывает при active queue. Требуется установленный
@@ -204,3 +206,10 @@ CPU/GPU используют новый `whisper_worker.py`; существую�
 Запускать на свободной очереди. [Отчёт](../docs/verification-devices.md).
 
 Обновление мастера AI: см. [первоначальную настройку](../docs/ai-setup-windows.md). Импорт, подтверждаемая загрузка pinned Whisper, диагностика, WAV probe, Ollama и Gemini работают в существующем WebView2 UI.
+
+Ollama настраивается как внешний HTTP(S)-сервер: [инструкция](../docs/ollama-windows.md).
+Настройки → AI → Ollama: адрес, проверка подключения, Refresh Models, выбор и сохранение
+модели, отдельный тест генерации. Установку/обновление сервера и моделей выполняет пользователь.
+LM Studio настраивается как локальный OpenAI-сервер: [инструкция](../docs/lmstudio-windows.md).
+Настройки → AI → языковые модели: провайдер LM Studio, адрес API (по умолчанию
+http://127.0.0.1:1234/v1), токен, проверка подключения, выбор и сохранение модели.

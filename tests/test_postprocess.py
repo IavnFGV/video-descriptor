@@ -75,7 +75,7 @@ def test_unsafe_requests_and_empty_speech_do_not_publish_jobs(recording):
     root, source = recording
     for name, task, url in [('../escape', 'notes', 'http://127.0.0.1:11434'),
                             ('source', 'unexpected', 'http://127.0.0.1:11434'),
-                            ('source', 'translate', 'https://remote.invalid')]:
+                            ('source', 'translate', 'https://user:secret@remote.invalid')]:
         with pytest.raises(ValueError):
             postprocess.enqueue(root, name, task, 'qwen:9b', url)
     (source / 'transcript-edits.json').unlink()
@@ -92,6 +92,9 @@ def test_native_postprocess_api_checks_instance_and_origin_then_queues_snapshot(
     app = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(app)
     import setup_service
+
+    from video_descriptor import translation_settings
+    translation_settings.save(root, {'provider': 'ollama', 'ollama_model': 'chosen:9b'})
     monkeypatch.setattr(setup_service, 'ollama_status', lambda value: {'selected': 'chosen:9b'})
     monkeypatch.setattr(setup_service, 'validate_ollama_model', lambda value, model: None)
     start = Mock()

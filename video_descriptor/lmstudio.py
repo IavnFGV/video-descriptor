@@ -57,10 +57,13 @@ def call(settings, method, endpoint, **kwargs):
 
 
 def models(settings):
-    try:
-        return [{'id': row['id'], 'title': row['id']} for row in call(settings, 'GET', '/models')['data']]
-    except (KeyError, TypeError):
-        raise ValueError('LM Studio: некорректный список моделей') from None
+    result = call(settings, 'GET', '/models')
+    rows = result.get('data') if isinstance(result, dict) else None
+    if not isinstance(rows, list) or any(
+            not isinstance(row, dict) or not isinstance(row.get('id'), str)
+            or not row['id'].strip() for row in rows):
+        raise ValueError('LM Studio: некорректный список моделей')
+    return [{'id': row['id'], 'title': row['id']} for row in rows]
 
 
 def context_limit(settings, model):
@@ -81,10 +84,15 @@ def context_limit(settings, model):
     raise ValueError('LM Studio: не удалось определить загруженный контекст. Загрузите модель или задайте контекст вручную по настройкам LM Studio')
 
 
-def generate(settings, model, prompt, text, log, *, output_tokens=4096, task='construction'):
+def generate(settings, model, prompt, text, log, *, output_tokens=4096, task='construction', schema=None, images=None):
     payload = {'model': model, 'messages': [{'role': 'system', 'content': prompt},
                                           {'role': 'user', 'content': text}],
                'temperature': 0, 'max_tokens': output_tokens, 'stream': False}
+    if schema is not None:
+        payload['response_format'] = {'type': 'json_schema', 'json_schema': {'name': 'result', 'schema': schema}}
+    if images:
+        payload['messages'][1]['content'] = [{'type': 'text', 'text': text}, *[
+            {'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,' + image}} for image in images]]
     journal = None
     if log:
         log.begin_request(task, model, len(prompt) + len(text), len(json.dumps(payload).encode()), 0, output_tokens)

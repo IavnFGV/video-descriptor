@@ -69,16 +69,17 @@ def main():
     failures.extend('Missing desktop handler target: ' + name for name in sorted(refs - set(ids)))
     original = baseline['inventory']
     previous_ids = set(original['windows-app/ui/index.html']['ids'])
-    failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids)))
+    retired = set(json.loads((ROOT / 'design-system/migrations/external-ollama.json').read_text(encoding='utf-8'))['removed_ids'])
+    failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids) - retired))
     previous_apis = set(original['windows-app/ui/app.js']['api_literals'])
     current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js))
     # Explicit additive Stop contract, reviewed in migrations/main.json and CONTRACTS.md.
-    if previous_apis | {'/api/native/cancel?id=', '/api/components', '/api/setup/ollama?discover=1', '/api/storage', '/api/translation-settings', '/api/construction-models?provider=lmstudio'} != current_apis:
+    if previous_apis | {'/api/native/cancel?id=', '/api/components', '/api/storage', '/api/translation-settings', '/api/construction-models?provider=lmstudio'} != current_apis:
         failures.append('Desktop API literals changed; explicit API contract review required')
     original_js = git('show', baseline['commit'] + ':windows-app/ui/app.js').decode('utf-8')
     pattern = r"\$\(['\"]([^'\"]+)['\"]\)\.(on\w+)\s*="
     before, after = set(re.findall(pattern, original_js)), set(re.findall(pattern, js))
-    failures.extend('Original handler removed: ' + '.'.join(pair) for pair in sorted(before - after))
+    failures.extend('Original handler removed: ' + '.'.join(pair) for pair in sorted(before - after) if pair[0] not in retired)
     if len(ids) != len(set(ids)):
         failures.append('Duplicate desktop ids')
     # Review each migrated module against the immutable manifest, including workspace.
