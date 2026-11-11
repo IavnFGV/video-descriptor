@@ -57,7 +57,7 @@ def config():
         value.update(json.loads(local.read_text(encoding='utf-8')))
     if type(value['port']) is not int or not 1024 <= value['port'] <= 65535:
         raise ValueError('Некорректный порт приложения')
-    for key in ('npu_url', 'ollama_url', 'cpu_url', 'gpu_url'):
+    for key in ('npu_url', 'cpu_url', 'gpu_url'):
         if key not in value:
             continue
         parsed = urlsplit(value[key])
@@ -66,6 +66,8 @@ def config():
                 or parsed.path not in {'', '/'}):
             raise ValueError(f'{key}: в прототипе разрешён только локальный HTTP-сервис')
         value[key] = value[key].rstrip('/')
+    from video_descriptor.ollama_connection import endpoint_url
+    value['ollama_url'] = endpoint_url(value['ollama_url'])
     if value.get('records_directory'):
         from storage_service import local_folder
         workspace = local_folder(value['records_directory'])
@@ -292,7 +294,7 @@ def make_handler(value, instance):
             if path == '/api/setup/diagnostics' and setup is not None:
                 return self.json_response(200, setup.diagnostics())
             if path == '/api/setup/ollama' and setup is not None:
-                return self.json_response(200, ollama_status(value, discover=parse_qs(urlsplit(self.path).query).get('discover') == ['1']))
+                return self.json_response(200, ollama_status({**value, 'ollama_url': parse_qs(urlsplit(self.path).query, keep_blank_values=True).get('endpoint', [value['ollama_url']])[0]}))
             if path == '/api/native/events':
                 event_file = Path(os.getenv('VIDEO_DESCRIPTOR_EVENTS', str(HERE / 'runtime/logs/events.jsonl')))
                 events = []
@@ -308,9 +310,16 @@ def make_handler(value, instance):
                             except (ValueError, KeyError, TypeError):
                                 continue  # Ignore truncated or invalid event records.
                 return self.json_response(200, events)
-            if path in {'/', '/native.js', '/native.css'}:
-                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css'}[path]
-                body = (HERE / 'ui' / name).read_bytes()
+            if path in {'/', '/native.js', '/native.css', '/help/ollama'}:
+                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css', '/help/ollama': 'help.html'}[path]
+                if path == '/help/ollama':
+                    from markdown_it import MarkdownIt
+                    content = MarkdownIt().enable('table').render((REPOSITORY / 'docs/ollama-windows.md').read_text(encoding='utf-8'))
+                    body = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                            '<title>Ollama — инструкция</title><link rel="stylesheet" href="/native.css">'
+                            '<body><main class="card vd-prose">' + content + '</main></body></html>').encode('utf-8')
+                else:
+                    body = (HERE / 'ui' / name).read_bytes()
                 self.send_response(200)
                 self.send_header('Content-Type', {'html': 'text/html', 'js': 'text/javascript', 'css': 'text/css'}[name.rsplit('.', 1)[-1]] + '; charset=utf-8')
                 self.send_header('Content-Length', str(len(body)))
@@ -394,7 +403,7 @@ def make_handler(value, instance):
                             raise ValueError('Неизвестное действие с папкой')
                         return self.json_response(202, storage.start(body))
                     if path == '/api/setup/external':
-                        pages = {'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
+                        pages = {'ollama-guide': f'http://127.0.0.1:{self.server.server_port}/help/ollama', 'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
                         if body.get('page') not in pages:
                             raise ValueError('Неизвестная страница')
                         webbrowser.open(pages[body['page']])
@@ -460,6 +469,12 @@ def make_handler(value, instance):
                         start_worker(Path(value['workspace']))
                         return self.json_response(202, job)
                     if path == '/api/setup/ollama':
+                        if 'endpoint' in body:
+                            with manager._lock:
+                                setup.guard()
+                                if components.active:
+                                    raise RuntimeError('Дождитесь завершения проверки')
+                                return self.json_response(200, components.connect_ollama(body['endpoint']))
                         with manager._lock:
                             return self.json_response(200, select_ollama(value, body.get('model'), body.get('task', 'translation')))
                     result = inspect_model(body.get('path'), HERE) if path.endswith('/inspect') else setup.apply(body.get('path'))

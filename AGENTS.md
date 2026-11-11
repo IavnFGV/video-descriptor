@@ -66,3 +66,10 @@ a public artifact gate is mandatory before upload. Never create a tag or dispatc
 release preparation as a harmless validation step: preparation commits BUILD,
 pushes main and a tag, then dispatches a release. See the
 [release guide](docs/development/releases.md).
+
+11.11.2026: Ollama только внешний HTTP(S)-сервер, default 127.0.0.1:11434.
+Не возвращать установку/запуск/остановку runtime, private ports, model downloads,
+managed modes или каталог моделей. Inventory только из свежего /api/tags выбранного
+endpoint; смена адреса сбрасывает выбор, stale async responses игнорируются.
+Discovery и проверка генерации раздельны; перед генерацией проверить наличие модели.
+Инструкция: docs/ollama-windows.md. LM Studio в этой задаче не расширяется.

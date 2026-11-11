@@ -75,7 +75,7 @@ def test_unsafe_requests_and_empty_speech_do_not_publish_jobs(recording):
     root, source = recording
     for name, task, url in [('../escape', 'notes', 'http://127.0.0.1:11434'),
                             ('source', 'unexpected', 'http://127.0.0.1:11434'),
-                            ('source', 'translate', 'https://remote.invalid')]:
+                            ('source', 'translate', 'https://user:secret@remote.invalid')]:
         with pytest.raises(ValueError):
             postprocess.enqueue(root, name, task, 'qwen:9b', url)
     (source / 'transcript-edits.json').unlink()

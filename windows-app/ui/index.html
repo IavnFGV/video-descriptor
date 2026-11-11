@@ -222,25 +222,13 @@
 <h2>Перевод через Ollama</h2>
 <button type="button" id="ollama-refresh" class="vd-button vd-button--quiet">Обновить список</button>
 </div>
-<p class="footnote">Ollama выполняет перевод и создаёт конспекты на вашем компьютере. Если вы уже установили Ollama, используйте её. Отдельную копию для Video Descriptor можно скачать ниже — устанавливать обе не требуется.</p>
+<p class="footnote">Ollama выполняет перевод и создаёт материалы на выбранном сервере. Установите и запустите Ollama самостоятельно.</p>
 <p id="ollama-connection-current" role="status" class="footnote"></p>
-<label class="vd-field">Подключение Ollama<select id="ollama-mode" class="vd-select"><option value="existing">Моя Ollama — уже установлена на компьютере</option><option value="service">Мой сервер Ollama — указать адрес</option><option value="managed">Отдельная Ollama для Video Descriptor</option></select></label>
-<p id="ollama-existing-info" class="footnote"></p>
-<div id="ollama-service-fields" hidden><label class="vd-field">Локальный адрес сервиса<input id="ollama-service-url" type="url" class="vd-input" value="http://127.0.0.1:11434" maxlength="256" autocomplete="off"></label><p class="footnote">Для этой версии поддерживаются только localhost, 127.0.0.1 и [::1]. Настройки и жизненный цикл внешнего сервиса остаются под вашим управлением.</p></div>
-<button id="ollama-use-connection" type="button" class="vd-button">Подключить мою Ollama</button>
-<button id="ollama-start-existing" type="button" class="vd-button" hidden>Запустить мою Ollama</button>
+<div class="vd-control-group"><label class="vd-field">Адрес сервера<input id="ollama-service-url" type="url" class="vd-input" value="http://127.0.0.1:11434" maxlength="256" autocomplete="off"></label>
+<div class="vd-actions"><button id="ollama-use-connection" type="button" class="vd-button">Проверить и сохранить подключение</button><button id="ollama-guide" type="button" class="vd-button vd-button--quiet">Инструкция по установке</button></div></div>
 <div id="component-ollama"></div>
-<div id="ollama-managed-install" hidden>
-<p id="ollama-install-info" class="footnote"></p>
-<label class="check-label"><input id="ollama-install-consent" type="checkbox"> Разрешаю скачать отдельную копию Ollama для Video Descriptor</label>
-<button type="button" id="ollama-install" class="vd-button">Скачать и настроить Ollama для Video Descriptor</button>
-</div>
-<label class="vd-field">Скачать языковую модель<select id="ollama-catalog" class="vd-select"></select></label>
-<p id="ollama-catalog-info" class="footnote"></p>
-<label class="check-label"><input id="ollama-pull-consent" type="checkbox"> Разрешаю загрузить выбранную модель</label>
-<button type="button" id="ollama-pull" class="vd-button">Скачать и проверить генерацию</button>
 <form id="ollama-form">
-<label class="vd-field">Модель перевода<select id="ollama-model" class="vd-select" name="ollama-model">
+<label class="vd-field">Установленные модели<select id="ollama-model" class="vd-select" name="ollama-model">
 <option value="">Проверяем Ollama…</option>
 </select>
 </label>
@@ -249,7 +237,7 @@
 <option value="notes">Конспект</option>
 </select>
 </label>
-<button type="submit" id="ollama-connect" disabled class="vd-button">Подключить перевод</button>
+<div class="vd-actions"><button type="submit" id="ollama-connect" disabled class="vd-button">Сохранить модель</button><button id="ollama-test" type="button" disabled class="vd-button">Проверить генерацию</button></div>
 <p id="ollama-feedback" class="footnote" role="status" aria-live="polite">
 </p>
 </form>
@@ -385,13 +373,7 @@
 <p>Приложение скачает и проверит модель, затем подготовит распознавание. Выбранное видео останется на экране.</p>
 <div class="setup-actions"><button id="speech-download-confirm" type="button" class="vd-button vd-button--primary">Скачать и подготовить</button><button id="speech-download-cancel" type="button" class="vd-button">Позже</button></div>
 </dialog>
-<dialog id="local-ai-dialog" class="vd-dialog" aria-labelledby="local-ai-heading">
-<h2 id="local-ai-heading">Подключить локальный AI</h2>
-<p id="local-ai-info" role="status" aria-live="polite"></p>
-<p>Работающая установка и её модели используются автоматически. Для отдельной управляемой установки нужно разрешение на загрузку.</p>
-<label class="check-label"><input id="local-ai-consent" type="checkbox">Разрешаю установить управляемый локальный AI и скачать модель</label>
-<div class="setup-actions"><button id="local-ai-go" type="button" class="vd-button vd-button--primary">Подготовить и продолжить</button><button id="local-ai-close" type="button" class="vd-button">Позже</button></div>
-</dialog>
+
 <dialog id="speaker-dialog" class="vd-dialog" aria-labelledby="speaker-heading">
 <h2 id="speaker-heading">Разделить по участникам</h2>
 <label class="vd-field">Способ обработки<select id="speaker-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option><option value="cpu">Процессор (CPU)</option></select></label>

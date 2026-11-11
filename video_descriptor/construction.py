@@ -348,13 +348,8 @@ def available_models(root, provider):
         return models(credentials(root)['api_key'])
     if provider != 'ollama':
         raise ValueError('Неизвестный исполнитель конспекта')
-    base = ollama_base_url(root)
-    try:
-        response = requests.get(base + '/api/tags', timeout=10)
-        response.raise_for_status()
-        return [{'id': item['name'], 'title': item['name']} for item in response.json()['models']]
-    except (requests.RequestException, ValueError, KeyError):
-        raise ValueError('Не удалось получить список локальных моделей') from None
+    from .ollama_provider import Ollama
+    return Ollama(ollama_base_url(root)).models()
 
 
 def actual_limits(root, config):
@@ -589,6 +584,10 @@ def run(root, folder, value, ask=generate):
         return
     validate_provider(root, config)
     if ask is generate:
+        if config['provider'] == 'ollama':
+            from .llm_provider import require_model
+            from .ollama_provider import Ollama
+            require_model(Ollama(ollama_base_url(root)), config['model'])
         config = actual_limits(root, config)
     write_json(folder / 'construction-settings.json', config)
     logger_file = folder / 'construction.log'

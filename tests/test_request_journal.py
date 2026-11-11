@@ -35,6 +35,8 @@ def test_exact_payload_and_partial_response_survive_bad_stream(tmp_path, monkeyp
 @pytest.mark.parametrize("reuse_completed", [False, True])
 def test_failed_block_does_not_stop_next_and_retry_reuses_success(tmp_path, monkeypatch, with_context, reuse_completed):
     from video_descriptor import __main__ as cli
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': 'model'}])
     from video_descriptor.models import Note, Notes, Source
 
     monkeypatch.chdir(tmp_path)
@@ -119,6 +121,8 @@ def test_analysis_tasks_keep_same_context_to_avoid_runner_reload(monkeypatch):
 @pytest.mark.parametrize("initial_thinking", [False, True])
 def test_switching_thinking_reuses_completed_blocks_and_only_calls_pending_block(tmp_path, monkeypatch, initial_thinking):
     from video_descriptor import __main__ as cli
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': 'model'}])
     from video_descriptor.models import Note, Notes, Source
 
     monkeypatch.chdir(tmp_path)
@@ -173,6 +177,8 @@ def test_switching_thinking_reuses_completed_blocks_and_only_calls_pending_block
 
 def test_merge_remaining_slides_preserves_old_completed_cache(tmp_path, monkeypatch):
     from video_descriptor import __main__ as cli
+    from video_descriptor.ollama_provider import Ollama
+    monkeypatch.setattr(Ollama, 'models', lambda self: [{'id': 'model'}])
     from video_descriptor.models import Note, Notes, Source
 
     monkeypatch.chdir(tmp_path)

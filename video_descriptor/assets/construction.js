@@ -19,13 +19,13 @@
     buttons();preview();(article?$('article-prompt'):$('model')).focus();
   }
   const providerValues = {};
-  let modelRequest=0, modelLoading=false;
+  let modelRequest=0, modelLoading=false, pendingModel='';
   const modelLists={};
   const validModel=()=>!modelLoading&&(modelLists[$('provider').value]||[]).some(model=>model.id===$('model').value);
   function setModel(value){
     const select=$('model');
-    if(value&&![...select.options].some(option=>option.value===value)){const option=document.createElement('option');option.value=value;option.textContent=value;select.append(option);}
-    select.value=value||'';
+    pendingModel=value||'';
+    select.value=[...select.options].some(option=>option.value===value)?value:'';
   }
   let lastProvider = null;
   async function api(url, options) {
@@ -96,7 +96,8 @@
   $('reset-article-prompt').onclick=()=>{$('article-prompt').value=prompts.article;$('article-prompt').dispatchEvent(new Event('input',{bubbles:true}));preview();};
   $('reset-prompt').onclick = () => { $('prompt').value = prompts[$('material').value]; $('prompt').dispatchEvent(new Event('input',{bubbles:true})); preview(); };
   async function loadModels(){
-    const provider=$('provider').value,request=++modelRequest,wanted=$('model').value;
+    const provider=$('provider').value,request=++modelRequest,wanted=$('model').value||pendingModel;
+    modelLists[provider]=[];$('model').replaceChildren();$('models').replaceChildren();
     modelLoading=true;++previewVersion;$('plan').textContent='План будет рассчитан после выбора доступной модели.';$('load-models').disabled=true;$('model').disabled=true;
     $('model-status').classList.remove('vd-error');$('model-status').textContent='Получаем список моделей…';buttons();
     try{
@@ -106,10 +107,7 @@
       $('models').replaceChildren(...models.map(model=>{const option=document.createElement('option');option.value=model.id;option.label=model.title;return option;}));
       const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=models.length?'Выберите модель…':'Доступных моделей нет';
       $('model').replaceChildren(placeholder,...models.map(model=>{const option=document.createElement('option');option.value=model.id;option.textContent=model.title||model.id;return option;}));
-      if(wanted&&!models.some(model=>model.id===wanted)){
-        const unavailable=document.createElement('option');unavailable.value=wanted;unavailable.textContent=wanted+' — недоступна';unavailable.disabled=true;$('model').append(unavailable);
-      }
-      setModel(wanted);
+      setModel(models.some(model=>model.id===wanted)?wanted:'');
       $('model-status').textContent=!models.length?'Моделей нет. Проверьте подключение в настройках AI.':wanted&&!models.some(model=>model.id===wanted)?'Прежняя модель недоступна. Выберите другую из списка.':'Доступно моделей: '+models.length;
     }catch(error){
       if(request!==modelRequest)return;
@@ -119,7 +117,7 @@
     }
   }
   $('load-models').onclick=loadModels;
-  $('model').onchange=()=>{if(validModel())$('model-status').textContent='Доступно моделей: '+modelLists[$('provider').value].length;};
+  $('model').onchange=()=>{pendingModel=$('model').value;if(validModel())$('model-status').textContent='Доступно моделей: '+modelLists[$('provider').value].length;};
   $('preview').onclick = preview;
   form.addEventListener('change', event => { buttons(); if (!['material','provider'].some(id => event.target === $(id))) preview(); });
   form.onsubmit = async event => {
