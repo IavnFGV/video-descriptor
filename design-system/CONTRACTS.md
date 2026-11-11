@@ -237,3 +237,10 @@ Endpoint/model и черновик токена изолированы по пр
 LM Studio (повторный inventory перед генерацией); HTTP audit и action_history
 содержат начало/результат/ошибку без токенов или текста запросов. CSS, маршруты,
 очередь, revision/dirty guards и release inputs сохранены.
+
+
+11.11.2026: по прямому запросу владельца удалены obsolete `ollama-task` и `local-task-field`
+из общей формы LLM. Save и Test Model передают task=translation в прежний Ollama API,
+сохраняя общий provider/model вместо legacy notes-settings. Общий выбор используется
+переводом/конспектами/статьями по умолчанию; явные настройки конкретного задания,
+legacy API совместимость, prompts, snapshot/revision/dirty guards сохранены.

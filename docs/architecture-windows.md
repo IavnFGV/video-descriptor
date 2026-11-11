@@ -757,3 +757,10 @@ pinned CLI-аргументы старых заданий; глобальные 
 в ошибки UI/worker. Ключ другого LM Studio endpoint не присоединяется к старому
 snapshot: для возобновления authenticated job требуется доступ к исходному endpoint.
 Завершённые checkpoints, оригинальные ответы, revisions и ручные правки сохраняются.
+
+
+11.11.2026: по прямому запросу владельца удалены obsolete `ollama-task` и `local-task-field`
+из общей формы LLM. Save и Test Model передают task=translation в прежний Ollama API,
+сохраняя общий provider/model вместо legacy notes-settings. Общий выбор используется
+переводом/конспектами/статьями по умолчанию; явные настройки конкретного задания,
+legacy API совместимость, prompts, snapshot/revision/dirty guards сохранены.

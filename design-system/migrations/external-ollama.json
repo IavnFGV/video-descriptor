@@ -1,5 +1,5 @@
 {
-  "reason": "Owner-requested removal of managed Ollama and automatic preparation; external endpoint/model controls preserved.",
+  "reason": "Owner-requested removal of managed Ollama and automatic preparation; external endpoint/model controls preserved. 11.11.2026: owner explicitly requested removal of obsolete task selector after unified LLM execution; save/test use the common model preference.",
   "removed_ids": [
     "local-ai-close",
     "local-ai-consent",
@@ -18,6 +18,8 @@
     "ollama-pull",
     "ollama-pull-consent",
     "ollama-service-fields",
-    "ollama-start-existing"
+    "ollama-start-existing",
+    "ollama-task",
+    "local-task-field"
   ]
 }

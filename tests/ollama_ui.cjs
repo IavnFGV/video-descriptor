@@ -16,7 +16,7 @@ function field(value = '') {
 }
 const fields = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(m => [m[1], field()]));
 fields['local-guide'].hidden=true;
-fields['local-provider'].value = 'ollama';fields['ollama-task'].value = 'translation';
+fields['local-provider'].value = 'ollama';
 const pending = [], checks = [];
 const context = vm.createContext({$: id => {assert(fields[id], id);return fields[id];},
   api: (url, options) => new Promise((resolve, reject) => pending.push({url, options, resolve, reject})),
@@ -36,7 +36,7 @@ const refresh = () => fields['ollama-refresh'].onclick();
 const watchdog=setTimeout(()=>{console.error('Unresolved UI request',pending.map(p=>p.url||p.action));process.exit(1);},5000);
 (async () => {
   // One form, endpoint, model dropdown and action group; no hidden duplicate forms.
-  for (const old of ['lmstudio-form','lmstudio-url','lmstudio-model','lmstudio-test','local-ollama-panel','local-lmstudio-panel']) {
+  for (const old of ['lmstudio-form','lmstudio-url','lmstudio-model','lmstudio-test','local-ollama-panel','local-lmstudio-panel','ollama-task','local-task-field']) {
     assert(!html.includes(`id="${old}"`));assert(!source.includes(`$('${old}')`));
   }
   for (const id of ['local-provider','ollama-service-url','ollama-use-connection','ollama-connection-current','ollama-model','ollama-refresh','ollama-test','ollama-guide']) {
@@ -79,8 +79,8 @@ const watchdog=setTimeout(()=>{console.error('Unresolved UI request',pending.map
   endpoint('http://server-b:11434');request=refresh();pending.at(-1).resolve(inventory(['b'],'a'));await request;assert.equal(fields['ollama-model'].value,'');
   request=fields['ollama-use-connection'].onclick();assert.equal(pending.at(-1).body.endpoint,'http://server-b:11434');pending.at(-1).resolve({});await tick();pending.at(-1).resolve(inventory(['b']));await request;
   select('b');assert.equal(checks.length,0);
-  request=fields['ollama-form'].onsubmit({preventDefault(){}});assert.equal(pending.at(-1).body.model,'b');pending.at(-1).resolve({});await request;
-  await fields['ollama-test'].onclick();assert.equal(checks.length,1);assert.equal(checks[0][1],'check');assert.equal(fields['ollama-model'].disabled,true);assert.equal(fields['ollama-test'].attributes['aria-busy'],'true');
+  request=fields['ollama-form'].onsubmit({preventDefault(){}});assert.equal(pending.at(-1).body.model,'b');assert.equal(pending.at(-1).body.task,'translation');pending.at(-1).resolve({});await request;
+  await fields['ollama-test'].onclick();assert.equal(checks.length,1);assert.equal(checks[0][1],'check');assert.equal(checks[0][2].task,'translation');assert.equal(fields['ollama-model'].disabled,true);assert.equal(fields['ollama-test'].attributes['aria-busy'],'true');
   switchTo('lmstudio');pending.at(-1).resolve(lmInventory(['second']));await tick();assert.equal(fields['ollama-service-url'].value,'http://127.0.0.1:4322/v1');assert.equal(fields['ollama-model'].value,'second');
   assert.equal(fields['ollama-model'].disabled,false);assert.equal(fields['component-ollama'].hidden,true);
   fields['ollama-guide'].onclick();assert.equal(fields['local-guide'].hidden,false);assert.equal(fields['ollama-guide'].attributes['aria-expanded'],'true');

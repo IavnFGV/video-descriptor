@@ -128,7 +128,7 @@
     $('local-token').value=lm?config.token:'';
     $('local-provider').dataset.previous=provider;
     $('component-ollama').hidden=lm;
-    $('local-token-field').hidden=!lm;$('local-task-field').hidden=lm;
+    $('local-token-field').hidden=!lm;
     $('local-guide').textContent=lm?'LM Studio: скачайте и загрузите языковую модель в приложении, откройте Developer / Local Server и запустите сервер. Укажите адрес API с /v1 (обычно http://127.0.0.1:1234/v1). При включённой авторизации введите токен. Устройство и контекст настраиваются в LM Studio. Затем проверьте подключение, выберите модель и выполните проверку генерации.':'Ollama: установите и запустите внешний сервер самостоятельно. Добавьте модель командой ollama pull <model-name>. Укажите HTTP(S)-адрес (обычно http://127.0.0.1:11434), проверьте подключение и выберите модель. Приложение не устанавливает и не останавливает Ollama. Проверка генерации запускается отдельно.';
     $('ollama-connection-current').textContent='Подключение ещё не проверено.';
     $('ollama-feedback').textContent='Обновите список. Отображаются только модели выбранного сервера.';
@@ -381,18 +381,18 @@
   $('ollama-model').onchange=()=>{++localRequest;localBusy=false;localRemember();$('ollama-feedback').textContent='Выбор изменён. Генерация ещё не проверена.';localControls();};
   $('ollama-form').onsubmit=async e=>{
     e.preventDefault();localRemember();
-    const provider=localProvider(),config=localConfigs[provider],endpoint=config.url,model=$('ollama-model').value,token=config.token,task=$('ollama-task').value,request=++localRequest;
+    const provider=localProvider(),config=localConfigs[provider],endpoint=config.url,model=$('ollama-model').value,token=config.token,request=++localRequest;
     localBusy=true;localControls();
     try{
       if(!model)throw Error('Обновите список и выберите модель.');
       if(provider==='ollama'){
         if(ollamaEndpointChanged)throw Error('Сначала проверьте и сохраните подключение.');
-        await setupPost('ollama',{model,task});
+        await setupPost('ollama',{model,task:'translation'});
       }else{
         const saved=await api('/api/translation-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,lmstudio_url:endpoint,lmstudio_model:model,lmstudio_api_key:token})});
         config.savedUrl=endpoint;config.savedModel=saved.lmstudio_model;if(config.token===token)config.token='';
       }
-      if(provider==='ollama'&&task==='translation')config.savedModel=model;
+      if(provider==='ollama')config.savedModel=model;
       if(localCurrent(request,provider,endpoint,model)){$('local-token').value='';$('ollama-feedback').textContent='Модель и провайдер сохранены. Генерация проверяется отдельно.';}
     }catch(e){if(localCurrent(request,provider,endpoint))$('ollama-feedback').textContent=e.message;}
     finally{if(localCurrent(request,provider,endpoint)){localBusy=false;localControls();}}
@@ -405,7 +405,7 @@
       if(provider==='ollama'){
         if(ollamaEndpointChanged)throw Error('Сначала проверьте и сохраните подключение.');
         localWorkerTest={request,provider,endpoint,model};
-        await componentAction('ollama','check',{model,task:$('ollama-task').value});
+        await componentAction('ollama','check',{model,task:'translation'});
       }else{
         await localLM('verify',endpoint,model);
         if(localCurrent(request,provider,endpoint,model))$('ollama-feedback').textContent='Генерация проверена.';
@@ -505,7 +505,7 @@
       button.textContent=data.active===item.id?'Остановить':item.state==='error'?'Повторить проверку':'Проверить';button.disabled=!!data.active&&data.active!==item.id;
       if(item.id==='ollama'&&data.active===item.id&&item.cancel_requested){button.textContent='Ожидаем завершения запроса…';button.disabled=true;}
       if(item.id==='diarization'&&data.active!==item.id&&$('diarization-device').value==='xpu'&&item.device==='cpu'){button.disabled=true;button.textContent='Для видеокарты нужна подготовка';}
-      button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:localProvider()==='ollama'?$('ollama-model').value:localConfigs.ollama.savedModel,task:$('ollama-task').value}:{});
+      button.onclick=()=>componentAction(item.id,data.active===item.id?'cancel':'check',item.id==='diarization'?{device:$('diarization-device').value}:item.id==='ollama'?{model:localProvider()==='ollama'?$('ollama-model').value:localConfigs.ollama.savedModel,task:'translation'}:{});
       remove.hidden=!item.path||!!data.active||item.id==='ollama';remove.textContent='Удалить окружение';remove.onclick=()=>{if(window.confirm('Удалить только управляемое приложением окружение? Модели и пользовательские файлы сохранятся.'))componentAction(item.id,'remove',{confirmed:true});};
     }
     $('component-summary').replaceChildren(...data.components.map(item=>check(item.name,item.state==='ready',componentNames[item.state])));
