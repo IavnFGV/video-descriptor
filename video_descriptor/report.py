@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from .library import lecture_info
 from .models import Chapter, Note, Source
+from .speech_recovery import pending_unresolved
 
 
 def clock(seconds: float) -> str:
@@ -61,6 +62,8 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     speaker_names = recognition.get("speaker_names", {})
     speakers = {(row["start"], row["end"]): row.get("speaker")
                 for row in recognition.get("segments", [])}
+    # Intervals the model could not timestamp stay visible instead of pretending to be transcribed.
+    unresolved = pending_unresolved(recognition.get("unresolved"), recognition.get("segments", []))
     def vtt_time(seconds):
         milliseconds = round(seconds * 1000)
         return f"{clock(milliseconds // 1000)}.{milliseconds % 1000:03d}"
@@ -189,7 +192,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
             page += '<track kind="subtitles" src="ru.vtt" srclang="ru" label="Русский">'
     page += '</video><div id="caption" aria-live="off"></div>'
     page += '<p id="playback-status" role="status" hidden></p></div>'
-    if speech:
+    if speech or unresolved:
         page += f'<section data-subtitle-folder="{html.escape(speech_folder.name, quote=True)}"><h2>Речь и перевод</h2><div class="subtitle-tools">'
         page += ('<label' + (' hidden' if not translations else '')
                  + '>Показать <select id="subtitle-mode"><option value="original">Оригинал</option>')
@@ -200,10 +203,29 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
         if translations:
             page += '<a href="ru.vtt" download>Перевод</a>'
         page += '</div><p>Нажмите на время реплики, чтобы перейти к ней.</p>'
+        if unresolved:
+            page += ('<p class="unresolved-note">Расшифровка неполная: '
+                     f'{len(unresolved)} участк(ов) без корректных таймкодов. '
+                     'Их текст не распознан и не участвует в переводе и конспекте; '
+                     'нажмите «✎», чтобы вписать его вручную.</p>')
         if not translations:
             page += '<p>Перевод пока не подготовлен.</p>'
         page += '<div class="transcript" id="transcript">'
-        for source in speech:
+        # Unresolved intervals keep their place in the recording between recognized replies.
+        timeline = sorted([{'start': source.start, 'end': source.end, 'source': source} for source in speech]
+                          + [{'start': gap['start'], 'end': gap['end'], 'gap': gap} for gap in unresolved],
+                          key=lambda item: (item['start'], item['end']))
+        for item in timeline:
+            if 'gap' in item:
+                gap = item['gap']
+                page += (f'<div class="unresolved-interval" data-start="{gap["start"]}" data-end="{gap["end"]}">'
+                         f'<button data-time="{gap["start"]}">{clock(gap["start"])}</button>'
+                         f'<button class="edit-reply" data-edit-gap="{html.escape(gap["id"], quote=True)}" '
+                         f'title="Заполнить участок вручную" aria-label="Заполнить участок {clock(gap["start"])}">✎</button>'
+                         f'<strong> · Без таймкодов</strong>'
+                         f'<p class="unresolved-note">{html.escape(gap["note"])}</p></div>')
+                continue
+            source = item['source']
             page += (f'<div class="utterance" data-start="{source.start}" data-end="{source.end}">'
                      f'<button data-time="{source.start}">{clock(source.start)}</button>')
             page += f'<button class="edit-reply" data-edit-subtitle="{html.escape(source.id, quote=True)}" title="Редактировать реплику" aria-label="Редактировать реплику {clock(source.start)}">✎</button>'

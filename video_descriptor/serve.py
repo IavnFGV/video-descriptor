@@ -339,6 +339,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     from .speech import edit_utterance
                     result = edit_utterance(root, value)
                     record('transcript_edited', folder=root / 'output' / value['folder'], stage='speech', status='done')
+                    if value.get('action') == 'resolve':
+                        record('speech_unresolved_resolved', folder=root / 'output' / value['folder'],
+                               stage='speech', status='done')
                     return self.json_response(200, result)
                 if path.endswith("names"):
                     name = value["folder"]

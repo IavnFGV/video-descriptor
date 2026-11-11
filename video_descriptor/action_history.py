@@ -87,7 +87,8 @@ def describe(event):
                   recording_title_saved='Название записи сохранено')
     labels.update(speech_timestamps_recovery_started='Восстановление таймкодов',
                   speech_timestamps_recovery_finished='Таймкоды восстановлены',
-                  speech_timestamps_unresolved='Участок без таймкодов')
+                  speech_timestamps_unresolved='Участок без таймкодов',
+                  speech_unresolved_resolved='Участок без таймкодов исправлен')
     labels['journal_delivery_failed'] = 'Не удалось обновить один из журналов'
     values = [labels.get(event['action'], event['action'])]
     for key in ('route', 'result_kind', 'stage', 'task', 'component', 'model', 'status', 'reason'):

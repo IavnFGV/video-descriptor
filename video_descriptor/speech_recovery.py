@@ -70,3 +70,34 @@ def unresolved_entry(start, end, reason='invalid_timestamps', detail=None):
     if detail:
         entry['detail'] = detail
     return entry
+
+
+REASON_TEXT = {
+    'invalid_timestamps': 'Модель вернула непригодные таймкоды, поэтому реплики здесь не распознаны.',
+    'recovery_limit': 'Участок не удалось разобрать автоматически.',
+}
+
+
+def clock(seconds):
+    """Absolute recording time as HH:MM:SS."""
+    value = int(seconds)
+    return f'{value // 3600:02}:{value // 60 % 60:02}:{value % 60:02}'
+
+
+def describe_unresolved(entry):
+    """Russian explanation of an interval without usable timestamps."""
+    reason = REASON_TEXT.get(entry.get('reason'),
+                             'На этом участке нет корректных таймкодов, речь не распознана.')
+    return (f'{reason} Участок {clock(entry["start"])}–{clock(entry["end"])} '
+            'нужно расшифровать вручную.')
+
+
+def pending_unresolved(entries, segments):
+    """Intervals without usable timestamps that the user has not transcribed yet.
+
+    A manual transcription becomes an ordinary segment carrying the interval id,
+    so the interval stops being pending as soon as the user resolves it.
+    """
+    known = {row.get('id') for row in segments or []}
+    return [{**entry, 'note': describe_unresolved(entry)}
+            for entry in entries or [] if entry.get('id') not in known]

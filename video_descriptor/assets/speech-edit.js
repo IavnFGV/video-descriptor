@@ -5,7 +5,7 @@
   const historyFor=folder=>{if(!speechHistories.has(folder))speechHistories.set(folder,{undo:[],redo:[],revision:null,busy:false});return speechHistories.get(folder);};
   async function post(url,payload){
     let before=null;
-    if(url==='/api/speech-edit'&&['edit','split'].includes(payload.action)){
+    if(url==='/api/speech-edit'&&['edit','split','resolve'].includes(payload.action)){
       const response=await fetch('/api/speech?'+new URLSearchParams({folder:payload.folder}),{cache:'no-store'}),data=await response.json();
       if(!response.ok)throw Error(data.error||'Не удалось проверить версию расшифровки');before=data.result;
       if(before.edit_revision!==payload.revision)throw Error('Реплики изменились. Обновите страницу перед сохранением');
@@ -190,8 +190,14 @@
     holder.append(assignment,add,name,feedback);return holder;
   };
   window.editSpeechReply = function(original, index, video, onSave){
+    openReplyEditor(original, original.segments[index], index, null, video, onSave);
+  };
+  window.editSpeechGap = function(original, gap, video, onSave){
+    openReplyEditor(original, {id:gap.id, start:gap.start, end:gap.end, text:'', speaker:'unknown'},
+                    null, gap, video, onSave);
+  };
+  function openReplyEditor(original, row, index, gap, video, onSave){
     if(editing)return;
-    const row=original.segments[index];
     const dialog=document.createElement('dialog');dialog.className='reply-editor vd-dialog';dialog.setAttribute('aria-labelledby','reply-editor-title');
     dialog.innerHTML=`<form><div class="reply-editor-toolbar"><h2 id="reply-editor-title">Правка реплики</h2><div class="actions"><button type="submit">Сохранить</button><button type="button" class="cancel">Отмена</button></div></div><div class="reply-editor-body"><p class="bounds"></p><p>Исправьте текст и участника. Чтобы разделить реплику, поставьте курсор в тексте на границе второй части и нажмите «Разделить по курсору».</p><label>Текст первой части<textarea name="left" required></textarea></label><label>Перевод первой части<textarea name="translation"></textarea></label><label>Участник<select name="speaker"></select></label><button type="button" class="split">Разделить по курсору</button><div class="second" hidden><h3>Вторая часть</h3><label>Текст второй части<textarea name="right"></textarea></label><label>Перевод второй части<textarea name="rightTranslation"></textarea></label><p>При разделении перевод остаётся в первой части. Перенесите нужный текст во вторую вручную.</p><label>Участник второй части<select name="rightSpeaker"></select></label><p>Выберите момент смены участника внутри исходной реплики. Обе части сохранят её общий интервал.</p><label>Граница времени<input class="boundary" type="text" aria-label="Время разделения" placeholder="02:32:40"></label><input class="split-range" type="range" step="0.01" aria-label="Граница разделения внутри реплики"><button type="button" class="from-video">Взять позицию видео</button> <button type="button" class="preview">Послушать перед границей</button><p class="ranges"></p></div><p class="error" role="status"></p></div></form>`;
     const form=dialog.querySelector('form'), left=form.elements.left, right=form.elements.right;
@@ -217,7 +223,16 @@
     form.elements.translation.value=original.translations?.[row.id || `s${index+1}`] || '';
     form.elements.translation.parentElement.hidden=!original.has_translation;
     form.elements.rightTranslation.parentElement.hidden=!original.has_translation;
-    dialog.querySelector('.bounds').textContent=`Исходная реплика: ${stamp(row.start)}–${stamp(row.end)}`;
+    if(gap){
+      // A gap has no recognized text yet: the user supplies it and the interval becomes a real reply.
+      dialog.querySelector('#reply-editor-title').textContent='Заполнение участка без таймкодов';
+      dialog.querySelector('.reply-editor-body>p:nth-of-type(2)').textContent=
+        'Модель не смогла определить время реплик на этом участке. Введите текст вручную — он станет обычной репликой с таймкодами.';
+      dialog.querySelector('.bounds').textContent=`Участок без таймкодов: ${stamp(row.start)}–${stamp(row.end)}`;
+      dialog.querySelector('.split').hidden=true;
+    } else {
+      dialog.querySelector('.bounds').textContent=`Исходная реплика: ${stamp(row.start)}–${stamp(row.end)}`;
+    }
     range.min=row.start;range.max=row.end;
     const current=video.currentTime;
     range.value=current>row.start&&current<row.end?current:(row.start+row.end)/2;
@@ -237,7 +252,7 @@
     const beforeUnload=e=>{if(dirty()){e.preventDefault();e.returnValue='';}};
     window.addEventListener('beforeunload',beforeUnload);
     dialog.addEventListener('close',()=>{editing=false;window.removeEventListener('beforeunload',beforeUnload);dialog.remove();opener?.focus();});
-    form.onsubmit=async e=>{e.preventDefault();if(saving)return;const payload={folder:original.folder,revision:original.edit_revision,index,action:splitting?'split':'edit',text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value};if(!splitting){payload.start=Number(form.elements.startTime.value);payload.end=Number(form.elements.endTime.value);}if(splitting){boundary.onchange();if(error.textContent)return;payload.at=Number(range.value);payload.right_text=right.value;payload.right_speaker=secondSpeaker.value;payload.right_translation=form.elements.rightTranslation.value;}saving=true;dialog.setAttribute('aria-busy','true');form.querySelector('[type=submit]').disabled=true;error.textContent='Сохраняем…';try{if(Object.keys(addedNames).length)await post('/api/speech-names',{folder:original.folder,speaker_names:{...original.speaker_names,...addedNames}});const saved=await post('/api/speech-edit',payload);onSave(saved);dialog.close();}catch(e){error.textContent=e.message;}finally{saving=false;dialog.setAttribute('aria-busy','false');form.querySelector('[type=submit]').disabled=false;}};
+    form.onsubmit=async e=>{e.preventDefault();if(saving)return;const payload=gap?{folder:original.folder,revision:original.edit_revision,action:'resolve',unresolved_id:gap.id,text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value,start:Number(form.elements.startTime.value),end:Number(form.elements.endTime.value)}:{folder:original.folder,revision:original.edit_revision,index,action:splitting?'split':'edit',text:left.value,speaker:firstSpeaker.value,translation:form.elements.translation.value};if(!splitting&&!gap){payload.start=Number(form.elements.startTime.value);payload.end=Number(form.elements.endTime.value);}if(splitting){boundary.onchange();if(error.textContent)return;payload.at=Number(range.value);payload.right_text=right.value;payload.right_speaker=secondSpeaker.value;payload.right_translation=form.elements.rightTranslation.value;}saving=true;dialog.setAttribute('aria-busy','true');form.querySelector('[type=submit]').disabled=true;error.textContent='Сохраняем…';try{if(Object.keys(addedNames).length)await post('/api/speech-names',{folder:original.folder,speaker_names:{...original.speaker_names,...addedNames}});const saved=await post('/api/speech-edit',payload);onSave(saved);dialog.close();}catch(e){error.textContent=e.message;}finally{saving=false;dialog.setAttribute('aria-busy','false');form.querySelector('[type=submit]').disabled=false;}};
     editing=true;document.body.append(dialog);dialog.showModal();left.focus();
   }
   function option(value,label){const o=document.createElement('option');o.value=value;o.textContent=label;return o;}

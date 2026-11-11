@@ -15,6 +15,7 @@ import requests
 
 from .jobs import jobs_dir, read_json, video_url, write_json
 from .media import extract_audio, probe
+from .speech_recovery import pending_unresolved
 from .translation_settings import load
 
 ENGINES = {'gemini', 'gemini-diarization-xpu', 'whisper', 'whisper-diarization',
@@ -40,6 +41,8 @@ def editable_result(folder, result):
         result['segments'] = [{**row, 'id': row.get('id', f's{index}')}
                               for index, row in enumerate(result['segments'], 1)]
     result['has_translation'] = bool(result['translations'])
+    # Intervals the model could not timestamp stay outside the transcript until the user fills them in.
+    result['unresolved'] = pending_unresolved(result.get('unresolved'), result['segments'])
     result['edit_revision'] = hashlib.sha256(
         json.dumps([result['segments'], result['translations']], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     return result
@@ -96,6 +99,45 @@ def edit_utterance(root, value):
                 refresh_reports(folder)
             return editable_result(folder, original)
         index = value.get('index')
+        if value.get('action') == 'resolve':
+            unresolved_id = value.get('unresolved_id')
+            gap = next((row for row in result.get('unresolved') or []
+                        if row.get('id') == unresolved_id), None)
+            if gap is None:
+                raise ValueError('Участок без таймкодов не найден или уже исправлен')
+            text = value.get('text')
+            if not isinstance(text, str) or not text.strip() or len(text) > 100_000:
+                raise ValueError('Укажите текст реплики (до 100 000 символов)')
+            speaker = value.get('speaker')
+            # The same participant set as the other edits, so undo and redo keep working.
+            known = {s['speaker'] for s in original['segments']} | set(original.get('speaker_names', {})) | {'unknown'}
+            if not isinstance(speaker, str) or speaker not in known:
+                raise ValueError('Выберите участника из списка')
+            start, end = value.get('start', gap['start']), value.get('end', gap['end'])
+            duration = original.get('duration', float('inf'))
+            if (type(start) not in (int, float) or type(end) not in (int, float)
+                    or not math.isfinite(start) or not math.isfinite(end)
+                    or not 0 <= start < end <= duration + .01):
+                raise ValueError('Укажите корректные границы внутри записи')
+            # The manual transcription replaces the gap with an ordinary recognized row.
+            segment = {'id': unresolved_id, 'start': start, 'end': end, 'text': text.strip(), 'speaker': speaker}
+            segments = list(result['segments'])
+            position = next((i for i, row in enumerate(segments) if row.get('start', 0) > start), len(segments))
+            segments.insert(position, segment)
+            translations = read_json(folder / 'transcript-edits.json', {}).get('translations', {})
+            translated = value.get('translation', result['translations'].get(unresolved_id, ''))
+            if not isinstance(translated, str) or len(translated) > 100_000:
+                raise ValueError('Перевод — до 100 000 символов')
+            if translated.strip():
+                translations[unresolved_id] = translated.strip()
+            else:
+                translations.pop(unresolved_id, None)
+            write_json(folder / 'transcript-edits.json', {'segments': segments, 'translations': translations,
+                                                         'updated': time.time()})
+            if (folder / 'manifest.json').is_file() and (folder / 'notes.json').is_file():
+                from .translate import refresh_reports
+                refresh_reports(folder)
+            return editable_result(folder, original)
         if type(index) is not int or not 0 <= index < len(result['segments']):
             raise ValueError('Реплика не найдена')
         old = result['segments'][index]

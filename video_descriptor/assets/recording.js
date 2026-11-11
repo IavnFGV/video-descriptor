@@ -223,11 +223,12 @@
     if(doc){for(const heading of doc.querySelectorAll('#personal-preview [data-note-time]')){if(Number(heading.dataset.noteTime)<=time&&(!target||Number(heading.dataset.noteTime)>=Number(target.dataset.noteTime)))target=heading;}}
     const key=index+'|'+target?.id+'|'+frame.src;
     if(!force&&key===currentTimeKey)return;currentTimeKey=key;
-    for(const [i,row] of [...$('speech-feed').children].entries())row.classList.toggle('active',i===index);
+    // Unresolved intervals are interleaved, so replies are located by their own index.
+    for(const row of $('speech-feed').querySelectorAll('[data-speech-index]'))row.classList.toggle('active',Number(row.dataset.speechIndex)===index);
     doc?.querySelectorAll('.current-note').forEach(node=>node.classList.remove('current-note'));
     target?.classList.add('current-note');
     if(!link.checked||paused)return;
-    const row=$('speech-feed').children[index];if(row)scrollInside($('speech-feed'),row);
+    const row=$('speech-feed').querySelector('[data-speech-index="'+index+'"]');if(row)scrollInside($('speech-feed'),row);
     if(target){const fold=target.closest('details');if(fold)fold.open=true;const preview=doc.getElementById('personal-preview');if(preview)scrollInside(preview,target);}
   }
   function seek(time){

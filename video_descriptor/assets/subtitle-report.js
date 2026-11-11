@@ -3,7 +3,7 @@
   if (!section || !/^https?:$/.test(location.protocol)) return;
   const folder = section.dataset.subtitleFolder;
   section.addEventListener('click', async event => {
-    const button = event.target.closest('[data-edit-subtitle]');
+    const button = event.target.closest('[data-edit-subtitle],[data-edit-gap]');
     if (!button) return;
     button.disabled = true;
     try {
@@ -11,6 +11,13 @@
       const data = await response.json();
       if (!response.ok) throw Error(data.error);
       const result = data.result;
+      if (button.dataset.editGap) {
+        // An interval without usable timestamps is filled in the same editor as a reply.
+        const gap = (result.unresolved || []).find(row => row.id === button.dataset.editGap);
+        if (!gap) throw Error('Участок уже исправлен. Обновите страницу');
+        window.editSpeechGap(result, gap, document.querySelector('video'), () => location.reload());
+        return;
+      }
       const index = result.segments.findIndex((row, i) => (row.id || `s${i+1}`) === button.dataset.editSubtitle);
       if (index < 0) throw Error('Реплика изменилась. Обновите страницу');
       window.editSpeechReply(result, index, document.querySelector('video'), () => location.reload());

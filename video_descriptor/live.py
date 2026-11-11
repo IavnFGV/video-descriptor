@@ -10,6 +10,7 @@ from .action_history import describe
 from .jobs import read_json, video_url
 from .library import lecture_info
 from .platform_support import windows_processes
+from .speech_recovery import pending_unresolved
 
 
 def tail(path, limit=128 * 1024):
@@ -175,6 +176,7 @@ def snapshot(root, folder):
         editable = subtitle_result(folder)
         if editable.get('status') == 'done' and 'segments' in editable:
             edit_state = editable_result(folder, editable)
+    unresolved = pending_unresolved(speech_result.get('unresolved'), speech)
     frames = read_json(folder / "frames.json")
     if frames is None:
         frames = read_json(folder / "frames.partial.json", [])
@@ -344,6 +346,7 @@ def snapshot(root, folder):
             "speech": visible_speech, "speech_count": len(speech), "frames": [
                 {**frame, "image_url": "/output/" + quote(folder.name) + "/" + quote(frame["image"])}
                 for frame in visible_frames if frame.get("image")],
+            "unresolved": unresolved,
             "frame_count": len(frames), "notes": live.get("notes", []),
             "sections": live.get("sections", []), "provisional": provisional,
             "response": "".join(content)[-8000:], "thinking": "".join(thinking)[-8000:],

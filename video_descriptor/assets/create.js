@@ -66,6 +66,24 @@
     } catch (error) { $('run-message').textContent = error.message; }
     finally { button.disabled = false; }
   }
+  async function editGap(gap, button) {
+    const folder = lastSnapshot?.folder;
+    if (!folder) return;
+    button.disabled = true;
+    try {
+      const data = await json('/api/speech?' + new URLSearchParams({folder}));
+      if (lastSnapshot?.folder !== folder) return;
+      const result = data.result;
+      if (!result || result.status !== 'done') throw Error('Редактирование доступно после завершения распознавания');
+      const pending = (result.unresolved || []).find(row => row.id === gap.id);
+      if (!pending) throw Error('Участок уже исправлен. Обновите страницу');
+      follow.checked = false;
+      window.editSpeechGap(result, pending, video, () => {
+        delete rendered['speech-feed']; poll();
+      });
+    } catch (error) { $('run-message').textContent = error.message; }
+    finally { button.disabled = false; }
+  }
   let namesFolder = null, namesLoadingFolder = null;
   async function loadSpeakerNames() {
     const folder = lastSnapshot?.folder;
@@ -344,7 +362,8 @@
     if (!lastSnapshot || follow.checked) return;
     const time = video.currentTime;
     const index = lastSnapshot.speech.findIndex(row => row.start <= time && time < row.end);
-    const row = index >= 0 ? $('speech-feed').children[index] : null;
+    // Unresolved intervals are interleaved, so the reply is located by its own index.
+    const row = index >= 0 ? $('speech-feed').querySelector('[data-speech-index="'+index+'"]') : null;
     if (row === activeReply) return;
     activeReply?.classList.remove('active'); activeReply = row;
     if (row) {
@@ -369,7 +388,7 @@
     if(lastSnapshot?.folder!==folder)return;
     delete rendered['speech-feed'];
     show({...lastSnapshot,speech:saved.segments.map(row=>({...row,translation:saved.translations?.[row.id]})),
-      speaker_names:saved.speaker_names||{},speech_edit_revision:saved.edit_revision,speaker_options:saved.speaker_options||[]});
+      unresolved:saved.unresolved||[],speaker_names:saved.speaker_names||{},speech_edit_revision:saved.edit_revision,speaker_options:saved.speaker_options||[]});
   }
   function show(snapshot, job) {
     job = job || snapshot.job;
@@ -447,23 +466,43 @@
     }
     $('subtitle-mode-label').hidden = !snapshot.translation_url;
     document.body.dataset.subtitles = snapshot.translation_url ? $('subtitle-mode').value : 'original';
-    $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик';
+    $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик'
+      + (snapshot.unresolved?.length ? ' · участков без таймкодов: ' + snapshot.unresolved.length : '');
     if(snapshot.speech_edit_revision)window.bindSpeechHistory($('stage-speech'),snapshot.folder,saved=>savedSpeech(saved,snapshot.folder));
-    changed('speech-feed', [snapshot.speech, snapshot.speaker_names, snapshot.speech_edit_revision, snapshot.speaker_options, Boolean(snapshot.speech_editor_url)], node => {
+    changed('speech-feed', [snapshot.speech, snapshot.unresolved, snapshot.speaker_names, snapshot.speech_edit_revision, snapshot.speaker_options, Boolean(snapshot.speech_editor_url)], node => {
       // Polling must not replace a user's open quick editor or inline speaker field.
       if(window.speechReplyEditing?.()){delete rendered['speech-feed'];return;}
       node.replaceChildren();
-      if (!snapshot.speech.length) node.append(text('p', 'Обработчик речи ещё не вернул реплики.', 'empty'));
+      const gaps=snapshot.unresolved||[];
+      if (!snapshot.speech.length && !gaps.length) node.append(text('p', 'Обработчик речи ещё не вернул реплики.', 'empty'));
       const original={folder:snapshot.folder,segments:snapshot.speech.map(row=>({...row,speaker:row.speaker||'unknown'})),speaker_names:snapshot.speaker_names,
         edit_revision:snapshot.speech_edit_revision,speaker_options:snapshot.speaker_options,translations:Object.fromEntries(snapshot.speech.filter(row=>row.translation!=null).map(row=>[row.id,row.translation])),has_translation:Boolean(snapshot.translation_url)};
-      for (const [index,source] of snapshot.speech.entries()) {
+      // Unresolved intervals keep their place in the recording between recognized replies.
+      const timeline=[...snapshot.speech.map((source,index)=>({kind:'reply',source,index})),
+        ...gaps.map(gap=>({kind:'gap',gap}))].sort((a,b)=>(a.kind==='reply'?a.source.start:a.gap.start)-(b.kind==='reply'?b.source.start:b.gap.start));
+      for (const entry of timeline) {
+        if(entry.kind==='gap'){
+          const gap=entry.gap,row=text('div','','unresolved-interval'),heading=text('div','','reply-heading'),tools=text('div','','reply-tools');
+          const badge=text('span','Без таймкодов','vd-status');badge.dataset.tone='warning';
+          heading.append(stamp(gap.start));
+          heading.append(badge);
+          heading.append(tools);row.append(heading,text('p',gap.note||'Речь на этом участке не распознана.','unresolved-note'));
+          if(snapshot.speech_editor_url){
+            const edit=text('button','✎','edit-subtitle');edit.type='button';
+            edit.title='Заполнить участок вручную';edit.setAttribute('aria-label','Заполнить участок '+clock(gap.start));
+            edit.onclick=()=>editGap(gap,edit);tools.append(edit);
+          }
+          node.append(row);continue;
+        }
+        const {source,index}=entry;
         const row = text('div', '', 'utterance'),heading=text('div','','reply-heading'),tools=text('div','','reply-tools');
+        row.dataset.speechIndex=index;
         const editable=Boolean(original.edit_revision),onSave=saved=>savedSpeech(saved,snapshot.folder);
         heading.append(stamp(source.start));
         if(editable)heading.append(window.createSpeakerSelect(original,index,onSave,true));
         else if(source.speaker)heading.append(text('strong',snapshot.speaker_names[source.speaker]||source.speaker));
         const content=text('p',source.text,'subtitle-original');
-        if(editable)window.enableQuickReplyEdit(content,original,index,saved=>{onSave(saved);$('speech-feed').children[index]?.querySelector('.subtitle-original')?.focus({preventScroll:true});});
+        if(editable)window.enableQuickReplyEdit(content,original,index,saved=>{onSave(saved);$('speech-feed').querySelector('[data-speech-index="'+index+'"]')?.querySelector('.subtitle-original')?.focus({preventScroll:true});});
         heading.append(tools);row.append(heading,content);
         if(source.translation!=null)row.append(text('p',source.translation,'subtitle-ru'));
         if (snapshot.speech_editor_url) {
