@@ -44,6 +44,14 @@ The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`
 
 ## Change and validation workflow
 
+For routine implementation, choose the least expensive capable approach without
+asking the owner to choose a model. Before delegating a tiny, self-contained task,
+load `delegate-small-task` from `.opencode/skills/delegate-small-task/SKILL.md`.
+Use the configured `executor`, not a model override or a primary-model switch.
+Do complex/cross-cutting work directly when delegation would add more overhead.
+These instructions do not enforce billing limits; never promise subscription-only
+usage without a verified account-side control.
+
 Inspect branch, worktrees, status and upstream before editing. Keep unrelated changes.
 For concurrent work use separate branches/worktrees and explicit file ownership;
 do not share an index or runtime workspace blindly. Prefer `codex/` for new Codex

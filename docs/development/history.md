@@ -5,6 +5,12 @@
 поведения приложения. Актуальное состояние — на [главной странице](../../README.md),
 выпуски и их описания — в [GitHub Releases](https://github.com/IavnFGV/video-descriptor/releases).
 
+12.11.2026: OpenCode получил постоянный профиль `executor` на DeepSeek Flash через
+OpenRouter и skill `delegate-small-task`. Экономный режим: один шаг без инструментов,
+предложение patch по переданным фрагментам; основной агент выбирает необходимость
+делегирования, проверяет diff и применяет изменения в отдельном worktree. Это не
+денежный лимит и не настройка запрета кредитов ChatGPT.
+
 12.11.2026: профили упаковки Domestic (встроенные Whisper/community-1) и cached
 (content-addressed полный офлайн-пакет) удалены как продукты. Единственный профиль —
 стандартный установщик (`build_release.py` со `PublicRelease`, без `--domestic` и
