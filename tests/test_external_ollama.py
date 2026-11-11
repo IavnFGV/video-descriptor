@@ -358,3 +358,42 @@ def test_runtime_and_download_ownership_removed():
         assert forbidden not in source
     manifest = json.loads((root / 'windows-app/component-manifest.json').read_text())
     assert 'ollama' not in manifest and 'ollama_models' not in manifest
+
+
+def test_installed_acceptance_connects_external_server_without_legacy_mode(native, tmp_path):
+    spec = importlib.util.spec_from_file_location('external_installed_acceptance',
+        Path(__file__).resolve().parents[1] / 'windows-app/sandbox/acceptance_api.py')
+    acceptance = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(acceptance)
+    base, value, state = native
+    client = acceptance.InstalledAPI.__new__(acceptance.InstalledAPI)
+    client.origin, client.instance = base, 'test-instance'
+    client.settings = {'ollama_url': 'http://127.0.0.1:1'}
+    client.connect = lambda: None  # The native HTTP fixture has no packaged installation identity.
+    transition = client.connect_ollama(value['ollama_url'])
+    assert transition['before'] == 'http://127.0.0.1:1'
+    assert transition['after'] == value['ollama_url']
+    assert transition['ownership'] == 'external' and 'mode' not in transition
+    assert client.settings['ollama_url'] == value['ollama_url']
+    assert '/api/generate' not in state['calls']
+    client.ollama_model, client.reports = 'installed:latest', tmp_path
+    state['models'][0]['digest'] = 'fixture-digest'
+    assert client.run('ollama-model')['status'] == 'PASS'
+    settings = requests.get(base + '/api/translation-settings', timeout=2).json()
+    assert settings['provider'] == 'ollama' and settings['ollama_model'] == 'installed:latest'
+
+
+def test_installed_acceptance_reports_connection_failure_without_changing_endpoint(native):
+    spec = importlib.util.spec_from_file_location('failed_installed_acceptance',
+        Path(__file__).resolve().parents[1] / 'windows-app/sandbox/acceptance_api.py')
+    acceptance = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(acceptance)
+    base, value, state = native
+    client = acceptance.InstalledAPI.__new__(acceptance.InstalledAPI)
+    client.origin, client.instance = base, 'test-instance'
+    client.settings = {'ollama_url': 'http://127.0.0.1:1'}
+    client.connect = lambda: None
+    state['responses']['/api/version'] = (503, {'error': 'fixture unavailable'})
+    with pytest.raises(RuntimeError):
+        client.connect_ollama(value['ollama_url'])
+    assert client.settings['ollama_url'] == 'http://127.0.0.1:1'

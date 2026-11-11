@@ -43,7 +43,7 @@ def verify_payload(root, archive):
 
 def check_installed(args):
     import psutil
-    from acceptance_api import InstalledAPI, wait_for
+    from acceptance_api import InstalledAPI
     from verify_release import configure, free_port, start, stop
 
     root = args.installed_root.resolve()
@@ -83,20 +83,7 @@ def check_installed(args):
                               ollama_model=args.ollama_model)
         driver.llm_fixture = bool(fixture)
         if args.with_ollama:
-            driver.connect()
-            driver.request('/api/components', body={'component': 'ollama', 'action': 'connect',
-                           'mode': 'existing' if args.ollama_url == 'http://127.0.0.1:11434' else 'service',
-                           'url': args.ollama_url})
-            def selected_connection():
-                state = driver.request('/api/components')
-                row = next(item for item in state['components'] if item['id'] == 'ollama')
-                if not state['active'] and row['state'] == 'error':
-                    raise ValueError(row['message'])
-                return state
-            connected = wait_for(selected_connection, lambda state: not state['active'] and state['ollama_connection']['url'] == args.ollama_url)
-            report['endpoint_transition'] = {'before': settings['ollama_url'], 'after': args.ollama_url,
-                                             'mode': connected['ollama_connection']['mode'], 'method': 'explicit connection change after installed application startup'}
-            driver.settings['ollama_url'] = args.ollama_url
+            report['endpoint_transition'] = driver.connect_ollama(args.ollama_url)
         stages = ['desktop', 'whisper']
         if args.with_ollama:
             stages += ['ollama-install', 'ollama-model', 'ollama-inference', 'translation', 'notes']

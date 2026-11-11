@@ -106,6 +106,27 @@ class InstalledAPI:
         self.instance = health['instance']
         return {key: value for key, value in health.items() if key != 'instance'}
 
+    def connect_ollama(self, endpoint):
+        """Change the external server after startup and retain verified evidence."""
+        self.connect()
+        before = self.settings['ollama_url']
+        self.request('/api/components', body={'component': 'ollama', 'action': 'connect', 'url': endpoint})
+
+        def selected_connection(state):
+            row = next(item for item in state['components'] if item['id'] == 'ollama')
+            if state['active']:
+                return False
+            if row['state'] == 'error':
+                raise RuntimeError(row['message'])
+            return row['state'] == 'installed' and state['ollama_connection']['url'] == endpoint
+
+        connected = wait_for(lambda: self.request('/api/components'), selected_connection)
+        if connected['ollama_connection']['ownership'] != 'external':
+            raise ValueError('Acceptance requires an external Ollama server')
+        self.settings['ollama_url'] = endpoint
+        return {'before': before, 'after': endpoint, 'ownership': 'external',
+                'method': 'explicit connection change after installed application startup'}
+
     def job_done(self, job, timeout=600):
         last = {}
         state = None
@@ -258,7 +279,7 @@ class InstalledAPI:
                 state = json.loads((self.reports / 'workflow-state.json').read_text(encoding='utf-8'))
                 source = self.request('/api/speech?job=' + state['source_job'])
                 self.request('/api/setup/ollama', body={'model': self.ollama_model,
-                                                       'task': 'notes' if stage == 'notes' else 'translation'})
+                                                       'task': 'translation'})
                 payload = {'folder': source['job']['folder'],
                            'task': 'notes' if stage == 'notes' else 'translate'}
                 job = self.request('/api/native/postprocess', body=payload)

@@ -190,17 +190,18 @@ def run(args, evidence):
             (args.reports / name).write_text(json.dumps(value, ensure_ascii=False, indent=2),
                                              encoding='utf-8')
 
-        def connect_model(task):
+        def connect_model():
             cdp.click('#setup-open')
             cdp.click('#ollama-refresh')
             wait_for(lambda: cdp.evaluate(
                 f'[...document.querySelector("#ollama-model").options].some(o=>o.value==={json.dumps(args.model)})'))
             cdp.fill('#ollama-model', args.model)
-            cdp.fill('#ollama-task', task)
             cdp.click('#ollama-connect')
+            wait_for(lambda: cdp.evaluate('!document.querySelector("#ollama-test").disabled'))
+            cdp.click('#ollama-test')
             wait_for(lambda: next(row for row in api('/api/components')['components'] if row['id'] == 'ollama'),
                      lambda row: row['state'] == 'ready' and row.get('proof', {}).get('model') == args.model
-                     and row.get('proof', {}).get('task') == task, timeout=240)
+                     and row.get('proof', {}).get('task') == 'translation', timeout=240)
 
         def completed():
             value = cdp.visible_text('#status')
@@ -315,7 +316,7 @@ def run(args, evidence):
             evidence['preparation_method'] = 'signed official installer in disposable guest; UI state checked separately'
             evidence['ui_feedback'] = wait_for(lambda: cdp.visible_text('#ollama-feedback'))
         elif stage == 'ollama-model':
-            connect_model('translation')
+            connect_model()
             evidence['ui_feedback'] = cdp.visible_text('#ollama-feedback')
             tags = json.loads(read_http('http://127.0.0.1:11434/api/tags'))
             selected = [model for model in tags['models'] if model['name'] == args.model]
@@ -337,7 +338,7 @@ def run(args, evidence):
             cdp.call('Page.navigate', url=origin + '/?job=' + state['source_job'])
             wait_for(lambda: cdp.evaluate('!!document.querySelector("#setup-open")'))
             wait_for(completed)
-            connect_model('translation' if stage == 'translation' else 'notes')
+            connect_model()
             cdp.click('#setup-finish')
             cdp.click('#translate-run' if stage == 'translation' else '#notes-run')
             wait_for(lambda: cdp.evaluate('new URLSearchParams(location.search).get("job")'),

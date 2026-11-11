@@ -167,3 +167,35 @@ def test_timeout_keeps_last_state_and_only_disposable_worker_diagnostics(tmp_pat
     with pytest.raises(TimeoutError, match='240s'):
         client.job_done(job, timeout=240)
     assert (evidence / 'worker.log').read_text(encoding='utf-8') == 'Synthetic worker exception'
+
+
+@pytest.mark.parametrize('stage', ['translation', 'notes'])
+def test_postprocessing_acceptance_uses_shared_default_model(tmp_path, monkeypatch, stage):
+    client = api.InstalledAPI.__new__(api.InstalledAPI)
+    client.root, client.reports, client.ollama_model = tmp_path, tmp_path, 'selected:exact'
+    client.connect = dict
+    write(tmp_path, 'workflow-state.json', {'source_job': 'source'})
+    source = {'job': {'folder': 'original'}}
+    result = {'job': {'id': 'new', 'folder': 'processed'}}
+    calls = []
+
+    def request(path, *, body=None):
+        calls.append((path, body))
+        if path == '/api/speech?job=source':
+            return source
+        if path == '/api/native/postprocess':
+            return result['job']
+        if path.startswith('/api/subtitles?'):
+            return b'00:00:00,000 --> 00:00:01,000'
+        return {}
+
+    client.request = request
+    client.job_done = lambda job: result
+    monkeypatch.setattr(api, 'validate_saved', lambda folder, **kwargs: {})
+    folder = tmp_path / 'windows-app/runtime/workspace/output/processed'
+    folder.mkdir(parents=True)
+    (folder / 'report.html').write_text('Synthetic saved report', encoding='utf-8')
+    assert client.run(stage)['status'] == 'PASS'
+    assert ('/api/setup/ollama', {'model': 'selected:exact', 'task': 'translation'}) in calls
+    assert ('/api/native/postprocess', {'folder': 'original',
+            'task': 'notes' if stage == 'notes' else 'translate'}) in calls
