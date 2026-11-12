@@ -7,7 +7,11 @@ web library and generated standalone reports; embedded reports deliberately skip
 It owns command chrome and DOM composition, not jobs, routing, settings or editors.
 Existing controls are moved, keeping IDs/handlers. File/View/Tools/Help are native
 disclosures; the existing View controller is adopted without another preference
-store. Navigation/sidebar uses the existing localStorage convention. New command
+store. Owner's follow-up removes the visible sidebar/toggle entirely; original
+native navigation anchors move to File/Tools, retaining their handlers. View is
+loaded on every full page and skipped in embedded reports. Tools always opens the
+shared settings containing Ollama, LM Studio and Gemini instead of the incomplete
+recording-only dialog. Legacy IDs remain for compatibility. New command
 links respect quick-edit and report dirty guards; settings index buttons only open
 and focus existing sections. Initial ready preparation is compact, while its live
 status/stop stay outside optional controls. User-triggered transcript copy writes

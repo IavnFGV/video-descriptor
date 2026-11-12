@@ -10,15 +10,8 @@
     const header=native?document.querySelector('.topbar'):document.createElement('header');
     header.classList.add('desktop-header');
     if(!native)document.body.prepend(header);
-    let toggle=$('sidebar-toggle');
-    if(!toggle&&!native){
-      toggle=document.createElement('button');toggle.id='sidebar-toggle';toggle.type='button';toggle.className='vd-button vd-button--quiet sidebar-toggle';toggle.setAttribute('aria-controls','desktop-navigation');navigation.id='desktop-navigation';
-      toggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>';
-      const apply=collapsed=>{document.body.classList.toggle('sidebar-collapsed',collapsed);toggle.setAttribute('aria-expanded',String(!collapsed));toggle.setAttribute('aria-label',collapsed?'Показать панель навигации':'Свернуть панель навигации');};
-      try{apply(localStorage.getItem('video-descriptor:ui:sidebar')==='1');}catch(_error){apply(false);}
-      toggle.onclick=()=>{const collapsed=!document.body.classList.contains('sidebar-collapsed');apply(collapsed);try{localStorage.setItem('video-descriptor:ui:sidebar',collapsed?'1':'0');}catch(_error){}};
-    }
-    if(toggle)header.append(toggle);
+    // Retain legacy IDs for their existing handlers, but no second navigation surface.
+    if($('sidebar-toggle'))$('sidebar-toggle').hidden=true;
     const bar=document.createElement('div');bar.className='desktop-menu-bar';bar.setAttribute('aria-label','Команды приложения');header.append(bar);
     function menu(id,title){
       const details=document.createElement('details'),summary=document.createElement('summary'),body=document.createElement('div');
@@ -28,19 +21,27 @@
     function command(body,title,run){const b=document.createElement('button');b.type='button';b.textContent=title;b.onclick=run;body.append(b);return b;}
     const file=menu('desktop-file-menu','Файл');
     link(file.body,'Новая запись…',native?'#new':'/#new');
+    function navigationItem(body,id,title,href){
+      const item=native?$(id):null;
+      if(item){item.textContent=title;body.append(item);return item;}
+      return link(body,title,href);
+    }
+    navigationItem(file.body,'records-open','Записи',native?'#records':'/output/');
     const oldMenu=document.querySelector('.app-menu');
     if($('stop'))file.body.append($('stop'));
     const view=menu('desktop-view-menu','Вид');
-    if(toggle)command(view.body,'Показать / скрыть навигацию',()=>toggle.click()).dataset.sidebarCommand='';
-    const viewHint=document.createElement('p');viewHint.className='vd-help';viewHint.textContent='Панели видео и текста настраиваются в открытой записи.';view.body.append(viewHint);
     const tools=menu('desktop-tools-menu','Инструменты');
-    if($('open-connections'))tools.body.append($('open-connections'));
-    else link(tools.body,'Подключения и модели…',native?'#settings':'/#settings');
+    navigationItem(tools.body,'setup-open','Настройки AI и подключения…',native?'#settings':'/#settings');
+    navigationItem(tools.body,'diagnostics-open','Диагностика…',native?'#diagnostics':'/#diagnostics');
+    // The old recording-only dialog omits Ollama. All entry points use the shared form.
+    if($('open-connections'))$('open-connections').hidden=true;
     const help=menu('desktop-help-menu','Справка');
     if($('updates-check'))help.body.append($('updates-check'));
     const about=document.createElement('dialog');about.id='desktop-help-dialog';about.className='vd-dialog';about.setAttribute('aria-labelledby','desktop-help-heading');
     about.innerHTML='<h2 id="desktop-help-heading">Video Descriptor</h2><p>Рабочее пространство записи</p><ol><li>Откройте или добавьте видео или аудио.</li><li>Расшифруйте речь и при необходимости разделите её по участникам.</li><li>Проверьте текст по видео. Нажмите на время для перехода, на карандаш — для правки.</li><li>Скопируйте нужный текст или скачайте TXT, SRT либо VTT рядом с расшифровкой.</li></ol><p>В меню «Вид» включаются перевод, конспект, статья и технические сведения. Скрытие не останавливает обработку и не удаляет материалы.</p><p>В редакторе: Ctrl+S — сохранить, Ctrl+Z — отменить. Несохранённые изменения защищены при переходах.</p><p class="desktop-help-version vd-help"></p><div class="vd-actions"><button type="button" class="vd-button">Закрыть</button></div>';
     const aboutButton=command(help.body,'О приложении и работе с записью',()=>{about.querySelector('.desktop-help-version').textContent=$('build-label')?.textContent||'Локальное рабочее пространство';about.showModal();});
+    link(help.body,'Подключение Ollama','/help/ollama');
+    link(help.body,'Подключение LM Studio','/help/lmstudio');
     about.querySelector('button').onclick=()=>about.close();about.addEventListener('close',()=>help.details.querySelector('summary').focus());document.body.append(about);
     // Native dialogs cannot restore focus into a command menu that just closed.
     const returns=new Map();
@@ -57,9 +58,6 @@
     function adoptView(){
       const existing=$('workspace-view-menu');if(!existing)return;
       view.details.replaceWith(existing);existing.classList.add('desktop-menu');
-      if(toggle&&!existing.querySelector('[data-sidebar-command]')){
-        const button=command(existing.querySelector('.workspace-view-content'),'Показать / скрыть навигацию',()=>toggle.click());button.dataset.sidebarCommand='';
-      }
     }
     adoptView();document.addEventListener('workspace-view-ready',adoptView);
     function closeMenus(except){for(const item of bar.querySelectorAll('details'))if(item!==except)item.open=false;}

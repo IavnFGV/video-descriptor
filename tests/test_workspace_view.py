@@ -15,8 +15,8 @@ def test_workspace_preferences_node():
 def test_workspace_assets_and_critical_controls():
     html = (ROOT / 'video_descriptor/assets/create.html').read_text(encoding='utf-8')
     assert html.index('/studio-assets/workspace-view.js') < html.index('<body')
-    # The library shell has no recording panels; common chrome handles its View commands.
-    assert '/studio-assets/workspace-view.js' not in (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
+    # One preference controller even when no recording is open.
+    assert '/studio-assets/workspace-view.js' in (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
     serve = (ROOT / 'video_descriptor/serve.py').read_text(encoding='utf-8')
     assert "'workspace-view.js'" in serve
     source = (ROOT / 'video_descriptor/assets/recording.js').read_text(encoding='utf-8')

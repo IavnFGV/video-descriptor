@@ -19,6 +19,17 @@ def test_shared_shell_is_loaded_on_all_full_page_surfaces():
     assert '.cloneNode(' not in shell
 
 
+def test_top_navigation_uses_shared_connections_and_view_on_every_surface():
+    shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
+    assert "navigationItem(tools.body,'setup-open'" in shell
+    assert "navigationItem(tools.body,'diagnostics-open'" in shell
+    assert "$('open-connections').hidden=true" in shell
+    assert "tools.body.append($('open-connections'))" not in shell
+    assert 'data-sidebar-command' not in shell
+    for name in ['windows-app/ui/index.html', 'video_descriptor/assets/create.html', 'video_descriptor/library.py', 'video_descriptor/report.py']:
+        assert 'workspace-view.js' in (ROOT / name).read_text(encoding='utf-8'), name
+
+
 def test_all_bundles_use_the_same_desktop_primitives():
     for name in ['windows-app/ui/app.css', 'video_descriptor/assets/create.css', 'video_descriptor/assets/editor.css']:
         css = (ROOT / name).read_text(encoding='utf-8')

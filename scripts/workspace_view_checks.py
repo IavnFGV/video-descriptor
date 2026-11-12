@@ -21,14 +21,14 @@ def run(c, wait_for, out, root):
 
     assert visible('#shared-player') and visible('#speech-feed')
     assert visible('#recording-diarize')
-    # One command bar for all screens; sidebar contains navigation only.
+    # One command bar for all screens, without a sidebar.
     assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu")')
     assert not evaluate('!!document.querySelector(".vd-global-nav #workspace-view-menu")')
     for selector in ['#stage-notes', '#recording-translation-panel', '#source-details', '#diagnostics']:
         assert not visible(selector), selector
     video, speech = rect('#shared-player'), rect('#stage-speech')
     assert video['x'] < speech['x'] and abs(video['y'] - speech['y']) < 2
-    # The panel opens next to the left rail and stays inside the viewport.
+    # The panel opens under the command bar and stays inside the viewport.
     evaluate('document.querySelector("#workspace-view-menu").open=true')
     wait_for(lambda: evaluate('document.querySelector(".workspace-view-content").checkVisibility()'))
     rail, popup = rect('.desktop-header'), rect('.workspace-view-content')
@@ -67,7 +67,7 @@ def run(c, wait_for, out, root):
             assert rect('#stage-speech')['y'] >= rect('#shared-player')['y'] + rect('#shared-player')['h']
         c.screenshot(out / f'workspace-{width}.png')
     c.call('Emulation.setDeviceMetricsOverride', width=1440, height=900, deviceScaleFactor=1, mobile=False)
-    # The narrow layout turns the rail into a row; the panel opens below the entry.
+    # The narrow layout keeps the same top menu; the popup stays below the entry.
     c.call('Emulation.setDeviceMetricsOverride', width=360, height=760, deviceScaleFactor=1, mobile=False)
     evaluate('document.querySelector("#workspace-view-menu").open=true')
     wait_for(lambda: evaluate('document.querySelector(".workspace-view-content").checkVisibility()'))
@@ -154,10 +154,10 @@ def run(c, wait_for, out, root):
         assert evaluate('document.documentElement.dataset.workspaceLayout') == 'side'
     evaluate('workspaceView.setLayout("stacked");window.workspaceURL=location.href')
     url = evaluate('workspaceURL')
-    # The library shell has no recording panels, so it carries no View entry.
+    # Settings has the same controller and can change preferences for the next recording.
     evaluate('location.href="/#settings"')
-    wait_for(lambda: evaluate('location.pathname==="/" && !!document.querySelector(".desktop-menu-bar #desktop-view-menu")'))
-    assert evaluate('!!document.querySelector(".desktop-menu-bar #desktop-view-menu")')
+    wait_for(lambda: evaluate('location.pathname==="/" && !!document.querySelector(".desktop-menu-bar #workspace-view-menu")'))
+    assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu")')
     assert evaluate('JSON.parse(localStorage.getItem("video-descriptor:ui:workspace")).layout') == 'stacked'
     evaluate('location.hash="diagnostics"')
     evaluate(f'location.href={json.dumps(url)}')

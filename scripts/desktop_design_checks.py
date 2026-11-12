@@ -43,6 +43,7 @@ def run(c, wait_for, root, base, before=False):
             assert geometry['feed']['bottom']<=height-8, geometry
             assert c.evaluate('document.querySelectorAll(".desktop-menu-bar").length===1')
             assert c.evaluate('!document.querySelector(".vd-global-nav details")')
+            assert c.evaluate('!document.querySelector(".vd-global-nav").checkVisibility() && !document.querySelector("#sidebar-toggle").checkVisibility()')
     if not before:
         c.evaluate('window.clipboardText="";Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async text=>{window.clipboardText=text}}})')
         c.click('#desktop-copy-transcript')
@@ -74,6 +75,9 @@ def run(c, wait_for, root, base, before=False):
         c.click('#desktop-file-menu a')
         assert c.evaluate('location.pathname==="/create" && reviewFrame.contentDocument===reviewDoc && reviewFrame.contentWindow.notesEditorDirty()')
         assert 'Сохраните' in c.visible_text('#recording-status')
+        c.evaluate('document.querySelector("#desktop-tools-menu").open=true')
+        c.click('#desktop-tools-menu a')
+        assert c.evaluate('location.pathname==="/create" && reviewFrame.contentDocument===reviewDoc && reviewFrame.contentWindow.notesEditorDirty()')
         c.evaluate('reviewDoc.querySelector(".CodeMirror textarea").focus()')
         c.call('Input.dispatchKeyEvent',type='keyDown',key='z',code='KeyZ',windowsVirtualKeyCode=90,modifiers=2)
         wait_for(lambda:not c.evaluate('reviewFrame.contentWindow.notesEditorDirty()'))
@@ -99,6 +103,11 @@ def run(c, wait_for, root, base, before=False):
             wait_for(lambda: c.evaluate('document.querySelector("#component-summary")?.textContent.includes("Распознавание")'))
         for width, height in [(1200, 800), (1440, 900)]:
             capture(screen, width, height)
+        if not before:
+            assert c.evaluate('document.querySelectorAll(".desktop-menu-bar > details").length===4')
+            assert c.evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu [data-panel=video]")')
+            assert c.evaluate('document.querySelectorAll("#desktop-tools-menu a").length===2')
+            assert c.evaluate('![...document.querySelectorAll(".sidebar,.vd-global-nav,.sidebar-toggle")].some(e=>e.checkVisibility())')
         if screen == 'settings':
             c.call('Emulation.setDeviceMetricsOverride', width=1200, height=800, deviceScaleFactor=1, mobile=False)
             c.evaluate('document.querySelector("#ollama-form").closest("details").open=true')
@@ -114,11 +123,13 @@ def run(c, wait_for, root, base, before=False):
     capture('shared-new-record',1200,800)
     if not before:
         c.evaluate('document.querySelector("#desktop-tools-menu").open=true')
-        c.click('#open-connections')
-        wait_for(lambda:c.evaluate('document.querySelector("#connections-dialog").open'))
-        capture('connections-dialog',1200,800)
-        c.click('#close-connections')
-        wait_for(lambda:c.evaluate('document.activeElement===document.querySelector("#desktop-tools-menu summary")'),timeout=10)
+        assert c.evaluate('!document.querySelector("#open-connections").checkVisibility()')
+        c.click('#desktop-tools-menu a')
+        wait_for(lambda:c.evaluate('location.pathname==="/" && location.hash==="#settings" && !!document.querySelector("#local-provider")'))
+        assert c.evaluate('[...document.querySelector("#local-provider").options].some(e=>e.value==="ollama")')
+        assert c.evaluate('[...document.querySelector("#local-provider").options].some(e=>e.value==="lmstudio")')
+        c.evaluate('document.querySelector("#ollama-form").closest("details").open=true;document.querySelector("#ollama-form").scrollIntoView({block:"start"})')
+        capture('shared-connections',1200,800)
     c.call('Page.navigate', url=workspace)
     wait_for(lambda: c.evaluate('!!document.querySelector("#speech-feed .utterance")'))
     for width in [760, 375]:

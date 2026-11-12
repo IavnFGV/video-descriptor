@@ -1,5 +1,12 @@
 {
   "baseline_commit": "9ffa842",
+  "top_navigation_review": {
+    "date": "2026-11-12",
+    "base": "6c40ee7",
+    "scope": "Owner follow-up: no visible sidebar; existing native anchors move to File/Tools. All full pages load the same View controller. Recording connections entry now leads to shared settings with Ollama/LM Studio/Gemini, not the incomplete legacy dialog.",
+    "preserved": "Original IDs/handlers/API and View storage schema; legacy controls retained hidden. Embedded reports skip preference initialization. No baseline refresh or processing/release changes.",
+    "validation": "tests/test_desktop_design.py; tests/test_workspace_view.py; scripts/verify-recording-ui.py --desktop-design; scripts/check-fast.py"
+  },
   "desktop_cohesion_review": {
     "date": "2026-11-12",
     "base": "8e643c0",

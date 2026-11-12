@@ -1,5 +1,12 @@
 # Сохранение поведения и контрактов
 
+12.11.2026, owner-requested top-only navigation: existing native navigation links
+move to File/Tools with their handlers and IDs. Legacy rail/toggle and incomplete
+recording-only connections entry are hidden, not deleted. Tools always opens the
+shared settings form containing Ollama/LM Studio and Gemini. workspace-view.js is
+loaded on every full surface with the same storage schema/controller; embedded
+reports skip it. No API, model discovery, generation or editor contract changes.
+
 12.11.2026, cohesive desktop redesign (newer owner direction): shared
 `desktop-shell.js` builds command chrome, reparenting the existing sidebar toggle,
 View disclosure, stop/update/connection actions. No cloned editors, media or controls.

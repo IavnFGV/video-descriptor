@@ -380,7 +380,7 @@ html[data-view-article=false] .recording-workspace #stage-notes:has(#material-ta
 /* Source: design-system/desktop.css */
 /* Cohesive desktop architecture: command chrome, navigation, document, content. */
 .desktop-header{display:flex;align-items:center;gap:var(--vd-control-gap);min-height:var(--vd-menu-height);padding:var(--vd-space-1) var(--vd-space-4);background:var(--vd-surface);border-bottom:1px solid var(--vd-border);position:fixed;inset:0 0 auto;z-index:var(--vd-layer-sticky)}
-.desktop-header .sidebar-toggle{position:static;display:inline-flex;align-items:center;justify-content:center;min-height:var(--vd-compact-height);padding:var(--vd-space-1);background:transparent;border:0}
+.vd-desktop .sidebar-toggle,.vd-desktop .sidebar,.vd-desktop>.vd-global-nav{display:none}
 .desktop-header .sidebar-toggle svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6}
 .desktop-header>p,.desktop-header>.app-menu{display:none}
 .desktop-app-caption{margin-left:auto;color:var(--vd-muted);font-size:var(--vd-caption);white-space:nowrap}
@@ -405,8 +405,9 @@ html:has(body.vd-desktop){scroll-padding-top:calc(var(--vd-menu-height) + 16px)}
 .vd-desktop .brand{font-size:var(--vd-body);padding:var(--vd-space-2) var(--vd-space-3);margin-bottom:var(--vd-space-6)}
 .vd-desktop .brand .mark{display:none}.vd-desktop .brand br{display:none}
 .vd-desktop>.vd-global-nav::before{font-size:var(--vd-body);font-weight:var(--vd-medium);margin:var(--vd-space-2) var(--vd-space-3) var(--vd-space-6)}
-.vd-desktop .app-shell{padding-top:var(--vd-menu-height)}
-body.vd-desktop:has(>.vd-global-nav){padding-top:calc(var(--vd-menu-height) + var(--vd-space-4));padding-right:var(--vd-space-4);padding-left:calc(var(--vd-nav-width) + var(--vd-space-4));max-width:none}
+.vd-desktop .app-shell{padding-top:var(--vd-menu-height);grid-template-columns:minmax(0,1fr)}
+.vd-desktop .app-shell>.app-content{grid-column:1;grid-row:1}
+body.vd-desktop:has(>.vd-global-nav){padding:calc(var(--vd-menu-height) + var(--vd-space-4)) var(--vd-space-4) var(--vd-space-4);max-width:none}
 body.vd-desktop.sidebar-collapsed:has(>.vd-global-nav){padding-left:var(--vd-space-4);max-width:none}
 .vd-desktop .sidebar-bottom{padding:var(--vd-space-3);border-top:1px solid var(--vd-border)}
 .vd-desktop #main{max-width:1400px;padding:var(--vd-space-6);width:100%}
@@ -506,7 +507,7 @@ dialog.vd-dialog,dialog.reply-editor{border-radius:var(--vd-radius-dialog)}
   .desktop-menu>summary{font-size:var(--vd-label);padding-inline:var(--vd-space-2)}
   .desktop-menu-content{position:fixed;left:var(--vd-space-2);top:var(--vd-menu-height);max-width:calc(100vw - 16px)}
   body.vd-desktop:has(>.vd-global-nav){padding:calc(var(--vd-menu-height) + 8px) var(--vd-space-3) var(--vd-space-3)}
-  .vd-desktop>.vd-global-nav{position:static;height:auto;width:auto;flex-direction:row;flex-wrap:wrap;padding:var(--vd-space-2);border-right:0;border-bottom:1px solid var(--vd-border);margin-bottom:var(--vd-space-4)}
+  .vd-desktop>.vd-global-nav{display:none}
   .vd-desktop>.vd-global-nav::before{display:none}.vd-desktop .sidebar{height:auto;position:static;padding:var(--vd-space-3)}
   .vd-desktop .brand{margin:0;padding:0}.vd-desktop .sidebar-bottom{display:none}
   .vd-desktop #main{padding:var(--vd-space-4) var(--vd-space-3)}

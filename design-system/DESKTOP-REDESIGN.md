@@ -1,5 +1,27 @@
 # Cohesive desktop UI — 12 November 2026
 
+## Follow-up: top-only navigation
+
+Owner's next request supersedes the sidebar and context-dependent View descriptions
+below. Branch `codex/unified-top-navigation`, base **6c40ee7**. Audit found that
+recordings still opened a legacy Gemini/LM Studio connections dialog, while the
+shared settings already contained the external Ollama/LM Studio form. The bounded
+change removes the visible navigation rail, moves native anchors to File/Tools,
+and uses the shared settings from every page. View uses the same controller on all
+full pages. No backend, processing, routes, framework or model lifecycle changes.
+The API-free prototype above the existing workspace example was updated accordingly.
+
+Local Edge/CDP scenarios cover 1200×800, 1440×900, narrow 760/375 px, shared settings
+with Ollama/LM Studio options, hidden legacy entry, four top menus, retained
+dirty editor/Undo and blocked Tools navigation. The full workspace scenario also
+passes all seven visibility toggles, persistence/reset, quick-edit and material
+identity/dirty guards. Current local captures: `windows-app/runtime/zero-config/desktop-design/after/`
+(ignored runtime evidence). No installed WebView2 or hardware-inference claim.
+Focused tests: 17 passed. Full Fast in the existing `.venv`: configuration/static
+checks passed, 837 tests passed, 4 skipped, one failed because `markdown_it` is
+missing when the existing Ollama guide endpoint imports it. No dependencies were
+installed; full Fast is not claimed green, and these changes remain on the task branch.
+
 Task branch: `codex/cohesive-desktop-ui`, based on main **8e643c0** (the preceding
 View/sidebar task is already merged and pushed). This task does **not** authorize
 merge, push, tags, build/version changes, installation or release.

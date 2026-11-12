@@ -1,5 +1,6 @@
 /* Presentation preferences only. Never owns recordings, jobs or editor state. */
 (() => {
+  if(new URLSearchParams(location.search).get('embedded')==='1')return;
   const KEY='video-descriptor:ui:workspace', root=document.documentElement;
   const defaults=()=>({version:1,layout:'side',panels:{video:true,transcript:true,speakers:true,translation:false,notes:false,article:false,technical:false}});
   function read(){
@@ -29,7 +30,7 @@
   }
   function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(_error){}apply();}
   function reset(){state=defaults();save();}
-  // The entry belongs to the left navigation rail; its panel opens beside the rail.
+  // One controller on all full pages; preferences apply when a recording is opened.
   function place(){
     if(!menu||!menu.open)return;
     const rect=summary.getBoundingClientRect(),railRect=menu.parentElement.getBoundingClientRect();
@@ -74,8 +75,8 @@
     const restore=document.createElement('button');restore.type='button';restore.className='vd-button vd-button--quiet';restore.textContent='Восстановить вид по умолчанию';restore.onclick=reset;
     content.append(panels,layouts,restore);
     const help=document.createElement('p');help.className='vd-help';help.textContent='Применяется к рабочему пространству записи.';content.prepend(help);
-    // The entry belongs to the left navigation rail of the recording workspace.
-    const navigation=document.querySelector('.vd-global-nav');
+    // Common chrome adopts this entry; the old navigation is a fallback container.
+    const navigation=document.querySelector('.vd-global-nav')||document.querySelector('.sidebar nav');
     if(!navigation)return;
     rail=navigation;navigation.append(menu);
     const workspace=document.querySelector('.studio-layout');
@@ -85,7 +86,7 @@
       const button=document.createElement('button');button.type='button';button.className='vd-button';button.textContent='Восстановить рабочее пространство';button.onclick=reset;empty.append(button);
       workspace.before(empty);
       const hint=document.createElement('p');hint.id='workspace-material-hint';hint.className='hint';hint.textContent='Выберите открытую вкладку материала. Скрытые материалы и несохранённые правки сохранены; вернуть их можно через «Вид».';
-      document.querySelector('.material-tabs').after(hint);
+      document.querySelector('.material-tabs')?.after(hint);
     }
     // The open attribute changes before the details toggle event, so the panel is placed in time.
     new MutationObserver(syncOpen).observe(menu,{attributes:true,attributeFilter:['open']});

@@ -1,10 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync('video_descriptor/assets/workspace-view.js','utf8');
 const key='video-descriptor:ui:workspace';
-function boot(value,unavailable=false){
+function boot(value,unavailable=false,search=''){
   const values=new Map(value===undefined?[]:[[key,value]]),attrs=new Map(),events={};
   const root={dataset:{},setAttribute:(k,v)=>attrs.set(k,v)};
   const ctx={document:{documentElement:root,getElementById:()=>null,addEventListener(){}},window:{addEventListener:(k,v)=>events[k]=v},localStorage:{getItem:k=>{if(unavailable)throw Error('denied');return values.get(k)??null},setItem:(k,v)=>{if(unavailable)throw Error('quota');values.set(k,v)}}};
+  ctx.URLSearchParams=URLSearchParams;ctx.location={search};
   vm.runInNewContext(source,ctx);
   return {ui:ctx.window.workspaceView,root,attrs,values,events};
 }
@@ -28,4 +29,5 @@ reload.ui.reset();assert.equal(reload.root.dataset.workspaceLayout,'side');asser
 reload.values.set(key,JSON.stringify({version:1,panels:{video:false}}));reload.events.storage({key});assert.equal(reload.attrs.get('data-view-video'),'false');
 reload.values.clear();reload.events.storage({key:null});assert.equal(reload.attrs.get('data-view-video'),'true');
 const blocked=boot(undefined,true);blocked.ui.setPanel('video',false);assert.equal(blocked.attrs.get('data-view-video'),'false');blocked.ui.reset();
+const embedded=boot(undefined,false,'?embedded=1');assert.equal(embedded.ui,undefined);assert.equal(embedded.attrs.size,0);
 console.log('PASS: versioned workspace defaults/toggles/layout/persistence/reset/invalid storage/cross-window/blocked storage');
