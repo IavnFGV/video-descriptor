@@ -4,14 +4,14 @@ import socket
 import subprocess
 import sys
 import tempfile
-import time
-
-import psutil
 import threading
+import time
 from functools import partial
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
+
+import psutil
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -135,6 +135,12 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--workspace-view-only' in sys.argv:
+            from workspace_view_checks import run
+            run(c, wait_for, out, root)
+            raise SystemExit(0)
+        # Legacy feature acceptance explicitly enables the formerly always-visible panels.
+        evaluate("for(const key of ['notes','article','translation','technical'])workspaceView.setPanel(key,true)")
         if '--release-harness-only' in sys.argv:
             import argparse
             import importlib.util
@@ -167,9 +173,9 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert not evaluate('document.querySelector("#report-editor").contentDocument.querySelector("video")?.hasAttribute("src")')
         geometry=evaluate('''(()=>{const r=id=>{const a=document.getElementById(id).getBoundingClientRect();return {x:a.x,y:a.y,w:a.width,h:a.height}};return {video:r('shared-player'),speech:r('stage-speech'),notes:r('stage-notes')}})()''')
         print('Geometry:',geometry,flush=True)
-        assert geometry['speech']['y']>geometry['video']['y']
-        assert geometry['speech']['x']==geometry['video']['x']
-        assert geometry['notes']['x']>geometry['video']['x']+geometry['video']['w']
+        assert abs(geometry['speech']['y']-geometry['video']['y'])<2
+        assert geometry['speech']['x']>geometry['video']['x']
+        assert geometry['notes']['y']>=geometry['speech']['y']+geometry['speech']['h']
         if '--material-tabs-only' in sys.argv or '--material-tabs-empty' in sys.argv:
             c.call('Emulation.setFocusEmulationEnabled', enabled=True)
             original_speech = evaluate('document.querySelector("#recording-speech").value')
@@ -579,7 +585,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert saved_rows()['segments'][0]['text']=='Реплика 0. Проверка синхронизации и правок.'
             assert saved_rows()['segments'][0]['start']==0 and saved_rows()['segments'][0]['end']==30
             assert saved_rows()['translations']['s0']=='Сохранённый перевод'
-            wait_for(lambda:'Мария' in c.visible_text('#speech-feed .speaker-select'))
+            wait_for(lambda:evaluate('!speechReplyEditing() && document.querySelector("#speech-feed .speaker-select").selectedOptions[0].textContent==="Мария"'))
             c.fill('#speech-feed .speaker-select','unknown')
             wait_for(lambda:saved_rows()['segments'][0]['speaker']=='unknown')
             c.fill('#speech-feed .speaker-select','__new_speaker__')
@@ -602,7 +608,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".current-note").dataset.noteTime')=='60'
         c.click('#expand-player')
         assert evaluate('document.querySelector("#process-video")===originalPlayer && originalPlayer.currentTime===75')
-        assert evaluate('document.querySelector("#shared-player").getBoundingClientRect().width>document.querySelector("#stage-notes").getBoundingClientRect().width*1.8')
+        assert evaluate('document.querySelector("#stage-speech").getBoundingClientRect().top>=document.querySelector("#shared-player").getBoundingClientRect().bottom')
         c.click('#expand-player')
         c.fill('#recording-notes','/output/notes-b/report.html')
         wait_for(lambda:evaluate('location.search.includes("notes-b") && document.querySelector("#report-editor").src.includes("notes-b")'),timeout=15)

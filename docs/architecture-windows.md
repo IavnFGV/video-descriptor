@@ -869,3 +869,14 @@ legacy API совместимость, prompts, snapshot/revision/dirty guards �
 публикации задание завершается исходной причиной, а не сообщением об успешном
 сохранении; событие `speech_result_save_failed` фиксирует сам факт. Формат артефактов,
 структура папок записей, чексуммы, журналы и ручные правки не меняются.
+### Workspace visibility preferences (12 November 2026)
+
+The native topbar and shared `/create` load `workspace-view.js` before rendering.
+It uses the existing UI localStorage convention (`video-descriptor:ui:workspace`,
+version 1), scoped to the application's WebView2/browser origin and profile, not
+recordings. It owns presentation attributes only; jobs, player, selection and editor
+state retain their original owners. One shared notes/article iframe is never
+recreated when hidden. Layout radios and the existing expand-player button share
+one preference; the former `vd-recording-player-position` key is no longer read.
+Invalid/future preferences fall back safely, unavailable storage uses session memory.
+No backend endpoint, AI setting, model or recording mutation is added.

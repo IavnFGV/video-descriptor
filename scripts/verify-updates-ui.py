@@ -24,6 +24,9 @@ def main():
         def do_GET(self):
             if self.path == '/api/updates':
                 body, kind = json.dumps(state).encode(), 'application/json'
+            elif self.path == '/studio-assets/workspace-view.js':
+                body = (ROOT / 'video_descriptor/assets/workspace-view.js').read_bytes()
+                kind = 'text/javascript'
             else:
                 name = {'/': 'index.html', '/native.css': 'app.css', '/updates.js': 'updates.js'}.get(self.path)
                 if not name:

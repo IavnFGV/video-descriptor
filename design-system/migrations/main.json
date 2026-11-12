@@ -1,5 +1,12 @@
 {
   "baseline_commit": "9ffa842",
+  "workspace_view_review": {
+    "date": "2026-11-12",
+    "scope": "Explicit owner request: workspace visibility/layout, no release or processing changes.",
+    "files": ["windows-app/ui/index.html", "video_descriptor/assets/create.html", "video_descriptor/assets/recording.js", "video_descriptor/assets/workspace-view.js", "video_descriptor/serve.py", "design-system/components.css", "design-system/workspace.css"],
+    "contracts": "Original ids, handlers, APIs, one video/frame, selection, dirty/revision/Undo retained. New static JS allowlist only. CSS bundles regenerated. Native default actions/update UI untouched. Existing expand-player delegates to the versioned workspace preference. No baseline refresh.",
+    "checks": "tests/test_workspace_view.py; scripts/verify-recording-ui.py --workspace-view-only; existing material-tabs/unresolved/update regressions"
+  },
   "approved": "Владелец согласовал направление и поручил реализацию в этом чате 19.10.2026",
   "allowed_changes": {
     "windows-app/updates.py": "12.11.2026 owner-requested notification-only GitHub release checker; isolated bounded networking, numeric version/build selection, user cache and owned background lifecycle; no job/device changes. See CONTRACTS.md.",

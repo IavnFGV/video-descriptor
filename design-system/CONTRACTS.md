@@ -1,5 +1,15 @@
 # Сохранение поведения и контрактов
 
+12.11.2026: owner-requested customizable workspace. `workspace-view.js` applies
+versioned localStorage preferences before rendering; shared native/View disclosure
+uses real checkboxes and radios. CSS visibility never changes API/job/editor state.
+Original DOM ids and handlers retained; recording selection/actions/status/errors
+are outside hidden regions. One video and one report iframe are retained, including
+dirty state/Undo. Notes/article use the existing guarded material tabs; hiding a
+selected material never auto-switches or reloads the editor. Static asset allowlist
+adds only workspace-view.js; no new API or backend preference store. Legacy player
+position UI now uses the same workspace layout preference, not a second owner.
+
 12.11.2026: owner-requested notification-only Windows release checks. Additive
 `updates-*` controls/dialog on the native main page, `/updates.js` asset and
 `GET /api/updates`, instance-protected `POST /api/updates/check`. Existing DOM ids,

@@ -38,6 +38,13 @@
   const detail=document.createElement('details');detail.id='recording-processing';
   const summary=document.createElement('summary');summary.textContent='Подробности обработки';detail.append(summary);
   const workspace=$('workspace'); workspace.append(detail);
+  // Keep selection, actions, warnings and stop available even with the text hidden.
+  workspace.append(speechHeading);
+  const speechSettings=$('speech-settings').closest('section');speechSettings.id='recording-speech-settings';
+  const translationSection=translationPanel.closest('section');translationSection.id='recording-translation-panel';layout.append(translationSection);
+  layout.append($('source-details'));
+  workspace.append($('errors-card'));
+  workspace.append($('speaker-notice'));
   const jobError=document.createElement('p');jobError.id='recording-job-error';jobError.className='feedback vd-error';jobError.setAttribute('role','alert');jobError.hidden=true;workspace.insertBefore(jobError,$('stage-progress'));
   const retryJob=document.createElement('button');retryJob.id='recording-retry';retryJob.type='button';retryJob.className='vd-button';retryJob.textContent='Продолжить с сохранёнными ответами';retryJob.hidden=true;workspace.insertBefore(retryJob,$('stage-progress'));
   const repairNotes=document.createElement('button');repairNotes.type='button';repairNotes.className='vd-button';repairNotes.textContent='Исправить конспект вручную';repairNotes.hidden=true;workspace.insertBefore(repairNotes,$('stage-progress'));
@@ -166,7 +173,7 @@
   }
   setInterval(renderDiarizationProgress,1000);
   const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,detail);
-  for(const id of ['run-message','translation-summary','translation-blocks-panel'])detail.append($(id));
+  for(const id of ['translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false,epoch=0;
   let selectedReports={notes:null,article:null}, activeReportKind=new URLSearchParams(location.search).get('material')==='article'?'article':'notes', recordingSource=null;
   function paintMaterialTabs(){
@@ -180,6 +187,7 @@
     if(params.get('material')!==activeReportKind){params.set('material',activeReportKind);history.replaceState(null,'','/create?'+params);}
     notesSummary.textContent=activeReportKind==='article'?'Действия со статьёй':'Действия с конспектом';
     $('article-status').hidden=activeReportKind!=='article';
+    window.workspaceView?.refresh();
   }
   function selectMaterial(kind){
     if(kind===activeReportKind)return true;
@@ -195,17 +203,15 @@
   for(const kind of ['notes','article']){
     const tab=$('material-tab-'+kind);tab.onclick=()=>selectMaterial(kind);
     tab.onkeydown=event=>{
-      const next=event.key==='Home'?'notes':event.key==='End'?'article':['ArrowLeft','ArrowRight'].includes(event.key)?(kind==='notes'?'article':'notes'):null;
+      const available=['notes','article'].filter(value=>document.documentElement.getAttribute('data-view-'+value)!=='false');
+      const next=event.key==='Home'?available[0]:event.key==='End'?available.at(-1):['ArrowLeft','ArrowRight'].includes(event.key)?available[(available.indexOf(kind)+1)%available.length]:null;
       if(!next)return;event.preventDefault();if(selectMaterial(next))$('material-tab-'+next).focus();
     };
   }
   paintMaterialTabs();
   let paused=false, currentTimeKey='', libraryKey='', statusKey='';
   const link=$('playback-link'),resume=$('resume-playback-link');
-  const saved=localStorage.getItem('vd-recording-player-position');
-  function expand(value){layout.classList.toggle('video-expanded',value);$('expand-player').textContent=value?'Вернуть сбоку':'Развернуть наверх';$('expand-player').setAttribute('aria-pressed',String(value));}
-  expand(saved==='top');
-  $('expand-player').onclick=()=>{const value=!layout.classList.contains('video-expanded');expand(value);localStorage.setItem('vd-recording-player-position',value?'top':'side');};
+  $('expand-player').onclick=()=>window.workspaceView.setLayout(document.documentElement.dataset.workspaceLayout==='stacked'?'side':'stacked');
   function pauseLink(){if(link.checked){paused=true;resume.hidden=false;}}
   $('speech-feed').addEventListener('wheel',pauseLink,{passive:true});
   $('speech-feed').addEventListener('touchmove',pauseLink,{passive:true});
@@ -298,7 +304,7 @@
   $('create-recording-notes').onclick=showNewNotes;
   $('cancel-new-notes').onclick=()=>{newNotes.hidden=true;};
   speechSelect.onchange=()=>{
-    if(speechSelect.value==='__new__'){speechSelect.value=snapshot?.folder||'';$('speech-settings').open=true;$('speech-engine').focus();return;}
+    if(speechSelect.value==='__new__'){speechSelect.value=snapshot?.folder||'';window.workspaceView.setPanel('technical',true);$('speech-settings').open=true;$('speech-engine').focus();return;}
     window.recordingSelection.select({folder:speechSelect.value});paint();
   };
   for(const kind of ['notes','article'])$(kind==='notes'?'recording-notes':'recording-article').onchange=()=>{
@@ -312,6 +318,8 @@
   document.addEventListener('recording-report-deleted',()=>{selectedReports[activeReportKind]=null;libraryKey='';library();});
   document.addEventListener('recording-snapshot',event=>{
     const changed=snapshot?.folder!==event.detail.snapshot.folder;snapshot=event.detail.snapshot;job=event.detail.job;
+    if(speechSettings.parentElement!==workspace)workspace.append(speechSettings);
+    document.body.dataset.workspaceSpeechReady=String(Boolean(snapshot.has_ready_transcript));
     jobError.hidden=job?.status!=='error';
     retryJob.hidden=jobError.hidden||!window.recordingUI.native;
     repairNotes.hidden=jobError.hidden||!snapshot.construction_answer_saved||job.cancelled||job.stage!=='notes';

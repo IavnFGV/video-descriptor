@@ -58,3 +58,12 @@
 .vd-control-group+.vd-control-group{margin-block-start:var(--vd-group-gap)}
 :where(details,section,article,.card,dialog)>:where(label,.vd-field,textarea,select,input)+:where(button,.vd-button,.vd-actions){margin-block-start:var(--vd-control-gap)}
 :where(details,section,article,.card,dialog)>button+button{margin-inline-start:var(--vd-control-gap)}
+/* Shared native disclosure: real checkbox/radio semantics, no custom menu focus model. */
+.workspace-view-menu{position:relative;flex-shrink:0;max-width:100%;margin-left:auto}
+.workspace-view-menu>summary{padding:var(--vd-space-2) var(--vd-space-3);border-radius:var(--vd-radius-control);cursor:pointer}
+.workspace-view-content{position:absolute;right:0;top:100%;z-index:var(--vd-layer-sticky);width:320px;max-width:calc(100vw - 48px);max-height:75vh;overflow:auto;padding:var(--vd-space-4);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);background:var(--vd-surface)}
+.workspace-view-content fieldset{display:grid;gap:var(--vd-control-gap);margin:0 0 var(--vd-group-gap);padding:0;border:0}
+.workspace-view-content legend{font-weight:var(--vd-medium);margin-bottom:var(--vd-control-gap)}
+.workspace-view-content label{display:flex;align-items:center;gap:var(--vd-control-gap);font-weight:var(--vd-normal);min-height:var(--vd-compact-height)}
+.workspace-view-content input{flex:none;width:auto;min-height:0;margin:0}
+.workspace-view-content button{white-space:normal;text-align:left}
