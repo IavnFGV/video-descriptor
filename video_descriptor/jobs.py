@@ -10,19 +10,19 @@ import uuid
 from pathlib import Path
 from urllib.parse import quote
 
+from . import atomic_file
 from .action_history import record
 from .platform_support import environment_python, lock_file, subprocess_options, windows_processes
 
 
-def write_json(path, value):
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
+def write_json(path, value, attempts=atomic_file.ATTEMPTS):
+    """Publish a JSON artifact atomically; transient Windows locks are waited out."""
+    atomic_file.write_json(path, value, attempts)
 
 
 def read_json(path, fallback=None):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(atomic_file.read_text(path))
     except (OSError, ValueError):
         return fallback
 
@@ -359,7 +359,11 @@ def run_job(root, folder, job):
             speech = read_json(speech_path, {})
             if speech.get('status') in {'queued', 'running', 'error'}:
                 speech.update(status='error', cancelled=True, message=job['error'])
-                write_json(speech_path, speech)
+                try:
+                    write_json(speech_path, speech)
+                except OSError as exc:
+                    record('speech_result_save_failed', job_id=job['id'], stage='speech',
+                           status='error', reason=type(exc).__name__)
         record('job_failed', job_id=job['id'], stage=stage, status='error', reason=type(exc).__name__)
     job["finished"] = time.time()
     write_json(folder / "job.json", job)
