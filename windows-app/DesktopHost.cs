@@ -45,6 +45,7 @@ namespace VideoDescriptor {
         }
         readonly string python, directory;
         readonly WebView2 web = new WebView2();
+        readonly TableLayoutPanel fallback = new TableLayoutPanel();
         readonly Label status = new Label();
         readonly Button retry = new Button();
         readonly NotifyIcon tray = new NotifyIcon();
@@ -65,17 +66,22 @@ namespace VideoDescriptor {
             StartPosition = FormStartPosition.CenterScreen;
             Icon = new Icon(Path.Combine(dir, "app.ico"));
             http.Timeout = TimeSpan.FromSeconds(2);
-            var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42 };
-            var home = new Button { Text = "Главная", AutoSize = true };
-            home.Click += delegate { if (session != null && initialized) web.Source = new Uri((string)session["url"]); };
-            retry.Text = "Подключиться снова"; retry.AutoSize = true;
-            retry.Click += async delegate { await Connect(); };
-            bar.Controls.Add(home); bar.Controls.Add(retry);
+            // The web interface owns the whole client area; native controls exist only in the fallback.
+            fallback.Dock = DockStyle.Fill; fallback.Visible = false;
+            fallback.ColumnCount = 1; fallback.RowCount = 2;
+            fallback.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            fallback.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            fallback.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             status.Dock = DockStyle.Fill; status.TextAlign = ContentAlignment.MiddleCenter;
             status.Font = new Font("Segoe UI", 11);
             status.Text = "Запуск Video Descriptor…";
+            retry.Text = "Подключиться снова"; retry.AutoSize = true;
+            retry.Anchor = AnchorStyles.None; retry.Margin = new Padding(0, 12, 0, 12);
+            retry.Click += async delegate { await Connect(); };
+            fallback.Controls.Add(status, 0, 0);
+            fallback.Controls.Add(retry, 0, 1);
             web.Dock = DockStyle.Fill; web.Visible = false;
-            Controls.Add(web); Controls.Add(status); Controls.Add(bar);
+            Controls.Add(web); Controls.Add(fallback);
             tray.Icon = Icon; tray.Text = "Video Descriptor"; tray.Visible = true;
             var menu = new ContextMenuStrip();
             menu.Items.Add("Открыть", null, delegate { Restore(); });
@@ -102,10 +108,24 @@ namespace VideoDescriptor {
         }
 
         void Restore() { Show(); WindowState = FormWindowState.Normal; Activate(); }
+        void RequireClientArea() {
+            // The web interface owns the whole client area; no native toolbar may occupy it.
+            if (web.Dock != DockStyle.Fill) throw new Exception("WebView is not docked to the client area");
+            foreach (Control child in Controls)
+                if (child != web && child.Visible)
+                    throw new Exception("Native chrome still occupies the client area");
+            PerformLayout();
+            Rectangle client = ClientRectangle;
+            if (web.Bounds.X != 0 || web.Bounds.Y != 0 ||
+                Math.Abs(web.Bounds.Width - client.Width) > 2 || Math.Abs(web.Bounds.Height - client.Height) > 2)
+                throw new Exception("WebView does not fill the client area");
+        }
         void ShowError(string text) {
-            web.Visible = false; status.Visible = true; status.Text = text +
+            web.Visible = false;
+            status.Text = text +
                 "\n\nЛоги: " + Path.Combine(directory, "runtime", "logs") +
                 "\nЗакрытие окна оставляет приложение в трее.";
+            fallback.Visible = true; status.Visible = true;
             retry.Enabled = true;
         }
         public static bool Allowed(string address, string origin) {
@@ -128,7 +148,8 @@ namespace VideoDescriptor {
         async Task Connect() {
             if (busy) return;
             busy = true; retry.Enabled = false;
-            web.Visible = false; status.Visible = true; status.Text = "Подключение к локальному backend…";
+            web.Visible = false; fallback.Visible = true; status.Visible = true;
+            status.Text = "Подключение к локальному backend…";
             try {
                 string output = await Task.Run(() => {
                     var start = new ProcessStartInfo(python, "-X utf8 \"" + Path.Combine(directory, "desktop.py") + "\"");
@@ -178,6 +199,7 @@ namespace VideoDescriptor {
                         if (smoke && !smokeRunning) {
                             smokeRunning = true;
                             try {
+                                RequireClientArea();
                                 string content = await core.ExecuteScriptAsync("document.body.innerText");
                                 if (content.Length < 80) throw new Exception("UI document is empty");
                                 string setup = await core.ExecuteScriptAsync("['setup-wizard','download-consent','probe-model','gemini-form','setup-finish'].every(id=>!!document.getElementById(id)) && typeof document.getElementById('setup-open').onclick === 'function'");
@@ -210,8 +232,11 @@ namespace VideoDescriptor {
                                 await Task.Delay(6000);
                                 if (!status.Visible || !status.Text.Contains("backend"))
                                     throw new Exception("Backend loss did not show an error screen");
+                                if (!retry.Visible || !retry.Enabled)
+                                    throw new Exception("Error screen did not offer a native retry");
                                 await Connect();
-                                if (!web.Visible || status.Visible) throw new Exception("Retry did not restore WebView");
+                                if (!web.Visible || status.Visible || fallback.Visible)
+                                    throw new Exception("Retry did not restore WebView");
                                 await Health();
                             } catch (Exception ex) { failure = ex.ToString(); }
                             finally { quitting = true; Close(); }
@@ -219,7 +244,7 @@ namespace VideoDescriptor {
                     };
                     initialized = true;
                 }
-                web.Visible = true; status.Visible = false;
+                web.Visible = true; status.Visible = false; fallback.Visible = false;
                 web.CoreWebView2.Navigate((string)session["url"]);
             } catch (Exception ex) {
                 ShowError(ex.Message + "\nДля окна требуется установленный Microsoft Edge WebView2 Runtime.");
