@@ -125,12 +125,15 @@ dialog.reply-editor{width:min(var(--vd-editor-width),calc(100% - 32px))}.reply-e
 .vd-global-nav>[aria-current=page]{background:var(--vd-accent-tint)}
 .vd-skip{position:absolute;top:-100px}.vd-skip:focus{top:var(--vd-space-2);background:var(--vd-surface);padding:var(--vd-space-3);z-index:var(--vd-layer-sticky)}
 .badge,.counter{display:inline-flex;padding:var(--vd-space-1) var(--vd-space-2);border-radius:var(--vd-radius-pill);font-size:var(--vd-caption);background:var(--vd-subtle);color:var(--vd-muted);font-variant-numeric:tabular-nums}
+.counter .gap-link{border:0;background:none;min-height:0;padding:0 var(--vd-space-1);color:var(--vd-accent);font-weight:var(--vd-medium);text-decoration:underline;text-underline-offset:3px}
+.counter .gap-link:hover:not(:disabled){background:none;border-color:transparent;color:var(--vd-accent-hover)}
 .badge.done{background:var(--vd-success-bg);color:var(--vd-success)}.badge.error{background:var(--vd-danger-bg);color:var(--vd-danger)}
 .utterance{padding:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border)}.utterance p{margin:var(--vd-space-1) 0;white-space:pre-wrap}
 .utterance.active,.current-note{background:var(--vd-accent-tint);border-radius:var(--vd-radius-control)}
 .unresolved-interval{padding:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border);border-left:3px solid var(--vd-warning);padding-left:var(--vd-space-3)}
 .unresolved-interval p{margin:var(--vd-space-1) 0;white-space:pre-wrap;color:var(--vd-warning)}
 .unresolved-interval .edit-reply{float:right;margin:0 0 var(--vd-space-2) var(--vd-space-2)}
+.unresolved-interval.current{background:var(--vd-accent-tint);border-radius:var(--vd-radius-control)}
 .subtitle-ru{color:var(--vd-success)}body[data-subtitles=original] .subtitle-ru{display:none}body[data-subtitles=ru] .subtitle-original{display:none}
 .subtitle-tools,.construction-actions,.notes-actions,.notes-toolbar,.finish-actions,.card-heading,.follow,.run-heading{display:flex;gap:var(--vd-control-gap);align-items:center;flex-wrap:wrap}
 .card-heading,.run-heading,.follow{justify-content:space-between}

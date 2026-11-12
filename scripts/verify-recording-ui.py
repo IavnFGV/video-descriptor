@@ -105,6 +105,14 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
                     raise
             wait_for(gap_ready,timeout=35)
             c.screenshot(out/'unresolved-initial.png')
+            # The counter links every unresolved interval; the click reaches that interval.
+            assert c.evaluate('document.querySelectorAll("#speech-count .gap-link").length===1')
+            def gap_link_clicked():
+                c.click('#speech-count .gap-link')
+                return c.evaluate('!!document.querySelector("#speech-feed .unresolved-interval.current")')
+            wait_for(gap_link_clicked,timeout=30)
+            assert c.evaluate('Number(document.querySelector("#process-video").currentTime)===25')
+            c.screenshot(out/'unresolved-navigated.png')
             c.click('#speech-feed .unresolved-interval .edit-subtitle')
             wait_for(lambda:c.evaluate('!!document.querySelector("dialog.reply-editor[open]")'))
             c.fill('dialog.reply-editor textarea[name=left]','Manual gap text from the user')

@@ -398,6 +398,29 @@
     if (rendered[id] === signature) return;
     rendered[id] = signature; build($(id));
   }
+  // Unresolved intervals stay reachable from the counter: every interval gets its own link.
+  function gapRows() { return [...$('speech-feed').querySelectorAll('[data-gap-id]')]; }
+  function navigateToGap(gap) {
+    const feed = $('speech-feed'), rows = gapRows();
+    for (const row of rows) row.classList.toggle('current', row.dataset.gapId === gap.id);
+    const row = rows.find(item => item.dataset.gapId === gap.id);
+    if (row) feed.scrollTop += row.getBoundingClientRect().top - feed.getBoundingClientRect().top - 24;
+    jump(gap.start);
+  }
+  function paintSpeechCount(snapshot, node = $('speech-count')) {
+    const gaps = snapshot.unresolved || [];
+    node.replaceChildren(text('span', snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик'));
+    if (!gaps.length) return;
+    node.append(text('span', ' · участков без таймкодов: ' + gaps.length));
+    for (const gap of gaps) {
+      const button = text('button', clock(gap.start), 'gap-link');
+      button.type = 'button';
+      button.title = 'Перейти к участку без таймкодов ' + clock(gap.start);
+      button.setAttribute('aria-label', 'Перейти к участку без таймкодов ' + clock(gap.start) + '–' + clock(gap.end));
+      button.onclick = () => navigateToGap(gap);
+      node.append(button);
+    }
+  }
   function savedSpeech(saved, folder) {
     if(lastSnapshot?.folder!==folder)return;
     delete rendered['speech-feed'];
@@ -480,8 +503,7 @@
     }
     $('subtitle-mode-label').hidden = !snapshot.translation_url;
     document.body.dataset.subtitles = snapshot.translation_url ? $('subtitle-mode').value : 'original';
-    $('speech-count').textContent = snapshot.speech.length + ' / ' + snapshot.speech_count + ' реплик'
-      + (snapshot.unresolved?.length ? ' · участков без таймкодов: ' + snapshot.unresolved.length : '');
+    changed('speech-count', [snapshot.speech.length, snapshot.speech_count, snapshot.unresolved], node => paintSpeechCount(snapshot, node));
     if(snapshot.speech_edit_revision)window.bindSpeechHistory($('stage-speech'),snapshot.folder,saved=>savedSpeech(saved,snapshot.folder));
     changed('speech-feed', [snapshot.speech, snapshot.unresolved, snapshot.speaker_names, snapshot.speech_edit_revision, snapshot.speaker_options, Boolean(snapshot.speech_editor_url)], node => {
       // Polling must not replace a user's open quick editor or inline speaker field.
@@ -497,6 +519,7 @@
       for (const entry of timeline) {
         if(entry.kind==='gap'){
           const gap=entry.gap,row=text('div','','unresolved-interval'),heading=text('div','','reply-heading'),tools=text('div','','reply-tools');
+          row.dataset.gapId=gap.id;
           const badge=text('span','Без таймкодов','vd-status');badge.dataset.tone='warning';
           heading.append(stamp(gap.start));
           heading.append(badge);
