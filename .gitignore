@@ -30,6 +30,7 @@ cache/
 *.egg-info/
 build/
 dist/
+dist-clean/
 /*-handoff-*.zip
 /openvino-*.json
 /HANDOFF_WHISPER_SMALL_FRIGG.md
