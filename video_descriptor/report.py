@@ -56,7 +56,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     speech = sorted((source for source in sources if not source.image and source.text.strip()),
                     key=lambda source: (source.start, source.end))
     speech_file = speech_folder / "speech.json"
-    recognition = json.loads(speech_file.read_text(encoding="utf-8")) if speech_file.is_file() else {}
+    recognition = read_json(speech_file, {}) if speech_file.is_file() else {}
     if edits_file.is_file():
         recognition["segments"] = edits["segments"]
     speaker_names = recognition.get("speaker_names", {})

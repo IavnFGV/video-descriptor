@@ -50,6 +50,20 @@ history first rather than hardcoding a developer's absolute paths.
 - Source preview: `local-dev/stdout.log`, `stderr.log`, `status.json` under the Git
   common directory. Build logs: [local-build.md](../local-build.md).
 
+## Publishing artifacts on Windows
+
+Artifacts are published atomically through `video_descriptor/atomic_file.py`: a
+unique temporary file is replaced by `ReplaceFileW`, readers open files with
+`FILE_SHARE_DELETE`, and a holder that forbids deletion (antivirus, file
+browser) is waited out with a bounded retry. A failed publication keeps the
+previous artifact and removes the temporary file.
+
+Recognition progress is advisory: a locked progress snapshot is reported as
+`speech_progress_save_failed` and never stops recognition. The final result is
+mandatory: when it cannot be published the job fails with the original cause
+(`speech_result_save_failed` in the journal) instead of reporting a saved
+result. Inspect `run.log` and the journal before repeating a job.
+
 ## Safe repair
 
 Prefer existing UI/API recovery with revision/active-job guards. Report recovery

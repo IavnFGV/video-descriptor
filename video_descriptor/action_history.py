@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .atomic_file import read_text
 from .platform_support import lock_file
 
 FIELDS = {'job_id', 'attempt', 'stage', 'requested', 'device', 'previous_device',
@@ -18,7 +19,7 @@ def record(action, *, path=None, folder=None, **fields):
     workspace = os.getenv('VIDEO_DESCRIPTOR_WORKSPACE')
     if folder is None and workspace and fields.get('job_id'):
         try:
-            job = json.loads((Path(workspace) / 'output/jobs' / fields['job_id'] / 'job.json').read_text(encoding='utf-8'))
+            job = json.loads(read_text(Path(workspace) / 'output/jobs' / fields['job_id'] / 'job.json'))
             name = job.get('folder')
             if name and Path(name).name == name:
                 folder = Path(workspace) / 'output' / name
@@ -90,6 +91,8 @@ def describe(event):
                   speech_timestamps_unresolved='Участок без таймкодов',
                   speech_unresolved_resolved='Участок без таймкодов исправлен')
     labels['journal_delivery_failed'] = 'Не удалось обновить один из журналов'
+    labels['speech_progress_save_failed'] = 'Индикатор прогресса временно недоступен'
+    labels['speech_result_save_failed'] = 'Не удалось сохранить результат распознавания'
     values = [labels.get(event['action'], event['action'])]
     for key in ('route', 'result_kind', 'stage', 'task', 'component', 'model', 'status', 'reason'):
         if event.get(key) is not None:

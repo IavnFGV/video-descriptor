@@ -13,6 +13,8 @@ from pathlib import Path
 
 import requests
 
+from .action_history import record
+from .atomic_file import RESULT_ATTEMPTS
 from .jobs import jobs_dir, read_json, video_url, write_json
 from .media import extract_audio, probe
 from .speech_recovery import pending_unresolved
@@ -22,6 +24,17 @@ ENGINES = {'gemini', 'gemini-diarization-xpu', 'whisper', 'whisper-diarization',
            'whisper-diarization-xpu', 'whisper-npu', 'whisper-npu-diarization-xpu', 'whisper-local'}
 EXTENSIONS = {'.mp4', '.mkv', '.mov', '.webm', '.wav', '.mp3', '.m4a', '.flac', '.ogg'}
 EDIT_LOCK = threading.RLock()
+
+
+def save_progress(path, result, job_id):
+    """Publish recognition progress; a locked snapshot must never abort recognition."""
+    try:
+        write_json(path, result)
+    except OSError as exc:
+        record('speech_progress_save_failed', job_id=job_id, stage='speech',
+               status='error', reason=type(exc).__name__)
+        return f'{type(exc).__name__}: {exc}'
+    return None
 
 
 def editable_result(folder, result):
@@ -427,8 +440,10 @@ def run(root, job_folder, job):
         result.update(status='running', message=message, job_id=job['id'])
         if processed is not None:
             result['processed'] = processed
-        write_json(folder / 'speech.json', result)
+        failure = save_progress(folder / 'speech.json', result, job['id'])
         print(time.strftime('%H:%M:%S'), message, flush=True)
+        if failure:
+            print(time.strftime('%H:%M:%S'), 'Индикатор прогресса временно недоступен: ' + failure, flush=True)
 
     def update(message, processed=None):
         with update_lock:
@@ -589,13 +604,19 @@ def run(root, job_folder, job):
             result['speaker_notice'] = result.get('speaker_notice', '') + (
                 f' · Участки без корректных таймкодов: {len(unresolved)}; '
                 'их текст можно вписать вручную в редакторе расшифровки')
-        write_json(folder / 'speech.json', result)
+        write_json(folder / 'speech.json', result, attempts=RESULT_ATTEMPTS)
     except Exception as exc:
         if pool is not None:
             update(f'NPU остановлен: {exc}; сохраняем результат начатой диаризации')
             pool.shutdown(wait=True)
         result.update(status='error', message=str(exc))
-        write_json(folder / 'speech.json', result)
+        try:
+            write_json(folder / 'speech.json', result, attempts=RESULT_ATTEMPTS)
+        except OSError as save_error:
+            # The original failure stays the reported cause; the snapshot is published later.
+            record('speech_result_save_failed', job_id=job['id'], stage='speech',
+                   status='error', reason=type(save_error).__name__)
+            print(time.strftime('%H:%M:%S'), 'Не удалось сохранить состояние ошибки: ' + str(save_error), flush=True)
         raise
 
 
