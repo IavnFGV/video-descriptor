@@ -10,13 +10,18 @@ failure investigation or readiness assessment, not implicit publication permissi
 From the repository root, trace `.github/workflows/windows-release.yml`,
 `scripts/windows_release.py`, `scripts/ci_artifacts.py` and relevant
 `full-acceptance.yml` jobs. Check ref, `windows-app/release-inputs.json`, tracked
-BUILD, version notes and exact accepted revision. Distinguish workflow/tool/download
-failures from application/model failures before repeating an expensive run.
+BUILD, the release notes of that build and exact accepted revision. Notes of the
+next build are prepared in `docs/releases/next-build.md` and frozen into the
+tagged commit as `docs/releases/X.Y.Z-build.N.md`; publication reads them from
+that commit. Distinguish workflow/tool/download failures from application/model
+failures before repeating an expensive run.
 
 Never invoke `windows_release.py prepare` as a check: it commits BUILD, creates
 and pushes a tag and dispatches publication. Never bump BUILD for an existing-tag
-rerun. Do not upload Domestic/cached installers or bypass the public gate by renaming
-files. Preserve accepted hashes; rebuilt bytes need their own acceptance.
+rerun. `windows_release.py next-notes` only writes the local notes template; it
+creates no commit, tag or push. Do not upload Domestic/cached installers or
+bypass the public gate by renaming files. Preserve accepted hashes; rebuilt bytes
+need their own acceptance.
 
 Use focused `tests/test_windows_release.py`, `tests/test_public_release_policy.py`
 and `tests/test_release_packaging.py`, plus local Fast checks as appropriate.

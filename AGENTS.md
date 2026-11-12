@@ -79,7 +79,8 @@ explicit integration/release checks, not a substitute for local UI validation.
 Keep the root README concise: current product state, getting started and documentation
 links. Add substantial development changes to
 [history.md](docs/development/history.md), not the README. Release descriptions live
-in GitHub Releases and versioned `docs/releases/`. Update
+in GitHub Releases and versioned `docs/releases/`; prepare the notes of the next
+Windows build in `docs/releases/next-build.md`. Update
 [architecture-windows.md](docs/architecture-windows.md) when architecture/contracts
 change. Do not claim hardware support from mocks or containers.
 
