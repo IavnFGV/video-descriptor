@@ -17,10 +17,11 @@ dirty editor/Undo and blocked Tools navigation. The full workspace scenario also
 passes all seven visibility toggles, persistence/reset, quick-edit and material
 identity/dirty guards. Current local captures: `windows-app/runtime/zero-config/desktop-design/after/`
 (ignored runtime evidence). No installed WebView2 or hardware-inference claim.
-Focused tests: 17 passed. Full Fast in the existing `.venv`: configuration/static
-checks passed, 837 tests passed, 4 skipped, one failed because `markdown_it` is
-missing when the existing Ollama guide endpoint imports it. No dependencies were
-installed; full Fast is not claimed green, and these changes remain on the task branch.
+Focused tests: 17 passed. The initial full Fast found a missing `markdown_it` in
+the existing `.venv`. Owner authorized installing `markdown-it-py==4.2.0`; it now
+also appears in `requirements-dev.txt`, matching the Windows runtime lock.
+Repeated full Fast is green: configuration/static checks passed (29 configuration
+tests), 838 tests passed, 4 skipped. The Ollama guide test passes as well.
 
 Task branch: `codex/cohesive-desktop-ui`, based on main **8e643c0** (the preceding
 View/sidebar task is already merged and pushed). This task does **not** authorize
