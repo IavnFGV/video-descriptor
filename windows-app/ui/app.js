@@ -11,6 +11,13 @@
     const total=Math.floor(s);
     return [Math.floor(total/3600),Math.floor(total/60)%60,total%60].map(n=>String(n).padStart(2,'0')).join(':');
   };
+  // A settings field may live in a panel that is not the active tab.
+  function revealSettingsField(target){
+    if(window.desktopSettingsShow?.(target))return true;
+    const details=target?.closest?.('details');
+    if(details)details.open=true;
+    return false;
+  }
   function showView(focus=false) {
     if(selected&&!['new','settings','diagnostics'].includes(location.hash.slice(1))){
       location.replace('/create?'+new URLSearchParams({job:selected}));return;
@@ -524,7 +531,7 @@
     clearTimeout(componentTimer);
     if(data.active||preparing)componentTimer=setTimeout(()=>componentStatus().then(()=>{if(!componentBusy){readiness();setupStatus();}}).catch(e=>message(e.message,true)),1000);
   }
-  for(const [button,field] of [['open-hf-settings','hf-token'],['open-local-settings','ollama-service-url']])$(button).onclick=()=>{const target=$(field);target.closest('details').open=true;target.focus();};
+  for(const [button,field] of [['open-hf-settings','hf-token'],['open-local-settings','ollama-service-url']])$(button).onclick=()=>{const target=$(field);revealSettingsField(target);target.focus();};
   for(const key of ['whisper','diarization','ollama'])$('prepare-'+key).onchange=()=>{$('prepare-consent').checked=false;};
   $('prepare-consent').onchange=()=>{$('preparation-status').textContent=$('prepare-consent').checked?'Разрешение отмечено. Нажмите «Сохранить и подготовить».':'Для автоматической подготовки отметьте разрешение на загрузку.';$('preparation-status').dataset.tone='info';};
   $('prepare-selected').onclick=async()=>{
@@ -533,10 +540,10 @@
       const features=['whisper','diarization','ollama'].filter(key=>$('prepare-'+key).checked);
       if(!features.length)throw Error('Выберите хотя бы одну функцию.');
       if(!$('prepare-consent').checked){$('prepare-consent').focus();throw Error('Отметьте разрешение на загрузку и установку выбранных компонентов. Для GPU нужно это же разрешение.');}
-      if(features.includes('diarization')&&!$('diarization-hf-fields').hidden&&!$('diarization-consent').checked){$('diarization-consent').closest('details').open=true;$('diarization-consent').focus();throw Error('Для участников примите условия community-1 и отметьте согласие в разделе «Участники».');}
+      if(features.includes('diarization')&&!$('diarization-hf-fields').hidden&&!$('diarization-consent').checked){revealSettingsField($('diarization-consent'));$('diarization-consent').focus();throw Error('Для участников примите условия community-1 и отметьте согласие в разделе «Участники».');}
       if(features.includes('ollama')&&ollamaEndpointChanged)throw Error('Сначала сохраните подключение Ollama.');
       const model=localProvider()==='ollama'?$('ollama-model').value:localConfigs.ollama.savedModel;
-      if(features.includes('ollama')&&!model){$('ollama-service-url').closest('details').open=true;$('ollama-service-url').focus();throw Error('Выберите подключение и языковую модель в разделе «Локальный AI».');}
+      if(features.includes('ollama')&&!model){revealSettingsField($('ollama-service-url'));$('ollama-service-url').focus();throw Error('Выберите подключение и языковую модель в разделе «Локальный AI».');}
       await api('/api/components',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':instance},body:JSON.stringify({action:'prepare_selected',features,device:$('diarization-device').value,model,token:$('hf-token').value,hf_consent:$('diarization-consent').checked,confirmed:true})});
       $('hf-token').value='';await componentStatus();
     }catch(e){$('preparation-status').textContent=e.message;$('preparation-status').dataset.tone='danger';button.disabled=false;}
@@ -582,7 +589,7 @@
   $('notes-model-choice').onchange=()=>{$('notes-confirm').disabled=notesModelsLoading||!$('notes-model-choice').value;};
   $('notes-auto-context').onchange=()=>{$('notes-context').disabled=$('notes-auto-context').checked;};
   $('notes-cancel').onclick=()=>$('notes-dialog').close();
-  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';if(provider!=='gemini'&&provider!==localProvider()){$('local-provider').value=provider;$('local-provider').onchange();}const target=$(provider==='gemini'?'gemini-key':'ollama-service-url');target.closest('details').open=true;target.focus();};
+  $('notes-open-settings').onclick=()=>{const provider=$('notes-provider').value;$('notes-dialog').close();location.hash='settings';if(provider!=='gemini'&&provider!==localProvider()){$('local-provider').value=provider;$('local-provider').onchange();}const target=$(provider==='gemini'?'gemini-key':'ollama-service-url');revealSettingsField(target);target.focus();};
   $('notes-confirm').onclick=async()=>{
     if(notesModelsLoading||processing)return;
     const provider=$('notes-provider').value;
@@ -598,7 +605,7 @@
       if(prefs.provider==='lmstudio'){await postprocess(task);return;}
       const status=await api('/api/setup/ollama');
       if(status.ready){await postprocess(task);return;}
-      location.hash='settings';const target=$('ollama-service-url');target.closest('details').open=true;
+      location.hash='settings';const target=$('ollama-service-url');revealSettingsField(target);
       target.focus();$('ollama-feedback').textContent=status.message;
     }catch(e){message(e.message,true);}
   }

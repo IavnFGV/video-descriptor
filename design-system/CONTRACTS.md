@@ -255,6 +255,19 @@ serves the packaged guide using shared CSS. No new settings subsystem or CSS tok
 
 09.11.2026: readonly footer показывает version + номер билда из BUILD. Существующие handlers, API routes, revision/dirty guards сохранены; в health/doctor добавлено числовое поле build без новых endpoints.
 
+## Вкладки настроек — 12.11.2026
+
+По запросу владельца разделы «Настройки AI» показаны вкладками, а не одной
+длинной страницей. Общий `desktop-shell.js` строит tablist: `button role=tab`,
+`aria-selected`/`aria-controls`, `role=tabpanel` у существующих разделов
+`details/summary`, один `tabIndex=0`, Left/Right/Home/End. Одновременно виден
+только один раздел; остальные скрыты через `hidden`, их ID, обработчики, формы и
+API не меняются. Добавлены только ID панелей: `setup-local-models`, `setup-cloud`,
+`setup-participants`, `setup-storage`, `setup-extra`. Поле неактивной вкладки
+перед фокусом раскрывает свою панель (`desktopSettingsShow`), поэтому переходы
+из формы подготовки, конспекта и перевода работают без ручного открытия раздела.
+Прогресс, ошибки, остановка подготовки и проверка статуса остаются на виду.
+
 ## Вкладки материала — 10.11.2026
 
 Owner-requested Конспект/Статья: additive material-tab-notes/material-tab-article и

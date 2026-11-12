@@ -218,8 +218,8 @@ def run(args, evidence):
             wait_for(lambda:cdp.visible_text('#bootstrap-message'),lambda text:text and 'Проверяем' not in text)
             cdp.screenshot(args.reports / 'zero-config-first-launch.png')
             cdp.click('#setup-open')
-            if cdp.evaluate('[...document.querySelectorAll(".ai-section")].some(e=>e.open)'):
-                raise RuntimeError('Technical settings are expanded by default')
+            if cdp.evaluate('[...document.querySelectorAll(".ai-section")].filter(e=>e.checkVisibility()).length') != 1:
+                raise RuntimeError('Settings sections are not limited to the active tab')
             wait_for(lambda:cdp.visible_text('#ai-summary'),lambda text:text and 'Проверяем' not in text)
             if 'Failed to fetch' in cdp.visible_text('body'):
                 raise RuntimeError('Raw startup fetch error leaked into UI')
@@ -257,7 +257,7 @@ def run(args, evidence):
                 evidence['download_confirmations'] = 1
             else:
                 cdp.click('#setup-open')
-                cdp.click('#setup-card > summary')
+                cdp.click('[data-settings-tab="setup-card"]')
                 objects = [obj for obj in plan['cache'] if obj['component'] == 'whisper-model']
                 if not objects:
                     raise Blocked('No verified whisper-model cache. Register official test assets or use -NetworkDownload.')
@@ -275,7 +275,7 @@ def run(args, evidence):
                 compute = wait_for(lambda: api('/api/compute-settings'),
                                    lambda state: not state['preparing'] and state['capabilities']['CPU']['ready'], timeout=240)
                 evidence['compute'] = compute
-                cdp.click('.ai-section:last-of-type > summary')
+                cdp.click('[data-settings-tab="setup-extra"]')
                 cdp.click('#setup-finish')
                 cdp.click('#new-record-open')
                 document = cdp.call('DOM.getDocument')['root']['nodeId']

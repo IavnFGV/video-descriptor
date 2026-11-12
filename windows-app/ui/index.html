@@ -234,7 +234,7 @@
 </p>
 </details>
 
-<details class="card ai-section"><summary>Языковая модель · локальные серверы</summary>
+<details class="card ai-section" id="setup-local-models"><summary>Языковая модель · локальные серверы</summary>
 <form id="ollama-form" class="vd-form">
 <label class="vd-field">Провайдер<select id="local-provider" class="vd-select"><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option></select></label>
 <div class="vd-control-group">
@@ -254,7 +254,7 @@
 </form>
 <div id="component-ollama"></div>
 </details>
-<details class="card ai-section"><summary>Облачный AI (Gemini)</summary>
+<details class="card ai-section" id="setup-cloud"><summary>Облачный AI (Gemini)</summary>
 <h2>Gemini · необязательно</h2>
 <p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p>
 <form id="gemini-form">
@@ -279,7 +279,7 @@
 </p>
 </form>
 </details>
-<details class="card ai-section"><summary>Участники</summary>
+<details class="card ai-section" id="setup-participants"><summary>Участники</summary>
 <h2>Разделение по участникам</h2>
 <p id="diarization-setup-help" class="footnote">Автоматически подготовим отдельное окружение и модель community-1. Системный Python не нужен. Требуется не менее 8 ГиБ свободного места; загрузка пакетов может занять несколько гигабайт. Распознавание остаётся в своём окружении.</p>
 <div id="component-diarization"></div>
@@ -292,7 +292,7 @@
 <button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button></div>
 <p class="footnote">Автоматический режим пробует видеокарту, затем процессор. Явно выбранное устройство не заменяется другим. Нейропроцессор (NPU) пока не поддерживается для разделения по участникам.</p>
 </details>
-<details class="card ai-section"><summary>Папки хранения</summary>
+<details class="card ai-section" id="setup-storage"><summary>Папки хранения</summary>
 <h2>Где хранить данные</h2>
 <p class="footnote">По умолчанию используются прежние папки. Здесь можно перенести модели и записи на другой диск. Выберите новую или пустую папку. Во время переноса работа с записями приостановлена; затем потребуется полностью перезапустить приложение.</p>
 <p id="component-directory" class="footnote"></p>
@@ -308,7 +308,7 @@
 <progress id="storage-progress" class="vd-progress" aria-label="Перенос данных" aria-describedby="storage-feedback" hidden></progress>
 <button id="storage-cleanup" type="button" class="vd-button vd-button--danger" hidden>Очистить старую папку после переноса</button>
 </details>
-<details class="card ai-section"><summary>Дополнительно</summary>
+<details class="card ai-section" id="setup-extra"><summary>Дополнительно</summary>
 <h2>Компоненты и восстановление</h2>
 <div id="component-summary"></div>
 <button id="setup-finish" type="button" class="vd-button vd-button--primary">К записям →</button>

@@ -99,12 +99,55 @@
     // A local settings index opens existing disclosures without introducing routes/state.
     const wizard=$('setup-wizard');
     if(wizard){
-      const index=document.createElement('nav');index.className='desktop-settings-index';index.setAttribute('aria-label','Разделы настроек');
-      for(const [i,section] of [...wizard.querySelectorAll(':scope>details')].entries()){
+      const sections=[...wizard.querySelectorAll(':scope>details')];
+      const index=document.createElement('nav');index.className='desktop-settings-index';index.id='desktop-settings-index';index.setAttribute('role','tablist');index.setAttribute('aria-label','Разделы настроек');
+      const tabs=[];
+      for(const [i,section] of sections.entries()){
         if(!section.id)section.id='desktop-settings-'+i;
-        const button=command(index,section.querySelector('summary').textContent,()=>{section.open=true;section.scrollIntoView({block:'start'});section.querySelector('summary').focus({preventScroll:true});});button.setAttribute('aria-controls',section.id);
+        const button=document.createElement('button');button.type='button';button.id=section.id+'-tab';
+        button.setAttribute('role','tab');button.setAttribute('aria-controls',section.id);
+        button.textContent=section.querySelector('summary').textContent;button.tabIndex=-1;
+        button.dataset.settingsTab=section.id;
+        index.append(button);tabs.push(button);
+        section.setAttribute('role','tabpanel');section.setAttribute('aria-labelledby',button.id);
       }
       wizard.prepend(index);
+      // One section at a time: the tab owns the panel, the panel keeps its own ids.
+      let active=-1;
+      function activate(next,focus=false){
+        if(next<0||next>=sections.length)return;
+        active=next;
+        sections.forEach((section,i)=>{
+          const selected=i===active;
+          tabs[i].setAttribute('aria-selected',String(selected));
+          tabs[i].tabIndex=selected?0:-1;
+          section.hidden=!selected;
+          if(selected)section.open=true;
+        });
+        if(focus)tabs[active].focus();
+      }
+      tabs.forEach((tab,i)=>tab.addEventListener('click',()=>activate(i)));
+      index.addEventListener('keydown',event=>{
+        const current=tabs.indexOf(document.activeElement);
+        if(current<0)return;
+        let next=current;
+        if(event.key==='ArrowRight')next=(current+1)%tabs.length;
+        else if(event.key==='ArrowLeft')next=(current+tabs.length-1)%tabs.length;
+        else if(event.key==='Home')next=0;
+        else if(event.key==='End')next=tabs.length-1;
+        else return;
+        event.preventDefault();
+        activate(next,true);
+      });
+      activate(0);
+      // A field of a hidden panel becomes visible before it takes the focus.
+      window.desktopSettingsShow=target=>{
+        const section=target?.closest?.('.ai-section');
+        const i=sections.indexOf(section);
+        if(i<0)return false;
+        activate(i);section.open=true;
+        return true;
+      };
       const card=wizard.querySelector(':scope>section'),preparation=$('desktop-preparation');
       preparation.hidden=false;preparation.open=true;
       const preserve=new Set([preparation,card.querySelector('h2'),$('ai-summary'),$('preparation-status'),card.querySelector('a[href="#diagnostics"]')]);

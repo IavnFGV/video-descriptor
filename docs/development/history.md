@@ -1,5 +1,22 @@
 # История изменений
 
+12.11.2026: по запросу владельца «Настройки AI» разделены на вкладки: «Распознавание
+речи», «Языковая модель · локальные серверы», «Облачный AI (Gemini)», «Участники»,
+«Папки хранения», «Дополнительно». Одновременно виден только один раздел, поэтому
+страница больше не нагромождает все формы подряд. Реализация в общем
+`desktop-shell.js`: настоящий tablist (`button role=tab`, `tabpanel`,
+`aria-selected`/`aria-controls`, один `tabIndex=0`, Left/Right/Home/End), прежние
+`details/summary` разделы и все их ID сохранены, добавлены только ID панелей
+(`setup-local-models`, `setup-cloud`, `setup-participants`, `setup-storage`,
+`setup-extra`). Поле из неактивной вкладки раскрывается до получения фокуса
+(`desktopSettingsShow`), поэтому переходы «Подключение и языковая модель →»,
+условия Hugging Face, конспект и перевод продолжают работать. API, маршруты,
+контракты заданий, revision/dirty guards и версия не менялись. Проверки:
+`scripts/check-ui-audit.py`, `scripts/build-ui-css.py --check`, новый тест
+`tests/test_desktop_design.py`, реальный headless Edge
+(`scripts/verify-recording-ui.py --desktop-design`) — PASS, снимки настроек
+показывают одну активную вкладку.
+
 12.11.2026: по запросу владельца в проектную `.venv` установлен
 `markdown-it-py==4.2.0` с `mdurl`; та же версия добавлена в `requirements-dev.txt`,
 чтобы локальные тесты Windows-справки не падали после создания dev-окружения.

@@ -110,7 +110,7 @@ def run(c, wait_for, root, base, before=False):
             assert c.evaluate('![...document.querySelectorAll(".sidebar,.vd-global-nav,.sidebar-toggle")].some(e=>e.checkVisibility())')
         if screen == 'settings':
             c.call('Emulation.setDeviceMetricsOverride', width=1200, height=800, deviceScaleFactor=1, mobile=False)
-            c.evaluate('document.querySelector("#ollama-form").closest("details").open=true')
+            c.evaluate('document.querySelector("[data-settings-tab=setup-local-models]").click()')
             c.evaluate('document.querySelector("#ollama-form").closest("details").scrollIntoView({block:"start"})')
             c.screenshot(out / 'settings-connection-1200x800.png')
             if not before:
@@ -128,7 +128,8 @@ def run(c, wait_for, root, base, before=False):
         wait_for(lambda:c.evaluate('location.pathname==="/" && location.hash==="#settings" && !!document.querySelector("#local-provider")'))
         assert c.evaluate('[...document.querySelector("#local-provider").options].some(e=>e.value==="ollama")')
         assert c.evaluate('[...document.querySelector("#local-provider").options].some(e=>e.value==="lmstudio")')
-        c.evaluate('document.querySelector("#ollama-form").closest("details").open=true;document.querySelector("#ollama-form").scrollIntoView({block:"start"})')
+        c.evaluate('document.querySelector("[data-settings-tab=setup-local-models]").click()')
+        c.evaluate('document.querySelector("#ollama-form").closest("details").scrollIntoView({block:"start"})')
         capture('shared-connections',1200,800)
     c.call('Page.navigate', url=workspace)
     wait_for(lambda: c.evaluate('!!document.querySelector("#speech-feed .utterance")'))
