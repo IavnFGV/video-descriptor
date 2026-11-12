@@ -15,12 +15,12 @@ button.primary:hover:not(:disabled),button[type=submit]:hover:not(:disabled){bac
 button.danger{color:var(--vd-danger);background:var(--vd-danger-bg);border-color:var(--vd-danger)}
 button:disabled{background:var(--vd-subtle);border-color:var(--vd-border);color:var(--vd-muted);cursor:not-allowed}
 button[aria-busy=true]{cursor:progress}
-input:not([type=checkbox]):not([type=range]):not([type=file]),select,textarea{min-height:var(--vd-control-height);min-width:0;width:100%;padding:var(--vd-space-2) var(--vd-space-3);color:var(--vd-text);background:var(--vd-surface);border:1px solid var(--vd-control);border-radius:var(--vd-radius-control)}
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea{min-height:var(--vd-control-height);min-width:0;width:100%;padding:var(--vd-space-2) var(--vd-space-3);color:var(--vd-text);background:var(--vd-surface);border:1px solid var(--vd-control);border-radius:var(--vd-radius-control)}
 textarea{min-height:112px;resize:vertical}input::placeholder,textarea::placeholder{color:var(--vd-muted);opacity:1}
 input:disabled,select:disabled,textarea:disabled{background:var(--vd-subtle);color:var(--vd-muted)}
 [aria-invalid=true]{border-color:var(--vd-danger)!important}
 :where(button,a,input,select,textarea,summary,[tabindex]):focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
-label{min-width:0}label:has(>select),label:has(>textarea),label:has(>input:not([type=checkbox])){display:grid;gap:var(--vd-space-2)}
+label{min-width:0}label:has(>select),label:has(>textarea),label:has(>input:not([type=checkbox]):not([type=radio])){display:grid;gap:var(--vd-space-2)}
 section,article,.queue-panel,.log-panel{background:var(--vd-surface);border:1px solid var(--vd-border);border-radius:var(--vd-radius-card);padding:var(--vd-space-6);margin-bottom:var(--vd-space-4);min-width:0}
 details{margin:var(--vd-space-3) 0}summary{cursor:pointer;color:var(--vd-text);font-weight:var(--vd-medium)}
 details[open]>summary{margin-bottom:var(--vd-space-3)}

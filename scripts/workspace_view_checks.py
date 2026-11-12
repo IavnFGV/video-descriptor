@@ -21,10 +21,21 @@ def run(c, wait_for, out, root):
 
     assert visible('#shared-player') and visible('#speech-feed')
     assert visible('#recording-diarize')
+    # The View entry belongs to the left navigation rail, not to a separate toolbar.
+    assert evaluate('!!document.querySelector(".vd-global-nav #workspace-view-menu")')
+    assert not evaluate('!!document.querySelector(".topbar #workspace-view-menu")')
     for selector in ['#stage-notes', '#recording-translation-panel', '#source-details', '#diagnostics']:
         assert not visible(selector), selector
     video, speech = rect('#shared-player'), rect('#stage-speech')
     assert video['x'] < speech['x'] and abs(video['y'] - speech['y']) < 2
+    # The panel opens next to the left rail and stays inside the viewport.
+    evaluate('document.querySelector("#workspace-view-menu").open=true')
+    wait_for(lambda: evaluate('document.querySelector(".workspace-view-content").checkVisibility()'))
+    rail, popup = rect('.vd-global-nav'), rect('.workspace-view-content')
+    assert popup['x'] >= rail['x'] and popup['y'] >= rail['y'], (rail, popup)
+    assert popup['x'] + popup['w'] <= 1920 and popup['y'] + popup['h'] <= 1080
+    c.screenshot(out / 'workspace-menu-open.png')
+    evaluate('document.querySelector("#workspace-view-menu").open=false')
     c.screenshot(out / 'workspace-default.png')
     evaluate('window.originalPlayer=document.querySelector("#process-video");window.originalFeed=document.querySelector("#speech-feed");originalPlayer.currentTime=45')
     for key, selector in [('video', '#shared-player'), ('transcript', '#stage-speech'),
@@ -55,6 +66,16 @@ def run(c, wait_for, out, root):
         if width <= 1000:
             assert rect('#stage-speech')['y'] >= rect('#shared-player')['y'] + rect('#shared-player')['h']
         c.screenshot(out / f'workspace-{width}.png')
+    c.call('Emulation.setDeviceMetricsOverride', width=1440, height=900, deviceScaleFactor=1, mobile=False)
+    # The narrow layout turns the rail into a row; the panel opens below the entry.
+    c.call('Emulation.setDeviceMetricsOverride', width=360, height=760, deviceScaleFactor=1, mobile=False)
+    evaluate('document.querySelector("#workspace-view-menu").open=true')
+    wait_for(lambda: evaluate('document.querySelector(".workspace-view-content").checkVisibility()'))
+    narrow = rect('.workspace-view-content')
+    assert narrow['x'] >= 0 and narrow['x'] + narrow['w'] <= 360, narrow
+    assert narrow['y'] >= 0 and narrow['y'] + narrow['h'] <= 760, narrow
+    c.screenshot(out / 'workspace-menu-narrow.png')
+    evaluate('document.querySelector("#workspace-view-menu").open=false')
     c.call('Emulation.setDeviceMetricsOverride', width=1440, height=900, deviceScaleFactor=1, mobile=False)
     panel('video', False)
     assert abs(rect('#stage-speech')['w'] - rect('.studio-layout')['w']) < 2
@@ -133,12 +154,16 @@ def run(c, wait_for, out, root):
         assert evaluate('document.documentElement.dataset.workspaceLayout') == 'side'
     evaluate('workspaceView.setLayout("stacked");window.workspaceURL=location.href')
     url = evaluate('workspaceURL')
+    # The library shell has no recording panels, so it carries no View entry.
     evaluate('location.href="/#settings"')
-    wait_for(lambda: evaluate('!!document.querySelector("#setup-wizard")'))
-    assert evaluate('document.querySelector("#workspace-view-menu [value=stacked]").checked')
+    wait_for(lambda: evaluate('location.pathname==="/" && !!document.querySelector("#setup-wizard")'))
+    assert not evaluate('!!document.getElementById("workspace-view-menu")')
+    assert evaluate('JSON.parse(localStorage.getItem("video-descriptor:ui:workspace")).layout') == 'stacked'
     evaluate('location.hash="diagnostics"')
     evaluate(f'location.href={json.dumps(url)}')
-    wait_for(lambda: evaluate('!!document.querySelector("#speech-feed .utterance")'))
+    wait_for(lambda: evaluate('location.pathname==="/create" && !!document.querySelector("#speech-feed .utterance")'))
+    assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
+    assert evaluate('!!document.querySelector(".vd-global-nav #workspace-view-menu [value=stacked]").checked')
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
     print('PASS: workspace defaults, seven toggles, layouts, reload/reset/invalid storage, four widths, empty state, editor identity/dirty/Undo, no visibility API calls, progress/errors, navigation; real Edge fixture, no inference', flush=True)

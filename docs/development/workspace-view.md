@@ -21,6 +21,12 @@ If its current kind is hidden, the enabled tab remains keyboard-reachable and a
 small hint asks the user to select it. Re-enable the hidden kind to recover its
 unchanged draft. The existing material tab keyboard handler skips hidden tabs.
 
+The View entry is a native disclosure inside the existing left navigation rail of
+the recording workspace (`Записи`, `Настройки AI`, `Диагностика`). Its panel opens
+beside the rail, or below the entry when the rail becomes a row in a narrow
+window, and is clamped to the viewport. The library/settings shell has no
+recording panels, so it carries no entry.
+
 Selection/version controls, stop action, request/diarization progress, job errors,
 retry/manual recovery, speech warnings and run-message remain outside hidden
 regions. Speech settings remain in their original stage before a recording exists;
@@ -52,9 +58,11 @@ or update menus beyond the narrow viewport.
 
 - `video_descriptor/assets/workspace-view.js` (new), `create.html`, `recording.js`.
 - `video_descriptor/serve.py`: static asset allowlist only; no new API endpoints.
-- `windows-app/ui/index.html`, `layout.css`.
-- `design-system/components.css`, `workspace.css`; regenerated `create.css`,
-  `editor.css`, `windows-app/ui/app.css`.
+- `windows-app/ui/index.html`, `layout.css`: the shell loads no View entry, so the
+  desktop bundle keeps only the shared layout.
+- `design-system/components.css`, `surfaces.css`, `workspace.css`; regenerated
+  `create.css`, `editor.css`, `windows-app/ui/app.css`. `surfaces.css` no longer
+  stretches radio inputs to the full field width.
 - `tests/test_workspace_view.py`, `tests/workspace_view.cjs` (new).
 - `scripts/workspace_view_checks.py` (new), `verify-recording-ui.py`,
   `verify-updates-ui.py`: real asset route, updated geometry, and completion wait

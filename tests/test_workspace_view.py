@@ -13,9 +13,10 @@ def test_workspace_preferences_node():
 
 
 def test_workspace_assets_and_critical_controls():
-    for path in ['windows-app/ui/index.html', 'video_descriptor/assets/create.html']:
-        html = (ROOT / path).read_text(encoding='utf-8')
-        assert html.index('/studio-assets/workspace-view.js') < html.index('<body')
+    html = (ROOT / 'video_descriptor/assets/create.html').read_text(encoding='utf-8')
+    assert html.index('/studio-assets/workspace-view.js') < html.index('<body')
+    # The shell has no recording panels, so it carries no View entry.
+    assert '/studio-assets/workspace-view.js' not in (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
     serve = (ROOT / 'video_descriptor/serve.py').read_text(encoding='utf-8')
     assert "'workspace-view.js'" in serve
     source = (ROOT / 'video_descriptor/assets/recording.js').read_text(encoding='utf-8')
@@ -28,6 +29,13 @@ def test_workspace_assets_and_critical_controls():
         assert f'data-view-{key}=false' in css
     assert '@media(max-width:1000px)' in css
     assert 'workspace-view-empty' in css
+    # The entry lives in the existing left navigation rail, not in a separate toolbar.
+    assert '.vd-global-nav>.workspace-view-menu>summary{' in css
+    module = (ROOT / 'video_descriptor/assets/workspace-view.js').read_text(encoding='utf-8')
+    assert "document.querySelector('.vd-global-nav')" in module
+    assert ".topbar" not in module
+    surfaces = (ROOT / 'design-system/surfaces.css').read_text(encoding='utf-8')
+    assert 'input:not([type=checkbox]):not([type=radio])' in surfaces
 
 
 def test_visibility_module_has_no_processing_side_effects():

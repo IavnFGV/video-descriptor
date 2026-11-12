@@ -2,9 +2,9 @@
   "baseline_commit": "9ffa842",
   "workspace_view_review": {
     "date": "2026-11-12",
-    "scope": "Explicit owner request: workspace visibility/layout, no release or processing changes.",
-    "files": ["windows-app/ui/index.html", "video_descriptor/assets/create.html", "video_descriptor/assets/recording.js", "video_descriptor/assets/workspace-view.js", "video_descriptor/serve.py", "design-system/components.css", "design-system/workspace.css"],
-    "contracts": "Original ids, handlers, APIs, one video/frame, selection, dirty/revision/Undo retained. New static JS allowlist only. CSS bundles regenerated. Native default actions/update UI untouched. Existing expand-player delegates to the versioned workspace preference. No baseline refresh.",
+    "scope": "Explicit owner request: workspace visibility/layout, no release or processing changes. View entry moved into the existing left navigation rail of the recording workspace; the library shell carries no entry.",
+    "files": ["windows-app/ui/index.html", "video_descriptor/assets/create.html", "video_descriptor/assets/recording.js", "video_descriptor/assets/workspace-view.js", "video_descriptor/serve.py", "design-system/components.css", "design-system/surfaces.css", "design-system/workspace.css"],
+    "contracts": "Original ids, handlers, APIs, one video/frame, selection, dirty/revision/Undo retained. New static JS allowlist only. CSS bundles regenerated; radio inputs keep their native size. Native default actions/update UI untouched. Existing expand-player delegates to the versioned workspace preference. No baseline refresh.",
     "checks": "tests/test_workspace_view.py; scripts/verify-recording-ui.py --workspace-view-only; existing material-tabs/unresolved/update regressions"
   },
   "approved": "Владелец согласовал направление и поручил реализацию в этом чате 19.10.2026",

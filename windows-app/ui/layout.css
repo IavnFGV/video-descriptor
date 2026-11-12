@@ -20,10 +20,7 @@ svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke
 .app-shell>.app-content{grid-column:2;grid-row:1}
 .app-content{min-width:0}.topbar{display:flex;align-items:center;justify-content:space-between;gap:var(--vd-space-4);min-height:64px;background:var(--vd-surface);border-bottom:1px solid var(--vd-border);padding:var(--vd-space-4) var(--vd-space-8)}
 .topbar .sidebar-toggle{flex-shrink:0}
-.topbar{flex-wrap:wrap}
-.topbar .workspace-view-menu{margin-left:0}
-.topbar>.app-menu{margin-left:auto}
-.topbar p{margin:0;margin-right:auto;color:var(--vd-muted);font-size:var(--vd-label);min-width:0}
+.topbar p{margin:0;margin-right:auto;color:var(--vd-muted);font-size:var(--vd-label)}
 main{max-width:var(--vd-content-width);margin:auto;padding:var(--vd-space-8);min-width:0}
 .page-heading{margin-bottom:var(--vd-space-6)}.page-heading p{color:var(--vd-muted);margin-bottom:0}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) 268px;gap:var(--vd-space-6);align-items:start}.workspace>div{min-width:0}
