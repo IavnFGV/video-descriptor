@@ -1,6 +1,7 @@
 # Customizable Workspace / View menu
 
-Implemented on `codex/customizable-workspace-view-menu`, based on main `917c4ed`.
+Implemented on `codex/customizable-workspace-view-menu` and
+`codex/workspace-view-in-sidebar`, based on main `917c4ed`.
 No processing, release, installation or model changes.
 
 ## Existing regions and owners
@@ -37,8 +38,8 @@ not hidden by the participant toggle, avoiding its blur/save behavior.
 
 ## Persistence and layout
 
-`workspace-view.js` loads synchronously in both native index and `/create` heads.
-`localStorage['video-descriptor:ui:workspace']` contains version 1, `layout`
+`workspace-view.js` loads synchronously in the `/create` head, before the workspace
+renders. `localStorage['video-descriptor:ui:workspace']` contains version 1, `layout`
 (`side`/`stacked`) and boolean `panels`. It follows existing global UI preference
 conventions and is scoped to WebView2/browser origin/profile, not recording folders.
 It is not shared automatically between distinct ports or browser profiles.
@@ -51,8 +52,8 @@ CSS Grid places video left/transcript right on wide windows, or video above spee
 when stacked or at <=1000 px. Either primary panel alone fills the width; with both
 hidden an inline reset remains. Enabled materials and translation use full-width
 following rows. Source details are outside the player so technical information is
-available even when video is hidden. Native topbar wraps without pushing application
-or update menus beyond the narrow viewport.
+available even when video is hidden. The View panel is placed next to the left rail
+and stays inside the viewport at every width.
 
 ## Changed implementation files
 
