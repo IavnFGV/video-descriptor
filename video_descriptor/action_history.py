@@ -91,6 +91,8 @@ def describe(event):
                   speech_timestamps_unresolved='Участок без таймкодов',
                   speech_unresolved_resolved='Участок без таймкодов исправлен')
     labels['journal_delivery_failed'] = 'Не удалось обновить один из журналов'
+    labels['update_check'] = 'Проверка обновлений'
+    labels['update_cache'] = 'Кэш обновлений'
     labels['speech_progress_save_failed'] = 'Индикатор прогресса временно недоступен'
     labels['speech_result_save_failed'] = 'Не удалось сохранить результат распознавания'
     values = [labels.get(event['action'], event['action'])]

@@ -7,6 +7,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -24,12 +25,16 @@ spec.loader.exec_module(desktop)
 @pytest.fixture
 def installation(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user-data"))
+    # Keep real subprocess smoke offline without changing installed-app semantics.
+    cache = tmp_path / 'user-data/VideoDescriptor/update-cache.json'
+    cache.parent.mkdir(parents=True)
+    cache.write_text(json.dumps({'latest': None, 'last_successful_check': time.time()}), encoding='utf-8')
     shutil.copytree(ROOT / 'video_descriptor', tmp_path / 'video_descriptor',
                     ignore=shutil.ignore_patterns('__pycache__'))
     folder = tmp_path / 'windows-app'
     folder.mkdir()
     shutil.copyfile(ROOT / 'BUILD', tmp_path / 'BUILD')
-    for name in ('app.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component_manager.py', 'storage_service.py', 'release_lifecycle.py', 'model_download.py', 'component-manifest.json', 'release-inputs.json'):
+    for name in ('app.py', 'updates.py', 'desktop.py', 'compute.py', 'setup_service.py', 'component_manager.py', 'storage_service.py', 'release_lifecycle.py', 'model_download.py', 'component-manifest.json', 'release-inputs.json'):
         shutil.copyfile(ROOT / 'windows-app' / name, folder / name)
     shutil.copytree(ROOT / 'windows-app/ui', folder / 'ui')
     (tmp_path / 'scripts').mkdir()

@@ -35,10 +35,24 @@
 <details class="app-menu">
 <summary>Приложение</summary>
 <div class="menu-content">
+<button id="updates-check" type="button" class="vd-button vd-button--quiet">Проверить обновления</button>
 <button id="stop" type="button" class="vd-button vd-button--quiet">Завершить приложение</button>
 </div>
 </details>
+<button id="updates-badge" type="button" class="vd-button vd-button--quiet" hidden aria-label="Доступно обновление">Обновление</button>
 </header>
+<dialog id="updates-dialog" class="vd-dialog" aria-labelledby="updates-heading">
+<h2 id="updates-heading">Обновления</h2>
+<p id="updates-status" role="status" aria-live="polite"></p>
+<p id="updates-installed"></p>
+<p id="updates-available"></p>
+<h3 id="updates-title"></h3>
+<p id="updates-notes" class="vd-help"></p>
+<div class="vd-actions">
+<button id="updates-open" type="button" class="vd-button vd-button--primary" hidden>Открыть релиз</button>
+<button id="updates-later" type="button" class="vd-button">Позже</button>
+</div>
+</dialog>
 <main id="main" tabindex="-1">
 <div class="page-heading">
 <h1 id="main-heading" tabindex="-1">Записи</h1>
@@ -378,6 +392,7 @@
 </dialog>
 <script src="/studio-assets/speech-edit.js">
 </script>
+<script src="/updates.js"></script>
 <script src="/native.js">
 </script>
 </body>

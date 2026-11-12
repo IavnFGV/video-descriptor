@@ -1,5 +1,16 @@
 # Сохранение поведения и контрактов
 
+12.11.2026: owner-requested notification-only Windows release checks. Additive
+`updates-*` controls/dialog on the native main page, `/updates.js` asset and
+`GET /api/updates`, instance-protected `POST /api/updates/check`. Existing DOM ids,
+handlers, API literals, jobs, dirty/revision guards and host restrictions remain.
+The existing main-page refresh reads only local state, never GitHub. Badge is hidden
+unless a comparable newer build exists; manual outcomes stay inside a user-opened
+native dialog. Notes/title use textContent. External action is the fixed command
+`update-release` through `/api/setup/external`, never an API-provided URL.
+Only scoped release-text wrapping in native layout; no new tokens, dependencies,
+download/install/restart controls or settings system.
+
 12.11.2026: счётчик нераспознанных интервалов в панели расшифровки стал навигацией. Рядом с прежним числом участков без таймкодов показывается по одной кнопке на каждый интервал с его началом; нажатие прокручивает список расшифровки к этому участку, отмечает его и переводит воспроизведение на его время. Кнопка несёт `aria-label` с точным диапазоном интервала, отмеченный участок получает отдельный общий стиль. Счётчик перерисовывается только при изменении снимка, поэтому опрос не забирает фокус. Прежние тексты счётчиков, DOM id, API, payload, revision/dirty guards и хронологический порядок интервалов сохранены.
 
 11.11.2026: участки записи без пригодных таймкодов показываются между распознанными репликами в рабочей папке и в отчёте, помечены отдельным стилем и получают точное время и объяснение на русском. Ручной текст вводится тем же редактором реплик: POST /api/speech-edit action=resolve принимает {folder,revision,action,unresolved_id,text,speaker,translation,start,end} под прежним EDIT_LOCK, revision guard и лимитом тела; заполненный участок становится обычной репликой с прежним id участка, поэтому перевод, конспект и субтитры видят его как распознанный текст. До заполнения участок не входит в расшифровку, перевод, конспект и VTT/SRT; отмена правки возвращает его в нераспознанные. Отметка времени — абсолютное время записи. Новый endpoint не добавлен; прежние edit/split/restore, ids, обработчики и журнал сохранены.

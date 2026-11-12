@@ -91,6 +91,8 @@ body{margin:0;background:var(--vd-canvas);color:var(--vd-text);font:var(--vd-bod
 h1,h2,h3,p{margin-top:0}h1{font-size:var(--vd-h1);line-height:1.3;font-weight:var(--vd-heading);margin-bottom:var(--vd-space-2)}
 h2{font-size:var(--vd-h3);line-height:1.4;font-weight:var(--vd-heading);margin:0}h3{font-size:var(--vd-body)}
 p{margin-bottom:var(--vd-space-4)}a{color:var(--vd-accent)}
+#updates-dialog{overflow-wrap:anywhere}
+#updates-notes{white-space:pre-wrap}
 svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .app-shell{display:grid;grid-template-columns:var(--vd-nav-width) minmax(0,1fr);min-height:100vh}
 .sidebar{display:flex;flex-direction:column;gap:var(--vd-space-8);padding:var(--vd-space-8) var(--vd-space-4);border-right:1px solid var(--vd-border);background:var(--vd-surface)}

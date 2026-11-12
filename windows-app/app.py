@@ -29,7 +29,10 @@ sys.path.insert(0, str(REPOSITORY))
 sys.path.insert(0, str(HERE))
 APP = 'video-descriptor-windows'
 VERSION = json.loads((HERE / 'release-inputs.json').read_text(encoding='utf-8'))['version']
-BUILD = int((REPOSITORY / 'BUILD').read_text(encoding='ascii').strip()) if (REPOSITORY / 'BUILD').is_file() else None
+try:
+    BUILD = int((REPOSITORY / 'BUILD').read_text(encoding='ascii').strip())
+except (OSError, ValueError):
+    BUILD = None
 START_LOCK = threading.Lock()
 LOGGER = logging.getLogger(__name__)
 
@@ -221,7 +224,11 @@ def start_npu(value):
         return {'status': 'loading', 'pid': process.pid}
 
 
-def make_handler(value, instance):
+def make_handler(value, instance, updates=None):
+    if updates is None:
+        from updates import UpdateChecker
+        updates = UpdateChecker(VERSION, BUILD, Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'VideoDescriptor/update-cache.json',
+                                supported=not value.get('development', False))
     from compute import ComputeManager
     from setup_service import (
         SetupService,
@@ -269,6 +276,8 @@ def make_handler(value, instance):
 
         def do_GET(self):
             path = urlsplit(self.path).path
+            if path == '/api/updates':
+                return self.json_response(200, updates.snapshot())
             if path == '/health':
                 development = {}
                 version = VERSION
@@ -310,8 +319,8 @@ def make_handler(value, instance):
                             except (ValueError, KeyError, TypeError):
                                 continue  # Ignore truncated or invalid event records.
                 return self.json_response(200, events)
-            if path in {'/', '/native.js', '/native.css', '/help/ollama', '/help/lmstudio'}:
-                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css', '/help/ollama': 'help.html', '/help/lmstudio': 'help.html'}[path]
+            if path in {'/', '/native.js', '/native.css', '/updates.js', '/help/ollama', '/help/lmstudio'}:
+                name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css', '/updates.js': 'updates.js', '/help/ollama': 'help.html', '/help/lmstudio': 'help.html'}[path]
                 if path == '/help/ollama':
                     from markdown_it import MarkdownIt
                     content = MarkdownIt().enable('table').render((REPOSITORY / 'docs/ollama-windows.md').read_text(encoding='utf-8'))
@@ -336,6 +345,15 @@ def make_handler(value, instance):
             return super().do_GET()
 
         def do_POST(self):
+            # Update requests never take device/job locks or wait for GitHub.
+            if urlsplit(self.path).path == '/api/updates/check':
+                if (self.headers.get('X-App-Instance') != instance
+                        or self.headers.get('Content-Length', '0') != '0'
+                        or self.headers.get('Transfer-Encoding')):
+                    self.close_connection = True
+                    return self.json_response(403, {'error': 'Откройте приложение заново'})
+                updates.request()
+                return self.json_response(202, updates.snapshot())
             if manager is not None:
                 with manager._lock:
                     return self.handle_post()
@@ -410,6 +428,9 @@ def make_handler(value, instance):
                         return self.json_response(202, storage.start(body))
                     if path == '/api/setup/external':
                         pages = {'ollama-guide': f'http://127.0.0.1:{self.server.server_port}/help/ollama', 'lmstudio-guide': f'http://127.0.0.1:{self.server.server_port}/help/lmstudio', 'terms': 'https://huggingface.co/pyannote/speaker-diarization-community-1', 'tokens': 'https://huggingface.co/settings/tokens'}
+                        update = updates.snapshot()
+                        if update['update_available']:
+                            pages['update-release'] = update['latest']['url']
                         if body.get('page') not in pages:
                             raise ValueError('Неизвестная страница')
                         webbrowser.open(pages[body['page']])
@@ -613,16 +634,21 @@ def main():
         if args.start_npu:
             print(json.dumps(start_npu(value)))
         instance = uuid.uuid4().hex
-        with NativeHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance)) as server:
+        from updates import UpdateChecker
+        updates = UpdateChecker(VERSION, BUILD, Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'VideoDescriptor/update-cache.json',
+                                supported=not value.get('development', False))
+        with NativeHTTPServer(('127.0.0.1', value['port']), make_handler(value, instance, updates)) as server:
             state.write_text(json.dumps({'instance': instance, 'pid': os.getpid(), 'workspace': value['workspace']}), encoding='utf-8')
             print('Готово: ' + url, flush=True)
             if not args.no_browser:
                 webbrowser.open(url)
             try:
+                updates.start()
                 server.serve_forever()
             except KeyboardInterrupt:
                 pass
             finally:
+                updates.close()
                 state.unlink(missing_ok=True)
     return 0
 
