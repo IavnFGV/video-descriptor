@@ -1,5 +1,19 @@
 # Сохранение поведения и контрактов
 
+12.11.2026, cohesive desktop redesign (newer owner direction): shared
+`desktop-shell.js` builds command chrome, reparenting the existing sidebar toggle,
+View disclosure, stop/update/connection actions. No cloned editors, media or controls.
+Original IDs and app.js handler assignments remain. Native File/new-record routes
+and shared navigation retain quick-edit/report dirty guards. Settings have a local
+section index, not new routes; optional preparation controls collapse only on initial
+verified readiness, never over focused input. Preparation status and stop remain
+outside that disclosure. Existing View storage/key/version are unchanged; the menu
+now belongs to the top command bar, superseding its previous sidebar placement.
+Copy is user-triggered clipboard only from rendered original utterances (no gap text,
+no model prompt, no API); editing blocks it. Media and transcript scroller sizing
+are presentation-only. Python changes are static allowlist and HTML tags only.
+Embedded reports skip shell initialization and retain their single iframe/Undo.
+
 12.11.2026: owner-requested customizable workspace. `workspace-view.js` applies
 versioned localStorage preferences before rendering; shared native/View disclosure
 uses real checkboxes and radios. The entry is a native disclosure inside the

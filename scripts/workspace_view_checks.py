@@ -21,9 +21,9 @@ def run(c, wait_for, out, root):
 
     assert visible('#shared-player') and visible('#speech-feed')
     assert visible('#recording-diarize')
-    # The View entry belongs to the left navigation rail, not to a separate toolbar.
-    assert evaluate('!!document.querySelector(".vd-global-nav #workspace-view-menu")')
-    assert not evaluate('!!document.querySelector(".topbar #workspace-view-menu")')
+    # One command bar for all screens; sidebar contains navigation only.
+    assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu")')
+    assert not evaluate('!!document.querySelector(".vd-global-nav #workspace-view-menu")')
     for selector in ['#stage-notes', '#recording-translation-panel', '#source-details', '#diagnostics']:
         assert not visible(selector), selector
     video, speech = rect('#shared-player'), rect('#stage-speech')
@@ -31,7 +31,7 @@ def run(c, wait_for, out, root):
     # The panel opens next to the left rail and stays inside the viewport.
     evaluate('document.querySelector("#workspace-view-menu").open=true')
     wait_for(lambda: evaluate('document.querySelector(".workspace-view-content").checkVisibility()'))
-    rail, popup = rect('.vd-global-nav'), rect('.workspace-view-content')
+    rail, popup = rect('.desktop-header'), rect('.workspace-view-content')
     assert popup['x'] >= rail['x'] and popup['y'] >= rail['y'], (rail, popup)
     assert popup['x'] + popup['w'] <= 1920 and popup['y'] + popup['h'] <= 1080
     c.screenshot(out / 'workspace-menu-open.png')
@@ -156,14 +156,14 @@ def run(c, wait_for, out, root):
     url = evaluate('workspaceURL')
     # The library shell has no recording panels, so it carries no View entry.
     evaluate('location.href="/#settings"')
-    wait_for(lambda: evaluate('location.pathname==="/" && !!document.querySelector("#setup-wizard")'))
-    assert not evaluate('!!document.getElementById("workspace-view-menu")')
+    wait_for(lambda: evaluate('location.pathname==="/" && !!document.querySelector(".desktop-menu-bar #desktop-view-menu")'))
+    assert evaluate('!!document.querySelector(".desktop-menu-bar #desktop-view-menu")')
     assert evaluate('JSON.parse(localStorage.getItem("video-descriptor:ui:workspace")).layout') == 'stacked'
     evaluate('location.hash="diagnostics"')
     evaluate(f'location.href={json.dumps(url)}')
     wait_for(lambda: evaluate('location.pathname==="/create" && !!document.querySelector("#speech-feed .utterance")'))
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
-    assert evaluate('!!document.querySelector(".vd-global-nav #workspace-view-menu [value=stacked]").checked')
+    assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu [value=stacked]").checked')
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
     print('PASS: workspace defaults, seven toggles, layouts, reload/reset/invalid storage, four widths, empty state, editor identity/dirty/Undo, no visibility API calls, progress/errors, navigation; real Edge fixture, no inference', flush=True)

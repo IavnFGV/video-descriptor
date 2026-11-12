@@ -459,6 +459,8 @@
     $('diarization-prepare-help').textContent=diarization?.state==='ready'?'Участники готовы. Повторная настройка и доступ Hugging Face не требуются.':diarization?.requires_download===false?'Локальная модель уже установлена. При смене устройства подготовим только необходимое окружение.':'Для первой загрузки модели примите условия и укажите токен в разделе «Участники».';
     $('hf-token').placeholder=data.has_hf_token?'Токен сохранён — повторно вводить не нужно':'Токен чтения Hugging Face для первой загрузки';
     const plan=data.preparation||{},preparing=plan.state==='running';componentBusy=!!data.active||preparing;
+    const preparation=$('desktop-preparation');
+    if(preparation&&!preparation.dataset.initialized){preparation.dataset.initialized='true';if(!preparation.contains(document.activeElement))preparation.open=plan.state!=='ready';}
     if(!$('prepare-selected').loaded){
       if(plan.features)for(const key of ['whisper','diarization','ollama'])$('prepare-'+key).checked=plan.features.includes(key);
       $('prepare-selected').loaded=true;

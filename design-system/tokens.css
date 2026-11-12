@@ -16,4 +16,7 @@
   --vd-backdrop:#122a2466;
   --vd-dialog-width:560px; --vd-editor-width:760px; --vd-reading-width:76ch;
   --vd-motion:150ms; --vd-dialog-shadow:0 16px 48px #122a2426; --vd-layer-sticky:10;
+  /* Desktop chrome: shared across the shell, workspace and report/editor. */
+  --vd-menu-height:44px; --vd-desktop-panel-radius:8px;
+  --vd-desktop-gap:16px; --vd-desktop-reading:16px;
 }

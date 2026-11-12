@@ -161,6 +161,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
 <link rel="stylesheet" href="assets/easymde.min.css">
 <title>Video Descriptor</title>"""
     page += '<link rel="stylesheet" href="assets/editor.css">'
+    page += '<script defer src="assets/desktop-shell.js"></script>'
     try:
         display_title = lecture_info(folder)["display"]
     except (OSError, ValueError, KeyError):

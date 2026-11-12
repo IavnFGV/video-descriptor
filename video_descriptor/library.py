@@ -89,6 +89,7 @@ def library_page(output):
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             '<title>Записи · Video Descriptor</title>'
             '<link rel="stylesheet" href="/studio-assets/create.css">'
+            '<script defer src="/studio-assets/desktop-shell.js"></script>'
             '<a class="vd-skip" href="#records">К записям</a>'
             '<nav class="vd-global-nav" aria-label="Основная навигация">'
             '<a href="/output/" aria-current="page">Записи</a>'

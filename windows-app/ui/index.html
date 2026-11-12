@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f4f6f5">
 <title>Video Descriptor — Записи</title>
+<script defer src="/studio-assets/desktop-shell.js"></script>
 <link rel="stylesheet" href="/native.css">
 </head>
 <body>
@@ -164,6 +165,7 @@
 </section>
 <div id="setup-wizard" hidden>
 <section class="card">
+<details id="desktop-preparation" hidden><summary>Изменить функции и подготовить компоненты</summary></details>
 <h2>Выберите функции — остальное подготовим сами</h2>
 <p>Один раз выберите нужные функции и устройства, разрешите загрузки и нажмите «Сохранить и подготовить». Установка, проверка и переход к следующему компоненту выполняются автоматически. Можно уйти со страницы настроек и вернуться за прогрессом.</p>
 <label class="check-label"><input type="checkbox" id="prepare-whisper" checked> Распознавание речи</label>
@@ -174,7 +176,7 @@
 <p id="diarization-prepare-help" class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для участников также примите условия и укажите токен Hugging Face в разделе «Участники».</p>
 <label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальный перевод и конспекты через Ollama</label>
 <button type="button" id="open-local-settings" class="vd-button vd-button--quiet">Подключение и языковая модель →</button>
-<p class="footnote">Подключение и модель выбираются в разделе «Локальный AI». Существующий сервер используем как есть; отдельная установка выполняется только в управляемом режиме.</p>
+<p class="footnote">Подключение и модель выбираются в разделе «Языковая модель». Ollama используется только как внешний HTTP(S)-сервер; приложение не устанавливает и не запускает его.</p>
 <p id="prepare-sources" class="footnote"></p>
 <label class="check-label"><input type="checkbox" id="prepare-consent"> Разрешаю скачивание моделей и установку окружений для выбранных функций, включая выбранную видеокарту (GPU). Проверенные компоненты будут использованы повторно.</label>
 <div class="setup-actions"><button type="button" id="prepare-selected" class="vd-button vd-button--primary">Сохранить и подготовить</button><button type="button" id="prepare-selected-stop" class="vd-button" hidden>Остановить подготовку</button></div>
@@ -295,7 +297,7 @@
 <p id="component-directory" class="footnote"></p>
 <label class="vd-field">Папка моделей и AI-компонентов<input id="component-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
 <div class="vd-actions"><button id="pick-component-root" type="button" class="vd-button">Выбрать папку…</button><button id="save-component-root" type="button" class="vd-button">Перенести модели и компоненты</button></div>
-<p class="footnote">Переносятся компоненты из указанной текущей папки: модели Whisper и участников, Python-окружения, загрузки и отдельная Ollama приложения. Подключённые модели из других папок остаются на месте. Ваша ранее установленная Ollama и её модели остаются на своём месте.</p>
+<p class="footnote">Переносятся компоненты из указанной текущей папки: модели Whisper и участников, Python-окружения и проверенные загрузки. Подключённые модели из других папок остаются на месте. Внешние серверы Ollama, LM Studio и их модели не переносятся.</p>
 <p id="component-root-feedback" class="footnote" role="status"></p>
 <p id="records-directory" class="footnote"></p>
 <label class="vd-field">Папка записей<input id="records-root" class="vd-input" maxlength="1024" autocomplete="off"></label>

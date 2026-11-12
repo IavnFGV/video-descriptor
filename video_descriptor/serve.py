@@ -99,7 +99,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             return
         if path == "/create" or path.startswith("/studio-assets/"):
             name = "create.html" if path == "/create" else path.removeprefix("/studio-assets/")
-            if name not in ("create.html", "create.js", "create.css", "studio.js", "studio-drafts.js", "report-embed.js", "editor.js", "editor.css", "speech-edit.js", 'construction.js', 'recording.js', 'workspace-view.js'):
+            if name not in ("create.html", "create.js", "create.css", "studio.js", "studio-drafts.js", "report-embed.js", "editor.js", "editor.css", "speech-edit.js", 'construction.js', 'recording.js', 'workspace-view.js', 'desktop-shell.js'):
                 return self.send_error(404)
             body = files("video_descriptor").joinpath("assets", name).read_bytes()
             self.send_response(200)

@@ -1,5 +1,20 @@
 # Windows: фактическая архитектура и решение
 
+## Cohesive desktop presentation (12 November 2026)
+
+`video_descriptor/assets/desktop-shell.js` is shared by the native index, `/create`,
+web library and generated standalone reports; embedded reports deliberately skip it.
+It owns command chrome and DOM composition, not jobs, routing, settings or editors.
+Existing controls are moved, keeping IDs/handlers. File/View/Tools/Help are native
+disclosures; the existing View controller is adopted without another preference
+store. Navigation/sidebar uses the existing localStorage convention. New command
+links respect quick-edit and report dirty guards; settings index buttons only open
+and focus existing sections. Initial ready preparation is compact, while its live
+status/stop stay outside optional controls. User-triggered transcript copy writes
+rendered original utterances to the clipboard, with no backend/API persistence.
+`design-system/desktop.css` is the final shared layer in all three generated bundles.
+See [design evidence and acceptance limits](../design-system/DESKTOP-REDESIGN.md).
+
 ## Уведомления об обновлениях (12.11.2026)
 
 `windows-app/updates.py` проверяет только фиксированный HTTPS GitHub Releases API

@@ -1,5 +1,12 @@
 {
   "baseline_commit": "9ffa842",
+  "desktop_cohesion_review": {
+    "date": "2026-11-12",
+    "base": "8e643c0",
+    "scope": "Owner-requested cohesive desktop redesign on an isolated task branch, without merge/push/release. Shared command chrome, navigation-only sidebar, document header, transcript-centric panels, indexed settings and consistent report/dialog primitives.",
+    "preserved": "All original DOM ids, handler assignments, API contracts, routes, job selection, media/frame identity, View storage, editing/Undo/revision/dirty guards. Python: static asset allowlist and HTML tags only. No baseline refresh.",
+    "validation": "scripts/check-ui-audit.py; scripts/build-ui-css.py --check; scripts/verify-recording-ui.py --desktop-design and --workspace-view-only; material/speaker/gap regressions; scripts/verify-updates-ui.py; tests/test_desktop_design.py; local check-fast. See DESKTOP-REDESIGN.md for captures and limits."
+  },
   "workspace_view_review": {
     "date": "2026-11-12",
     "scope": "Explicit owner request: workspace visibility/layout, no release or processing changes. View entry moved into the existing left navigation rail of the recording workspace; the library shell carries no entry.",

@@ -24,6 +24,8 @@ def main():
         def do_GET(self):
             if self.path == '/api/updates':
                 body, kind = json.dumps(state).encode(), 'application/json'
+            elif self.path == '/studio-assets/desktop-shell.js':
+                body, kind = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_bytes(), 'text/javascript'
             else:
                 name = {'/': 'index.html', '/native.css': 'app.css', '/updates.js': 'updates.js'}.get(self.path)
                 if not name:
@@ -88,7 +90,7 @@ def main():
             c.call('Input.dispatchKeyEvent', type='keyUp', key='Escape', code='Escape', windowsVirtualKeyCode=27)
             wait_for(lambda: c.evaluate('!document.querySelector("#updates-dialog").open'))
             assert c.evaluate('document.activeElement.id==="updates-badge"')
-            c.evaluate('document.querySelector(".app-menu").open=true')
+            c.evaluate('document.querySelector("#desktop-help-menu").open=true')
             c.click('#updates-check')
             wait_for(lambda: len(calls) == 2)
             assert calls[1][0] == '/api/updates/check'

@@ -1,0 +1,178 @@
+[
+  {
+    "screen": "recording",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "recording",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1425,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "stacked",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "materials",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "article",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1425,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "view-menu",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "help-dialog",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "reply-dialog",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "records",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1200,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "records",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "new-record",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1200,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "new-record",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "settings",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "settings",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "diagnostics",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1185,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "diagnostics",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1425,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "web-library",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1200,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "web-library",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "shared-new-record",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1200,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "connections-dialog",
+    "width": 1200,
+    "height": 800,
+    "scrollWidth": 1200,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "narrow-recording",
+    "width": 760,
+    "height": 800,
+    "scrollWidth": 745,
+    "errors": [],
+    "overflow": []
+  },
+  {
+    "screen": "narrow-recording",
+    "width": 375,
+    "height": 800,
+    "scrollWidth": 360,
+    "errors": [],
+    "overflow": []
+  }
+]

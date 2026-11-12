@@ -32,10 +32,10 @@
   // The entry belongs to the left navigation rail; its panel opens beside the rail.
   function place(){
     if(!menu||!menu.open)return;
-    const rect=summary.getBoundingClientRect(),railRect=rail.getBoundingClientRect();
+    const rect=summary.getBoundingClientRect(),railRect=menu.parentElement.getBoundingClientRect();
     const width=content.offsetWidth||320;
     // A narrow vertical rail opens the panel beside it; a wide row opens it below.
-    const vertical=railRect.width<=280&&railRect.height>railRect.width;
+    const vertical=menu.parentElement.classList.contains('vd-global-nav')&&railRect.width<=280&&railRect.height>railRect.width;
     let left=vertical?railRect.right+8:rect.left, top=rect.bottom+4;
     if(left+width>window.innerWidth-8)left=Math.max(8,window.innerWidth-width-8);
     content.style.left=left+'px';
@@ -92,5 +92,6 @@
     menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;summary.focus();event.stopPropagation();}});
     document.addEventListener('click',event=>{if(menu.open&&!menu.contains(event.target))menu.open=false;});
     apply();
+    document.dispatchEvent(new Event('workspace-view-ready'));
   });
 })();

@@ -3,13 +3,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ['design-system/tokens.css', 'design-system/components.css', 'windows-app/ui/layout.css']
+SOURCES = ['design-system/tokens.css', 'design-system/components.css', 'windows-app/ui/layout.css', 'design-system/desktop.css']
 TARGET = ROOT / 'windows-app/ui/app.css'
 SHARED = ['design-system/tokens.css', 'design-system/components.css', 'design-system/surfaces.css']
 BUNDLES = {
     'windows-app/ui/app.css': SOURCES,
-    'video_descriptor/assets/create.css': SHARED + ['design-system/workspace.css'],
-    'video_descriptor/assets/editor.css': SHARED + ['design-system/editor.css'],
+    'video_descriptor/assets/create.css': SHARED + ['design-system/workspace.css', 'design-system/desktop.css'],
+    'video_descriptor/assets/editor.css': SHARED + ['design-system/editor.css', 'design-system/desktop.css'],
 }
 
 

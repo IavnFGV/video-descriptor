@@ -1,5 +1,12 @@
 # Customizable Workspace / View menu
 
+Later on 12 November, the cohesive desktop redesign intentionally supersedes the
+sidebar placement described below: View is adopted by the common top command bar,
+without another preference owner or storage migration. See
+[DESKTOP-REDESIGN](../../design-system/DESKTOP-REDESIGN.md) for current chrome,
+visual evidence and acceptance. The panel/storage preservation contracts below
+continue to apply.
+
 Implemented on `codex/customizable-workspace-view-menu` and
 `codex/workspace-view-in-sidebar`, based on main `917c4ed`.
 No processing, release, installation or model changes.

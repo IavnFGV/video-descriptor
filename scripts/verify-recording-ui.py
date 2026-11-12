@@ -68,12 +68,17 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     class Handler(RangeRequestHandler):
         def do_GET(self):
             path=urlsplit(self.path).path
+            if '--desktop-design' in sys.argv:
+                from desktop_design_checks import native_fixture
+                fixture = native_fixture(path)
+                if fixture is not None:
+                    return self.json_response(200, fixture)
             if path=='/health':return self.json_response(200,{'status':'ok','app':'video-descriptor-windows','instance':'fixture'})
             if path=='/api/construction-models':
                 provider=parse_qs(urlsplit(self.path).query).get('provider',['ollama'])[0]
                 names=['gemini-test'] if provider=='gemini' else ['qwen3.5:9b','model-a','model-b','gpt-oss:20b']
                 return self.json_response(200,[{'id':name,'title':name} for name in names])
-            name={'/':'index.html','/native.js':'app.js','/native.css':'app.css'}.get(path)
+            name={'/':'index.html','/native.js':'app.js','/native.css':'app.css','/updates.js':'updates.js'}.get(path)
             if name:
                 body=(ROOT/'windows-app/ui'/name).read_bytes()
                 self.send_response(200);self.send_header('Content-Type',{'html':'text/html','js':'text/javascript','css':'text/css'}[name.rsplit('.',1)[1]]+'; charset=utf-8');self.end_headers();self.wfile.write(body);return
@@ -135,6 +140,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--desktop-design' in sys.argv:
+            from desktop_design_checks import run
+            run(c, wait_for, ROOT, f'http://127.0.0.1:{server.server_port}', '--before' in sys.argv)
+            raise SystemExit(0)
         if '--workspace-view-only' in sys.argv:
             from workspace_view_checks import run
             run(c, wait_for, out, root)
@@ -242,7 +251,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert gap('#recording-notes','#open-recording-notes')==8
             assert gap('.material-tabs','#material-panel')==16
             c.click('#material-tab-article')
-            assert gap('#recording-article','#open-recording-article')==8
+            wait_for(lambda:evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")==="true" && document.querySelector("#material-article-controls").checkVisibility()'))
+            assert gap('#recording-article','#open-recording-article')==8, evaluate('({selected:document.querySelector("#material-tab-article").getAttribute("aria-selected"),visible:document.querySelector("#material-article-controls").checkVisibility(),field:document.querySelector("#recording-article").getBoundingClientRect().toJSON(),button:document.querySelector("#open-recording-article").getBoundingClientRect().toJSON()})')
             assert evaluate("document.querySelector('#construction-article').getBoundingClientRect().left-document.querySelector('#open-recording-article').getBoundingClientRect().right")==8
             c.screenshot(out/'consistent-control-spacing.png')
             assert evaluate('window.uiErrors')==[]
