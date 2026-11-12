@@ -22,8 +22,11 @@ approval for each task, and do not delegate just to demonstrate delegation.
 
 1. Read applicable repository instructions. For a proposed code change, identify
    base SHA, allowed paths, preserved behavior, acceptance criteria and focused tests.
-2. Call `executor` by agent name, without overriding its configured model or variant.
-   It is pinned to DeepSeek Flash via OpenRouter, with `steps: 1` and all tools denied.
+2. For free delegation, call `executor-free` by agent name, without overriding its
+   configured `opencode/minimax-m3.1-flash-free#low` model. The existing `executor`
+   remains on `openrouter/deepseek/deepseek-v4.1-flash-1017#none` (paid).
+   Both use `steps: 1` and deny all tools. Do not switch from free to paid after a
+   quota/error response without explicit owner authorization; finish directly.
    Keep the primary model unchanged. Never substitute a stronger paid worker silently.
 3. Supply only the necessary source excerpts and contracts, preferably under 6,000
    characters total. Do not send secrets, local configuration, recordings or unrelated
@@ -49,8 +52,9 @@ push, publication, release preparation, service startup or installations.
 
 ## Costs and limits
 
-`steps` is a per-turn model-step limit, NOT a token or money cap. OpenRouter usage
-is paid separately from the primary ChatGPT subscription. Account-side budgets,
+`steps` is a per-turn model-step limit, NOT a token or money cap. The separate
+`executor-free` model has zero listed token prices; availability and provider limits
+can change. Never fall back to a paid provider silently. Account-side budgets,
 credit-use settings and automatic reload are distinct; do not invent a local
 "never use ChatGPT credits" configuration field or assume such a guard is active.
 

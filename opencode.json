@@ -12,10 +12,21 @@
       ],
       "system": "Complete only the small task supplied by the primary agent. You have no tools or filesystem access. Use only supplied context; do not invent missing code or claim tests/commits were performed. Return a minimal proposed patch or concise answer, followed by assumptions and any blocker. If the context is insufficient, say BLOCKED and identify the missing fact. Do not broaden scope. Your proposal is not approval to apply, merge, or publish."
     },
+    "executor-free": {
+      "description": "Free one-step reviewer for a tiny task with supplied context; no tools, no paid fallback",
+      "mode": "subagent",
+      "model": "opencode/minimax-m3.1-flash-free#low",
+      "steps": 1,
+      "permissions": [
+        { "action": "*", "resource": "*", "effect": "deny" }
+      ],
+      "system": "Complete only the small task supplied by the primary agent. You have no tools or filesystem access. Use only supplied context; do not invent missing code or claim tests/commits were performed. Return a minimal proposed patch or concise answer, followed by assumptions and any blocker. If the context is insufficient, say BLOCKED and identify the missing fact. Do not broaden scope. Your proposal is not approval to apply, merge, or publish."
+    },
     "build": {
       "permissions": [
         { "action": "subagent", "resource": "*", "effect": "deny" },
-        { "action": "subagent", "resource": "executor", "effect": "allow" }
+        { "action": "subagent", "resource": "executor", "effect": "allow" },
+        { "action": "subagent", "resource": "executor-free", "effect": "allow" }
       ]
     }
   }

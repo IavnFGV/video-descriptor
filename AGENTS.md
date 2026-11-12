@@ -47,7 +47,9 @@ The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`
 For routine implementation, choose the least expensive capable approach without
 asking the owner to choose a model. Before delegating a tiny, self-contained task,
 load `delegate-small-task` from `.opencode/skills/delegate-small-task/SKILL.md`.
-Use the configured `executor`, not a model override or a primary-model switch.
+Use the configured `executor-free` for free delegation; the working paid `executor`
+is retained separately. Do not fall back from free quota/errors to paid calls
+without owner authorization. Do not use a model override or primary-model switch.
 Do complex/cross-cutting work directly when delegation would add more overhead.
 These instructions do not enforce billing limits; never promise subscription-only
 usage without a verified account-side control.

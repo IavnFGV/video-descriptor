@@ -9,10 +9,12 @@ driver changes or model installations.
 ## Portable workflows
 
 - [Cheap bounded delegation](../../.opencode/skills/delegate-small-task/SKILL.md):
-  OpenCode's named `executor` proposes a tiny patch from supplied excerpts; the
+  OpenCode's named `executor-free` proposes a tiny patch from supplied excerpts;
+  the working paid OpenRouter `executor` is retained separately. Free quota errors
+  never authorize paid fallback. Both are tool-free, one-step profiles. The
   primary agent reviews, applies in a separate worktree and runs checks. No manual
   model switching is needed. This tool-free one-step mode is not a filesystem-writing
-  worker and has no monetary cap. Submit ordinary tasks; the primary agent chooses
+  worker; a step limit is not a monetary cap. Submit ordinary tasks; the primary agent chooses
   whether delegation is worth the overhead.
 
 - [Investigate transcription](../../.agents/skills/investigate-transcription/SKILL.md):
