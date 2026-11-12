@@ -53,9 +53,11 @@ def main():
                                  check=False, capture_output=True, timeout=10)
         report = {'passed': result is not None and result.returncode == 0 and stopped.returncode == 0,
                   'checks': ['real WebView2 initialization', 'existing UI DOM loaded', 'AI setup DOM and JavaScript handlers loaded',
+                             'web interface fills the client area without native toolbar',
                              'active queue rejects shutdown', 'close hides window without disposal',
                              'backend identity after close', 'second launch restores the same window',
-                             'backend loss displays error', 'retry reconnects and restores WebView'],
+                             'backend loss displays error', 'error screen offers native retry',
+                             'retry reconnects and restores WebView'],
                   'isolated_installation': str(root), 'packaged_python': bool(args.zip),
                   'backend_stop_exit': stopped.returncode}
         (here.parent / 'dist').mkdir(exist_ok=True)

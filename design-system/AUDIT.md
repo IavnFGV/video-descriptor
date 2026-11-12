@@ -10,7 +10,7 @@
 
 | Поверхность / вход | Разметка и поведение | Сценарии и переходы |
 |---|---|---|
-| Desktop shell | `windows-app/DesktopHost.cs:55` | WebView2 1200×820, минимум 760×560; native «Главная», retry, трей; закрытие окна не равно остановке backend |
+| Desktop shell | `windows-app/DesktopHost.cs:63` | WebView2 1200×820, минимум 760×560, единая клиентская область без нативной панели; нативный экран ошибки с retry, трей; закрытие окна не равно остановке backend |
 | Главная `/`, `/?job=` | `windows-app/ui/index.html:5`, app.js | setup по completed, новая запись, готовность, список заданий, выбранный результат; `?job=` сохраняет выбор |
 | Настройка AI, inline на `/` | `index.html:7`–`:10`, app.js:15–:45, :152–:177 | диагностика → существующая папка/скачивание → inspect/connect → prepare в боковой панели → probe; Ollama, Gemini, завершение/пропуск |
 | Импорт медиа | `index.html:14`, app.js:121–:133 | drag/drop или системный file picker; название, язык, устройство; raw upload → 202 → job |
@@ -55,7 +55,7 @@ P1 — функциональный/доступностный барьер ил
 | A11 | P1 | windows-app/ui/app.js:85–:90 | без duration/processed progress выставляется 0, нет доступного label у progress в HTML → неопределённый progress, отдельные upload/stage labels; отсутствие результата не значит 0% |
 | A12 | P2 | windows-app/ui/app.js:49–:61 | одно readiness live-region полностью заменяется каждые 15 s; диагностика многословна → объявлять только существенное изменение, статус с коротким recovery |
 | A13 | P2 | windows-app/ui/index.html:20 | SRT в плашке, VTT/TXT обычные ссылки; перевод/конспект конкурируют с экспортом/редактором → одинаковая панель загрузок, generation actions отдельно |
-| A14 | P2 | windows-app/ui/index.html:5; assets/create.html:7 | разные headers и native «Главная»; «Материалы» и «Ваши записи» обозначают близкие сущности → единая терминология «Записи», сохранить native host |
+| A14 | P2 | windows-app/ui/index.html:5; assets/create.html:7 | разные headers и native «Главная»; «Материалы» и «Ваши записи» обозначают близкие сущности → единая терминология «Записи», сохранить native host. 12.11.2026: native «Главная» удалена, окно единое и без дублирования навигации |
 | A15 | P1 | windows-app/ui/app.js:136; assets/studio.js:81–:85 | desktop сохраняет speech_device глобально немедленно, редактор сохраняет engine локально; наличие unsupported engine в списке не доказывает Windows capability → общий UX scope/defaults после отдельного contract-review; явно выбранное устройство не подменять |
 | A16 | P2 | windows-app/ui/app.js:148; assets/create.js:153–:190 | Ollama назначения и Gemini connection редактируются разными формами/endpoint → единое представление подключений, адаптеры к текущим контрактам; никаких backend-изменений в этом этапе |
 | A17 | P2 | video_descriptor/assets/speech-edit.js:11–:40 | динамический dialog без aria-labelledby, свои стили, отсутствует предупреждение при отмене набранной правки → общий dialog shell и dirty решение; сохранить edit/split/revision и поведение ошибок |
