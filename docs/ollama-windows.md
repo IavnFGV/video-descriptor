@@ -72,7 +72,7 @@ Invoke-RestMethod "$endpoint/api/generate" -Method Post -ContentType 'applicatio
 
 ## Настройки Video Descriptor
 
-1. Откройте настройки AI → «Локальный AI (Ollama)».
+1. Откройте настройки AI → вкладка «Локальный AI».
 2. Укажите `http://127.0.0.1:11434` или адрес вашего внешнего сервера.
    Разрешены HTTP/HTTPS без логина, пути, query и fragment.
 3. Нажмите «Проверить и сохранить подключение». Проверьте статус и версию.

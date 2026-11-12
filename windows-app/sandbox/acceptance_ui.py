@@ -218,7 +218,7 @@ def run(args, evidence):
             wait_for(lambda:cdp.visible_text('#bootstrap-message'),lambda text:text and 'Проверяем' not in text)
             cdp.screenshot(args.reports / 'zero-config-first-launch.png')
             cdp.click('#setup-open')
-            if cdp.evaluate('[...document.querySelectorAll(".ai-section")].filter(e=>e.checkVisibility()).length') != 1:
+            if cdp.evaluate('[...document.querySelectorAll("#setup-wizard [role=tabpanel]")].filter(e=>e.checkVisibility()).length') != 1:
                 raise RuntimeError('Settings sections are not limited to the active tab')
             wait_for(lambda:cdp.visible_text('#ai-summary'),lambda text:text and 'Проверяем' not in text)
             if 'Failed to fetch' in cdp.visible_text('body'):

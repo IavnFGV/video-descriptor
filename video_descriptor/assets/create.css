@@ -426,7 +426,8 @@ body.vd-desktop.sidebar-collapsed:has(>.vd-global-nav){padding-left:var(--vd-spa
 .vd-desktop .job strong{font-weight:var(--vd-medium);font-size:var(--vd-body)}
 .vd-desktop #setup-wizard{max-width:1000px}
 .desktop-settings-index{display:flex;flex-wrap:wrap;gap:var(--vd-control-gap);padding:0 0 var(--vd-space-4)}
-.desktop-settings-index button{font:inherit;font-size:var(--vd-label);min-height:var(--vd-compact-height);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);padding:var(--vd-space-1) var(--vd-space-3);color:var(--vd-muted);background:var(--vd-surface);cursor:pointer}
+.desktop-settings-index button{font:inherit;font-size:var(--vd-label);min-height:var(--vd-compact-height);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);padding:var(--vd-space-1) var(--vd-space-3);color:var(--vd-muted);background:var(--vd-surface);cursor:pointer;display:inline-flex;align-items:center;gap:var(--vd-space-2)}
+.desktop-settings-index .vd-status{padding:0 var(--vd-space-1);font-size:var(--vd-caption)}
 .desktop-settings-index button:hover{border-color:var(--vd-accent);color:var(--vd-accent)}
 .desktop-settings-index button:focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
 .desktop-settings-index button[aria-selected="true"]{border-color:var(--vd-accent);color:var(--vd-accent);background:var(--vd-accent-tint);font-weight:var(--vd-medium)}

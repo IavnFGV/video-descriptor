@@ -50,16 +50,19 @@ def test_settings_sections_are_real_tabs():
     shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
     assert "index.setAttribute('role','tablist')" in shell
     assert "button.setAttribute('role','tab')" in shell
-    assert "section.setAttribute('role','tabpanel')" in shell
+    assert "panel.setAttribute('role','tabpanel')" in shell
     assert "tabs[i].setAttribute('aria-selected',String(selected))" in shell
     assert "tabs[i].tabIndex=selected?0:-1" in shell
-    assert "section.hidden=!selected" in shell  # one section at a time
+    assert "panel.hidden=!selected" in shell  # one section at a time
     assert 'window.desktopSettingsShow=' in shell
+    assert "const panels=[card,...wizard.querySelectorAll(':scope>details')]" in shell
+    assert "card.querySelector('h2').textContent='Функции и подготовка'" in shell
     for key in ["'ArrowRight'", "'ArrowLeft'", "'Home'", "'End'"]:
         assert key in shell
     html = (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
-    for section in ['setup-card', 'setup-local-models', 'setup-cloud', 'setup-participants', 'setup-storage', 'setup-extra']:
+    for section in ['setup-preparation', 'setup-card', 'setup-local-models', 'setup-cloud', 'setup-participants', 'setup-storage', 'setup-extra']:
         assert f'id="{section}"' in html, section
+    assert '<summary>Локальный AI</summary>' in html
     app = (ROOT / 'windows-app/ui/app.js').read_text(encoding='utf-8')
     assert 'function revealSettingsField' in app
     assert app.count('revealSettingsField(') >= 6  # every settings focus path reveals its panel

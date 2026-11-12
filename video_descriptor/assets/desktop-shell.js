@@ -99,30 +99,40 @@
     // A local settings index opens existing disclosures without introducing routes/state.
     const wizard=$('setup-wizard');
     if(wizard){
-      const sections=[...wizard.querySelectorAll(':scope>details')];
+      const card=wizard.querySelector(':scope>section'),preparation=$('desktop-preparation');
+      preparation.hidden=false;preparation.open=true;
+      const preserve=new Set([preparation,card.querySelector('h2'),$('ai-summary'),$('preparation-status'),card.querySelector('a[href="#diagnostics"]')]);
+      for(const node of [...card.children])if(!preserve.has(node))preparation.append(node);
+      card.querySelector('h2').textContent='Функции и подготовка';
+      card.append(preparation);card.insertBefore($('prepare-selected-stop'),preparation);
+      card.insertBefore($('ai-summary'),card.querySelector('h2').nextSibling);
+      preparation.open=$('setup-callout').dataset.complete!=='true';
+      // Every settings section is one tab: preparation first, then the existing disclosures.
+      const panels=[card,...wizard.querySelectorAll(':scope>details')];
       const index=document.createElement('nav');index.className='desktop-settings-index';index.id='desktop-settings-index';index.setAttribute('role','tablist');index.setAttribute('aria-label','Разделы настроек');
       const tabs=[];
-      for(const [i,section] of sections.entries()){
-        if(!section.id)section.id='desktop-settings-'+i;
-        const button=document.createElement('button');button.type='button';button.id=section.id+'-tab';
-        button.setAttribute('role','tab');button.setAttribute('aria-controls',section.id);
-        button.textContent=section.querySelector('summary').textContent;button.tabIndex=-1;
-        button.dataset.settingsTab=section.id;
+      for(const [i,panel] of panels.entries()){
+        if(!panel.id)panel.id='desktop-settings-'+i;
+        const label=(panel.querySelector(':scope>summary')||panel.querySelector(':scope>h2'))?.textContent.trim()||'Настройки';
+        const button=document.createElement('button');button.type='button';button.id=panel.id+'-tab';
+        button.setAttribute('role','tab');button.setAttribute('aria-controls',panel.id);
+        button.textContent=label;button.tabIndex=-1;
+        button.dataset.settingsTab=panel.id;
         index.append(button);tabs.push(button);
-        section.setAttribute('role','tabpanel');section.setAttribute('aria-labelledby',button.id);
+        panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);
       }
       wizard.prepend(index);
       // One section at a time: the tab owns the panel, the panel keeps its own ids.
       let active=-1;
       function activate(next,focus=false){
-        if(next<0||next>=sections.length)return;
+        if(next<0||next>=panels.length)return;
         active=next;
-        sections.forEach((section,i)=>{
+        panels.forEach((panel,i)=>{
           const selected=i===active;
           tabs[i].setAttribute('aria-selected',String(selected));
           tabs[i].tabIndex=selected?0:-1;
-          section.hidden=!selected;
-          if(selected)section.open=true;
+          panel.hidden=!selected;
+          if(selected&&panel.tagName==='DETAILS')panel.open=true;
         });
         if(focus)tabs[active].focus();
       }
@@ -140,21 +150,34 @@
         activate(next,true);
       });
       activate(0);
+      // Preparation progress stays visible on its own tab instead of a card above the strip.
+      const status=$('preparation-status'),stop=$('prepare-selected-stop');
+      if(status&&tabs[0]){
+        const badge=document.createElement('span');badge.className='vd-status';badge.hidden=true;
+        tabs[0].append(badge);
+        const update=()=>{
+          const failed=status.dataset.tone==='danger';
+          const running=!!stop&&!stop.hidden;
+          badge.hidden=!(failed||running);
+          badge.textContent=failed?'ошибка':'подготовка';
+          badge.dataset.tone=failed?'danger':'info';
+          tabs[0].title=(failed||running)?status.textContent.trim():'';
+        };
+        const observer=new MutationObserver(update);
+        observer.observe(status,{childList:true,characterData:true,subtree:true,attributes:true});
+        if(stop)observer.observe(stop,{attributes:true,attributeFilter:['hidden']});
+        update();
+      }
       // A field of a hidden panel becomes visible before it takes the focus.
       window.desktopSettingsShow=target=>{
-        const section=target?.closest?.('.ai-section');
-        const i=sections.indexOf(section);
-        if(i<0)return false;
-        activate(i);section.open=true;
+        if(!target)return false;
+        const panel=panels.find(item=>item.contains(target));
+        if(!panel)return false;
+        activate(panels.indexOf(panel));
+        const details=target.closest('details');
+        if(details)details.open=true;
         return true;
       };
-      const card=wizard.querySelector(':scope>section'),preparation=$('desktop-preparation');
-      preparation.hidden=false;preparation.open=true;
-      const preserve=new Set([preparation,card.querySelector('h2'),$('ai-summary'),$('preparation-status'),card.querySelector('a[href="#diagnostics"]')]);
-      for(const node of [...card.children])if(!preserve.has(node))preparation.append(node);
-      card.querySelector('h2').textContent='Распознавание и участники';card.append(preparation);card.insertBefore($('prepare-selected-stop'),preparation);
-      card.insertBefore($('ai-summary'),card.querySelector('h2').nextSibling);
-      preparation.open=$('setup-callout').dataset.complete!=='true';
     }
     const feed=$('speech-feed');
     if(feed){

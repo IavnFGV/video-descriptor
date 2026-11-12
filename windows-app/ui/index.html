@@ -165,7 +165,7 @@
 </section>
 </section>
 <div id="setup-wizard" hidden>
-<section class="card">
+<section class="card" id="setup-preparation">
 <details id="desktop-preparation" hidden><summary>Изменить функции и подготовить компоненты</summary></details>
 <h2>Выберите функции — остальное подготовим сами</h2>
 <p>Один раз выберите нужные функции и устройства, разрешите загрузки и нажмите «Сохранить и подготовить». Установка, проверка и переход к следующему компоненту выполняются автоматически. Можно уйти со страницы настроек и вернуться за прогрессом.</p>
@@ -177,7 +177,7 @@
 <p id="diarization-prepare-help" class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для участников также примите условия и укажите токен Hugging Face в разделе «Участники».</p>
 <label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальный перевод и конспекты через Ollama</label>
 <button type="button" id="open-local-settings" class="vd-button vd-button--quiet">Подключение и языковая модель →</button>
-<p class="footnote">Подключение и модель выбираются в разделе «Языковая модель». Ollama используется только как внешний HTTP(S)-сервер; приложение не устанавливает и не запускает его.</p>
+<p class="footnote">Подключение и модель выбираются в разделе «Локальный AI». Ollama используется только как внешний HTTP(S)-сервер; приложение не устанавливает и не запускает его.</p>
 <p id="prepare-sources" class="footnote"></p>
 <label class="check-label"><input type="checkbox" id="prepare-consent"> Разрешаю скачивание моделей и установку окружений для выбранных функций, включая выбранную видеокарту (GPU). Проверенные компоненты будут использованы повторно.</label>
 <div class="setup-actions"><button type="button" id="prepare-selected" class="vd-button vd-button--primary">Сохранить и подготовить</button><button type="button" id="prepare-selected-stop" class="vd-button" hidden>Остановить подготовку</button></div>
@@ -234,7 +234,7 @@
 </p>
 </details>
 
-<details class="card ai-section" id="setup-local-models"><summary>Языковая модель · локальные серверы</summary>
+<details class="card ai-section" id="setup-local-models"><summary>Локальный AI</summary>
 <form id="ollama-form" class="vd-form">
 <label class="vd-field">Провайдер<select id="local-provider" class="vd-select"><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option></select></label>
 <div class="vd-control-group">

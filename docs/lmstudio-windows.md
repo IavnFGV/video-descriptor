@@ -35,7 +35,7 @@ Invoke-RestMethod "$endpoint/chat/completions" -Method Post -ContentType 'applic
 
 ## Настройки Video Descriptor
 
-1. Откройте настройки AI → «Языковая модель · локальные серверы».
+1. Откройте настройки AI → вкладка «Локальный AI».
 2. Выберите провайдера **LM Studio**.
 3. Укажите `http://127.0.0.1:1234/v1` или адрес вашего локального сервера. Разрешены только
    loopback-адреса `http://` без логина, пути (кроме `/v1`), query и fragment.
