@@ -120,6 +120,7 @@ documentation updates in the task report.
 - [Debugging](debugging.md): model errors, checkpoints, logs and manual edits.
 - [Release procedure](releases.md): version source, BUILD and automatic tag handling.
 - [Agent discovery](agents.md): portable workflows and assistant-specific entry points.
+- [UI/UX Epic](../../design-system/UI-UX-EPIC.md): current backlog, dependencies and acceptance gates.
 - [Documentation audit](documentation-audit.md): historical contradictions and gaps.
 
 Dependency updates require intentional lock/input changes and packaging validation.
