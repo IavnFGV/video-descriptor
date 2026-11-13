@@ -10,15 +10,21 @@ def config():
     return json.loads((Path(__file__).resolve().parents[1] / 'opencode.json').read_text(encoding='utf-8'))
 
 
-def test_sol_architect_and_terra_worker_preserve_bounded_delegation(config):
+def test_luna_coordinator_can_delegate_only_to_configured_agents(config):
     agents = config['agents']
-    assert config['model'] == 'openai/gpt-6.1-sol'
+    assert config['model'] == 'openai/gpt-6-luna'
+    assert config['default_agent'] == 'build'
+    assert agents['build']['model'] == 'openai/gpt-6-luna#low'
     assert agents['executor']['model'] == 'openai/gpt-6.1-terra'
+    assert agents['architecture-advisor']['model'] == 'openai/gpt-6.1-sol'
     assert agents['executor-free']['model'] == 'opencode/minimax-m3.1-flash-free#low'
-    for name in ['executor', 'executor-free']:
+    for name in ['executor', 'executor-free', 'architecture-advisor']:
         assert agents[name]['mode'] == 'subagent'
         assert {'action': 'subagent', 'resource': name, 'effect': 'allow'} in agents['build']['permissions']
     assert agents['build']['permissions'][0] == {'action': 'subagent', 'resource': '*', 'effect': 'deny'}
+    assert {rule['resource'] for rule in agents['build']['permissions'] if rule['action'] == 'subagent' and rule['effect'] == 'allow'} == {
+        'executor', 'executor-free', 'architecture-advisor'
+    }
     assert 'system' not in agents['build']  # Keep the built-in coding prompt.
 
 
@@ -42,11 +48,21 @@ def test_terra_prompt_retains_review_and_host_safety_boundaries(config):
     assert 'task-specific permissions' in prompt
     assert 'without grants, report BLOCKED' in prompt
     assert 'Never bypass or retry a denied action' in prompt
-    assert 'Never change permissions, agent instructions or OpenCode configuration; Sol owns these' in prompt
-    assert 'Sol owns architecture, validation commands, review, integration and commits' in prompt
+    assert 'Never change permissions, agent instructions or OpenCode configuration; Luna owns these' in prompt
+    assert 'Luna owns architecture, validation commands, review, integration and commits' in prompt
     assert 'No shell, network, external directories, further delegation' in prompt
     assert 'not approval to merge, push or release' in prompt
     assert 'You have no tools or filesystem access' not in prompt
+
+
+def test_sol_architecture_advisor_is_context_only_and_toolless(config):
+    advisor = config['agents']['architecture-advisor']
+    assert advisor['permissions'] == [
+        {'action': '*', 'resource': '*', 'effect': 'deny'},
+    ]
+    assert 'Use only the context and excerpts supplied' in advisor['system']
+    assert 'cannot delegate' in advisor['system']
+    assert 'cannot edit, validate, integrate, commit, push, or release' in advisor['system']
 
 
 def test_free_worker_remains_explicitly_free_and_proposal_only(config):

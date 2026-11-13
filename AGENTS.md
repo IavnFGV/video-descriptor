@@ -48,12 +48,14 @@ The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`
 For routine implementation, choose the least expensive capable approach without
 asking the user to choose a model. Before delegating a bounded, self-contained task,
 load `delegate-small-task` from `.opencode/skills/delegate-small-task/SKILL.md`.
-OpenCode reuses `build` as the Sol architect and `executor` as the Terra Standard
-worker for bounded implementation; see [agent workflows](docs/development/agents.md).
-Terra has eight steps and default-deny permissions. Sol grants exact task-specific
-read/edit paths before invocation and removes the grants after the child is idle.
-No shell, network, external-directory access or further delegation for Terra;
-Sol owns architecture, validation commands, review, integration and commits.
+OpenCode uses `build` as the Luna lightweight coordinator, `executor` as the Terra
+Standard worker and `architecture-advisor` as Sol's on-demand context-only expert;
+see [agent workflows](docs/development/agents.md). Terra has eight steps and
+default-deny permissions. Luna grants exact task-specific read/edit paths before
+invocation and removes the grants after the child is idle. No shell, network,
+external-directory access or further delegation for Terra; Luna owns architecture,
+validation commands, review, integration and commits. Sol receives only supplied
+context and cannot inspect or change the repository.
 Keep editing serial, or use separate worktrees for concurrent mutations.
 Use `executor-free` only for explicitly free delegation. Do not fall back from
 free quota/errors to paid calls without explicit permission to use paid calls.
