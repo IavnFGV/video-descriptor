@@ -21,6 +21,8 @@ driver changes or model installations.
   classify failures and protect saved work during recovery.
 - [Review release readiness](../../.agents/skills/review-release-readiness/SKILL.md):
   trace BUILD, accepted artifacts and public gates without publishing.
+- [Prepare release notes](../../.agents/skills/prepare-release-notes/SKILL.md):
+  carry forward applicable changes from unpublished Windows builds.
 
 Backend/editor/test changes already have subsystem instructions and a test map;
 separate skills would mostly repeat them and are deliberately omitted.

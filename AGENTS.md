@@ -85,6 +85,8 @@ in GitHub Releases and versioned `docs/releases/`; prepare the notes of the next
 Windows build in `docs/releases/next-build.md`. Update
 [architecture-windows.md](docs/architecture-windows.md) when architecture/contracts
 change. Do not claim hardware support from mocks or containers.
+When writing or updating Windows release notes, read and follow
+[prepare-release-notes](.agents/skills/prepare-release-notes/SKILL.md).
 
 Only standard packages may be public. Domestic/cached offline packages are private;
 a public artifact gate is mandatory before upload. Never create a tag or dispatch
