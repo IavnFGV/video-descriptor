@@ -6,6 +6,17 @@ pytest-xdist, а port-sensitive desktop и container tests — отдельно�
 также последовательны. Дочерние процессы не наследуют `PYTEST_ADDOPTS`.
 Команды и ограничения описаны в [testing guide](testing.md).
 
+13.11.2026: OpenCode использует `build` как лёгкого координатора Luna (`gpt-6-luna#low`),
+`executor` как восьмишагового Terra worker и `architecture-advisor` как контекстного
+Sol expert без инструментов. Luna может вызывать только эти роли и сохранённый
+`executor-free`; Terra сохраняет committed default-deny с временными точными grants.
+Effective agent API подтвердила роли и модели. Два no-tool smoke child завершились
+успешно: Terra — `gpt-6.1-terra`, Sol — `gpt-6.1-sol`; родительский существующий
+session использовал Luna default variant, не перенастраивался. Это проверяет model
+routing, но не исполнение tool permissions. Проверки: `tests/test_agent_config.py` —
+7 passed; config-only — 29 passed; полный Fast — 853 passed, 4 skipped.
+Операционные детали — в [agent workflows](agents.md#luna-coordinator-and-terra-standard-worker-with-sol-advisor).
+
 13.11.2026: [WORKSPACE-TABS](../../design-system/WORKSPACE-TABS.md) фиксирует
 совместимость будущих workspace tabs: URL/preferences precedence, default/reset,
 историю, сохранение v1-комбинаций и просмотр оригинала с переводом. Node harness

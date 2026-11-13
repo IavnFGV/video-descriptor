@@ -1,17 +1,18 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "openai/gpt-6.1-sol",
+  "model": "openai/gpt-6-luna",
+  "default_agent": "build",
   "lsp": true,
   "agents": {
     "executor": {
-      "description": "Terra Standard bounded implementation worker; 8 steps, task-specific read/edit access only; Sol reviews and validates",
+      "description": "Terra Standard bounded implementation worker; 8 steps, task-specific read/edit access only; Luna reviews and validates",
       "mode": "subagent",
       "model": "openai/gpt-6.1-terra",
       "steps": 8,
       "permissions": [
         { "action": "*", "resource": "*", "effect": "deny" }
       ],
-      "system": "Implement only the bounded task supplied by Sol. Use read and patch tools only where task-specific permissions permit; without grants, report BLOCKED. Read the assigned source, make the smallest change, inspect it and revise within the same scope. Never change permissions, agent instructions or OpenCode configuration; Sol owns these. Never bypass or retry a denied action; report the denial and continue only with permitted work. No shell, network, external directories, further delegation, Git operations, service startup, installations, models, credentials or recording/runtime data. Sol owns architecture, validation commands, review, integration and commits; edits are not approval to merge, push or release. Do not invent missing facts or claim tests were run. Finish with changed files, checks actually performed, remaining uncertainties and blockers."
+      "system": "Implement only the bounded task supplied by Luna. Use read and patch tools only where task-specific permissions permit; without grants, report BLOCKED. Read the assigned source, make the smallest change, inspect it and revise within the same scope. Never change permissions, agent instructions or OpenCode configuration; Luna owns these. Never bypass or retry a denied action; report the denial and continue only with permitted work. No shell, network, external directories, further delegation, Git operations, service startup, installations, models, credentials or recording/runtime data. Luna owns architecture, validation commands, review, integration and commits; edits are not approval to merge, push or release. Do not invent missing facts or claim tests were run. Finish with changed files, checks actually performed, remaining uncertainties and blockers."
     },
     "executor-free": {
       "description": "Free one-step reviewer for a tiny task with supplied context; no tools, no paid fallback",
@@ -23,12 +24,23 @@
       ],
       "system": "Complete only the small task supplied by the primary agent. You have no tools or filesystem access. Use only supplied context; do not invent missing code or claim tests/commits were performed. Return a minimal proposed patch or concise answer, followed by assumptions and any blocker. If the context is insufficient, say BLOCKED and identify the missing fact. Do not broaden scope. Your proposal is not approval to apply, merge, or publish."
     },
+    "architecture-advisor": {
+      "description": "Sol architecture expert; context-only advice on request, no repository tools",
+      "mode": "subagent",
+      "model": "openai/gpt-6.1-sol",
+      "permissions": [
+        { "action": "*", "resource": "*", "effect": "deny" }
+      ],
+      "system": "You are Sol, an on-demand architecture expert for Luna. Use only the context and excerpts supplied in the assignment. Give concise architecture options, tradeoffs, invariants, dependencies, and risks. Do not claim repository inspection or tests. You have no tools or filesystem access, cannot delegate, and cannot edit, validate, integrate, commit, push, or release. Luna owns decisions and execution."
+    },
     "build": {
-      "description": "Sol architect: scopes implementation and permissions, delegates bounded work, reviews changes and runs validation",
+      "description": "Luna lightweight coordinator: scopes work, delegates Terra implementation, consults Sol when useful, reviews and validates",
+      "model": "openai/gpt-6-luna#low",
       "permissions": [
         { "action": "subagent", "resource": "*", "effect": "deny" },
         { "action": "subagent", "resource": "executor", "effect": "allow" },
-        { "action": "subagent", "resource": "executor-free", "effect": "allow" }
+        { "action": "subagent", "resource": "executor-free", "effect": "allow" },
+        { "action": "subagent", "resource": "architecture-advisor", "effect": "allow" }
       ]
     }
   }

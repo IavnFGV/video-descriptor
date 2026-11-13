@@ -14,12 +14,12 @@ driver changes or model installations.
   even when the client has not discovered the new skill automatically.
 
 - [Cheap bounded delegation](../../.opencode/skills/delegate-small-task/SKILL.md):
-  OpenCode reuses `build` as the Sol architect and `executor` as the Terra Standard
-  worker. Sol scopes a task and exact read/edit permissions; Terra implements on
-  the dedicated task branch with eight steps. Sol reviews and runs validation;
-  concurrent mutations use separate worktrees. No shell or broad filesystem access
-  is granted to Terra. Use `executor-free` for explicitly free work; free quota
-  errors never authorize paid fallback. See the workflow below for model selection.
+  OpenCode uses `build` as the Luna coordinator, `executor` as the Terra Standard
+  worker and `architecture-advisor` for on-demand, context-only Sol advice. Luna
+  scopes exact read/edit permissions; Terra implements on the dedicated task branch
+  with eight steps. Luna reviews and validates; concurrent mutations use separate
+  worktrees. Terra receives no shell or broad filesystem access. Use `executor-free`
+  only for explicitly free work; free quota errors never authorize paid fallback.
 
 - [Investigate transcription](../../.agents/skills/investigate-transcription/SKILL.md):
   classify failures and protect saved work during recovery.
@@ -31,31 +31,36 @@ driver changes or model installations.
 Backend/editor/test changes already have subsystem instructions and a test map;
 separate skills would mostly repeat them and are deliberately omitted.
 
-## Sol architect + Terra Standard worker
+## Luna coordinator and Terra Standard worker with Sol advisor
 
 The existing [opencode.json](../../opencode.json) is the configuration source:
 
 | Role | Agent | Model | Responsibility |
 | --- | --- | --- | --- |
-| Architect | `build` | Project default `openai/gpt-6.1-sol` | Architecture, task/permission scope, review, validation and commits |
+| Coordinator | `build` | `openai/gpt-6-luna#low` | Lightweight exploration, task/permission scope, delegation, review, validation and commits |
 | Worker | `executor` | `openai/gpt-6.1-terra` | Bounded read/edit/inspect/revise implementation; eight steps |
+| Architecture advisor | `architecture-advisor` | `openai/gpt-6.1-sol` | On-demand advice from supplied context only; no tools or repository access |
 | Free alternative | `executor-free` | `opencode/minimax-m3.1-flash-free#low` | Explicitly free, bounded proposals |
 
-Terra Standard means the non-Fast model; no reasoning variant is forced. The
-committed executor policy denies everything, with no standing task grants. Eight
-steps permit a bounded working loop; OpenCode reserves the last step for a
-tools-disabled report. `steps: 1` therefore starts in terminal-report mode and is
-not suitable for implementation. `executor-free` retains its one-step/tool-less
-proposal role. No extra agent, command, plugin or orchestration script is needed.
-The built-in Build prompt stays intact.
+The project default is Luna; `build` selects its `low` variant for coordination.
+Existing sessions retain their selected model; inspect the active session before
+relying on it. Terra Standard means the non-Fast model; no reasoning variant is
+forced. The committed executor
+policy denies everything, with no standing task grants. Eight steps permit a
+bounded working loop; OpenCode reserves the last step for a tools-disabled report.
+`steps: 1` therefore starts in terminal-report mode and is not suitable for
+implementation. `executor-free` retains its one-step/tool-less proposal role. Sol's
+advisor has default-deny permissions and answers only from supplied context. The
+built-in Build prompt stays intact.
 
 ### Task-specific permissions
 
-1. Sol inspects the branch/worktrees, creates the dedicated task branch, and defines
+1. Luna inspects the branch/worktrees, creates the dedicated task branch, and defines
    the base SHA, at most two writable files, any exact read-only inputs, invariants,
    acceptance criteria and focused tests. Supply required instruction excerpts;
-   do not grant repository-wide discovery access. UI tasks still read MASTER,
-   CONTRACTS and page overrides.
+   do not grant repository-wide discovery access. Consult Sol when architecture
+   advice helps, supplying only relevant context; Sol cannot inspect the checkout.
+   UI tasks still read MASTER, CONTRACTS and page overrides.
 2. In that Location's `opencode.json`, temporarily replace only
    `agents.executor.permissions` with the deny rule followed by exact path grants.
    For example, a synthetic fixture task can use:
@@ -74,7 +79,7 @@ The built-in Build prompt stays intact.
    no edit grant. Never grant shell, network, glob/grep, external-directory access,
    further delegation, secrets or protected runtime/model/recording data. The child
    cannot change its own scope or configuration: never grant edits to OpenCode
-   configuration or agent/permission instructions; Sol maintains those. This is
+   configuration or agent/permission instructions; Luna maintains those. This is
    tool permission scoping, not an OS sandbox.
 3. Inspect the **effective** loaded executor at the task Location before invocation:
    `GET /api/agent/executor?location[directory]=<URL-encoded absolute task directory>`
@@ -84,21 +89,21 @@ The built-in Build prompt stays intact.
    global/nested config and later rules. Stop if effective permissions are broader
    than intended; task text and worktree separation are not permission enforcement.
 4. Invoke named `executor`, without a model override, with the bounded assignment.
-   Keep writes serial: Sol does not mutate worker-owned files or its grants while
+   Keep writes serial: Luna does not mutate worker-owned files or its grants while
    the child runs. For concurrent mutations, use separate worktrees/Locations and
    explicit file ownership. Only one executor scope may be active per Location.
 5. Terra reads, edits, inspects and revises, then reports actual changes, checks,
-   uncertainties and blockers. Sol independently reviews the full diff and runs
+   uncertainties and blockers. Luna independently reviews the full diff and runs
    focused tests, UI checks where applicable, and final local verification. Terra
    cannot run commands, Git, services or installations; worker output is not proof
    that tests passed.
 6. Allow at most one targeted correction handoff to the same child session, with
    the same scope. New input resets its step allowance and incurs another model
-   call. No automatic retries, model/budget escalation or silent Sol takeover.
-   Report incomplete/blocked work explicitly.
+   call. No automatic retries or model/budget escalation. Luna reports
+   incomplete/blocked work explicitly.
 7. After the child is idle (or stopped following failure/interruption), remove all
    temporary grants and recheck the effective default-deny policy. Do not reuse
-   stale grants or commit them. Sol reviews/validates and commits verified work;
+   stale grants or commit them. Luna reviews/validates and commits verified work;
    push, merge and release remain separate operations under the existing rules.
 
 The configuration regression test requires the committed permission list to be
@@ -109,12 +114,14 @@ tool denials and unchanged bytes independently. A tool absent from the catalog i
 unavailable, not an executed negative probe. Do not use real secrets as probes.
 
 The project model is a default, not a lock: an existing session's selected model
-is independent. Check that the primary session is using Sol; do not switch it
+is independent. Check that the coordinating session is using Luna; do not switch it
 silently. Configuration reloads without restarting OpenCode; `/reload` forces a
-refresh. Inspect loaded models/permissions first, and run one tiny smoke delegation
-only when end-to-end verification is in scope. Configuration checks alone do not
-prove generation or permission enforcement works. Listed pricing is not an account-side spending control;
-no subscription-only or fixed-cost guarantee is implied.
+refresh. Inspect loaded models/permissions first, and run a tiny smoke delegation
+to the configured coordinator, worker and advisor models only when end-to-end
+verification is in scope. Configuration checks alone do not prove generation or
+permission enforcement works. Listed pricing
+is not an account-side spending control; no subscription-only or fixed-cost
+guarantee is implied.
 
 | Client | Repository discovery |
 | --- | --- |
