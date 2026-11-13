@@ -1,5 +1,12 @@
 # История изменений
 
+13.11.2026: [WORKSPACE-TABS](../../design-system/WORKSPACE-TABS.md) фиксирует
+совместимость будущих workspace tabs: URL/preferences precedence, default/reset,
+историю, сохранение v1-комбинаций и просмотр оригинала с переводом. Node harness
+расширен до 256 panel/layout cases и отдельных storage failures. Production UI,
+маршруты и schema не меняются; статусы и evidence — в UI-UX-EPIC, команды — в
+[testing guide](testing.md#workspace-preferences-and-compatibility).
+
 13.11.2026: `executor` (Terra Standard) использует восемь шагов для scoped
 implementation вместо однократного text-only proposal. Последний шаг OpenCode
 зарезервирован для отчёта; конфигурация `steps: 1` не оставляла рабочего шага.

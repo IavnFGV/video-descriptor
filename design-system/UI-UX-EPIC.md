@@ -1,6 +1,6 @@
 # UI/UX Epic: постепенная стандартизация и вкладки рабочего пространства
 
-Срез: 13.11.2026, production до `47d5739`, изолированный прототип Task 6 — ниже.
+Срез: 13.11.2026, production до `47d5739`, прототип Task 6 и контракт Task 7 — ниже.
 Это текущий backlog, не новый массовый
 редизайн и не описание уже внедрённых workspace tabs. [PLAN](PLAN.md) — исторический
 план завершённого переноса 19.10.2026. Обновлять статусы и evidence здесь при закрытии
@@ -30,10 +30,10 @@ checkboxes меню «Вид» вкладками без потери функц
   Не вводить универсальный JS tab-controller до доказанной необходимости.
 - Прогресс, ошибки, остановка и восстановление остаются вне переключаемых областей.
   Выбор вкладки не запускает обработку или генерацию.
-- «Расшифровка / Перевод / Материалы» — направление, не готовая эквивалентность
-  независимых checkbox-комбинаций. URL/preferences precedence, первое открытие,
-  Back/Forward и просмотр перевода вместе с оригиналом ещё требуют решения в Task 7.
-  До него не менять схему хранения и не удалять старые настройки/контролы.
+- «Расшифровка / Перевод / Материалы» не эквивалентны независимым checkbox-комбинациям.
+  [Решения Task 7](WORKSPACE-TABS.md#решения-task-7--13112026) задают precedence,
+  default/reset, историю и original+translation. До доказанной parity сохраняются
+  compatibility view и прежние controls; схема v1 не меняется.
 
 ## Завершено
 
@@ -45,10 +45,12 @@ checkboxes меню «Вид» вкладками без потери функц
 | 4 | Общий `.vd-tabs`, первым подключены настройки — `a5e9f00` | Существующие tokens/tabs | Общие selected/hover/focus/forced-colors, прежние ID/ARIA/handlers; CSS bundle и settings browser checks |
 | 5 | `.vd-tabs` для «Конспект / Статья» — `47d5739` | 4 | Equal widths, 8/16 px, keyboard/dirty/Undo/save, empty article, visibility и responsive scenarios PASS |
 | 6 | API-free [прототип workspace tabs](prototype/workspace-tabs.html) — `52feee5` | 1, 5 | Edge: 60 сочетаний размера/состояния/области, keyboard/focus, empty article, persistent player/textarea, stop/recovery; без API/storage/history |
+| 7 | [Решения совместимости и тестовая матрица](WORKSPACE-TABS.md#тестовая-матрица-task-7) | 1, 2, 6 | URL выше flags без save, default/reset, local tabs без новых history entries/store, compatibility view для v1, original/ru/both; 256 preference cases и storage failures, production gates явно отделены |
 
 Tasks 1–6 и этот backlog включены в main. Интеграция сохраняет исходные commits
 `47d5739` (Task 5), `659a8a0` (backlog), `52feee5` (Task 6) и `77dacb0`
-(scoped Terra executor); это не выпуск Windows-пакета. Task 7 не начат.
+(scoped Terra executor); это не выпуск Windows-пакета. Task 7 выполнен на отдельной
+task branch; его production integration и merge ещё не выполнены.
 
 Сопутствующие изменения: `934e512` ускоряет тестовые fixtures без production-правок;
 `278ecb9` вводит переиспользуемый Sol → Terra workflow, `77dacb0` добавляет восемь
@@ -71,16 +73,38 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 
 | ID | Небольшой результат | Зависимости | Приёмка | Исполнение |
 | --- | --- | --- | --- | --- |
-| 7 | Решения совместимости и тестовая матрица в WORKSPACE-TABS | 1, 2, 6 | Явные URL/preferences precedence, default/reset, Back/Forward, storage failure, v1-комбинации и доступ к переводу с оригиналом; нерешённые вопросы не скрыты | Sol; Terra только для отдельных characterization tests |
 | 8 | Первый production slice: переключение workspace с расшифровкой | 6, 7 | Те же DOM/player/editor, устойчивость к polling, keyboard/focus, deep links и guards; прежние возможности доступны во время перехода | Sol-led integration; без нового state manager |
 | 9a | Подключить существующую область перевода | 8 | Настройки, original/translation modes, версии и экспорты доступны; переключение не запускает перевод; stale/dirty guards сохранены | Sol-led; механические правки можно Terra |
 | 9b | Подключить «Материалы» с прежними subtabs | 8, 9a | Один iframe, independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи | Sol-led; отдельные bounded patches Terra |
 | 10 | Убрать только заменённые checkbox-controls | 9a, 9b и доказанная parity | Для каждого пункта/сочетания из mapping есть доступный эквивалент; layout/reset/video hide сохранены; help/docs/harness refs синхронизированы | Sol: parity review; Terra: отдельные механические slices |
 
-**Следующий increment — Task 7, пока не начат.** Task 6 ограничен изолированным
-прототипом; решения совместимости и production integration не реализованы.
+**Следующий increment — bounded slice Task 8, пока не начат.** Task 7 фиксирует
+контракт, не production tabs. До интеграции разделить wiring/focus, URL/guard gaps
+и multi-panel parity по границам [WORKSPACE-TABS](WORKSPACE-TABS.md).
 Этот backlog не запускает следующую реализацию,
 push, merge или релиз автоматически.
+
+### Evidence Task 7
+
+- Base `6d4c15c`, branch `codex/ui-ux-task7-compatibility`. Sol: архитектурные решения,
+  review и validation; Terra: только `tests/workspace_view.cjs`, read-only input —
+  `video_descriptor/assets/workspace-view.js`. Один implementation handoff и одна
+  targeted correction (реальный `report=` в URL case, точный PASS message).
+- Effective executor проверен в task Location до обоих handoffs: Terra Standard,
+  восемь шагов, exact grants после deny; после завершения grants сняты и effective
+  default-deny восстановлен. Production JS/CSS/HTML, API, schema, BUILD не меняются.
+- Node VM проверяет все 128 масок × 2 layout без записи при чтении, URL neutrality
+  текущего presentation controller, отдельные read/write failures, reset/reload,
+  storage events и embedded=1. Это не проверка будущих URL overrides/Back/Forward.
+- Focused `tests/test_workspace_view.py`: **3 passed**; Node harness и syntax PASS;
+  **81** локальная Markdown target/anchor проверена. In-memory mutation check
+  отклоняет потерю v1 flag, лишнее storage reread, storage access в embedded и
+  зависимость preferences от URL; production-файлы для этого не изменялись.
+- Финальный `check-fast.py`: **852 passed, 4 skipped**, плюс **29** config checks;
+  Ruff, production CSS bundles и статический UI contract audit PASS.
+- Browser gates H2 и сохранение hash не объявлены пройденными: текущие route owners
+  не обеспечивают полную material/job/folder popstate parity. Существующие браузерные
+  fixtures не запускались заново: production DOM/CSS и прототип не меняются.
 
 ### Evidence Task 6
 

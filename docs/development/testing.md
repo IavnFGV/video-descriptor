@@ -37,6 +37,23 @@ Inspect fixtures and platform skips before selecting tests. Cover observable
 failures/data preservation rather than copying implementation strings. Use synthetic
 data and temporary storage; never embed private transcripts or credentials.
 
+## Workspace preferences and compatibility
+
+[WORKSPACE-TABS](../../design-system/WORKSPACE-TABS.md#тестовая-матрица-task-7)
+contains the authoritative compatibility matrix and the distinction between current
+characterization and future production browser gates. Run the offline v1 harness:
+
+```powershell
+node tests/workspace_view.cjs
+.\.venv\Scripts\python.exe -m pytest -q tests/test_workspace_view.py
+```
+
+It covers 256 panel/layout combinations, read-without-write, URL-neutral preference
+loading, invalid/partial values, separate storage read/write failures, reset/reload,
+storage events and embedded mode. It does not execute studio/recording routing,
+workspace tabs, DOM geometry, editor guards or Back/Forward. Task 7 changes the
+contract and characterization only; production integration remains a later task.
+
 ## Workspace tabs prototype
 
 Task 6 is a standalone [layout prototype](../../design-system/prototype/workspace-tabs.html),
