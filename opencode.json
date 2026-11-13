@@ -1,11 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-6.1-sol",
   "lsp": true,
   "agents": {
     "executor": {
-      "description": "Cheap one-step worker for a tiny task with supplied context; returns a proposed patch, never edits files",
+      "description": "Terra Standard one-step worker for a tiny task with supplied context; returns a proposed patch, never edits files",
       "mode": "subagent",
-      "model": "openrouter/deepseek/deepseek-v4.1-flash-1017#none",
+      "model": "openai/gpt-6.1-terra",
       "steps": 1,
       "permissions": [
         { "action": "*", "resource": "*", "effect": "deny" }
@@ -23,6 +24,7 @@
       "system": "Complete only the small task supplied by the primary agent. You have no tools or filesystem access. Use only supplied context; do not invent missing code or claim tests/commits were performed. Return a minimal proposed patch or concise answer, followed by assumptions and any blocker. If the context is insufficient, say BLOCKED and identify the missing fact. Do not broaden scope. Your proposal is not approval to apply, merge, or publish."
     },
     "build": {
+      "description": "Sol architect: scopes tasks, delegates bounded proposals, reviews changes and runs validation",
       "permissions": [
         { "action": "subagent", "resource": "*", "effect": "deny" },
         { "action": "subagent", "resource": "executor", "effect": "allow" },

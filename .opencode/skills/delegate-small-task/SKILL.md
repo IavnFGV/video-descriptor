@@ -22,9 +22,10 @@ approval for each task, and do not delegate just to demonstrate delegation.
 
 1. Read applicable repository instructions. For a proposed code change, identify
    base SHA, allowed paths, preserved behavior, acceptance criteria and focused tests.
-2. For free delegation, call `executor-free` by agent name, without overriding its
-   configured `opencode/minimax-m3.1-flash-free#low` model. The existing `executor`
-   remains on `openrouter/deepseek/deepseek-v4.1-flash-1017#none` (paid).
+2. In the Sol architect + Terra Standard workflow, call `executor` by agent name:
+   it uses `openai/gpt-6.1-terra` (non-Fast, no forced reasoning variant).
+   For explicitly free delegation, call `executor-free`, which retains
+   `opencode/minimax-m3.1-flash-free#low`. Do not supply a model override.
    Both use `steps: 1` and deny all tools. Do not switch from free to paid after a
    quota/error response without explicit owner authorization; finish directly.
    Keep the primary model unchanged. Never substitute a stronger paid worker silently.
@@ -58,6 +59,8 @@ can change. Never fall back to a paid provider silently. Account-side budgets,
 credit-use settings and automatic reload are distinct; do not invent a local
 "never use ChatGPT credits" configuration field or assume such a guard is active.
 
-Do not make paid test calls just to validate configuration. Inspect the loaded
-agent's model, steps and permissions without generation. Until an actual invocation
-is observed, report configuration validation separately from end-to-end validation.
+Inspect the loaded agent's model, steps and permissions without generation first.
+Run a generation smoke test only when end-to-end delegation verification is
+explicitly in scope; use one tiny supplied-context task, without retries or fallback.
+Until an actual invocation is observed, report configuration validation separately
+from end-to-end validation.

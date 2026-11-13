@@ -48,9 +48,11 @@ The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`
 For routine implementation, choose the least expensive capable approach without
 asking the user to choose a model. Before delegating a tiny, self-contained task,
 load `delegate-small-task` from `.opencode/skills/delegate-small-task/SKILL.md`.
-Use the configured `executor-free` for free delegation; the working paid `executor`
-is retained separately. Do not fall back from free quota/errors to paid calls
-without explicit permission to use paid calls. Do not use a model override or primary-model switch.
+OpenCode reuses `build` as the Sol architect and `executor` as the Terra Standard
+worker for bounded proposals; see [agent workflows](docs/development/agents.md).
+Use `executor-free` only for explicitly free delegation. Do not fall back from
+free quota/errors to paid calls without explicit permission to use paid calls.
+Use named agents without per-call model overrides or primary-model switches.
 Do complex/cross-cutting work directly when delegation would add more overhead.
 These instructions do not enforce billing limits; never promise subscription-only
 usage without a verified account-side control.
