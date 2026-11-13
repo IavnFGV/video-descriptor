@@ -9,7 +9,8 @@ Windows-приложение для работы с видео и аудио: р
 
 ## Текущее состояние
 
-В исходниках подготовлена **версия 0.9.2**. Сборка и публикация выпуска выполняются
+Версия Windows-пакета задаётся в [release-inputs.json](windows-app/release-inputs.json)
+(сейчас **0.9.4**), номер сборки — в [BUILD](BUILD). Сборка и публикация выполняются
 отдельно; доступные установщики и ZIP находятся в разделе «Релизы».
 Основной вариант запуска — нативное приложение Windows x64.
 
@@ -53,9 +54,12 @@ Windows-приложение для работы с видео и аудио: р
 | Раздел | Где читать |
 | --- | --- |
 | Запуск Windows и работа из исходников | [Руководство разработки](docs/development/README.md) |
+| Docker Compose / Linux CPU | [Установка и управление контейнером](docs/container-install.md) |
 | Установка моделей и компонентов | [Настройка AI](docs/ai-setup-windows.md) |
+| Подключения и конфигурация | [Ollama](docs/ollama-windows.md), [LM Studio](docs/lmstudio-windows.md), [перевод/Gemini](docs/translation-providers.md), [параметры Windows](windows-app/README.md#конфигурация-и-данные) |
 | Устройства и проверка совместимости | [Политика устройств](docs/device-policy-and-release.md), [результаты проверок](docs/verification-devices.md) |
 | Архитектура и данные | [Карта проекта](docs/architecture/README.md), [архитектура Windows](docs/architecture-windows.md) |
 | Тесты и выпуск Windows-пакетов | [Локальные проверки](docs/development/testing.md), [процедура релиза](docs/development/releases.md) |
+| CI и устранение ошибок | [CI/CD](docs/ci-policy.md), [диагностика и восстановление](docs/development/debugging.md) |
 | Зависимости и сторонние лицензии | [THIRD-PARTY](windows-app/THIRD-PARTY.md) |
 | История разработки | [История изменений](docs/development/history.md) |

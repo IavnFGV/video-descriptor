@@ -1,5 +1,10 @@
 # Диаризация на Intel Arc из devcontainer / WSL2
 
+Это инструкция отдельного Linux/WSL-эксперимента и его состояние на 10.10.2026,
+не настройка нативного Windows-приложения. Текущий Windows-путь:
+[диаризация без Docker](native-diarization.md). Результаты последующих проверок:
+[качество XPU и ограничения](diarization-quality.md).
+
 Проверено на хосте 2026-10-10: /dev/dxg присутствует и в Ubuntu, и в docker-desktop.
 В старом контейнере устройства нет. Это подтверждает возможность проброса, но ещё
 не подтверждает совместимость операций pyannote с XPU и ускорение.
@@ -39,7 +44,7 @@ mkdir -p output/frigg-preparation/xpu
 Рабочий обработчик приложения пока продолжает использовать CPU: эксперимент
 не меняет существующие результаты и задания. Для возвращения прежнего контейнера
 выбрать CPU-профиль при открытии в контейнере. Сервер после пересоздания запустить:
-`python -m video_descriptor.serve --port 8000`.
+`python -m video_descriptor.serve --bind 127.0.0.1 --port 8000`.
 
 Источники:
 - https://www.intel.com/content/www/us/en/developer/articles/tool/pytorch-prerequisites-for-intel-gpu/2-14.html

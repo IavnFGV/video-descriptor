@@ -20,8 +20,7 @@ managed-environment removal with confirmation. Optional components do not block 
 - community-1: revision 3533c8cf8e369892e6b79ff1bf80f7b0286a54ee; model weights use
   upstream LFS SHA256 and config uses the pinned Git blob digest. No mutable main download.
 
-Sources: [Ollama Windows](https://github.com/ollama/ollama/blob/main/docs/windows.mdx),
-[Ollama release](https://github.com/ollama/ollama/releases/tag/v0.40.6),
+Sources: [Ollama Windows](https://docs.ollama.com/windows),
 [standalone CPython](https://github.com/astral-sh/python-build-standalone/releases/tag/20261013),
 [community-1](https://huggingface.co/pyannote/speaker-diarization-community-1).
 
@@ -83,8 +82,8 @@ The small real-generation probe does not measure translation quality.
 
 ## Verification
 
-Offline contracts are in `tests/test_component_manager.py`; `python scripts/check-fast.py`
-continues to run without AI installs/downloads. `windows-app/verify_components.py` is an
+Offline contracts are in `tests/test_component_manager.py`; [Fast checks](development/testing.md)
+continue to run without AI installs/downloads. `windows-app/verify_components.py` is an
 explicit installed-Windows network acceptance runner, separate from normal push CI.
 It strips system Python/PATH and inherited model caches, uses only built-in sample media,
 and records versions, device, hashes, operation duration and real failures without tokens.
@@ -103,12 +102,12 @@ model names/digests were unchanged. Tests used an isolated fixture and an alread
 public model, without downloading model weights or changing the user's Ollama.
 
 Fresh managed CPython 3.12.15, pyannote 4.0.7 and pinned PyTorch CPU/XPU environments both
-performed real inference on the Windows host; XPU used Intel Arc 140V. Existing approved
+performed real inference on the Windows host; XPU used Intel Arc 140V. Existing local
 community-1 weights matched the pinned checksums and were reused. Final installed component
 UI acceptance passed on CPU and XPU, including real translation, notes and diarization.
 A clean Sandbox also passed fresh managed CPython/pyannote CPU installation, real diarization,
 existing Ollama reuse and historical runtime lifecycle checks. Those historical checks
-do not describe the current external-only implementation. The guest used authorized SAC Off;
+do not describe the current external-only implementation. The guest used SAC Off;
 this is functional proof rather than standard-policy signing proof.
 The initial notes-context error is fixed; actual model-context validation remains enabled.
 Clean-guest checks additionally exposed missing VC++ libraries and PyTorch long-path limits;

@@ -15,8 +15,9 @@
 2. Скачайте исходники репозитория как ZIP (Code → Download ZIP) или клонируйте его.
    Распакуйте в постоянную доступную для записи папку. Для первого запуска из исходников
    требуется интернет для сборки образа. Python и Git устанавливать не нужно.
-   После первого настоящего релиза используйте `VideoDescriptor-vX.Y.Z-compose.zip` из Releases:
-   такой комплект скачивает готовый версионированный образ GHCR вместо сборки.
+   Если выбранный Release содержит `VideoDescriptor-vX.Y.Z-compose.zip`, можно
+   использовать его: такой комплект скачивает версионированный образ GHCR вместо
+   сборки. Native Windows-релиз сам по себе не публикует Compose ZIP или образ.
 3. Откройте PowerShell в распакованной папке:
 
    ```powershell
@@ -48,8 +49,9 @@
 .\scripts\VideoDescriptor.ps1 -Action Uninstall
 ```
 
-Образ GHCR появится только после настоящего релиза. Пример `vX.Y.Z` — placeholder,
-не существующий опубликованный тег. Не заменяйте рабочую версию непроверенным `latest`.
+Пример `vX.Y.Z` — placeholder, а не проверенный опубликованный тег.
+Наличие образа GHCR и Compose ZIP проверяйте для конкретного контейнерного выпуска.
+Не заменяйте рабочую версию непроверенным `latest`.
 При обновлении готовым ZIP распакуйте его поверх прежней папки и запустите Install:
 VERSION выберет новый образ, `.env` и данные сохранятся. Не запускайте его из новой
 случайной папки: относительный путь данных укажет на другое рабочее пространство.
@@ -143,16 +145,19 @@ Supervisor контролирует жизнь worker; Docker healthcheck сам
 
 ## CI и настоящий релиз
 
-`container-ci.yml`: push/PR, Linux Python dependencies, pytest, Ruff, pip check,
+`ci.yml`: PR/main push, configuration/policy и условные Fast/container smoke jobs
+по изменённым путям. `container-smoke.yml` вызывается как reusable workflow:
 Compose config, Docker build и реальные lifecycle smoke без моделей/Ollama/GPU.
 Smoke проверяет HTTP/UI, обработку невалидного файла через очередь, восстановление
 прерванного задания, idle worker, сохранность данных/настроек/кэша после stop/recreate
 и автоматический рестарт после аварии worker. Это не проверка качества ASR.
 
-`container-release.yml`: настоящий `vX.Y.Z` → те же проверки → GHCR version/SHA tags →
-smoke опубликованного образа → ZIP Compose/PowerShell/VERSION и SHA256 → GitHub Release.
-Ручной workflow_dispatch без тега выполняет только verify, ничего не публикует.
-Существующий `windows-release.yml` сохранён для native ZIP/installer lifecycle.
+`container-release.yml` запускается **только вручную**. Он вызывает Full Acceptance;
+publish выполняется лишь на semantic tag `vX.Y.Z`: принятый образ → GHCR version/SHA
+tags → smoke образа → Compose ZIP и SHA256 → GitHub Release с принятыми Windows
+артефактами. Запуск на ветке выполняет verify без публикации. Build-qualified native
+tags `vX.Y.Z-build.N` этим publisher не поддерживаются; автоматический Windows
+выпуск описан в [процедуре релиза](development/releases.md).
 Приватный GHCR-пакет проверяется runner с авторизацией до logout; повтор прерванного
 выпуска может использовать уже опубликованный образ того же commit, но откажется
 перезаписать версию другого commit.
@@ -162,7 +167,8 @@ smoke опубликованного образа → ZIP Compose/PowerShell/VER
 При ранее созданном package привязать репозиторий и разрешить Actions доступ.
 См. [GHCR permissions](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 и [официальный workflow публикации](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
-Не создавайте первый релизный тег до успешного CI и реального smoke контейнера.
+Не создавайте тег и не запускайте publisher ради проверки документации.
+Подробная матрица триггеров: [CI policy](ci-policy.md).
 
 Фактические проверки этого изменения фиксируются в `docs/container-verification.md`;
 наличие workflow не считается его успешным выполнением на GitHub.

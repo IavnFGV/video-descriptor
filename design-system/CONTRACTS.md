@@ -1,20 +1,25 @@
 # Сохранение поведения и контрактов
 
+Текущие правила навигации: [MASTER](MASTER.md) и [workspace override](pages/workspace.md).
+Датированные записи сохраняют историю реализации; прежние sidebar, обязательный
+setup wizard и CachedComponents не являются текущими инструкциями.
+
 13.11.2026: меню «Вид» скрыто вне открытой записи и не участвует в Tab-порядке;
 скрытие не меняет сохранённые preferences и не затрагивает состояние редактора.
 Верхняя строка имеет постоянную высоту при открытии любого меню; панели
 раскрываются поверх содержимого, не сдвигая команды.
 
-12.11.2026, owner-requested top-only navigation: existing native navigation links
+12.11.2026, top-only navigation: existing native navigation links
 move to File/Tools with their handlers and IDs. Legacy rail/toggle and incomplete
 recording-only connections entry are hidden, not deleted. Tools always opens the
 shared settings form containing Ollama/LM Studio and Gemini. workspace-view.js is
 loaded on every full surface with the same storage schema/controller; embedded
 reports skip it. No API, model discovery, generation or editor contract changes.
 
-12.11.2026, cohesive desktop redesign (newer owner direction): shared
-`desktop-shell.js` builds command chrome, reparenting the existing sidebar toggle,
-View disclosure, stop/update/connection actions. No cloned editors, media or controls.
+12.11.2026, cohesive desktop redesign: shared
+`desktop-shell.js` builds command chrome, reparenting existing navigation links,
+View disclosure, stop/update/connection actions. The legacy rail/toggle is hidden,
+not restored as visible navigation. No cloned editors, media or controls.
 Original IDs and app.js handler assignments remain. Native File/new-record routes
 and shared navigation retain quick-edit/report dirty guards. Settings have a local
 section index, not new routes; optional preparation controls collapse only on initial
@@ -26,12 +31,12 @@ no model prompt, no API); editing blocks it. Media and transcript scroller sizin
 are presentation-only. Python changes are static allowlist and HTML tags only.
 Embedded reports skip shell initialization and retain their single iframe/Undo.
 
-12.11.2026: owner-requested customizable workspace. `workspace-view.js` applies
+12.11.2026: customizable workspace. `workspace-view.js` applies
 versioned localStorage preferences before rendering; shared native/View disclosure
-uses real checkboxes and radios. The entry is a native disclosure inside the
-existing left navigation rail of the recording workspace, not a separate toolbar
-or navigation layer; its panel opens beside the rail (or below it when the rail
-becomes a row) and stays inside the viewport. Radio inputs keep their native
+uses real checkboxes and radios. The entry is a native disclosure in the common
+top command bar, visible only for an open recording. Its panel opens over the
+content without shifting the bar and stays inside the viewport. The initial
+left-rail placement was superseded. Radio inputs keep their native
 size. CSS visibility never changes API/job/editor state.
 Original DOM ids and handlers retained; recording selection/actions/status/errors
 are outside hidden regions. One video and one report iframe are retained, including
@@ -42,7 +47,7 @@ position UI now uses the same workspace layout preference, not a second owner.
 The library/settings shell has no recording panels and therefore carries no View
 entry.
 
-12.11.2026: owner-requested notification-only Windows release checks. Additive
+12.11.2026: notification-only Windows release checks. Additive
 `updates-*` controls/dialog on the native main page, `/updates.js` asset and
 `GET /api/updates`, instance-protected `POST /api/updates/check`. Existing DOM ids,
 handlers, API literals, jobs, dirty/revision guards and host restrictions remain.
@@ -65,7 +70,7 @@ download/install/restart controls or settings system.
 
 09.11.2026: исправление меток пакетное: «Исправить все метки» выбирает ближайшие подтверждённые начала реплик; индивидуальные замены оставляют список и отметку ожидания проверки. Проверка всего текста выполняется явно, затем сохранение; ручные правки не теряются.
 
-09.11.2026: штатный локальный preview после merge main: post-merge запускает installer в фоне, затем Run-Dev.ps1 -Restart -Open открывает код main в браузере. Конфигурация/статус и два перезаписываемых лога — .git/local-dev; порт отдельный, records_directory общий с установленным приложением. Guard проверяет development/instance/installation/workspace; активная очередь не прерывается. Модели и системные компоненты не устанавливаются. UI показывает версию и коммит.
+09.11.2026: post-merge ставит сборку installer в фоновую очередь, но не запускает установку приложения; отдельно может перезапустить source preview. Конфигурация/статус и два перезаписываемых лога — в Git common directory, local-dev; порт отдельный, records_directory может быть общим с установленным приложением. Guard проверяет development/instance/installation/workspace; модели и системные компоненты не устанавливаются. Текущие ограничения builder и preview: [local-build.md](../docs/local-build.md).
 
 09.11.2026: Windows 0.8.33 — восстановление конспекта показывает все ошибки меток с разделом/строкой, точным переходом и подтверждёнными кандидатами с текстом речи. POST construction-recovery action=validate проверяет черновик без записи/запуска worker; revision guards сохранены. Замены выбирает пользователь; исходный ответ модели не меняется.
 
@@ -73,7 +78,7 @@ download/install/restart controls or settings system.
 
 09.11.2026: Windows 0.8.31 — создание статьи открывает настройки статьи с отдельным редактируемым промптом и явной кнопкой запуска. Конспект сохраняет собственный промпт; article_prompt хранится отдельно, backend применяет его только для статьи. Выбранная расшифровка, версии и dirty guards сохранены.
 
-08.11.2026: согласован независимый выбор версий расшифровки, конспекта и статьи. Служебные снимки сохраняются в хранилище, но скрыты в выборе расшифровки; выбор материала не переключает речь. Новые материалы используют выбранную речь, старые не изменяются. Общий редактор показывает выбранный конспект или статью; dirty guards и синхронизация по времени сохранены. Удаление адресует выбранный материал.
+08.11.2026: добавлен независимый выбор версий расшифровки, конспекта и статьи. Служебные снимки сохраняются в хранилище, но скрыты в выборе расшифровки; выбор материала не переключает речь. Новые материалы используют выбранную речь, старые не изменяются. Общий редактор показывает выбранный конспект или статью; dirty guards и синхронизация по времени сохранены. Удаление адресует выбранный материал.
 
 
 08.11.2026: ручное восстановление конспекта — POST /api/construction-recovery {folder} → {text,revision,anchors}; {folder,text,revision} проверяет метки и ставит существующее ошибочное задание в очередь. Диалог сохраняет текст при ошибке, подтверждает закрытие грязного черновика; beforeunload guard. Raw model response, speech ids и обычные редакторские revisions сохранены.
@@ -99,7 +104,7 @@ createSpeakerName/createSpeakerSelect. Live snapshot добавляет speech_e
 использует mayLeaveQuickReply; Ctrl+Enter сохраняет, Escape отменяет, конфликты оставляют
 введённый текст. Голос, времена и перевод сохраняют прежний API-контракт.
 
-21.10.2026: согласованная единая страница записи в отдельной ветке.
+21.10.2026: добавлена единая страница записи в отдельной ветке.
 Native выбор job ведёт непосредственно на /create?job=; старые URL сохраняются.
 GET /api/recording?folder|job возвращает только варианты той же исходной записи,
 их статусы, названия моделей, точную папку снимка речи и активное задание; без ключей.
@@ -122,7 +127,7 @@ JS API literals и назначения обработчиков каждого 
 текущего Markdown через существующий DOMPurify; серверных форматов не меняет.
 
 
-Обновление 19.10.2026: согласованная главная внедрена. Номера строк ниже относятся к исходному baseline. `migrations/main.json` явно разрешает три UI-пути; guard проверяет сохранение ids/handlers/API literals и неизменность backend/host/assets редактора. Baseline SHA не обновлялись. Runtime-проверки: IMPLEMENTATION.md.
+Обновление 19.10.2026: новая главная внедрена. Номера строк ниже относятся к исходному baseline. `migrations/main.json` явно разрешает три UI-пути; guard проверяет сохранение ids/handlers/API literals и неизменность backend/host/assets редактора. Baseline SHA не обновлялись. Runtime-проверки: IMPLEMENTATION.md.
 
 Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников, все статические DOM ids и прямые `$('<id>')` ссылки desktop app.js, все строковые API endpoints в JS. Динамические пути и generated controls дополнены ниже. `python scripts/check-ui-audit.py` сверяет baseline с рабочим деревом. На первом этапе рабочие HTML/CSS/JS, Python API и host неизменны (нормализация только CRLF → LF). Это доказательство отсутствия регрессии от текущих изменений, **не** E2E-проверка существующего продукта.
 
@@ -200,7 +205,7 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 20.10.2026: AI Component Manager adds GET/POST /api/components with existing X-App-Instance and Origin guards. POST component=whisper|ollama|diarization, action=install|check|pull|cancel|remove; install/pull/remove require confirmed=true. Existing setup endpoints/ids/handlers remain. HF links use POST /api/setup/external with fixed terms|tokens allowlist. Operations persist separately from job enums; bytes/total are real, cancellation retains verified cache. No credentials in GET responses. Standard Whisper download/probe controls now run the unified manager; custom WAV API remains.
 
 11.11.2026, external-only Ollama: managed mode/install/pull/start controls and their
-handlers intentionally removed by owner's task. Existing endpoint/model/task IDs,
+handlers removed. Existing endpoint/model/task IDs,
 Whisper/Gemini/LM Studio handlers and job guards retained. `/api/setup/ollama?endpoint=`
 reads live version/tags without persisting; POST with endpoint validates and saves
 connection, POST model saves selection; explicit component check verifies generation.
@@ -236,33 +241,37 @@ serves the packaged guide using shared CSS. No new settings subsystem or CSS tok
 
 07.11.2026: error/cancelled различаются в presentation и recording inventory; error alert и явный retry находятся вне disclosure. Старые notes failures используют construction-error.json через live.construction_error; новые job.error сохраняют конкретную причину из этого файла. Retry вызывает прежний /api/retry, учитывает dirty guards и не запускается автоматически. parsed_notes допускает ### [start - end] как формат заголовка, проверяя обе границы по start/end исходных реплик и прежние ограничения ссылок/хронологии. Исходный Markdown и неизвестные end_ts не изменяются.
 
-07.11.2026: пользователь согласовал терминологию «Участники» и действие «Разделить по участникам». Это текстовые изменения интерфейса/статусов и новых имён по умолчанию; speaker IDs, сохранённые имена, API и алгоритм неизменны.
+07.11.2026: в интерфейсе используются термин «Участники» и действие «Разделить по участникам». Изменены тексты статусов и новые имена по умолчанию; speaker IDs, сохранённые имена, API и алгоритм неизменны.
 
 
 07.11.2026: исправлены счётчики перевода: worker сохраняет точный translation-plan.json с source_ids и диапазонами исходных блоков; live использует этот план, для старых запусков — фактические completed/total без выдуманного разбиения. Алгоритм перевода и кэш не меняются. Панель расшифровки компактно группирует просмотр, историю и экспорт; текст можно свернуть, действие перевода находится в разделе «Перевод». Встроенный конспект занимает ширину панели и позволяет вручную менять высоту панели; прокрутка синхронизируется с видео; standalone и guards сохранены.
 
-07.11.2026: в заголовках конспекта компактный таймкод без рамки заменяет крупную кнопку ▶; заголовок остаётся текстом, переход по времени и Ctrl-правка раздела сохранены. Для встроенного конспекта исключение из 76ch согласовано владельцем: текст использует всю ширину панели.
+07.11.2026: в заголовках конспекта компактный таймкод без рамки заменяет крупную кнопку ▶; заголовок остаётся текстом, переход по времени и Ctrl-правка раздела сохранены. Встроенный конспект использует всю ширину панели без ограничения 76ch.
 
 
 07.11.2026: добавлено действие «Создать статью» по полной исправленной расшифровке. Один запрос выбранной модели, отдельный результат с подписью «Статья», общий редактор и экспорт текущего текста в Markdown/HTML; существующие конспекты не заменяются. Нет выбора длины и автоматического перевода реплик. Backend закрепляет result_kind=article, input=speech, strategy=whole и инструкцию статьи; превышение контекста останавливает запуск без обрезания или скрытого разбиения. Многошаговая статья из длинной лекции отложена: https://github.com/IavnFGV/video-descriptor/issues/9.
 
 
-07.11.2026: по просьбе владельца «Материал модели» убран из основной панели встроенного редактора. «Оригинальный ответ модели» находится в «Действия с конспектом» рядом с удалением; основные режимы — чтение и редактирование. Используется прежний переключатель model внутри iframe, без перезагрузки и потери несохранённых правок. Standalone отчёт сохраняет прямой доступ под новым названием.
+07.11.2026: «Материал модели» убран из основной панели встроенного редактора. «Оригинальный ответ модели» находится в «Действия с конспектом» рядом с удалением; основные режимы — чтение и редактирование. Используется прежний переключатель model внутри iframe, без перезагрузки и потери несохранённых правок. Standalone отчёт сохраняет прямой доступ под новым названием.
 
 08.11.2026: verify_release.py adds flushed progress reporting only; extraction retains the exact ZIP manifest check, SHA256 assertions and isolated smoke lifecycle. Hardware and installer tests remain explicit opt-ins. Original UI baseline is unchanged; file-specific review recorded in migrations/main.json.
 
-08.11.2026: owner-requested self-cleaning build/verification scratch, success and failure. Temporary nested logs are disposable; final JSON and published packages remain outside scratch. Release version 0.8.28; no UI handler or API change.
+08.11.2026: build/verification scratch cleans itself after success and failure. Temporary nested logs are disposable; final JSON and published packages remain outside scratch. Release version 0.8.28; no UI handler or API change.
 
-08.11.2026: owner clarified full installer with cached unchanged work, not an update-only installer. CachedComponents installer branch preserves original application AppId, process identity/consent guard and settings; complete offline component archive is native-extracted only when needed. Existing noncached branch remains supported. Status labels identify cached full profile; original UI handler/API baseline retained.
+Historical packaging decision, 08.11.2026: the CachedComponents installer was a full
+offline package preserving AppId, process consent guard and settings, not an
+update-only installer. Domestic/CachedComponents builders were removed on 12.11.2026;
+this is retained design history, not a supported profile or restoration instruction.
+Only the standard profile remains; existing private bundles must not be published.
 
 
-09.11.2026: по запросу владельца добавлен LM Studio в существующие provider selects и отдельные поля подключения (local URL/model/optional password token). Основные IDs, handlers, routes, revision/dirty guards сохранены; desktop использует существующий `/api/construction-models?provider=lmstudio`. Список моделей — только проверка доступности сервера, генерация проверяется при обработке. Контекст/устройство загружаемой модели настраиваются в LM Studio; авто-контекст требует метаданных фактически загруженного instance. Новых CSS и массовой миграции интерфейса нет.
+09.11.2026: добавлен LM Studio в существующие provider selects и отдельные поля подключения (local URL/model/optional password token). Основные IDs, handlers, routes, revision/dirty guards сохранены; desktop использует существующий `/api/construction-models?provider=lmstudio`. Список моделей — только проверка доступности сервера, генерация проверяется при обработке. Контекст/устройство загружаемой модели настраиваются в LM Studio; авто-контекст требует метаданных фактически загруженного instance. Новых CSS и массовой миграции интерфейса нет.
 
 09.11.2026: readonly footer показывает version + номер билда из BUILD. Существующие handlers, API routes, revision/dirty guards сохранены; в health/doctor добавлено числовое поле build без новых endpoints.
 
 ## Вкладки настроек — 12.11.2026
 
-По запросу владельца разделы «Настройки AI» показаны вкладками, а не одной
+Разделы «Настройки AI» показаны вкладками, а не одной
 длинной страницей. Общий `desktop-shell.js` строит tablist: `button role=tab`,
 `aria-selected`/`aria-controls`, `role=tabpanel` у существующих разделов
 `details/summary`, один `tabIndex=0`, Left/Right/Home/End. Одновременно виден
@@ -295,7 +304,7 @@ responsive browser regressions: scripts/verify-recording-ui.py --material-tabs-o
 по явному действию, discovery/refresh/save её не вызывают.
 
 
-11.11.2026: Milestone 1, согласованная единая форма Ollama / LM Studio в существующих
+11.11.2026: Milestone 1, единая форма Ollama / LM Studio в существующих
 настройках. Исторические `ollama-form`, `ollama-service-url`, `ollama-model`,
 `ollama-use-connection`, `ollama-refresh`, `ollama-test`, `ollama-feedback` и
 `ollama-guide` теперь обслуживают оба провайдера. Отдельные LM Studio form/URL/model/
@@ -314,7 +323,7 @@ LM Studio (повторный inventory перед генерацией); HTTP a
 очередь, revision/dirty guards и release inputs сохранены.
 
 
-11.11.2026: по прямому запросу владельца удалены obsolete `ollama-task` и `local-task-field`
+11.11.2026: удалены obsolete `ollama-task` и `local-task-field`
 из общей формы LLM. Save и Test Model передают task=translation в прежний Ollama API,
 сохраняя общий provider/model вместо legacy notes-settings. Общий выбор используется
 переводом/конспектами/статьями по умолчанию; явные настройки конкретного задания,

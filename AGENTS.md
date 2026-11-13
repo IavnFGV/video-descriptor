@@ -6,7 +6,7 @@ and a local Python HTTP backend; CLI/web and container paths also exist.
 Python 3.11+, Pydantic, Requests, FFmpeg/PyAV, OpenVINO/Whisper and plain HTML/CSS/JS
 are the main technologies. Pyannote runs in a separate managed environment.
 
-Read [owner constraints](docs/development/safety.md) before making changes.
+Read [safety constraints](docs/development/safety.md) before making changes.
 They retain the machine, data, model, audit and publication requirements from
 this file's former working-context notes. Current user instructions take priority.
 
@@ -39,17 +39,18 @@ The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`
   configuration structure without printing `.env*` or credential-bearing values.
 - Before UI, library or generated-report changes, read
   [MASTER](design-system/MASTER.md), relevant page overrides and
-  [CONTRACTS](design-system/CONTRACTS.md). Stage 0 is an audit and separate prototype;
-  broad migration requires owner agreement. Preserve the native launcher and NPU path.
+  [CONTRACTS](design-system/CONTRACTS.md). Stage 0 was the historical audit/prototype;
+  production migration is implemented. New broad migrations must be explicitly
+  included in the task. Preserve the native launcher and NPU path.
 
 ## Change and validation workflow
 
 For routine implementation, choose the least expensive capable approach without
-asking the owner to choose a model. Before delegating a tiny, self-contained task,
+asking the user to choose a model. Before delegating a tiny, self-contained task,
 load `delegate-small-task` from `.opencode/skills/delegate-small-task/SKILL.md`.
 Use the configured `executor-free` for free delegation; the working paid `executor`
 is retained separately. Do not fall back from free quota/errors to paid calls
-without owner authorization. Do not use a model override or primary-model switch.
+without explicit permission to use paid calls. Do not use a model override or primary-model switch.
 Do complex/cross-cutting work directly when delegation would add more overhead.
 These instructions do not enforce billing limits; never promise subscription-only
 usage without a verified account-side control.
@@ -88,8 +89,42 @@ change. Do not claim hardware support from mocks or containers.
 When writing or updating Windows release notes, read and follow
 [prepare-release-notes](.agents/skills/prepare-release-notes/SKILL.md).
 
-Only standard packages may be public. Domestic/cached offline packages are private;
-a public artifact gate is mandatory before upload. Never create a tag or dispatch
+## Keep documentation synchronized
+
+Documentation maintenance is part of every change, not a separate cleanup task.
+Before editing, find the authoritative guides, examples, design contracts and agent
+instructions affected by the behavior being changed, including incoming references.
+Within the same task:
+
+- Update the affected current descriptions, commands, configuration and examples;
+  remove or replace superseded passages instead of appending a contradictory update.
+  If no documentation change is needed, state why in the final report.
+- Keep one authoritative description per topic and link to it. When removing or
+  renaming a feature, script, option or document, fix its references and instructions.
+- Preserve published release notes, legal notices and useful historical evidence.
+  Clearly label historical scope and link to the current guide; do not present old
+  plans, acceptance results or removed workflows as current instructions.
+- Verify claims against implementation/configuration; check local links and command
+  definitions. Distinguish checks actually run from static review and unverified claims.
+- Report proposed changes before editing AGENTS.md or other agent instruction files.
+  Do not invent project policy: report unresolved conflicts and ask for a decision.
+
+Write documentation, logs, history and task summaries as facts: what changed,
+what was checked and what remains. Do not narrate who requested or approved the
+work. Read [factual-writing](.agents/skills/factual-writing/SKILL.md) before writing
+or editing such prose. Preserve actual safety/consent requirements and evidence;
+this style rule never grants permission for system changes or publication.
+
+Updating history or release notes alone does not update the operational guides.
+Do not call a task complete while known affected documentation still contradicts it;
+report any blocked synchronization explicitly. This rule does not authorize unrelated
+code changes, installations, commits, publication or changes to protected data.
+
+## Publication and external services
+
+Only the standard packaging profile remains; Domestic/cached offline builders were
+removed. Previously produced private model bundles must never be published, including
+under renamed files. A public artifact gate is mandatory before upload. Never create a tag or dispatch
 release preparation as a harmless validation step: preparation commits BUILD,
 pushes main and a tag, then dispatches a release. See the
 [release guide](docs/development/releases.md).

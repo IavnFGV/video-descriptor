@@ -88,7 +88,10 @@ CLI без кадров: `python -m video_descriptor data/recording.wav --audio-
 по пути, размеру и mtime источника. Частично скопированные записи отклоняются при
 несовпадении длительности извлечённого аудио.
 
-Для локальных голосов нужен CPU PyTorch и pyannote.audio. Изолированное окружение:
+В Windows локальные голоса настраиваются через
+[менеджер компонентов](ai-component-manager.md) или
+[source-скрипт](native-diarization.md). Следующие команды — только для Linux/WSL
+CPU-окружения, не для нативной Windows:
 
 ```bash
 python -m venv --system-site-packages .venv-diarization
@@ -104,7 +107,7 @@ python -m venv --system-site-packages .venv-diarization
 Готовые тестовые 15 минут «Фригг» импортированы как speech-frigg-test-gemini и
 speech-frigg-test-local. Полный исходник не запускался автоматически.
 
-## GPU: состояние текущего devcontainer
+## GPU: историческая проверка devcontainer (10.10.2026)
 
 В исходном CPU-профиле /dev/dri и /dev/dxg отсутствовали; CUDA/XPU были недоступны.
 В текущем Intel GPU-профиле проброс /dev/dxg и вычисления XPU проверены.

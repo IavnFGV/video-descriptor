@@ -1,7 +1,8 @@
 # Customizable Workspace / View menu
 
-Later on 12 November, the cohesive desktop redesign intentionally supersedes the
-sidebar placement described below: View is adopted by the common top command bar,
+The cohesive desktop redesign supersedes the sidebar placement described below:
+View is adopted by the common top command bar and, since 13 November, is visible
+only for an open recording. Preferences remain stored outside recording folders,
 without another preference owner or storage migration. See
 [DESKTOP-REDESIGN](../../design-system/DESKTOP-REDESIGN.md) for current chrome,
 visual evidence and acceptance. The panel/storage preservation contracts below
@@ -29,11 +30,8 @@ If its current kind is hidden, the enabled tab remains keyboard-reachable and a
 small hint asks the user to select it. Re-enable the hidden kind to recover its
 unchanged draft. The existing material tab keyboard handler skips hidden tabs.
 
-The View entry is a native disclosure inside the existing left navigation rail of
-the recording workspace (`Записи`, `Настройки AI`, `Диагностика`). Its panel opens
-beside the rail, or below the entry when the rail becomes a row in a narrow
-window, and is clamped to the viewport. The library/settings shell has no
-recording panels, so it carries no entry.
+The View entry is a native disclosure in the common top command bar. It is hidden
+outside an open recording; opening another recording restores the saved preferences.
 
 Selection/version controls, stop action, request/diarization progress, job errors,
 retry/manual recovery, speech warnings and run-message remain outside hidden
@@ -59,8 +57,7 @@ CSS Grid places video left/transcript right on wide windows, or video above spee
 when stacked or at <=1000 px. Either primary panel alone fills the width; with both
 hidden an inline reset remains. Enabled materials and translation use full-width
 following rows. Source details are outside the player so technical information is
-available even when video is hidden. The View panel is placed next to the left rail
-and stays inside the viewport at every width.
+available even when video is hidden. The View panel stays inside the viewport.
 
 ## Changed implementation files
 

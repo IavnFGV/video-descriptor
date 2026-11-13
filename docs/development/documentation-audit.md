@@ -1,7 +1,65 @@
-# Documentation audit: 2026-11-11
+# Documentation audits
+
+## 2026-11-13: repository-wide factual audit
+
+Initial inventory: 87 tracked Markdown files, including hidden skill directories;
+86 documentation/instruction files and one generated `notes.user.md` evidence
+download excluded from cleanup. Documents were grouped as current, outdated,
+duplicated, historical, obsolete or uncertain before targeted source verification.
+The scope includes release notes and agent instructions, not dependency/cache trees.
+
+Current guides were checked against Python entry points, CLI parsers, dependency
+inputs, Docker/Compose/devcontainers, Windows setup/packaging, seven Actions
+workflows and their tests. Significant corrections:
+
+- Windows version is 0.9.4 from release inputs; tracked BUILD is independent of
+  Python project version. Upcoming padded build identifiers do not change BUILD here.
+- CI is PR/main Fast plus routed smoke; Full uses real CPU Whisper and fixture LLM
+  HTTP. Removed `container-ci.yml` and workflow `test_ollama` are not current commands.
+- Container publication is manual and semantic-tag-only, not automatic native-tag
+  publication. Native release preparation/publishing remains in the release guide.
+- The installer can provision app-local WebView2; ZIP/source launch needs Runtime
+  separately. Whisper/pyannote setup is not the prototype's import-only workflow.
+- Windows keys use current-user DPAPI; new jobs pin their provider route rather
+  than switching endpoints when shared settings change.
+- Windows queues are supported; Linux flock/proc instructions do not describe
+  the Windows implementation. Legacy base.en/8765 benchmarks are distinguished
+  from desktop small/8766. Untracked local benchmark ZIPs are not download assets.
+- `docs/lmstudio.md` duplicated the Windows guide; its context/protocol details
+  were consolidated there and incoming links updated. Published notes, legal
+  notices and useful hardware/Sandbox evidence were retained, not bulk-archived.
+
+Source-verified blocker: `scripts/local_build.py` invokes Fast inside an isolated
+checkout with the configured external Python, while `scripts/check-fast.py`
+requires that checkout's own `.venv` on Windows. The old shared `.venv-windows`
+configuration is not a working current recipe. This audit documents the conflict;
+it does not change code or disable the guard.
+
+Validation uses the existing `.venv`: configuration/actionlint plus 29 policy tests
+pass; 17 CLI `--help` calls and 48 first-run/API help tests pass. All 25 tracked
+PowerShell scripts parse without errors. A temporary Markdown parser checks local targets
+and heading fragments, and source inspection checks command references. Runtime
+paths, placeholder release filenames and explicitly deleted historical scripts
+are distinguished from missing source links. These checks do not install software,
+download models, build packages or dispatch releases.
+
+Unverified: actual installation/packaging/hardware/cloud procedures, live external
+links/prices, current GitHub release/registry/protection state and client skill/LSP
+execution. Historical recorded PASS is not a fresh run. Root AGENTS.md now contains
+a mandatory per-change documentation synchronization checklist, linked from the human
+development guide. Root/Windows instructions
+and safety policy now distinguish the standard-only current profile from prohibited
+historical private bundles. MASTER, page overrides and CONTRACTS consistently specify
+top-only navigation and recording-only View; the old Stage 0 is historical, not an
+unfinished migration. No build code or licensing decision changed.
+Ambiguous historical plans remain dated evidence where their removal could lose
+useful context. The factual-writing skill and root writing rule keep change records
+focused on technical changes, verification and limits rather than request attribution.
+
+## 2026-11-11: navigation and agent entry points
 
 The [architecture map](../architecture/README.md) and [development guide](README.md)
-route readers to sources and detailed pages. Root owner requirements were moved
+route readers to sources and detailed pages. Root safety requirements were moved
 to [safety.md](safety.md), not discarded. No runtime contracts change in this task.
 
 | Existing ambiguity | Resolution |
@@ -53,7 +111,7 @@ edit persistence; Windows instructions cover native runtime/setup/packaging.
 - Checked 145 local Markdown links in new pages and added notices; all targets exist.
   Test names in the test map were checked against the actual suite.
 - Both portable skills pass the skill-creator frontmatter/structure validator.
-- `git diff --check` passes; only Markdown/instruction files and the authorized
+- `git diff --check` passes; only Markdown/instruction files and
   `opencode.json` changed. No application, test, dependency, CI or release-input edits.
 - Full `scripts/check-fast.py` passes using the existing Windows dev Python:
   25 configuration tests plus 630 suite tests, 3 skips; Ruff, shared UI/CSS audit

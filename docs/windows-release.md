@@ -1,8 +1,11 @@
-# Windows preview: ZIP, installer и CI
+# Windows: ZIP, installer и проверки
 
-> Current BUILD/tag/publication procedure: [release guide](development/releases.md). Historical numbering schemes below are superseded by tracked BUILD.
+Текущие BUILD/теги/публикация описаны только в
+[процедуре выпуска](development/releases.md). Версия Windows берётся из
+`windows-app/release-inputs.json`, номер — из `BUILD`; версия Python-пакета
+в `pyproject.toml` независима. Результаты 0.4–0.7 ниже сохранены как история.
 
-Текущая версия исходников пакета 0.7.0, Windows x64. Desktop целевой сценарий — Windows 11.
+Пакет предназначен для Windows x64; целевой desktop-сценарий — Windows 11.
 Добавлены WinForms EXE, pinned WebView2 SDK и трей. Установщик проверяет WebView2 Runtime
 через официальный loader API и наличие файлов обнаруженной версии. При отсутствии
 Runtime скачивает официальный x64 Fixed Version CAB с Microsoft, проверяет закреплённый
@@ -20,10 +23,10 @@ Fixed Runtime не меняет системную установку, реес�
 Подробности в [документации Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
 Проверки нового поведения и их ограничения записываются в отчёте Sandbox 0.7.
 [Проверки desktop и ограничения](desktop-windows.md). Исторические результаты ниже
-относятся к указанным версиям 0.4–0.6. Это частная проверочная сборка,
-без цифровой подписи нашего EXE, выбранной лицензии проекта и готового публичного release.
+относятся к указанным версиям 0.4–0.6. Они не подтверждают приёмку нынешнего пакета.
+Границы лицензирования и подписи: [THIRD-PARTY](../windows-app/THIRD-PARTY.md).
 
-## Состав и запуск
+## Историческая приёмка 0.4–0.7 и состав пакета
 
 Проверка 0.7 от 18.10.2026 на существующем Windows host: 4402 файла ZIP по manifest,
 встроенный Python без системного Python в PATH, реальный WebView2 EXE/close-to-tray/
@@ -104,14 +107,16 @@ Installer 0.6 собран; отдельный lifecycle-прогон для н�
 зависит от модели и драйвера. Самостоятельный bundled NPU adapter прошёл реальную
 контрольную пробу 20 s WAV; проверки NPU версии 0.3 использовали существующий внешний сервис.
 
-Данные новой установки лежат в `windows-app/runtime/` внутри её каталога. Installer не
+По умолчанию workspace лежит в `windows-app/runtime/workspace`; выбранный
+`records_directory` может находиться вне установки. Installer не
 включает этот каталог и `config.local.json` в свою таблицу устанавливаемых файлов.
 Повторная установка/обновление и uninstall сохраняют данные/настройки. Удаление данных
 не выполняется скрытым скриптом. Исторические материалы WSL/benchmark не импортируются.
 
 Перед upgrade/uninstall нужно закрыть именно эту копию и её workers. Lifecycle check
 проверяет процессы из её каталога и отказывает при занятости, не убивая процессы.
-Внешние NPU/Ollama этим guard не останавливаются. Автоматического updater/rollback нет.
+Внешние NPU/Ollama этим guard не останавливаются. Проверка обновлений лишь уведомляет
+и открывает страницу релиза; автоматической установки/rollback нет.
 
 ## Сборка
 
@@ -120,8 +125,9 @@ app-local: Python embed не содержит MSVCP140.dll, необходимо
 redistributable 14.44.35211.0, WiX 6.0.2 для извлечения, SHA256 каждой x64 DLL и лицензии
 закреплены в release-inputs.json. Извлечение использует существующий .NET 8+ на build host
 и системный expand.exe; установка VC++ на build host или целевую Windows не выполняется.
-Все включённые DLL/лицензия попадают в release manifest. Системный WebView2 остаётся
-отдельным требованием. Повторная проверка — в verification-sandbox-desktop-0.7.md;
+Все включённые DLL/лицензия попадают в release manifest. Для ZIP WebView2 нужен
+отдельно, installer подготавливает его при отсутствии, как описано выше.
+Историческая проверка — в verification-sandbox-desktop-0.7.md;
 наличие исправления в исходниках само по себе не подтверждает успешный гостевой прогон.
 
 ```powershell
@@ -138,17 +144,19 @@ Build tool устанавливается только в `windows-app/runtime/b
 [Python embeddable](https://docs.python.org/3.12/using/windows.html#windows-embeddable).
 
 `requirements-release.txt` содержит точные версии без pytest/ruff. `release-wheels.json`
-фиксирует имена и SHA256 46 wheel inputs. Сборка проверяет соответствие pins/metadata,
+фиксирует имена и SHA256 wheel inputs. Сборка проверяет соответствие pins/metadata,
 игнорирует старые посторонние wheel в cache и отказывается при checksum mismatch,
 неоднозначном build, traversal или пересекающемся несовпадающем payload.
 Обновление wheel lock возможно только отдельным явным `--refresh-lock` с review diff.
 
-Результаты — `dist/VideoDescriptor-0.4.0-windows-x64.zip`, `*-setup.exe` и
-`SHA256SUMS.json`. В каждом пакете `release-manifest.json` содержит hash/size каждого
+Результаты без `--build-qualified` — `dist/VideoDescriptor-X.Y.Z-windows-x64.zip`,
+соответствующий `*-setup.exe` и `SHA256SUMS.json`; X.Y.Z берётся из release inputs.
+Для публичной приёмки используется `--build-qualified` и суффикс `-build.N`.
+В каждом пакете `release-manifest.json` содержит hash/size каждого
 файла и входных runtime/wheel. Notices/лицензии wheel сохранены в `.dist-info`.
 Это inventory, не полный проверенный SPDX SBOM и не завершённый third-party legal bundle.
-Особенно до публичного распространения нужно закрыть GPL/source obligations FFmpeg,
-лицензию нашего кода, notices и подпись EXE; код и артефакты пока не публиковались.
+Проверка GPL/source obligations FFmpeg, лицензии собственного кода, notices и подписи
+не заменяется наличием manifest или успешной сборкой.
 
 ZIP использует сортировку файлов, фиксированные timestamp/permissions и одинаковый deflate.
 Два запуска на одинаковых inputs должны дать одинаковые байты, что проверяется отдельно.
@@ -159,16 +167,17 @@ EXE и будущей Authenticode-подписи не заявлена. Manifes
 
 ```powershell
 ./.venv-windows/Scripts/python.exe -X utf8 windows-app/verify_release.py `
-  dist/VideoDescriptor-0.4.0-windows-x64.zip `
-  --installer dist/VideoDescriptor-0.4.0-windows-x64-setup.exe `
+  dist/VideoDescriptor-0.9.4-windows-x64.zip `
+  --installer dist/VideoDescriptor-0.9.4-windows-x64-setup.exe `
   --iscc windows-app/runtime/build-cache/inno-6.7.3/ISCC.exe
 ```
 
-Проверка создаёт отдельные временные каталоги с пробелами/кириллицей и реальные
+Подставьте реально собранные ZIP/EXE одной версии; для build-qualified файлов
+используйте их точные имена. Проверка создаёт отдельные временные каталоги с пробелами/кириллицей и реальные
 тестовые установки. Проверяет hash файлов, запуск с PATH без Python, отсутствие модели,
 loopback UI/doctor, graceful stop, запрет обновления работающей копии, reinstall,
-upgrade fixture 0.4.0 → 0.4.1 и uninstall с сохранением sentinel/config.
-Fixture меняет installer version, а не объявляет готовой версию приложения 0.4.1.
+upgrade fixture и uninstall с сохранением sentinel/config.
+Fixture меняет installer version, а не объявляет новый выпуск приложения.
 Тест не переустанавливает рабочую копию из `E:/LocalAI/video desriptor`.
 
 Дополнительные `--video <short.mp4> --model <existing IR folder>` явно включают реальные
@@ -178,16 +187,17 @@ CPU/GPU ASR прогоны в распакованной копии на отд�
 
 ## CI и границы доказательств
 
-Workflow `.github/workflows/windows-release.yml` на `windows-2025` выполняет unit/API
-матрицу устройств, Ruff/pip check, сборку ZIP+EXE, повторную сборку ZIP, lifecycle checks
-и сохраняет artifacts на 14 дней. Actions закреплены commit SHA, permissions — contents:read,
-secrets/signing и публикация GitHub release не используются.
+`ci.yml` выполняет Fast и условные Windows smoke, а `windows-release.yml` вызывает
+Full Acceptance с `windows_only=true`, затем публикует принятые artifacts без
+пересборки. Prepare/publish имеют ограниченные write permissions; обычные проверки —
+read-only. Полная матрица событий, fixture LLM и сроки хранения:
+[CI policy](ci-policy.md). Не запускайте release workflow ради проверки документации.
 
 Локальный запуск на существующей Windows проверяет работу артефактов в отдельных каталогах.
 Он не доказывает запуск на чистой Windows без установленных VC/runtime/драйверов и
-не заменяет hosted runner/VM. Workflow ещё не выполнен на GitHub: для этого нужно отдельно
-отправить коммиты; push в этой работе не выполняется. Docker daemon сейчас недоступен;
-Windows-контейнер и без того не заменяет desktop installer/аппаратные испытания.
+не заменяет hosted runner/VM. Сохранённые результаты GitHub Actions относятся к своим
+revision/artifact hashes; этот документ не утверждает успешный прогон текущего HEAD.
+Windows-контейнер не заменяет desktop installer/аппаратные испытания.
 
 Фактические результаты добавляются в `verification-release.json`; `clean_vm=false`
 сохраняется для локального прогона. Hosted Windows runner тоже не является пустой Windows:

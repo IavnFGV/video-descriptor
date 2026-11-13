@@ -47,7 +47,7 @@ installer and a matching Code Integrity 3033/3077 event, not merely a nonzero ex
 Only `preflight`, `installer`, and `cleanup` run by default in this profile.
 The Windows refusal message and raw event XML are retained.
 
-Functional defaults to `-GuestSacMode Off` under Ivan's explicit authorization.
+Functional defaults to `-GuestSacMode Off`, limited to the disposable guest.
 The bootstrap verifies WDAGUtilityAccount, Hyper-V VM and CExecSvc. It records the
 initial state, sets only guest SAC to Off, saves a host checkpoint and registers a
 guest RunOnce continuation. It reboots that Sandbox at most once. The host also
@@ -62,7 +62,7 @@ requires recovery for forced mode switching; its audit setup requires ownership/
 or EFI changes. Those procedures are outside the constraints of this task. If the
 guest does not already expose a supported Evaluation/Audit mode, the separately
 selected `-GuestSacMode Evaluation` still returns BLOCKED. Mode and fingerprints
-distinguish this stricter profile from authorized guest SAC Off and default Security.
+distinguish this stricter profile from guest SAC Off and default Security.
 
 Observed 19 October 2026: stock guest build 26100 reports registry SAC state 1 and
 blocks this unsigned preview (event 3033). `CiTool --list-policies --json` returns
@@ -140,8 +140,9 @@ execution additionally requires valid Ollama Authenticode. An Ollama model objec
 must contain only the selected test model's `manifests/` and referenced `blobs/`,
 with blob filenames matching Ollama's content digests. The selected tag must match
 the cache object's version; the guest records the actual `/api/tags` digest.
-`-OllamaModel` selects a model; default `qwen3.5:9b` matches the existing application's
-configuration. This new harness has not validated that model in a functional guest.
+`-OllamaModel` selects a test model; the harness default `qwen3.5:9b` is independent
+of the application's initially empty model selection. Prior guest results apply
+only to their recorded model, artifact and environment.
 
 Keep one object per component in a selected cache directory. The guest receives
 the cache read-only and verifies every selected file before use. Ollama's service
@@ -187,32 +188,33 @@ existing registered application so it cannot overwrite a developer installation.
 `--with-ollama --ollama-url <loopback> --ollama-model <tag>` adds real generation,
 translation, saved notes/chapters/report and API subtitle export checks.
 
-Windows CI already had unit/API tests, WebView2 smoke, reproducible ZIP and installer
-lifecycle. It now also caches/verifies the pinned public Whisper fixture and runs
-the installed-build CPU API check on every normal Windows job. Real Ollama checks
-are opt-in via workflow_dispatch `test_ollama=true`; they download a SHA256-pinned,
-signed public Ollama installer and the explicitly selected public model into CI-only
-directories. Reports and failure evidence are uploaded with `if: always()`.
+Full Acceptance caches/verifies the pinned public Whisper fixture and runs the
+installed CPU/API/UI path with `--ui --llm-fixture`. Whisper inference is real;
+LLM HTTP responses are deterministic fixtures, not real model generation.
+There is no current workflow input `test_ollama`. Real LLM evaluation is a separate
+[model-behavior workflow](../../docs/model-behavior.md). Ordinary PR/main CI routes
+Fast and conditional smoke jobs; it does not run the full installed CPU/LLM path.
+Reports and failure evidence are uploaded according to Full Acceptance's conditions.
 No SAC changes are made on hosted CI runners, and Sandbox/nested virtualization is
 not required there. CI changes still need push/dispatch before a remote run exists.
 
 [`Acceptance.template.wsb`](Acceptance.template.wsb) is the committed source of
 generated run configurations. The repository root [`sandbox.wsb`](../../sandbox.wsb)
-is also committed as the owner's historical manual configuration, with its original
+is also committed as the historical manual configuration, with its original
 machine-specific read-only mappings; it is not the automatic harness entry point.
 
 
 ## Automatic production workspace UI acceptance
 
-Windows CI now calls verify_installed.py --ui after building the exact installer.
+Full Acceptance calls `verify_installed.py --ui --llm-fixture` on the exact accepted installer.
 A fresh marked installation runs real CPU inference via its embedded Python,
 then launches its real WebView2 and uploads the bundled MP4 through the file input.
 The driver edits and saves a reply, checks revision/timestamps/dirty Escape,
 Back/Forward and AI round trips, independent prompt drafts, keyboard stage focus,
 actual SRT/VTT/TXT downloads, four viewports and a labelled visual stress fixture.
 Optional --with-ollama adds real UI translation/notes and Markdown/HTML export.
-Reports and screenshots are included in the normal CI artifact. No manual clicks
-or public GitHub Release are needed. Existing scheduled dispatch options remain.
+Reports and screenshots are included in the Full Acceptance artifact. No manual
+clicks or public GitHub Release are needed for an explicit Full run.
 The same verifier is included in Sandbox UI whisper/notes stages. API and UI
 results remain separate, and transport failures are not counted as application PASS.
 
@@ -220,11 +222,11 @@ PnP visibility is not inference capability: in the 19 October UI guest Windows
 listed Intel AI Boost and Arc 140V, while OpenVINO exposed only CPU. That guest
 does not establish NPU/GPU support; diagnostics explicitly distinguish the layers.
 
-The Windows workflow also runs on a published release event. On that event the
-cached public qwen3.5:0.8b Ollama scenario is enabled automatically, including API
-and actual installed UI generation, translation, notes and exports. PR/main runs
-always perform CPU/UI acceptance; manual dispatch can request the same full AI
-suite. This configures verification, and does not create or publish a release.
+Full Acceptance also runs on release prereleased/published events, downloads the
+published assets and validates their hashes/provenance without rebuilding. It uses
+the same LLM fixture boundary, not a cached qwen model. Windows release invokes
+Full with `windows_only=true` before publishing. See
+[CI policy](../../docs/ci-policy.md) for the trigger matrix and evidence limits.
 
 Elevated WebView2 ignores WEBVIEW2_* environment overrides (Microsoft security
 behavior). The driver therefore uses --ui-test-port=9222 with the installed host;

@@ -1,4 +1,8 @@
-# Desktop preview 0.7 — Windows 11
+# Desktop host — Windows 11
+
+Текущий запуск и конфигурация: [Windows README](../windows-app/README.md).
+Раздел с результатами 18.10.2026 ниже — свидетельство версии 0.7,
+не перечень возможностей или ограничений всех последующих сборок.
 
 Расширен существующий Windows launcher: небольшой WinForms EXE (.NET Framework,
 встроенный в Windows) с Microsoft Edge WebView2. Python backend, HTTP API, HTML/CSS/JS,
@@ -10,8 +14,9 @@
 
 Из установленного preview — **Video Descriptor** в Start Menu. Из ZIP —
 **Open Video Descriptor.cmd**. Браузер/терминал/Docker для обычного запуска не нужны.
-WebView2 Runtime должен быть уже установлен; при отсутствии показывается ошибка.
-Runtime, драйверы и веса автоматически не устанавливаются.
+Для ZIP/source запуска WebView2 Runtime нужен отдельно; при отсутствии показывается
+ошибка. Установщик при необходимости подготавливает закреплённый app-local Runtime:
+[правила поставки](windows-release.md). Драйверы и AI-веса при установке не скачиваются.
 
 По умолчанию используется прежний `windows-app/app.py`, порт 8780, встроенный Python
 из ZIP либо `.venv-windows` для исходников. Окно сразу показывает состояние подключения.
@@ -83,7 +88,8 @@ Prepare-Desktop получает закреплённый NuGet WebView2 SDK 1.0
 Системные компоненты не ставит. ZIP отказывает при устаревшем EXE относительно C# source/SDK;
 payload/notices входят в hash manifest. Windows CI компилирует host, проверяет navigation
 policy, реальное окно и прежний installer lifecycle. Container workflows не изменены.
-CI не публикует Release. Повторяемость ZIP проверяется из одинаковых staged binaries;
+Публикация выполняется отдельным [Windows release workflow](development/releases.md),
+а не обычным PR smoke. Повторяемость ZIP проверяется из одинаковых staged binaries;
 побайтная воспроизводимость компиляции C# между машинами пока не заявляется.
 
 На Windows host 18.10.2026 проверены EXE/WebView2, загрузка существующего DOM,

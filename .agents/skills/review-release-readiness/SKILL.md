@@ -4,7 +4,7 @@ description: Review Video Descriptor Windows release readiness, BUILD handling, 
 ---
 
 Read [release procedure](../../../docs/development/releases.md) and
-[owner constraints](../../../docs/development/safety.md). Use this for release/CI
+[safety constraints](../../../docs/development/safety.md). Use this for release/CI
 failure investigation or readiness assessment, not implicit publication permission.
 
 From the repository root, trace `.github/workflows/windows-release.yml`,

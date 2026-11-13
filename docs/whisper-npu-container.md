@@ -1,9 +1,14 @@
 # NPU из devcontainer через Windows-сервис
 
-Текущий Docker работает через WSL2. Прямой доступ Intel NPU к Linux-контейнеру
-не поддержан: [запрос WSL #40842](https://github.com/microsoft/WSL/issues/40842)
-и [запрос Intel #56](https://github.com/intel/linux-npu-driver/issues/56) открыты.
-В нашем контейнере отсутствует `/dev/accel/accel0`. Изменение `--device` или
+Legacy CLI/benchmark `base.en` на 8765. Нативное Windows-приложение и web speech
+small используют другой профиль на 8766; см. [карту backend](architecture/README.md).
+Ниже сохранена схема проверенного опыта 09.10.2026, не инструкция установки desktop.
+
+В проверенном Docker/WSL2 окружении прямого доступа Intel NPU к Linux-контейнеру
+не было; связанные обсуждения: [WSL #40842](https://github.com/microsoft/WSL/issues/40842)
+и [Intel #56](https://github.com/intel/linux-npu-driver/issues/56).
+Их нынешний статус здесь не утверждается. В том контейнере отсутствовал
+`/dev/accel/accel0`. Изменение `--device` или
 установка Linux-драйвера внутри контейнера не создаёт отсутствующий доступ.
 
 Используем схему: приложение в контейнере → HTTP → Windows Whisper → Intel NPU.
@@ -13,10 +18,12 @@
 
 ## Один запуск в Windows
 
-Скачайте [небольшой архив исполнителя](http://localhost:8000/output/whisper-benchmark/windows-npu-worker.zip).
-Распакуйте **в существующую папку Windows-бенчмарка**
-`C:\Users\ivand\Downloads\windows-benchmark` с `.venv-npu` и
-`OpenVINO-whisper-base-en-fp16-ov`. Затем в PowerShell:
+Старый `windows-npu-worker.zip` — локальный generated artifact, не файл поставки.
+Исходники: [start_whisper_npu.ps1](../scripts/start_whisper_npu.ps1) и
+[whisper_npu_server.py](../scripts/whisper_npu_server.py). Скрипт ожидает рядом
+`.venv-npu` и `OpenVINO-whisper-base-en-fp16-ov`, а не в корне репозитория.
+Команда ниже относится к уже подготовленному отдельному benchmark-каталогу;
+не копируйте файлы поверх защищённого работающего окружения ради повторения отчёта:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_whisper_npu.ps1

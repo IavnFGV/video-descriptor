@@ -1,16 +1,19 @@
 # Поэтапный редизайн (историческая спецификация)
 
-19.10.2026: полный перенос разрешён текущим заданием владельца. Результат и
+19.10.2026: завершён перенос production UI. Результат и
 интеграция описаны в IMPLEMENTATION.md и FINAL-VERIFICATION.md; прежние запреты
 на push/merge в этом документе относятся к завершённому этапу 0.
 
-19.10.2026: направление согласовано владельцем. Этап 0 завершён; этап 1 и компоновка главной/настроек из этапа 2 реализованы. См. IMPLEMENTATION.md. Далее — `/create` и библиотека, затем общие диалоги/редактор. API-унификация и аппаратная приёмка не включены в текущие UI commits.
+Этапы ниже — исходный план 19.10.2026, не текущий список задач. Последовательность:
+аудит → primitives → главная/AI → workspace/библиотека → редакторы → экспорт.
+Результаты реализации и ограничения: IMPLEMENTATION.md и FINAL-VERIFICATION.md.
+API-унификация и аппаратная приёмка не входили в UI-перенос.
 
 Все этапы сохраняют HTML/CSS/JS и WebView2. Оценки — ориентиры разработки, не обязательство по сроку; аппаратная приёмка отдельно.
 
 | Этап | Объём | Gate / проверка | Откат / риск | Оценка |
 |---|---|---|---|---|
-| 0 — текущий | аудит, MASTER/tokens/reference components, isolated main prototype, baseline contracts | согласование иерархии/навигации/визуального языка; production hashes совпадают | удалить только новые reference artifacts; рабочий UI не затронут | 1 этап |
+| 0 — аудит | аудит, MASTER/tokens/reference components, isolated main prototype, baseline contracts | проверка иерархии/навигации/визуального языка; production hashes совпадают | удалить только новые reference artifacts; рабочий UI не затронут | 1 этап |
 | 1 — primitives | подключить tokens и scoped vd-* в главной; заменить кнопки, labels, focus, status/progress по одному компоненту | ids и handlers остаются, mocked states + keyboard/contrast + desktop tests | отдельный commit на компонент; старые CSS удалять только после миграции селекторов | 1–2 дня |
 | 2 — главная и AI | компактная форма и readiness; checklist обязательной настройки, optional отдельно; единый picker для медиа/WAV + folder pattern | upload 202/raw/query/progress; probe/consent/cancel; compute snapshot; функциональные setup тесты в temp workspace | не менять API; сначала opt-in dev preview, затем default после проверки | 1–2 дня |
 | 3 — workspace | общая оболочка для create/library; навигация и stages; настройки отдельно от generation/export; устранить дублирование названий | сохранить query job/folder/stage/report, dirty guards, Back/Forward, rerun/delete confirmations; 760×560 и scaling | не объединять native/postprocess и notes-run backend; поэкранные commits | 2–3 дня |
@@ -21,9 +24,11 @@
 
 ## Приёмка перед массовым переносом
 
-- Согласовать навигацию «Записи / Настройки AI / Диагностика» и компактную форму.
+- Проверить навигацию «Записи / Настройки AI / Диагностика» и компактную форму прототипа.
 - Подтвердить один зелёный акцент, Segoe UI, высоту controls 40 px, спокойные поверхности.
-- Согласовать сохранение device selector доступным в параметрах записи с явным scope «для новых заданий».
+- Проверить доступность device selector в параметрах записи с явным scope «для новых заданий».
 - Прототип не доказывает загрузку медиа, AI readiness или работоспособность backend; это отдельные gates следующих этапов.
 
-Изоляция: ветка `design/ui-ux-audit`, отдельный worktree. Не merge/rebase и не менять Ollama/Sandbox соседней ветки. Push не выполнять. Редизайн существующих экранов начинается только после решения владельца по этапу 0.
+Исходный аудит выполнялся в ветке `design/ui-ux-audit`, отдельном worktree, без
+изменения production UI, Ollama или Sandbox соседней ветки. Это история изоляции
+этапа 0, а не действующие ограничения завершённого переноса.

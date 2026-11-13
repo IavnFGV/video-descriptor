@@ -8,6 +8,11 @@ driver changes or model installations.
 
 ## Portable workflows
 
+- [Factual writing](../../.agents/skills/factual-writing/SKILL.md): mandatory for
+  documentation, history and task summaries. Describe changes and evidence, not
+  who requested or approved the work. Root instructions require explicit loading
+  even when the client has not discovered the new skill automatically.
+
 - [Cheap bounded delegation](../../.opencode/skills/delegate-small-task/SKILL.md):
   OpenCode's named `executor-free` proposes a tiny patch from supplied excerpts;
   the working paid OpenRouter `executor` is retained separately. Free quota errors

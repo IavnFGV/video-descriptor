@@ -1,8 +1,12 @@
 # Cohesive desktop UI — 12 November 2026
 
+13 November follow-up: View is visible only for an open recording; library,
+settings and empty creation forms hide it without resetting preferences.
+The dated implementation/capture stages below retain their original scope.
+
 ## Follow-up: top-only navigation
 
-Owner's next request supersedes the sidebar and context-dependent View descriptions
+Top-only navigation supersedes the sidebar and context-dependent View descriptions
 below. Branch `codex/unified-top-navigation`, base **6c40ee7**. Audit found that
 recordings still opened a legacy Gemini/LM Studio connections dialog, while the
 shared settings already contained the external Ollama/LM Studio form. The bounded
@@ -18,14 +22,14 @@ passes all seven visibility toggles, persistence/reset, quick-edit and material
 identity/dirty guards. Current local captures: `windows-app/runtime/zero-config/desktop-design/after/`
 (ignored runtime evidence). No installed WebView2 or hardware-inference claim.
 Focused tests: 17 passed. The initial full Fast found a missing `markdown_it` in
-the existing `.venv`. Owner authorized installing `markdown-it-py==4.2.0`; it now
+the existing `.venv`. `markdown-it-py==4.2.0` was installed there; it now
 also appears in `requirements-dev.txt`, matching the Windows runtime lock.
 Repeated full Fast is green: configuration/static checks passed (29 configuration
 tests), 838 tests passed, 4 skipped. The Ollama guide test passes as well.
 
 Task branch: `codex/cohesive-desktop-ui`, based on main **8e643c0** (the preceding
-View/sidebar task is already merged and pushed). This task does **not** authorize
-merge, push, tags, build/version changes, installation or release.
+View/sidebar task is already merged and pushed). This task made no build/version
+changes, application installation or release publication.
 
 ## Audit before implementation
 

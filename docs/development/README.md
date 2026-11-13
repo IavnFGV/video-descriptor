@@ -1,7 +1,7 @@
 # Development guide
 
 Start with [AGENTS.md](../../AGENTS.md), the [architecture map](../architecture/README.md)
-and [owner safety requirements](safety.md). This guide describes source development;
+and [safety requirements](safety.md). This guide describes source development;
 installed users run the packaged launcher and configure components in the app.
 
 ## Environment and launch
@@ -16,6 +16,13 @@ and the [Windows README](../../windows-app/README.md). That script prepares
 Do not run it over a working environment just to validate documentation.
 `requirements-ci.txt` pins check tooling; `requirements-dev.txt` has initial broad
 ranges, not the release lock.
+
+Do not confuse that launcher environment with local Fast checks: on Windows,
+`scripts/check-fast.py` requires `.venv` in the checkout being checked, not
+`.venv-windows` or an interpreter from another worktree. Use an existing populated
+`.venv`; see [testing](testing.md). Creating environments or installing dependencies
+is setup work, not a documentation validation step. The isolated local builder's
+current conflict with this guard is documented in [local-build.md](../local-build.md).
 
 With the source environment already prepared, from the repository root:
 
@@ -95,6 +102,17 @@ and remote mutation is authorized.
 Merging does not authorize a release: no automatic version/BUILD bump, tag, release
 dispatch or publication. Explicitly authorized release automation follows the
 [release procedure](releases.md) separately.
+
+## Documentation with every change
+
+Keep the affected guides, commands, configuration examples and links synchronized
+in the same task as the implementation. Replace or remove obsolete passages rather
+than leaving conflicting instructions under a newer dated note. History and release
+notes do not replace updates to current guides. Preserve published notes, legal
+notices and useful historical evidence with an explicit historical scope.
+The authoritative checklist is [Keep documentation synchronized](../../AGENTS.md#keep-documentation-synchronized);
+apply it to human and agent contributions. State validation limits and any blocked
+documentation updates in the task report.
 
 ## Task routes and dependencies
 

@@ -1,5 +1,9 @@
 # Whisper на Intel NPU: рабочий вариант и замер
 
+Исторический benchmark `base.en` от 09.10.2026, не установка Windows-приложения.
+Текущий desktop использует многоязычную small FP16:
+[настройка AI](ai-setup-windows.md), [проверки устройств](verification-devices.md).
+
 Проверено 2026-10-09 на Windows 11, Intel Core Ultra 7 258V, NPU Intel AI Boost
 (архитектура 4000), 32 GB RAM, драйвер 32.0.100.4778. Основной проект находится
 в devcontainer; NPU-эксперимент запускается непосредственно в Windows.
@@ -38,8 +42,12 @@ CPU-тексты также стабильны; сходство строк CPU/
 
 В текущем контейнере нет `/dev/accel`, поэтому нужен Windows PowerShell.
 Установите Python 3.11/3.12 и [драйвер Intel NPU](https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html).
-Скачайте `http://localhost:8000/output/whisper-benchmark/windows-benchmark.zip`,
-распакуйте и откройте PowerShell в папке архива:
+Прежний `output/whisper-benchmark/windows-benchmark.zip` был локальным результатом,
+не распространяемым файлом репозитория. Для отдельного benchmark-каталога нужны
+[benchmark_whisper_npu.ps1](../scripts/benchmark_whisper_npu.ps1),
+[benchmark_whisper.py](../scripts/benchmark_whisper.py),
+[download_official_whisper_ir.py](../scripts/download_official_whisper_ir.py)
+и свой `sample.wav`. Поместите скрипты рядом с WAV и откройте PowerShell там:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\benchmark_whisper_npu.ps1
@@ -90,7 +98,9 @@ PyTorch, Transformers и Optimum для загрузки готового IR н�
 `base.en` работает только с английским. Есть официальные многоязычные IR
 [whisper-base-fp16-ov](https://huggingface.co/OpenVINO/whisper-base-fp16-ov) и
 [whisper-small-fp16-ov](https://huggingface.co/OpenVINO/whisper-small-fp16-ov).
-Их корректность и скорость на нашем NPU отдельно ещё не проверены.
+Для small многоязычный профиль впоследствии проверен отдельно:
+[результаты Windows](verification-windows.md). Эти результаты не переносятся
+на многоязычную base или произвольный экспорт IR.
 
 ## Подготовка того же фрагмента в контейнере
 

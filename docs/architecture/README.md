@@ -53,7 +53,7 @@ to different launch paths, not interchangeable ports for one endpoint.
 
 Ollama is normally loopback 11434; [ollama_connection.py](../../video_descriptor/ollama_connection.py)
 and [notes.py](../../video_descriptor/notes.py) integrate it.
-[LM Studio](../lmstudio.md) uses a separate OpenAI-compatible local server
+[LM Studio](../lmstudio-windows.md) uses a separate OpenAI-compatible local server
 (default 1234/v1), with device/offload controlled by LM Studio.
 [Gemini](../translation-providers.md) is an external cloud path with consent/access
 requirements. Translation and notes/article model selections are independent.

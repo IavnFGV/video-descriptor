@@ -80,7 +80,7 @@ of being rewritten.
 
 Only the standard installer profile ships. Local models must not leak into standard
 assets. See [public policy tests](../../tests/test_public_release_policy.py),
-[third-party notices](../../windows-app/THIRD-PARTY.md) and [owner constraints](safety.md).
+[third-party notices](../../windows-app/THIRD-PARTY.md) and [safety constraints](safety.md).
 The public gate is required, but is not a complete transitive licensing audit.
 
 ## Local builds
@@ -89,12 +89,14 @@ The public gate is required, but is not a complete transitive licensing audit.
 checkout using the single standard profile; the former `-Domestic`/`--cached` offline
 profiles were removed. The configured post-merge hook can queue this standard build and
 update its guarded source preview; read [local-build.md](../local-build.md) before
-triggering it. Do not bypass pinned inputs, hashes or lifecycle checks to fix an
+triggering it, including the current checkout-specific `.venv` guard conflict on
+Windows. This is not a claim of a successful end-to-end build at current HEAD.
+Do not bypass pinned inputs, hashes or lifecycle checks to fix an
 acceptance failure.
 
 [container-release.yml](../../.github/workflows/container-release.yml) is manual;
-it does not compete for native version-tag pushes. Historical combined container
-publication descriptions in [CI policy](../ci-policy.md) do not define its current
-trigger. See [Windows packaging](../windows-release.md),
+it does not compete for native version-tag pushes. The remaining semantic-tag
+combined publisher and its limitations are described in [CI policy](../ci-policy.md).
+See [Windows packaging](../windows-release.md),
 [release readiness](../release-readiness.md) and [installed acceptance](../installed-api-acceptance.md)
 for details and versioned evidence.

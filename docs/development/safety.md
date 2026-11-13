@@ -1,4 +1,4 @@
-# Owner constraints and machine context
+# Safety constraints and machine context
 
 These standing requirements were consolidated from the root working context on
 2026-11-11. This document is mandatory through the root AGENTS.md; dated migration
@@ -12,12 +12,12 @@ user-selected checkout rather than copying changes to that historical path.
 The original Ubuntu WSL project is `/home/ivand/projects/video-descriptor`:
 do not delete it or automatically synchronize back. `.devcontainer/` is retained
 and some settings still use that directory; it does not require VS Code or WSL.
-The owner works from Codex without switching to VS Code/devcontainer.
+Source work does not require switching from the coding agent to VS Code/devcontainer.
 
-The owner authorized autonomous investigation and agreed implementation on
-2026-10-16; do not repeatedly seek authorization for those steps. Major application
-implementation still starts with investigation, an architectural proposal and a
-scope estimate. This does not authorize unrelated system installations/downloads.
+Investigate and implement work within the current task without repeatedly asking
+to proceed. Major application changes start with investigation, an architectural
+proposal and a scope estimate. Unrelated system installations/downloads require a
+separate explicit request.
 First read [START-HERE](../../windows-migration/START-HERE.md) and the
 [original migration request](../../windows-migration/ORIGINAL-REQUEST.txt) when
 first orienting in this repository, then follow newer decisions in
@@ -29,9 +29,9 @@ Docker/Compose where it simplifies delivery; do not rewrite for a single stack.
 Model/service setup and the installed user flow precede backend expansion.
 
 Do not install system components or download large models without agreement.
-The 2026-10-17 authorization covers enabling Windows Sandbox
-`Containers-DisposableClientVM` with dependencies using `NoRestart`, not an automatic
-host reboot, driver changes or other system components. Follow the applicable
+The existing Windows Sandbox setup scope is limited to enabling
+`Containers-DisposableClientVM` with dependencies using `NoRestart`; it excludes an
+automatic host reboot, driver changes and other system components. Follow the applicable
 Sandbox skill for guest-only Smart App Control changes; this is not host permission.
 
 ## Working models, devices and data
@@ -43,7 +43,7 @@ Whisper small FP16 OpenVINO on NPU, `STATIC_PIPELINE=True`, `num_beams=1`, port 
 Do not enable word timestamps. `end_ts=-1` is missing timing, never a guessed end.
 Do not promise native GPU diarization without a real verification.
 
-Device settings must support explicit selection and Auto with NPU â†’ GPU â†’ CPU
+Device settings must support explicit selection and Auto with NPU → GPU → CPU
 priority for recognition. Check backend/model functionality, not mere detection.
 Never silently replace an explicit choice. Check diarization and translation
 capabilities separately; NPU support is not transferable between models.
@@ -90,8 +90,10 @@ Final delivery needs reproducible ZIP/Windows installer and clean Windows VM/run
 smoke, install, upgrade and uninstall checks. NPU/GPU support needs separate real
 hardware verification; simulations and Windows containers are not hardware evidence.
 
-Only standard packages go to GitHub Releases (2026-11-09). Domestic and cached full
-offline installers with models are personal/private. Enforce the public artifact
+Only standard packages go to GitHub Releases (2026-11-09). Domestic/cached offline
+builders were removed on 2026-11-12; they are not supported packaging profiles.
+Previously produced installers with private models remain private and must not be
+published under any filename. Enforce the public artifact
 gate regardless of filename. Users obtain Whisper/community-1/LLMs from official
 sources with consent/access; a suitable local model avoids duplicate download and
 unnecessary HF credentials. Bundled dependency assets require license/notices review

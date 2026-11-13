@@ -1,9 +1,8 @@
 # Windows Sandbox Desktop 0.7: результат продолжения 19.10.2026
 
-Пользователь подтвердил успешный запуск новой сборки после инструкции для новой
-Sandbox и разрешил commit/push/merge. Это подтверждение ручного прогона владельцем;
-отдельных результатов каждого пункта чек-листа он не предоставлял. Полный подробный
-чек-лист по-прежнему не объявляется независимо подтверждённым агентом.
+По сообщению пользователя новая сборка успешно запустилась в новой Sandbox.
+Отдельные результаты каждого пункта чек-листа не предоставлены; полный чек-лист
+не считается независимо проверенным агентом.
 
 В `5827e6d` исправлена проверка WebView2: если официальный loader не находит рабочий
 Runtime, установщик скачивает закреплённый CAB Microsoft, проверяет SHA256 и подпись
@@ -17,7 +16,7 @@ Runtime, установщик скачивает закреплённый CAB Mi
 на CPU за 3,718 с от started до finished (весь job, не отдельный замер inference).
 Результат содержит настоящий распознанный текст и таймкоды. В этом прогоне модель
 взята из независимо проверенного кеша; это не повторная сетевая загрузка.
-Guest-only SAC Off использован с разрешения владельца. Защита хоста не менялась.
+SAC выключен только внутри Sandbox. Защита хоста не менялась.
 
 [Сохранённые доказательства](verification-sandbox-desktop-0.7-evidence/20261019-followup/)
 содержат Runtime log, CPU health, probe result, job/speech JSON, снимок MP4,
@@ -43,7 +42,7 @@ Guest-only SAC Off использован с разрешения владель
 
 ## Сборка и найденное исправление
 
-Исходная сборка `1f622e6a7f71aa5e029e9a91313edc49aa3849d3` установилась после согласованного изменения защиты гостя, однако OpenVINO не загрузился: отсутствовал MSVCP140.dll. Это реальный дефект чистой установки. Диагностическое копирование DLL подтвердило причину, но не засчитывается как приёмка исправленной поставки.
+Исходная сборка `1f622e6a7f71aa5e029e9a91313edc49aa3849d3` установилась после изменения защиты гостя, однако OpenVINO не загрузился: отсутствовал MSVCP140.dll. Это реальный дефект чистой установки. Диагностическое копирование DLL подтвердило причину, но не засчитывается как приёмка исправленной поставки.
 
 Исправление `30f5f7146cc3fe2d00fa3c0ebf0a4b92de4b73be` включает 12 app-local DLL Microsoft VC++ 14.44.35211.0 и лицензию. Официальный подписанный redistributable, экстрактор WiX и каждый DLL закреплены SHA256; системный VC++ на хосте или госте не устанавливался. Из этого коммита заново собраны ZIP и EXE. На **второй чистой Sandbox** установлен исправленный EXE: OpenVINO/GenAI загрузились, CPU обнаружен.
 
@@ -62,7 +61,7 @@ Guest-only SAC Off использован с разрешения владель
 
 **Обычная защита:** исходный неподписанный EXE блокировался Smart App Control (0x800711C7, события 3033/3077). Скриншот пользователя и Code Integrity сохранены. Исправленный EXE тоже неподписан; его запуск с исходной политикой отдельно не повторялся. Блокировка доверия не устранена добавлением DLL.
 
-**Согласованный функциональный прогон:** пользователь явно разрешил SAC Off только в одноразовом госте и перезапуск только гостя. Изменено VerifiedAndReputablePolicyState 1 → 0, выполнен CiTool refresh и гостевой reboot. Изменение защищённого MinValueSeen было отклонено; принудительное изменение владельца/ACL не применялось. Windows Security UI в госте не открывался. Основная Windows, Defender и Firewall не изменялись. Поэтому функциональные PASS ниже относятся к гостю с изменённой политикой SAC, а не стандартной защите.
+**Функциональный прогон с SAC Off:** в одноразовом госте изменено VerifiedAndReputablePolicyState 1 → 0, выполнен CiTool refresh и перезапуск гостя. Изменение защищённого MinValueSeen было отклонено; принудительное изменение владельца/ACL не применялось. Windows Security UI в госте не открывался. Основная Windows, Defender и Firewall не изменялись. Поэтому функциональные PASS ниже относятся к гостю с изменённой политикой SAC, а не стандартной защите.
 
 Официальные ограничения: [Smart App Control FAQ](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions), [тестирование приложения с SAC](https://learn.microsoft.com/en-us/windows/apps/develop/smart-app-control/test-your-app-with-smart-app-control), [конфигурация Sandbox](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-configure-using-wsb-file).
 
@@ -86,12 +85,12 @@ PASS означает фактическую проверку в госте, с 
 | Нет предыдущей установки и пользовательского HF cache | PASS | existing_installation=false; existing_user_models=false. |
 | Не унаследованы переменные API-ключей | PASS | Нет имён переменных GEMINI/API_KEY/HF_TOKEN/OPENAI/WHISPER/OLLAMA; значения секретов не читались. |
 | Минимальные общие папки | PASS | Только C:\VD-Input read-only и C:\VD-Reports writable; repository/home/private folders не смонтированы. |
-| Отдельный сетевой профиль с согласия пользователя | PASS | Старый профиль Networking=Disable; новый Enable согласован в чате, Ethernet Up подтверждён в госте. |
+| Отдельный сетевой профиль | PASS | Старый профиль Networking=Disable заменён на Enable; Ethernet Up подтверждён в госте. |
 | WebView2 Runtime уже присутствует | PASS | 155.0.4283.45 и 155.0.4283.62; сценарий отсутствующего Runtime этим не проверен. |
 | SHA256 и размеры EXE/ZIP | PASS | Fixed EXE/ZIP hashes and sizes verified inside the new guest; see fixed-artifact-verification.json. |
 | Состав и SHA256 файлов ZIP | PASS | All 4415 packaged ZIP files checked against release manifest in the new guest; no extra entries. |
 | Запуск EXE в стандартной защите гостя | BLOCKED | Original unsigned EXE blocked by guest Smart App Control (0x800711C7, Code Integrity 3033/3077). Fixed EXE is also unsigned; its default-policy launch was not independently retested. Modified-policy installation is recorded separately. |
-| Установка без системного Python | PASS | Fresh rebuilt guest: interactive EXE install completed without system Python or VC++ installation, after the authorized guest-only SAC change. |
+| Установка без системного Python | PASS | Fresh rebuilt guest: interactive EXE install completed without system Python or VC++ installation, after the guest-only SAC change. |
 | Ярлык Start Menu | PASS | Installed Start Menu shortcut observed and used to launch the app. |
 | Обычный запуск Desktop | PASS | Launched the installed Start Menu shortcut in the fresh guest. |
 | Отдельное окно WebView2 без браузера | PASS | Separate desktop WebView2 window rendered the wizard; browser launch was not required. |

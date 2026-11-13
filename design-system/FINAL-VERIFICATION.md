@@ -1,5 +1,11 @@
 # Финальная проверка production UI
 
+> Исторический отчёт 19.10.2026. Описанные ниже PR/main, release rebuild и
+> opt-in Ollama CI заменены текущей [политикой CI](../docs/ci-policy.md):
+> installed CPU/UI выполняется в Full Acceptance, LLM HTTP заменён fixture,
+> release-event проверяет uploaded assets без пересборки. Старые результаты
+> и ограничения сохранены для их исходных revision.
+
 19.10.2026. Полный backend test suite: **283 passed, 2 skipped**; Ruff, JS syntax,
 CSS bundles и immutable DOM/API/handler guard PASS. Windows build ZIP/installer PASS.
 
@@ -52,7 +58,7 @@ same-guest restart подтверждены; UI-драйвер не подклю
 [Report](evidence/final/sandbox/report.json),
 [transport failure](evidence/final/sandbox/desktop.json).
 Обычные пользовательские сценарии отдельно выполняются установленным Windows
-runner/host через автоматический драйвер, как предусмотрено заданием.
+runner/host через автоматический драйвер.
 
 [Guest diagnostics](evidence/final/sandbox/guest-diagnostics.json): Windows PnP
 показывает Intel AI Boost и Arc 140V, OpenVINO перечисляет только CPU. NPU/GPU

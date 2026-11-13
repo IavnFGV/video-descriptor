@@ -1,5 +1,10 @@
 # Windows: фактическая архитектура и решение
 
+Текущие границы компонентов и конфигурация:
+[карта архитектуры](architecture/README.md). Датированные ADR и замеры ниже
+сохраняют состояние соответствующих версий, а не обещают нынешнюю приёмку.
+BUILD/теги/публикация определяются [release guide](development/releases.md).
+
 ## Формат номера сборки
 
 Начиная с 12, BUILD записывается минимум четырьмя цифрами; исходное текстовое
@@ -18,7 +23,8 @@ Existing controls are moved, keeping IDs/handlers. File/View/Tools/Help are nati
 disclosures; the existing View controller is adopted without another preference
 store. Owner's follow-up removes the visible sidebar/toggle entirely; original
 native navigation anchors move to File/Tools, retaining their handlers. View is
-loaded on every full page and skipped in embedded reports. Tools always opens the
+loaded on every full page, shown only for an open recording and skipped in embedded
+reports. Tools always opens the
 shared settings containing Ollama, LM Studio and Gemini instead of the incomplete
 recording-only dialog. Legacy IDs remain for compatibility. New command
 links respect quick-edit and report dirty guards; settings index buttons only open
@@ -55,7 +61,7 @@ Retry-After/rate-limit reset (1–24 часа). Ручная проверка о
 Development mode, отсутствующий/непригодный BUILD не предлагают обновлений.
 
 Главная Windows-страница читает локальный снимок своим существующим 15-секундным
-циклом. Кнопка-бейдж появляется только при обновлении; меню «Приложение» содержит
+циклом. Кнопка-бейдж появляется только при обновлении; меню «Справка» содержит
 ручную проверку. Диалог открывается только пользователем, notes вставляются через
 `textContent` (не HTML/Markdown). `/api/setup/external` принимает фиксированную команду
 `update-release`, строит URL из проверенного тега и открывает внешний браузер;
@@ -80,7 +86,7 @@ Development mode, отсутствующий/непригодный BUILD не �
 
 10.11.2026: workspace имеет вкладки Конспект/Статья над единым редактором. `recording.js` сохраняет независимые selectedReports и активный kind; query `material=notes|article` сохраняет вид без нового endpoint/запуска задания. `studioUI.chooseIndependentReport(null)` теперь явно означает отсутствие материала, без fallback к конспекту другой вкладки; dirty editor не очищается и блокирует переключение. Frame/revisions/Undo, API генерации, распознавание и выбранная речь сохранены.
 
-10.11.2026: контракт CI разделён по решению владельца. Release Full Acceptance проверяет штатные installed API/worker/UI/результаты и реальный CPU Whisper; только внешний LLM HTTP endpoint заменяется disposable loopback fixture со streaming Ollama protocol. Mock не включается в production configuration и не является доказательством inference/качества модели. Negative case сохраняет ошибочный ответ и неизменённую исходную речь. Независимый manual model-behavior.yml выполняет реальную генерацию на версионированном synthetic corpus (Ollama; CLI также поддерживает существующий LM Studio), фиксирует identity/хеш промпта/case/result и не публикует артефакты продукта. См. model-behavior.md.
+10.11.2026: разделены проверка релизного контракта и оценка реальной модели. Release Full Acceptance проверяет штатные installed API/worker/UI/результаты и реальный CPU Whisper; только внешний LLM HTTP endpoint заменяется disposable loopback fixture со streaming Ollama protocol. Mock не включается в production configuration и не является доказательством inference/качества модели. Negative case сохраняет ошибочный ответ и неизменённую исходную речь. Независимый manual model-behavior.yml выполняет реальную генерацию на версионированном synthetic corpus (Ollama; CLI также поддерживает существующий LM Studio), фиксирует identity/хеш промпта/case/result и не публикует артефакты продукта. См. model-behavior.md.
 
 09.11.2026: Windows 0.8.34 — успешная проверка диаризации сохраняется между запусками и UI-обновлениями. Готовность привязана к модели, Python/метаданным пакетов, lock-файлу, worker и устройству/драйверу; отсутствие proof не выдаётся за готовность. При неизменных входах не запускать повторный inference и не требовать Hugging Face, токен или ручную проверку. Доступ HF показывать только для необходимой загрузки модели. Ошибка проверки сбрасывает кеш.
 
@@ -94,7 +100,7 @@ Development mode, отсутствующий/непригодный BUILD не �
 
 09.11.2026: Windows 0.8.31 — создание статьи открывает настройки статьи с отдельным редактируемым промптом и явной кнопкой запуска. Конспект сохраняет собственный промпт; article_prompt хранится отдельно, backend применяет его только для статьи. Выбранная расшифровка, версии и dirty guards сохранены.
 
-08.11.2026: согласован независимый выбор версий расшифровки, конспекта и статьи. Служебные снимки сохраняются в хранилище, но скрыты в выборе расшифровки; выбор материала не переключает речь. Новые материалы используют выбранную речь, старые не изменяются. Общий редактор показывает выбранный конспект или статью; dirty guards и синхронизация по времени сохранены. Удаление адресует выбранный материал.
+08.11.2026: добавлен независимый выбор версий расшифровки, конспекта и статьи. Служебные снимки сохраняются в хранилище, но скрыты в выборе расшифровки; выбор материала не переключает речь. Новые материалы используют выбранную речь, старые не изменяются. Общий редактор показывает выбранный конспект или статью; dirty guards и синхронизация по времени сохранены. Удаление адресует выбранный материал.
 
 
 08.11.2026: POST `/api/construction-recovery` открывает сохранённый Markdown ошибочного notes job с revision и началами реплик. Сохранение проверяет parsed_notes, source revision и отсутствие активных задач, записывает отдельный construction-manual.json и возвращает то же задание в очередь. Construction worker принимает проверенный ручной ответ до проверки AI-провайдера и собирает отчёт без генерации; последующий перевод, если был заказан, остаётся отдельным этапом. Оригинальный construction-result.md не изменяется.
@@ -134,7 +140,7 @@ guards либо legacy notes-run; новая native речь закрепляе�
 
 ## UI-система, 19.10.2026
 
-Согласованная главная сохраняет HTML/CSS/JS и WebView2. Клиентские области
+Новая главная сохраняет HTML/CSS/JS и WebView2. Клиентские области
 `#records`, `#settings`, `#diagnostics` сохраняют `?job=`; API и persisted job states
 прежние. `scripts/build-ui-css.py` собирает общие design-system tokens/components
 и `windows-app/ui/layout.css` в существующий `app.css`, обслуживаемый `/native.css`.
@@ -145,7 +151,7 @@ bundle. Общие assets `/create` и редактор отчёта пока н
 
 ## Sandbox harness, 19.10.2026
 
-Последующее уточнение: Functional поддерживает явно разрешённый владельцем guest-only
+Functional поддерживает guest-only
 SAC Off с единственным reboot и RunOnce/CLI resume; Security сохраняет стандартную
 политику. Выбранные SAC mode и interaction входят в fingerprint. `Api` использует
 реальные локальные API установленного приложения, отдельные порты в CI, настоящий
@@ -817,7 +823,7 @@ Public GitHub Release использует только standard ZIP/EXE. Domest
 
 ### Номер билда из репозитория (0.9.0)
 
-По уточнению владельца единственный источник — текстовый BUILD в Git. Он инкрементируется и коммитится только при подготовке нового релиза, до создания version tag. Local/Domestic/cached и GitHub читают одно значение; retry и deterministic rebuild его не меняют. BUILD включён в source allowlist, manifest.build, acceptance-provenance.build, API /health и /api/doctor, footer и Inno AppVerName. Дополнительных локальных счётчиков или build-info.json нет. Ключи моделей/component cache не включают номер.
+Единственный источник номера сборки — текстовый BUILD в Git. Он инкрементируется и коммитится только при подготовке нового релиза, до создания version tag. Local/Domestic/cached и GitHub читают одно значение; retry и deterministic rebuild его не меняют. BUILD включён в source allowlist, manifest.build, acceptance-provenance.build, API /health и /api/doctor, footer и Inno AppVerName. Дополнительных локальных счётчиков или build-info.json нет. Ключи моделей/component cache не включают номер.
 
 
 11.11.2026: review recovery: restore допускает пустые segments только при исходно пустой речи с unresolved-интервалами (Undo первого ручного заполнения). no_speech означает отсутствие и распознанных реплик, и unresolved; незавершённая расшифровка не выдаётся за подтверждённую тишину.
@@ -835,7 +841,7 @@ UI явно показывает ожидание; сервер и его мод
 проверка не записывается как успешная и не сохраняет выбор модели.
 
 
-11.11.2026: Milestone 1, согласованная единая форма Ollama / LM Studio в существующих
+11.11.2026: Milestone 1, единая форма Ollama / LM Studio в существующих
 настройках. Исторические `ollama-form`, `ollama-service-url`, `ollama-model`,
 `ollama-use-connection`, `ollama-refresh`, `ollama-test`, `ollama-feedback` и
 `ollama-guide` теперь обслуживают оба провайдера. Отдельные LM Studio form/URL/model/
@@ -877,7 +883,7 @@ snapshot: для возобновления authenticated job требуется
 Завершённые checkpoints, оригинальные ответы, revisions и ручные правки сохраняются.
 
 
-11.11.2026: по прямому запросу владельца удалены obsolete `ollama-task` и `local-task-field`
+11.11.2026: удалены obsolete `ollama-task` и `local-task-field`
 из общей формы LLM. Save и Test Model передают task=translation в прежний Ollama API,
 сохраняя общий provider/model вместо legacy notes-settings. Общий выбор используется
 переводом/конспектами/статьями по умолчанию; явные настройки конкретного задания,

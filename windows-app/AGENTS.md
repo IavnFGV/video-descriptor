@@ -11,8 +11,8 @@ apply. For UI also read [ui/AGENTS.md](ui/AGENTS.md).
 Do not create a second settings, job, editor or installation lifecycle.
 
 - Keep source-development launch separate from embedded-Python installed releases.
-  Use [development guide](../docs/development/README.md), not dated prototype claims
-  in the older README as a current acceptance matrix.
+  Use the [Windows README](README.md) and [development guide](../docs/development/README.md);
+  dated prototype reports are not a current acceptance matrix.
 - Check model/backend health before readiness; retain explicit-device errors,
   per-model capabilities, cached diarization proof and job/preparation locks.
 - Keep the benchmark venv and live external workers intact. A new worker must not
@@ -20,7 +20,8 @@ Do not create a second settings, job, editor or installation lifecycle.
 - Keep instance/installation/workspace checks and safe refusal to stop active work.
   Models, runtime state and local configuration are not source assets.
 - Packaging uses pinned release inputs/wheels, public gates and installer lifecycle
-  checks. Domestic/cached packages are private. Never edit BUILD/version files or
+  checks. Standard is the only current profile; Domestic/cached builders were removed.
+  Never publish previously produced private bundles, even if renamed. Never edit BUILD/version files or
   run release preparation unless the task authorizes a release.
 
 See [release guide](../docs/development/releases.md) and

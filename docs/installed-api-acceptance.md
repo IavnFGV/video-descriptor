@@ -4,7 +4,17 @@
 учётная запись WDAGUtilityAccount не является гостевой учётной записью ноутбука.
 SAC Off и reboot относятся только к этой одноразовой системе.
 
-## Что уже было в CI и что добавлено
+## Текущая приёмка
+
+[Full Acceptance](../.github/workflows/full-acceptance.yml) вызывает
+`verify_installed.py --ui --llm-fixture`: Whisper CPU настоящий, LLM HTTP endpoint
+заменён disposable fixture. Runtime Ollama и LLM-веса при этом не скачиваются.
+Флага workflow `test_ollama` больше нет. Реальная модель проверяется отдельно через
+[Model and prompt behavior](model-behavior.md) либо явно подготовленный test server.
+Windows release вызывает Full с `windows_only=true`; обычный PR smoke не запускает
+этот полный сценарий. См. [CI policy](ci-policy.md).
+
+## История добавления installed-проверок (19.10.2026)
 
 До этого изменения Windows workflow собирал ZIP/EXE, проверял воспроизводимость,
 install/reinstall/upgrade/uninstall, отказ обновления работающей копии, unit/API
@@ -25,7 +35,7 @@ install/reinstall/upgrade/uninstall, отказ обновления работ�
 Публичная Whisper-модель закреплена revision/SHA256 и кэшируется; cache hit всё
 равно проверяется по хешам, но не вызывает повторную загрузку 470 МиБ.
 
-В ручном запуске workflow флаг `test_ollama=true` добавляет реальную генерацию,
+В тогдашнем ручном запуске workflow флаг `test_ollama=true` добавлял реальную генерацию,
 перевод, конспект, chapters, HTML и экспорт SRT. Ollama устанавливается в отдельную
 CI-папку из SHA256-pinned подписанного EXE; публичная тестовая модель хранится
 отдельно. По умолчанию выбран `qwen3.5:0.8b`; это функциональный smoke, а не оценка
@@ -44,13 +54,17 @@ CI-папку из SHA256-pinned подписанного EXE; публична�
 
 ```powershell
 python -X utf8 windows-app/verify_installed.py `
-  --installer dist/VideoDescriptor-0.7.0-windows-x64-setup.exe `
-  --zip dist/VideoDescriptor-0.7.0-windows-x64.zip `
+  --installer dist/VideoDescriptor-0.9.4-build.0012-windows-x64-setup.exe `
+  --zip dist/VideoDescriptor-0.9.4-build.0012-windows-x64.zip `
   --model C:\public-test-assets\whisper-small `
   --output dist/installed-acceptance/report.json
 ```
 
-Для Ollama добавляются `--with-ollama --ollama-url http://127.0.0.1:11439
+Имена файлов выше — пример формата, не утверждение наличия этих artifacts.
+Подставьте ZIP/EXE одной реально принятой сборки. Для штатного LLM contract добавьте
+`--ui --llm-fixture`; это не проверка качества реальной LLM.
+
+Для внешнего тестового Ollama вместо fixture добавляются `--with-ollama --ollama-url http://127.0.0.1:11439
 --ollama-model qwen3.5:0.8b`. Сервис и модель должны быть подготовлены отдельно;
 `Prepare-TestOllama.ps1` устанавливает их только в CI/Sandbox, а на хосте допускает
 только `-DownloadOnly`.
@@ -113,7 +127,7 @@ GitHub Actions пока не выполнялся. Реальные отчёты
 работоспособность цепочки и сохранение результатов, а не качество перевода.
 
 Исторический Evaluation-only BLOCKED в [первом отчёте](verification-sandbox-harness.md)
-сохранён. По последующему прямому разрешению владельца добавлен отдельный guest SAC
+сохранён. Затем добавлен отдельный guest SAC
 Off, а не переименован старый BLOCKED в PASS. Публичные модели/EXE не коммитятся.
 [`sandbox.wsb`](../sandbox.wsb) сохраняется в Git как исходная ручная конфигурация;
 [`Acceptance.template.wsb`](../windows-app/sandbox/Acceptance.template.wsb) — исходник
