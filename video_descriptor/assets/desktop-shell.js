@@ -70,7 +70,7 @@
     bar.addEventListener('keydown',event=>{
       if(event.key==='Escape'){const active=event.target.closest('details');if(active){active.open=false;active.querySelector('summary').focus();event.preventDefault();}}
       if(['ArrowLeft','ArrowRight'].includes(event.key)&&event.target.tagName==='SUMMARY'){
-        const entries=[...bar.querySelectorAll(':scope>details>summary')],i=entries.indexOf(event.target),next=entries[(i+(event.key==='ArrowRight'?1:entries.length-1))%entries.length];
+        const entries=[...bar.querySelectorAll(':scope>details:not([hidden])>summary')],i=entries.indexOf(event.target),next=entries[(i+(event.key==='ArrowRight'?1:entries.length-1))%entries.length];
         closeMenus();next.focus();event.preventDefault();
       }
     });

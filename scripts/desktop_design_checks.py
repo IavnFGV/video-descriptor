@@ -23,6 +23,19 @@ def run(c, wait_for, root, base, before=False):
     out.mkdir(parents=True, exist_ok=True)
     metrics = []
 
+    def check_menu_keyboard(menus):
+        assert c.evaluate('document.querySelector("#workspace-view-menu").hidden') == ('workspace-view-menu' not in menus)
+        for direction, code, step in [('ArrowRight', 39, 1), ('ArrowLeft', 37, -1)]:
+            for i, menu in enumerate(menus):
+                c.evaluate(f'document.getElementById({json.dumps(menu)}).open=true;document.querySelector({json.dumps("#" + menu + " > summary")}).focus()')
+                c.call('Input.dispatchKeyEvent', type='keyDown', key=direction, code=direction, windowsVirtualKeyCode=code)
+                target = menus[(i + step) % len(menus)]
+                assert c.evaluate(f'document.activeElement===document.querySelector({json.dumps("#" + target + " > summary")})'), (direction, menu, target)
+                assert c.evaluate('![...document.querySelectorAll(".desktop-menu-bar > details")].some(item=>item.open)')
+        c.evaluate(f'document.getElementById({json.dumps(menus[0])}).open=true;document.querySelector({json.dumps("#" + menus[0] + " > summary")}).focus()')
+        c.call('Input.dispatchKeyEvent', type='keyDown', key='Escape', code='Escape', windowsVirtualKeyCode=27)
+        assert c.evaluate(f'!document.getElementById({json.dumps(menus[0])}).open && document.activeElement===document.querySelector({json.dumps("#" + menus[0] + " > summary")})')
+
     def capture(name, width, height):
         c.call('Emulation.setDeviceMetricsOverride', width=width, height=height, deviceScaleFactor=1, mobile=False)
         c.evaluate('window.scrollTo(0,0)')
@@ -36,6 +49,7 @@ def run(c, wait_for, root, base, before=False):
     workspace = c.evaluate('location.href')
     if not before:
         c.call('Emulation.setDeviceMetricsOverride', width=1200, height=800, deviceScaleFactor=1, mobile=False)
+        check_menu_keyboard(['desktop-file-menu', 'workspace-view-menu', 'desktop-tools-menu', 'desktop-help-menu'])
         for menu in ['desktop-file-menu', 'workspace-view-menu', 'desktop-tools-menu', 'desktop-help-menu']:
             before_rect = c.evaluate('''(()=>{const r=document.querySelector('.desktop-header').getBoundingClientRect();
                 return [r.x,r.y,r.width,r.height]})()''')
@@ -119,6 +133,8 @@ def run(c, wait_for, root, base, before=False):
             assert c.evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu [data-panel=video]")')
             assert c.evaluate('document.querySelectorAll("#desktop-tools-menu a").length===2')
             assert c.evaluate('![...document.querySelectorAll(".sidebar,.vd-global-nav,.sidebar-toggle")].some(e=>e.checkVisibility())')
+            if screen == 'records':
+                check_menu_keyboard(['desktop-file-menu', 'desktop-tools-menu', 'desktop-help-menu'])
         if screen == 'settings':
             c.call('Emulation.setDeviceMetricsOverride', width=1200, height=800, deviceScaleFactor=1, mobile=False)
             c.evaluate('document.querySelector("[data-settings-tab=setup-local-models]").click()')
