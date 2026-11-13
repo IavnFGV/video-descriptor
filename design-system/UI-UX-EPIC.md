@@ -47,10 +47,11 @@ checkboxes меню «Вид» вкладками без потери функц
 | 6 | API-free [прототип workspace tabs](prototype/workspace-tabs.html) — `52feee5` | 1, 5 | Edge: 60 сочетаний размера/состояния/области, keyboard/focus, empty article, persistent player/textarea, stop/recovery; без API/storage/history |
 | 7 | [Решения совместимости и тестовая матрица](WORKSPACE-TABS.md#тестовая-матрица-task-7) | 1, 2, 6 | URL выше flags без save, default/reset, local tabs без новых history entries/store, compatibility view для v1, original/ru/both; 256 preference cases и storage failures, production gates явно отделены |
 
-Tasks 1–6 и этот backlog включены в main. Интеграция сохраняет исходные commits
-`47d5739` (Task 5), `659a8a0` (backlog), `52feee5` (Task 6) и `77dacb0`
-(scoped Terra executor); это не выпуск Windows-пакета. Task 7 выполнен на отдельной
-task branch; его production integration и merge ещё не выполнены.
+Tasks 1–7 и этот backlog присутствуют на `origin/main` (`450a72e`, проверено
+13.11.2026). Task 7 добавил контракт совместимости и characterization; production
+tabs не реализованы. Интегрированы commits `47d5739` (Task 5), `659a8a0` (backlog),
+`52feee5` (Task 6), `77dacb0` (scoped Terra executor) и `450a72e` (Task 7). Это
+не выпуск Windows-пакета.
 
 Сопутствующие изменения: `934e512` ускоряет тестовые fixtures без production-правок;
 `278ecb9` вводит переиспользуемый Sol → Terra workflow, `77dacb0` добавляет восемь
@@ -78,11 +79,19 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 | 9b | Подключить «Материалы» с прежними subtabs | 8, 9a | Один iframe, independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи | Sol-led; отдельные bounded patches Terra |
 | 10 | Убрать только заменённые checkbox-controls | 9a, 9b и доказанная parity | Для каждого пункта/сочетания из mapping есть доступный эквивалент; layout/reset/video hide сохранены; help/docs/harness refs синхронизированы | Sol: parity review; Terra: отдельные механические slices |
 
-**Следующий increment — bounded slice Task 8, пока не начат.** Task 7 фиксирует
-контракт, не production tabs. До интеграции разделить wiring/focus, URL/guard gaps
-и multi-panel parity по границам [WORKSPACE-TABS](WORKSPACE-TABS.md).
-Этот backlog не запускает следующую реализацию,
-push, merge или релиз автоматически.
+**Следующий increment — Task 8, пока не начат.** Task 7 фиксирует контракт, не
+production tabs. Выполнять Task 8 отдельными slices:
+
+| Slice | Результат и проверка | Зависимости | Модель |
+| --- | --- | --- | --- |
+| 8a | Включить workspace tablist для расшифровки: существующий DOM/feed, presentation-only выбор, polling и focus не сбрасывают состояние; focused browser scenarios | Task 7 на `origin/main` | Sol ведёт архитектуру и интеграцию; Terra — только заранее ограниченную механику |
+| 8b | Согласовать deep links, URL/hash и guarded Back/Forward по существующим owners; проверить конфликты и отказ guard | 8a; контракт Task 7 | Sol — route/guard дизайн и review; Terra допустим для точечных правок после декомпозиции |
+| 8c | Изолированно обработать недоступность `localStorage` в затронутых controllers, без изменения ключей/данных; проверить ошибки чтения/записи и reload | Task 7; до полного acceptance. Параллельно с 8a/8b — только в отдельном worktree | Sol задаёт поведенческие границы; Terra возможен для строго ограниченного patch и тестов |
+| 8d | Проверить production DOM, keyboard/focus, polling, deep links, guards и storage failures; закрыть Task 8 только по evidence | 8a–8c | Sol выполняет review и validation; отчёт worker не заменяет проверки Sol |
+
+Multi-panel compatibility view и подключение перевода/материалов остаются
+следующими increments (Tasks 9a/9b), не частью Task 8. Этот backlog не запускает
+реализацию, push, merge или релиз автоматически.
 
 ### Evidence Task 7
 
