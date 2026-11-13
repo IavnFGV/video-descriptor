@@ -148,8 +148,6 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             from workspace_view_checks import run
             run(c, wait_for, out, root)
             raise SystemExit(0)
-        # Legacy feature acceptance explicitly enables the formerly always-visible panels.
-        evaluate("for(const key of ['notes','article','translation','technical'])workspaceView.setPanel(key,true)")
         if '--release-harness-only' in sys.argv:
             import argparse
             import importlib.util
@@ -157,6 +155,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             harness = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(harness)
             evidence = {'checks': [], 'screens': []}
+            assert evaluate('document.documentElement.getAttribute("data-view-translation") === "false"')
+            assert evaluate('document.documentElement.getAttribute("data-view-notes") === "false"')
+            assert evaluate('document.documentElement.getAttribute("data-view-technical") === "false"')
+            harness.enable_workspace_panels(c, ['translation', 'notes', 'technical'])
             c.click('#translation-settings-panel > summary')
             assert evaluate('document.querySelector("#recording-translate").checkVisibility()')
             c.fill('#recording-notes', '__new__')
@@ -176,6 +178,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('PASS: release workspace harness against disposable UI fixtures; no inference claim', flush=True)
             print(json.dumps(evidence['checks'], ensure_ascii=False), flush=True)
             raise SystemExit(0)
+        # Legacy feature acceptance explicitly enables the formerly always-visible panels.
+        evaluate("for(const key of ['notes','article','translation','technical'])workspaceView.setPanel(key,true)")
         assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
         assert evaluate('location.pathname==="/create" && recordingUI.native')
         assert evaluate('document.querySelectorAll("#process-video").length') == 1

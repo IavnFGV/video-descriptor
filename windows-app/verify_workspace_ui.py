@@ -19,6 +19,22 @@ from acceptance_api import InstalledAPI
 from acceptance_ui import CDP, read_http, wait_for
 
 
+def enable_workspace_panels(cdp, panels):
+    """Enable requested panels through the same View menu used by a person."""
+    wait_for(lambda: cdp.evaluate('!!document.querySelector("#workspace-view-menu > summary")'))
+    cdp.click('#workspace-view-menu > summary')
+    for panel in panels:
+        selector = f'#workspace-view-menu input[data-panel="{panel}"]'
+        checked = cdp.evaluate(f'document.querySelector({json.dumps(selector)})?.checked')
+        if checked is None:
+            raise RuntimeError(f'Workspace panel unavailable: {panel}')
+        if not checked:
+            cdp.click(selector)
+        wait_for(lambda panel=panel: cdp.evaluate(
+            f'document.documentElement.getAttribute({json.dumps("data-view-" + panel)}) === "true"'))
+    cdp.click('#workspace-view-menu > summary')
+
+
 def wait_workspace_job(cdp, base, root, output, previous=None, timeout=600):
     """Follow the current /create route; read actual job state instead of legacy #status."""
     def selected_job():
@@ -81,6 +97,7 @@ def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=No
         folder = speech['job']['folder']
         evidence['ui_speech'] = speech
         evidence['checks'].append('installed WebView2 file input, actual MP4 upload, CPU Whisper and saved result')
+        enable_workspace_panels(cdp, ['translation', 'notes', 'technical'] if with_ollama else ['technical'])
         notes_folder = None
         if with_ollama:
             cdp.click('#translation-settings-panel > summary')
@@ -215,9 +232,11 @@ def run(args, report):
     cdp.click('#source-details > summary')
     cdp.fill('#source-title', 'Несохранённое название / Незбережена назва')
     assert cdp.evaluate('new URLSearchParams(location.search).get("acceptance")') == 'preserved'
-    cdp.click('.vd-global-nav a[href*="#settings"]')
+    cdp.click('#desktop-tools-menu > summary')
+    cdp.click('#desktop-tools-menu a[href*="#settings"]')
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#records-open")'))
     wait_for(lambda: cdp.evaluate('document.querySelector("#records-open").getAttribute("href").startsWith("/create?")'))
+    cdp.click('#desktop-file-menu > summary')
     cdp.click('#records-open')
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#source-title")'))
     wait_for(lambda: cdp.evaluate('document.querySelector("#source-title").value') == 'Несохранённое название / Незбережена назва')

@@ -80,7 +80,11 @@
         const status=$('recording-status')||$('editor-status');if(status)status.textContent='Сохраните правки материала перед переходом.';return;
       }
       if(window.mayLeaveQuickReply&&!await window.mayLeaveQuickReply())return;
-      location.assign(a.href);
+      const target=new URL(a.href);
+      if(location.pathname==='/create'&&a.hasAttribute('data-desktop-navigation')&&target.origin===location.origin&&target.pathname==='/'&&target.hash){
+        const params=new URLSearchParams(location.search);params.set('workspace','1');target.search=params.toString();
+      }
+      location.assign(target.href);
     },true);
     // Library action next to the library heading, not a miscellaneous sidebar item.
     if(native&&$('new-record-open')){
