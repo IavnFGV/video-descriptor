@@ -9,6 +9,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def require_windows_dev_environment(root, prefix, platform, github_actions):
+    """Local Windows checks use this checkout's venv; GitHub uses its locked runner Python."""
+    if platform != 'win32' or github_actions == 'true':
+        return
+    venv = root / '.venv'
+    if Path(prefix).resolve() != venv.resolve() or not (venv / 'Scripts/python.exe').is_file():
+        raise SystemExit(
+            'Use the project Windows environment: .\\.venv\\Scripts\\python.exe scripts/check-fast.py '
+            '(with the same arguments). Create/populate .venv from the project requirements if missing; '
+            'the check does not install dependencies.'
+        )
+
+
 def run(*command):
     subprocess.run(command, cwd=ROOT, check=True)
 
@@ -19,6 +32,7 @@ def main():
     parser.add_argument('--config-only', action='store_true', help='Documentation-only CI: workflow contracts and syntax')
     parser.add_argument('--skip-config', action='store_true', help='CI routing job already checked configuration')
     args = parser.parse_args()
+    require_windows_dev_environment(ROOT, sys.prefix, sys.platform, os.environ.get('GITHUB_ACTIONS'))
     os.environ.update(PYTHONUTF8='1', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
                       PYTHONDONTWRITEBYTECODE='1')
     sys.dont_write_bytecode = True

@@ -1,14 +1,17 @@
 # Testing and CI
 
-Run from the repository root using an existing development environment. Full checks
+Run from the repository root using an existing development environment. On local
+Windows, `check-fast.py` requires this checkout's `.venv`; it refuses the system
+Python instead of running an incomplete suite. GitHub Actions uses its separately
+installed locked runner environment. Full checks
 need installed pytest, Ruff, PyYAML, application dependencies and Node.
 `scripts/check-actions.py` may fetch pinned actionlint if its verified cache is
 missing; it does not install model components. Never use live recordings as test output.
 
 ```powershell
-python scripts/check-fast.py --config-only
-python -m pytest -q -p no:cacheprovider tests/test_speech_npu.py tests/test_whisper_resume.py
-python scripts/check-fast.py
+.\.venv\Scripts\python.exe scripts/check-fast.py --config-only
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests/test_speech_npu.py tests/test_whisper_resume.py
+.\.venv\Scripts\python.exe scripts/check-fast.py
 ```
 
 `--config-only` checks workflow syntax/contracts and `test_ci_policy.py`, not
