@@ -15,6 +15,20 @@ for(const value of [undefined,'bad','null','[]','{"version":99,"panels":{"video"
   for(const name of ['video','transcript','speakers'])assert.equal(app.attrs.get('data-view-'+name),'true');
   for(const name of ['notes','article','translation','technical'])assert.equal(app.attrs.get('data-view-'+name),'false');
 }
+const saved=' { "version": 1, "layout": "stacked", "extra": 42, "panels": { "video": false, "transcript": "false", "notes": true, "future": true } } ';
+const partial=boot(saved);
+assert.equal(partial.values.get(key),saved); // Reading does not rewrite stored preferences.
+assert.equal(partial.root.dataset.workspaceLayout,'stacked');
+assert.equal(partial.attrs.get('data-view-video'),'false');
+assert.equal(partial.attrs.get('data-view-transcript'),'true'); // Invalid value defaults.
+assert.equal(partial.attrs.get('data-view-speakers'),'true'); // Missing value defaults.
+assert.equal(partial.attrs.get('data-view-notes'),'true');
+for(const name of ['translation','article','technical'])assert.equal(partial.attrs.get('data-view-'+name),'false');
+assert.equal(partial.attrs.has('data-view-future'),false);
+partial.ui.setPanel('article',true);
+assert.deepEqual(JSON.parse(partial.values.get(key)),{
+  version:1,layout:'stacked',panels:{video:false,transcript:true,speakers:true,translation:false,notes:true,article:true,technical:false}
+}); // Saving keeps recognized settings and omits unknown fields.
 const app=boot();
 for(const name of ['video','transcript','speakers','notes','article','translation','technical']){
   app.ui.setPanel(name,false);assert.equal(app.attrs.get('data-view-'+name),'false');
