@@ -40,7 +40,7 @@
     for(const tab of tabs)tab.tabIndex=tab===focusable?0:-1;
   }
   function save(){pendingState=null;try{localStorage.setItem(KEY,JSON.stringify(state));}catch(_error){}apply();}
-  function initialTab(){return state.panels.transcript&&!state.panels.translation&&!state.panels.notes&&!state.panels.article?'transcript':'all';}
+  function initialTab(){return state.panels.transcript&&!state.panels.notes&&!state.panels.article?'transcript':'all';}
   function route(params){
     const material=params.get('material'),stage=params.get('stage');
     const current=document.getElementById('material-tab-article')?.getAttribute('aria-selected')==='true'?'article':'notes';
@@ -87,7 +87,7 @@
     content=document.createElement('div');content.className='workspace-view-content';menu.append(content);
     content.style.left='8px';content.style.top='8px';content.style.visibility='hidden';
     const panels=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent='Панели записи';panels.append(legend);
-    const labels={video:'Видео',transcript:'Расшифровка',speakers:'Участники',translation:'Перевод',notes:'Конспект',article:'Статья / отчёт',technical:'Технические сведения и параметры'};
+    const labels={video:'Видео',transcript:'Расшифровка',speakers:'Участники',notes:'Конспект',article:'Статья / отчёт',technical:'Технические сведения и параметры'};
     for(const [key,title] of Object.entries(labels)){
       const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.dataset.panel=key;
       input.addEventListener('change',()=>{state.panels[key]=input.checked;selectTab('all');save();});

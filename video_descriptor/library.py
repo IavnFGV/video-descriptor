@@ -97,5 +97,5 @@ def library_page(output):
             '<a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
             '<main id="records" tabindex="-1"><div class="library-heading"><h1>Записи</h1>'
             '<a class="vd-button vd-button--primary" href="/">Новая запись</a></div>'
-            '<p>Откройте запись для просмотра расшифровки, перевода и конспекта.</p>'
+            '<p>Откройте запись для просмотра расшифровки и конспекта.</p>'
             + ("".join(cards) or '<p>Готовых материалов пока нет.</p>') + '</main></html>')

@@ -204,18 +204,18 @@
         if(document.activeElement!==$('settings-speech-device'))$('settings-speech-device').value=c.settings.speech_device;
         for(const id of ['speech-device','settings-speech-device'])for(const option of $(id).options){if(option.value==='AUTO')continue;const cap=c.capabilities[option.value];option.disabled=!cap.available;option.textContent=deviceName(option.value)+' · '+deviceReason(option.value);}
         $('device-status').textContent=c.preparing?'Запускаем распознавание с моделью на диске…':c.error||(chosen?`Выбрано: ${deviceName(c.settings.speech_device)} → ${deviceName(chosen)}. Настройка применяется только к новым заданиям.`:'Нет готового поддержанного backend. См. диагностику.');
-        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(deviceName(name),c.capabilities[name].ready,deviceReason(name))),check('Ollama · перевод',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
+        $('readiness').replaceChildren(...['NPU','GPU','CPU'].map(name=>check(deviceName(name),c.capabilities[name].ready,deviceReason(name))),check('Ollama',d.ollama.ready,d.ollama.ready?'Настроено · без проверки генерации':'Нужна настройка'));
         $('ready-dot').className='dot'+(ready&&d.ffmpeg?' good':'');
         systemStatus(ready&&d.ffmpeg,c.preparing);
         $('start').disabled=storageLocked||uploading||!ready||!d.ffmpeg||c.preparing||!!c.operation;
         $('start-npu').hidden=!!ready||!chosen;$('start-npu').disabled=c.preparing||!!c.operation;
         $('npu-notice').textContent=ready?'Распознавание готово. Можно добавить запись.':'Подготавливаем распознавание в фоне. Выбранный файл сохраняется.';
         if(!componentBusy){$('bootstrap-message').textContent=c.preparing?'Подготавливаем распознавание…':ready?'Распознавание готово':c.error?'Не удалось подготовить распознавание. Повторите.':'Нужно подготовить распознавание';$('prepare-speech').hidden=!!ready||c.preparing;}
-        $('ai-summary').textContent=(ready?'Распознавание готово. ':'Распознавание требует подготовки. ')+(d.ollama.ready?'Локальный перевод подключён. ':'Локальный перевод не подключён. ')+(diarizationConfigured?'Разделение по участникам доступно.':'Участники подготавливаются при первом использовании.');
+        $('ai-summary').textContent=(ready?'Распознавание готово. ':'Распознавание требует подготовки. ')+(d.ollama.ready?'Локальный AI подключён. ':'Локальный AI не подключён. ')+(diarizationConfigured?'Разделение по участникам доступно.':'Участники подготавливаются при первом использовании.');
         try{const events=await api('/api/native/events');$('events').textContent=events.slice(-20).map(e=>`${new Date(e.time_utc).toLocaleTimeString()} · ${e.label||actionNames[e.action]||e.action}${e.device||e.requested?' · '+(e.device||e.requested):''}${e.previous_device?' ← '+e.previous_device:''}${e.job_id?' · запись '+e.job_id.slice(0,8):''}`).join('\n')||'Событий пока нет';}catch(e){$('events').textContent='Не удалось обновить историю: '+e.message;}
         return;
       }
-      $('readiness').replaceChildren(check('Распознавание · Intel NPU',d.npu.ready),check('Видео и аудио',!!d.ffmpeg),check('Ollama · перевод',d.ollama.ready));
+      $('readiness').replaceChildren(check('Распознавание · Intel NPU',d.npu.ready),check('Видео и аудио',!!d.ffmpeg),check('Ollama',d.ollama.ready));
       $('ready-dot').className='dot'+(d.npu.ready&&d.ffmpeg?' good':'');
       systemStatus(d.npu.ready&&d.ffmpeg);
       $('start').disabled=storageLocked||uploading||!d.npu.ready||!d.ffmpeg;
@@ -372,7 +372,7 @@
       const text=available?'Доступен в OpenVINO; готовность модели — в панели AI':listed.length?'Виден в Windows, но недоступен в OpenVINO':'Не обнаружен Windows и OpenVINO';
       return check('Intel '+name+' · распознавание',available,text+(listed.length?' · '+listed.join(', '):''));
     };
-    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),deviceStatus('GPU',d.hardware.intel_gpu),deviceStatus('NPU',d.hardware.intel_npu),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Перевод',d.translation.state==='configured',d.translation.state==='configured'?'Настроено · генерация не проверена':'Требуется настройка'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',d.diarization.state==='configured',d.diarization.message));
+    $('setup-diagnostics').replaceChildren(check('CPU',true,d.hardware.cpu),deviceStatus('GPU',d.hardware.intel_gpu),deviceStatus('NPU',d.hardware.intel_npu),check('OpenVINO / GenAI',!!inv.openvino&&!!inv.genai,inv.openvino?`${inv.openvino} / ${inv.genai}`:'Требуется runtime из установщика'),check('Устройства OpenVINO',!!inv.devices.length,inv.devices.join(', ')||'Недоступно'),check('Конспект',d.notes.state==='configured',d.notes.selected||'Требуется настройка'),check('OCR',false,d.ocr.message),check('Диаризация',d.diarization.state==='configured',d.diarization.message));
     if(!document.activeElement.closest('#gemini-form')){$('gemini-model').value=d.gemini.model;$('gemini-billing').value=d.gemini.billing_mode;$('gemini-ack').checked=d.gemini.free_ack;}
     $('gemini-key').placeholder=d.gemini.has_key?'Ключ сохранён':'Введите API-ключ';
   }
@@ -439,7 +439,7 @@
   }
   $('probe-model').onclick=()=>componentAction('whisper','check');
   $('probe-custom').onclick=()=>runProbe(true);
-  $('gemini-form').onsubmit=async e=>{e.preventDefault();try{await setupPost('gemini',{api_key:$('gemini-key').value,model:$('gemini-model').value,billing_mode:$('gemini-billing').value,free_ack:$('gemini-ack').checked});$('gemini-key').value='';$('gemini-feedback').textContent='Настройки сохранены. Перевод через Gemini доступен в расширенном редакторе.';await diagnostics();}catch(error){$('gemini-feedback').textContent=error.message;}};
+  $('gemini-form').onsubmit=async e=>{e.preventDefault();try{await setupPost('gemini',{api_key:$('gemini-key').value,model:$('gemini-model').value,billing_mode:$('gemini-billing').value,free_ack:$('gemini-ack').checked});$('gemini-key').value='';$('gemini-feedback').textContent='Настройки сохранены.';await diagnostics();}catch(error){$('gemini-feedback').textContent=error.message;}};
   $('gemini-check').onclick=async()=>{const b=$('gemini-check');b.disabled=true;try{const r=await setupPost('gemini',{check:true});$('gemini-models').replaceChildren(...r.models.map(m=>{const o=document.createElement('option');o.value=m.id;return o;}));$('gemini-feedback').textContent=r.message+(r.available?' Выбранная модель доступна.':' Выберите доступную модель из списка.');}catch(e){$('gemini-feedback').textContent=e.message;}finally{b.disabled=false;}};
 
   const deviceNames={AUTO:'Автоматически',auto:'Автоматически',CPU:'Процессор (CPU)',cpu:'Процессор (CPU)',GPU:'Видеокарта (GPU)',xpu:'Видеокарта (GPU)',NPU:'Нейропроцессор (NPU)',npu:'Нейропроцессор (NPU)'};
@@ -597,7 +597,7 @@
     if(provider==='gemini'&&!$('notes-cloud-consent').checked){$('notes-choice-status').textContent='Подтвердите отправку текста в Google.';return;}
     $('notes-confirm').disabled=true;
     const construction={provider,model:$('notes-model-choice').value,strategy:$('notes-strategy').value,context_tokens:Number($('notes-context').value),auto_context:$('notes-auto-context').checked,output_tokens:2048};
-    try{if(await postprocess('notes',{construction,translate_after:$('notes-translate-after').checked,cloud_confirmed:$('notes-cloud-consent').checked}))$('notes-dialog').close();else $('notes-choice-status').textContent=$('message').textContent;}finally{$('notes-confirm').disabled=false;}
+    try{if(await postprocess('notes',{construction,translate_after:false,cloud_confirmed:$('notes-cloud-consent').checked}))$('notes-dialog').close();else $('notes-choice-status').textContent=$('message').textContent;}finally{$('notes-confirm').disabled=false;}
   };
   async function localAI(task){
     try{

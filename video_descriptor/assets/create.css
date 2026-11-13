@@ -168,6 +168,9 @@ body:has(>.vd-global-nav).sidebar-collapsed .vd-global-nav{display:none}
 /* Recording workspace: no API or data state is encoded in layout. */
 .material-tabs{margin-bottom:var(--vd-space-4)}
 .workspace-tabs{display:none;margin-bottom:var(--vd-space-4)}
+/* Retain legacy controls and saved preferences without exposing translation actions. */
+#recording-translation-panel,section:has(>#translation-settings-panel),#subtitle-mode-label,#download-ru-srt,#download-translation,.subtitle-ru{display:none!important}
+body[data-subtitles] .subtitle-original{display:block!important}
 .recording-workspace.has-recording .workspace-tabs{display:flex}
 html[data-workspace-tab=transcript] .recording-workspace.has-recording #stage-notes,
 html[data-workspace-tab=transcript] .recording-workspace.has-recording #recording-translation-panel{display:none!important}

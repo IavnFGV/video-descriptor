@@ -1,5 +1,11 @@
 {
   "baseline_commit": "9ffa842",
+  "translation_ui_retirement_review": {
+    "date": "2026-11-14",
+    "scope": "Retire translation controls and copy from recording/settings/report UI. New native notes requests explicitly disable translate_after. Remove separate frontend translation-model discovery. No baseline refresh.",
+    "preserved": "Legacy DOM IDs and backend API, credentials, saved translations, subtitle artifacts, old queued jobs, prompt overrides/drafts, revisions, dirty guards and Undo. Original-only reports are a deliberate presentation change; stored translations remain available through existing APIs and CLI.",
+    "validation": "check-fast.py --workers 4; translation-retired, workspace, material and release-harness Edge fixtures; subtitle/report data-preservation tests. Installed WebView2 unverified."
+  },
   "top_navigation_review": {
     "date": "2026-11-12",
     "base": "6c40ee7",

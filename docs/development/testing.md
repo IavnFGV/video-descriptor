@@ -68,6 +68,7 @@ The isolated Edge fixture for the 8a tabs and existing workspace controls is:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-tabs-only
+.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --translation-retired
 .\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-view-only
 .\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-read
 .\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-write
@@ -78,6 +79,11 @@ The isolated Edge fixture for the 8a tabs and existing workspace controls is:
 ```
 
 These checks do not establish guarded history, installed WebView2 or hardware acceptance.
+
+`--translation-retired` checks hidden translation controls with the persisted v1
+flag enabled, unavailable prompt selection, `translate_after:false` despite an old
+checkbox value, real reply editing without translation loss, and four viewport
+widths. Backend compatibility remains covered by subtitle/translation/editor tests.
 
 ## Workspace tabs prototype
 

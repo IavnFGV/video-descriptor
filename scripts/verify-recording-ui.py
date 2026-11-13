@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     class Handler(RangeRequestHandler):
         def do_GET(self):
             path=urlsplit(self.path).path
-            if '--desktop-design' in sys.argv:
+            if '--desktop-design' in sys.argv or '--translation-retired' in sys.argv:
                 from desktop_design_checks import native_fixture
                 fixture = native_fixture(path)
                 if fixture is not None:
@@ -150,6 +150,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--translation-retired' in sys.argv:
+            from translation_retired_checks import run
+            run(c, wait_for, root, out)
+            raise SystemExit(0)
         if '--workspace-storage-event' in sys.argv:
             c.call('Emulation.setFocusEmulationEnabled', enabled=True)
             evaluate('''document.querySelector('#playback-link').focus();
@@ -205,9 +209,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('document.documentElement.getAttribute("data-view-translation") === "false"')
             assert evaluate('document.documentElement.getAttribute("data-view-notes") === "false"')
             assert evaluate('document.documentElement.getAttribute("data-view-technical") === "false"')
-            harness.enable_workspace_panels(c, ['translation', 'notes', 'technical'])
-            c.click('#translation-settings-panel > summary')
-            assert evaluate('document.querySelector("#recording-translate").checkVisibility()')
+            harness.enable_workspace_panels(c, ['notes', 'technical'])
+            assert not evaluate('document.querySelector("#recording-translate").checkVisibility()')
             c.fill('#recording-notes', '__new__')
             wait_for(lambda: evaluate('!document.querySelector("#recording-notes-settings").hidden'))
             c.fill('#construction-provider', 'ollama')
@@ -217,7 +220,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             c.fill('#construction-prompt', construction.PROMPTS['lecture'])
             assert evaluate('document.querySelector("#construction-prompt").checkVisibility()')
             wait_for(lambda: evaluate('!document.querySelector("#construction-run").disabled'))
-            evidence['checks'].append('current translation and notes controls accept explicit model/prompt; no inference claim')
+            evidence['checks'].append('current notes controls accept explicit model/prompt; translation UI absent; no inference claim')
             harness_output = root / 'release-harness'
             harness_output.mkdir()
             harness.run(argparse.Namespace(base=f'http://127.0.0.1:{server.server_port}', debug_port=debug,

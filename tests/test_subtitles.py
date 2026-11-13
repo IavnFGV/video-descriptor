@@ -38,7 +38,8 @@ def test_bilingual_editor_split_exports_and_report_preserve_later_ids(tmp_path):
     assert (folder / 'original.vtt').read_text() == webvtt(edited)
     assert (folder / 'ru.vtt').read_text() == webvtt(edited, 'ru')
     assert 'Hello!' in (folder / 'report.html').read_text()
-    assert 'Привет!' in (folder / 'report.html').read_text()
+    assert 'Привет!' not in (folder / 'report.html').read_text()
+    assert edited['translations']['s1'] == 'Привет!'
     assert json.loads((folder / 'transcript.json').read_text()) == original
     assert json.loads((folder / 'translations.json').read_text())['s1'] == 'Привет. Пока.'
     with pytest.raises(ValueError, match='изменились'):
@@ -57,9 +58,12 @@ def test_subtitle_timestamps_translation_and_escaped_markup(tmp_path):
     assert "OCR" not in original
     assert "&lt;script&gt; &amp; hello" in original
     page = (tmp_path / "report.html").read_text()
-    assert 'src="ru.vtt"' in page
+    assert 'src="ru.vtt"' not in page
+    assert 'href="ru.vtt"' not in page
     assert 'data-start="1900.123" data-end="1902.456"' in page
-    assert "Привет &lt;b&gt;" in page
+    assert '&lt;script&gt; &amp; hello' in page
+    assert 'subtitle-ru' not in page.split('<script>')[0]
+    assert 'Перевод пока не подготовлен' not in page
 
 
 @pytest.mark.parametrize("answer", ["", "[[s0002]]\nПривет", "[[s0001]]\n",
@@ -102,4 +106,5 @@ def test_refresh_old_report_preserves_manual_markdown_edits(tmp_path):
     (tmp_path / "notes.md").write_text("My manual additions")
     refresh_reports(tmp_path, {"s1": "Привет"})
     assert (tmp_path / "notes.md").read_text() == "My manual additions"
-    assert "Привет" in (tmp_path / "report.html").read_text()
+    assert "Привет" not in (tmp_path / "report.html").read_text()
+    assert "Привет" in (tmp_path / "ru.vtt").read_text()

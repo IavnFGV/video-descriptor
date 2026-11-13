@@ -11,9 +11,9 @@
     const panel=document.getElementById('notes-settings');panel.closest('section').hidden=false;panel.open=true;
     $('heading').textContent=article?'Настройки новой статьи':'Настройки нового конспекта';
     $('notes-instruction').hidden=article;$('article-instruction').hidden=!article;
-    for(const id of ['input','material','strategy','translate-after'])$(id).closest('label').hidden=article||(id==='input'&&window.recordingUI?.native);
+    for(const id of ['input','material','strategy'])$(id).closest('label').hidden=article||(id==='input'&&window.recordingUI?.native);
     for(const id of ['grouping','chunk','max-chunk','max-chars'])$(id).closest('label').hidden=article;
-    $('source-help').textContent=article?'Модель выбирается отдельно от переводчика. В модель отправляется полная выбранная расшифровка.':'Модель выбирается отдельно от переводчика. В запрос передаётся расшифровка и, при выборе, распознанный текст слайдов.';
+    $('source-help').textContent=article?'В модель отправляется полная выбранная расшифровка.':'В запрос передаётся расшифровка и, при выборе, распознанный текст слайдов.';
     $('plan-help').textContent=article?'Перед запуском проверяем, что полная расшифровка, промпт и ответ помещаются в контекст модели.':'Перед запуском проверяем лимиты модели. При обработке по частям результаты объединяются в общий конспект и оглавление.';
     $('status').textContent=article?'Настройте промпт статьи и нажмите «Создать статью».':'Настройте конспект и запустите создание новой версии.';
     buttons();preview();(article?$('article-prompt'):$('model')).focus();
@@ -135,7 +135,7 @@
     try {
       if(config.provider==='gemini'&&!$('cloud').checked)throw Error('Подтвердите отправку текста в Google и возможные расходы');
       const job = window.recordingUI?.native ? await window.recordingUI.postprocess('notes', {
-        construction:config,translate_after:$('translate-after').checked,cloud_confirmed:$('cloud').checked
+        construction:config,translate_after:false,cloud_confirmed:$('cloud').checked
       }) : await post('/api/notes-run', {folder,settings:config});
       $('status').textContent = 'Конспект добавлен в очередь. Повторное распознавание речи не требуется.';
       document.dispatchEvent(new CustomEvent('construction-started', {detail:job}));

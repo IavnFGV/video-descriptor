@@ -142,10 +142,10 @@
 <div id="postprocess-actions" hidden>
 <div class="setup-actions">
 <button id="diarize-run" type="button" class="vd-button" disabled>Разделить по участникам</button>
-<button id="translate-run" type="button" class="vd-button">Перевести на русский</button>
-<button id="notes-run" type="button" class="vd-button">Конспект и перевод</button>
+<button id="translate-run" type="button" class="vd-button" hidden>Перевести на русский</button>
+<button id="notes-run" type="button" class="vd-button">Конспект</button>
 </div>
-<p class="footnote">Реплики разделяются по участникам локально, без повторного распознавания речи. Создаётся отдельная версия из исправленных реплик. Для перевода и конспекта используется выбранная модель Ollama.</p>
+<p class="footnote">Реплики разделяются по участникам локально, без повторного распознавания речи. Создаётся отдельная версия из исправленных реплик.</p>
 </div>
 <button id="stop-job" type="button" hidden class="vd-button">Стоп</button>
 <button id="retry" type="button" hidden class="vd-button">Продолжить из кэша</button>
@@ -175,7 +175,7 @@
 <label class="vd-field">Устройство для разделения по участникам<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
 <button type="button" id="open-hf-settings" class="vd-button vd-button--quiet">Условия Hugging Face и токен →</button>
 <p id="diarization-prepare-help" class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для участников также примите условия и укажите токен Hugging Face в разделе «Участники».</p>
-<label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальный перевод и конспекты через Ollama</label>
+<label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальные конспекты через Ollama</label>
 <button type="button" id="open-local-settings" class="vd-button vd-button--quiet">Подключение и языковая модель →</button>
 <p class="footnote">Подключение и модель выбираются в разделе «Локальный AI». Ollama используется только как внешний HTTP(S)-сервер; приложение не устанавливает и не запускает его.</p>
 <p id="prepare-sources" class="footnote"></p>
@@ -248,7 +248,7 @@
 <label class="vd-field">Модель по умолчанию<select id="ollama-model" class="vd-select" name="ollama-model" aria-describedby="local-default-help ollama-feedback"><option value="">Обновите список моделей</option></select></label>
 <div class="vd-actions"><button type="button" id="ollama-refresh" class="vd-button">Обновить модели</button><button id="ollama-test" type="button" disabled class="vd-button">Проверить модель</button></div>
 </div>
-<p id="local-default-help" class="footnote">Используется для новых переводов, конспектов и статей. Для конкретного действия над записью можно выбрать другого провайдера или модель.</p>
+<p id="local-default-help" class="footnote">Используется для новых конспектов и статей. Для конкретного действия над записью можно выбрать другого провайдера или модель.</p>
 <div class="vd-actions"><button type="submit" id="ollama-connect" disabled class="vd-button">Сохранить по умолчанию</button></div>
 <p id="ollama-feedback" class="footnote" role="status" aria-live="polite"></p>
 </form>
@@ -303,7 +303,7 @@
 <p id="records-directory" class="footnote"></p>
 <label class="vd-field">Папка записей<input id="records-root" class="vd-input" maxlength="1024" autocomplete="off"></label>
 <div class="vd-actions"><button id="pick-records-root" type="button" class="vd-button">Выбрать папку…</button><button id="save-records-root" type="button" class="vd-button">Перенести записи</button></div>
-<p class="footnote">Исходные видео и аудио, расшифровки, переводы, конспекты, версии, результаты и настройки записей хранятся вместе, отдельно от моделей.</p>
+<p class="footnote">Исходные видео и аудио, расшифровки, конспекты, версии, результаты и настройки записей хранятся вместе, отдельно от моделей.</p>
 <p id="storage-feedback" class="footnote" role="status" aria-live="polite"></p>
 <progress id="storage-progress" class="vd-progress" aria-label="Перенос данных" aria-describedby="storage-feedback" hidden></progress>
 <button id="storage-cleanup" type="button" class="vd-button vd-button--danger" hidden>Очистить старую папку после переноса</button>
@@ -348,7 +348,7 @@
 <div id="readiness">Проверяем компоненты…</div>
 <p class="footnote" id="npu-notice">Первая загрузка модели может занять около минуты.</p>
 <a class="vd-link" href="#settings">Настроить компоненты →</a>
-<p class="footnote">Начните с расшифровки. После проверки текста доступны перевод, конспект и экспорт.</p>
+<p class="footnote">Начните с расшифровки. После проверки текста доступны конспект и экспорт.</p>
 
 </aside>
 </div>
@@ -367,9 +367,8 @@
 <label class="vd-field">Ручной предел контекста, токенов<input id="notes-context" class="vd-input" type="number" min="8192" max="2097152" step="1024" value="16384" disabled></label>
 <p class="footnote">В автоматическом режиме вся расшифровка отправляется одним запросом генерации, если помещается в контекст модели. Для Google размер проверяется точным подсчётом токенов. На части делим только при превышении лимита; режим «По частям» можно выбрать вручную.</p>
 </details>
-<label class="check-label"><input id="notes-translate-after" type="checkbox" checked>Также перевести реплики на русский той же моделью</label>
 <label id="notes-cloud-label" class="check-label" hidden><input id="notes-cloud-consent" type="checkbox">Разрешаю отправить текст расшифровки в Google. Возможны расходы и ограничения квоты; видео не отправляется.</label>
-<p id="notes-choice-status" class="footnote" role="status" aria-live="polite"></p>
+<input id="notes-translate-after" type="hidden" value=""><p id="notes-choice-status" class="footnote" role="status" aria-live="polite"></p>
 <button id="notes-open-settings" type="button" class="vd-button">Настроить подключение AI</button>
 <div class="vd-actions"><button id="notes-confirm" type="button" class="vd-button vd-button--primary">Создать конспект</button><button id="notes-cancel" type="button" class="vd-button">Отмена</button></div>
 </dialog>

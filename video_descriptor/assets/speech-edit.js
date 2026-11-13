@@ -221,8 +221,9 @@
     }
     left.value=row.text;
     form.elements.translation.value=original.translations?.[row.id || `s${index+1}`] || '';
-    form.elements.translation.parentElement.hidden=!original.has_translation;
-    form.elements.rightTranslation.parentElement.hidden=!original.has_translation;
+    form.elements.translation.parentElement.hidden=true;
+    form.elements.rightTranslation.parentElement.hidden=true;
+    dialog.querySelector('.second p').hidden=true;
     if(gap){
       // A gap has no recognized text yet: the user supplies it and the interval becomes a real reply.
       dialog.querySelector('#reply-editor-title').textContent='Заполнение участка без таймкодов';

@@ -1,5 +1,13 @@
 # История изменений
 
+14.11.2026: перевод убран из UI записи, Windows controls и новых отчётов;
+новые native notes явно отключают дополнительный перевод, включая старые черновики
+форм. Сохранены данные, CLI/API и восстановление старых заданий. Анализ общих
+backend-зависимостей — в [translation-providers](../translation-providers.md#границы-очистки-backend).
+Fast: 860 passed, 3 skipped; config: 29 passed. Шесть Edge fixture-сценариев прошли,
+включая сохранение перевода при правке оригинала, dirty/Undo и экспорт оригинала.
+Installed WebView2 не проверялся.
+
 14.11.2026: workspace URL временно раскрывает речь или выбранный материал без записи
 preferences. Guarded traversal сохраняет черновик и восстанавливает URL при отказе;
 для старых browser history entries fallback может изменить следующий Back/Forward.

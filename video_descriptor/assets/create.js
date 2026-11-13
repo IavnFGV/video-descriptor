@@ -43,7 +43,7 @@
   };
   json('/api/prompts').then(data => {
     promptData = data;
-    $('prompt-task').replaceChildren(...Object.entries(data.titles).map(([task, title]) => { const option = text('option', title); option.value = task; return option; }));
+    $('prompt-task').replaceChildren(...Object.entries(data.titles).filter(([task])=>task!=='translate').map(([task, title]) => { const option = text('option', title); option.value = task; return option; }));
     const rememberedTask=window.studioDraft.promptTask();
     if([...$('prompt-task').options].some(option=>option.value===rememberedTask))$('prompt-task').value=rememberedTask;
     selectPrompt(); $('save-prompt').disabled = false; $('reset-prompt').disabled = false;
@@ -179,7 +179,6 @@
     try {
       const value = await json('/api/translation-settings');
       $('translation-provider').value = value.provider;
-      await refreshTranslationModels(value.ollama_model || '');
       $('lmstudio-url').value=value.lmstudio_url; $('lmstudio-model').value=value.lmstudio_model;
       $('lmstudio-key').placeholder=value.lmstudio_has_key?'Токен сохранён':'Необязательный токен';
       updateTranslationProvider();
@@ -195,26 +194,12 @@
     } catch (error) { $('translation-settings-status').textContent = error.message; }
   }
   $('gemini-billing').addEventListener('change', () => { $('gemini-free-label').hidden = $('gemini-billing').value !== 'free'; });
-  let translationModelRequest=0;
-  async function refreshTranslationModels(wanted=$('translation-local-model').value){
-    const request=++translationModelRequest,list=$('translation-local-model');
-    list.replaceChildren(new Option('Выберите модель',''));
-    try{
-      const models=await json('/api/construction-models?provider=ollama');
-      if(request!==translationModelRequest)return;
-      for(const model of models)list.add(new Option(model.title||model.id,model.id));
-      list.value=models.some(model=>model.id===wanted)?wanted:'';
-      $('translation-settings-status').textContent=!models.length?'Нет установленных моделей. Установите модель через ollama pull <model-name> и обновите список.':wanted&&!list.value?'Прежняя модель отсутствует. Выберите модель.':'';
-    }catch(error){if(request===translationModelRequest)$('translation-settings-status').textContent=error.message;}
-  }
-  $('translation-refresh-models').onclick=()=>refreshTranslationModels();
   function updateTranslationProvider() {
     const local = $('translation-provider').value !== 'gemini';
     $('translation-local-label').hidden = $('translation-provider').value !== 'ollama';
     $('translation-gemini-label').hidden = local;
     $('load-gemini-models').hidden = local;
   }
-  $('translation-provider').addEventListener('change', ()=>{updateTranslationProvider();if($('translation-provider').value==='ollama')refreshTranslationModels();});
   async function saveTranslationSettings(event) {
     event.preventDefault();
     const connection = event.currentTarget.id === 'connections-form';
@@ -704,7 +689,7 @@
     $('delete-version-name').textContent = (option?.textContent || lastSnapshot.display_title || lastSnapshot.filename) + ' · ' + deletionFolder + (deletionReport ? ' · ' + deletionReport : '');
     $('delete-version-heading').textContent = kind === 'notes' ? (window.studioUI.selectedReport()?.result_kind === 'article' ? 'Удалить эту статью?' : 'Удалить этот конспект?') : 'Удалить версию целиком?';
     $('delete-version-description').textContent = kind === 'notes'
-      ? 'Будут удалены только выбранный конспект и его ручные правки. Расшифровка, перевод, имена голосов и кадры сохранятся. Отменить удаление нельзя.'
+      ? 'Будут удалены только выбранный конспект и его ручные правки. Расшифровка, имена голосов и кадры сохранятся. Отменить удаление нельзя.'
       : 'Будут удалены расшифровка, конспект и сохранённые правки этой версии. Исходный видеофайл и другие версии сохранятся. Отменить удаление нельзя.';
     $('confirm-delete-version').textContent = kind === 'notes' ? 'Удалить конспект' : 'Удалить версию целиком';
     $('delete-version-status').textContent = '';

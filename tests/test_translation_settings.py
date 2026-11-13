@@ -48,7 +48,9 @@ def test_refresh_translated_speech_only_report_does_not_require_video_frames(tmp
     for name, value in values.items():
         (tmp_path / name).write_text(json.dumps(value), encoding='utf-8')
     translate.refresh_reports(tmp_path)
-    assert 'Привет' in (tmp_path / 'report.html').read_text(encoding='utf-8')
+    assert 'Hello' in (tmp_path / 'report.html').read_text(encoding='utf-8')
+    assert 'Привет' not in (tmp_path / 'report.html').read_text(encoding='utf-8')
+    assert 'Привет' in (tmp_path / 'ru.vtt').read_text(encoding='utf-8')
     assert (tmp_path / 'ru.vtt').is_file()
 
 

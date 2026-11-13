@@ -81,3 +81,4 @@ summary:focus-visible,.nav-item:focus-visible,.brand:focus-visible,.job:focus-vi
 
 .card form>.vd-field:has(+.vd-actions,+.setup-actions,+.tools,+button){margin-bottom:0}
 .card form>.vd-field+:is(.vd-actions,.setup-actions,.tools,button){margin-top:var(--vd-control-gap)}
+#ru-srt,#translate-run,#transcript .translation{display:none!important}

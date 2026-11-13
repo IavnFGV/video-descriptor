@@ -97,14 +97,9 @@ def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=No
         folder = speech['job']['folder']
         evidence['ui_speech'] = speech
         evidence['checks'].append('installed WebView2 file input, actual MP4 upload, CPU Whisper and saved result')
-        enable_workspace_panels(cdp, ['translation', 'notes', 'technical'] if with_ollama else ['technical'])
+        enable_workspace_panels(cdp, ['notes', 'technical'] if with_ollama else ['technical'])
         notes_folder = None
         if with_ollama:
-            cdp.click('#translation-settings-panel > summary')
-            wait_for(lambda: cdp.evaluate('!document.querySelector("#recording-translate").disabled'))
-            cdp.click('#recording-translate')
-            translated = wait_workspace_job(cdp, base, root, output, previous=job)
-            evidence['translate-run'] = translated['job']
             cdp.fill('#recording-notes', '__new__')
             wait_for(lambda: cdp.evaluate('!document.querySelector("#recording-notes-settings").hidden'))
             cdp.fill('#construction-provider', 'ollama')
@@ -113,10 +108,11 @@ def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=No
             cdp.fill('#construction-model', ollama_model)
             wait_for(lambda: cdp.evaluate('!document.querySelector("#construction-run").disabled'))
             cdp.click('#construction-run')
-            notes = wait_workspace_job(cdp, base, root, output, previous=translated['job']['id'])
+            notes = wait_workspace_job(cdp, base, root, output, previous=job)
             notes_folder = notes['job']['folder']
             evidence['notes-run'] = notes['job']
-            evidence['checks'].append('installed UI translation and notes through configured LLM HTTP boundary in separate versions')
+            assert notes['job'].get('translate_after') is False
+            evidence['checks'].append('installed UI notes through configured LLM HTTP boundary without subtitle translation')
         run(argparse.Namespace(base=base, debug_port=debug_port, target_id=target['id'], folder=folder,
                                notes_folder=notes_folder, output=output, edit_reply=True), evidence)
         evidence['status'] = 'PASS'

@@ -39,7 +39,7 @@ def run(c, wait_for, out, root):
     c.screenshot(out / 'workspace-default.png')
     evaluate('window.originalPlayer=document.querySelector("#process-video");window.originalFeed=document.querySelector("#speech-feed");originalPlayer.currentTime=45')
     for key, selector in [('video', '#shared-player'), ('transcript', '#stage-speech'),
-                          ('speakers', '#recording-diarize'), ('translation', '#recording-translation-panel'),
+                          ('speakers', '#recording-diarize'),
                           ('notes', '#stage-notes'), ('article', '#material-tab-article'),
                           ('technical', '#source-details')]:
         panel(key, True)
@@ -58,7 +58,8 @@ def run(c, wait_for, out, root):
     c.call('Page.reload')
     wait_for(lambda: evaluate('!window.beforeWorkspaceReload && !!document.querySelector("#speech-feed .utterance")'))
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
-    wait_for(lambda: visible('#stage-notes') and visible('#recording-translation-panel'))
+    wait_for(lambda: visible('#stage-notes'))
+    assert not visible('#recording-translation-panel')
     evaluate('workspaceView.setLayout("side")')
     for width in [1440, 1024, 760, 360]:
         c.call('Emulation.setDeviceMetricsOverride', width=width, height=900, deviceScaleFactor=1, mobile=False)
@@ -179,4 +180,4 @@ def run(c, wait_for, out, root):
     assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu [value=stacked]").checked')
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
-    print('PASS: workspace defaults, seven toggles, layouts, reload/reset/invalid storage, four widths, empty state, editor identity/dirty/Undo, no visibility API calls, progress/errors, navigation; real Edge fixture, no inference', flush=True)
+    print('PASS: workspace defaults, six visible toggles, legacy translation flag retained, layouts, reload/reset/invalid storage, four widths, empty state, editor identity/dirty/Undo, no visibility API calls, progress/errors, navigation; real Edge fixture, no inference', flush=True)

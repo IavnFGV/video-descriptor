@@ -183,6 +183,9 @@ section[role=alert]{border-color:var(--vd-warning);background:var(--vd-warning-b
 #personal-preview [data-note-time]{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
 #personal-preview .note-time{min-height:var(--vd-compact-height);padding:var(--vd-space-1);border-color:transparent;background:transparent;color:var(--vd-accent);font-size:var(--vd-label);font-weight:var(--vd-normal);font-variant-numeric:tabular-nums;vertical-align:baseline}
 #personal-preview .note-time:hover{background:var(--vd-accent-tint);text-decoration:underline}
+/* Translation UI is retired; stored subtitle artifacts remain compatible. */
+#subtitle-mode,.subtitle-ru{display:none!important}
+body[data-subtitles] .subtitle-original{display:block!important}
 
 /* Source: design-system/desktop.css */
 /* Cohesive desktop architecture: command chrome, navigation, document, content. */

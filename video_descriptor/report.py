@@ -190,28 +190,18 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     page += f'<div class="player"><video id="video" controls preload="metadata" src="{video_url}">'
     if speech:
         page += '<track kind="subtitles" src="original.vtt" srclang="en" label="Оригинал">'
-        if translations:
-            page += '<track kind="subtitles" src="ru.vtt" srclang="ru" label="Русский">'
     page += '</video><div id="caption" aria-live="off"></div>'
     page += '<p id="playback-status" role="status" hidden></p></div>'
     if speech or unresolved:
-        page += f'<section data-subtitle-folder="{html.escape(speech_folder.name, quote=True)}"><h2>Речь и перевод</h2><div class="subtitle-tools">'
-        page += ('<label' + (' hidden' if not translations else '')
-                 + '>Показать <select id="subtitle-mode"><option value="original">Оригинал</option>')
-        if translations:
-            page += '<option value="ru">Русский</option><option value="both" selected>Оба</option>'
-        page += '</select></label><label><input id="follow" type="checkbox" checked>Следить за видео</label>'
+        page += f'<section data-subtitle-folder="{html.escape(speech_folder.name, quote=True)}"><h2>Расшифровка</h2><div class="subtitle-tools">'
+        page += '<select id="subtitle-mode" hidden><option value="original">Оригинал</option></select><label><input id="follow" type="checkbox" checked>Следить за видео</label>'
         page += '<a href="original.vtt" download>Субтитры</a>'
-        if translations:
-            page += '<a href="ru.vtt" download>Перевод</a>'
         page += '</div><p>Нажмите на время реплики, чтобы перейти к ней.</p>'
         if unresolved:
             page += ('<p class="unresolved-note">Расшифровка неполная: '
                      f'{len(unresolved)} участк(ов) без корректных таймкодов. '
-                     'Их текст не распознан и не участвует в переводе и конспекте; '
+                     'Их текст не распознан и не участвует в конспекте; '
                      'нажмите «✎», чтобы вписать его вручную.</p>')
-        if not translations:
-            page += '<p>Перевод пока не подготовлен.</p>'
         page += '<div class="transcript" id="transcript">'
         # Unresolved intervals keep their place in the recording between recognized replies.
         timeline = sorted([{'start': source.start, 'end': source.end, 'source': source} for source in speech]
@@ -235,8 +225,6 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
             if speaker:
                 page += f'<strong> · {html.escape(speaker_names.get(speaker) or speaker)}</strong>'
             page += f'<p class="subtitle-original">{html.escape(source.text)}</p>'
-            if source.id in translations:
-                page += f'<p class="subtitle-ru">{html.escape(translations[source.id])}</p>'
             page += '</div>'
         page += '</div></section>'
     page += f'</aside><main class="read-pane"><section id="personal-notes" data-editing="false" data-result-kind="{result_kind}">'
