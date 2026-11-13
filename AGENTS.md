@@ -46,10 +46,15 @@ The shared frontend is in `video_descriptor/assets/`, not just `windows-app/ui/`
 ## Change and validation workflow
 
 For routine implementation, choose the least expensive capable approach without
-asking the user to choose a model. Before delegating a tiny, self-contained task,
+asking the user to choose a model. Before delegating a bounded, self-contained task,
 load `delegate-small-task` from `.opencode/skills/delegate-small-task/SKILL.md`.
 OpenCode reuses `build` as the Sol architect and `executor` as the Terra Standard
-worker for bounded proposals; see [agent workflows](docs/development/agents.md).
+worker for bounded implementation; see [agent workflows](docs/development/agents.md).
+Terra has eight steps and default-deny permissions. Sol grants exact task-specific
+read/edit paths before invocation and removes the grants after the child is idle.
+No shell, network, external-directory access or further delegation for Terra;
+Sol owns architecture, validation commands, review, integration and commits.
+Keep editing serial, or use separate worktrees for concurrent mutations.
 Use `executor-free` only for explicitly free delegation. Do not fall back from
 free quota/errors to paid calls without explicit permission to use paid calls.
 Use named agents without per-call model overrides or primary-model switches.

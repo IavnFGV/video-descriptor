@@ -1,66 +1,67 @@
 ---
 name: delegate-small-task
-description: Use before delegating a tiny self-contained coding or review task to the project's cheap executor; avoid delegation when context and review overhead exceed the benefit.
+description: Use before delegating a bounded implementation or review task to the project's executor; avoid delegation when context and review overhead exceed the benefit.
 ---
 
-# Cheap bounded delegation
+# Bounded Terra implementation
 
-The owner submits ordinary tasks, not model-routing commands. The primary agent
-chooses the cheapest capable approach and owns correctness. Do not ask for model
-approval for each task, and do not delegate just to demonstrate delegation.
+Use the [agent workflow](../../../docs/development/agents.md#sol-architect--terra-standard-worker)
+as the authoritative configuration and permission procedure.
 
-## Decide
+## Scope before invoking
 
-- Delegate only a mechanical change or precise question involving at most two files,
-  with enough context already available. Examples: one small test, one replacement,
-  a short documentation correction, or checking a supplied diff for one invariant.
-- Work directly for repository exploration, architecture, release/installer changes,
-  concurrency, persistence, or tasks whose review duplicates the implementation.
-- Prefer local commands over LLM calls for searches, formatting, and deterministic checks.
+- Sol owns exploration, architecture, base SHA, invariants, acceptance criteria and
+  the dedicated task branch. Delegate at most two writable files; supply relevant
+  contracts/excerpts and exact paths for any additional read-only inputs.
+- Use the existing named `executor`: Terra Standard, eight steps, no model override
+  or forced reasoning variant. The last step is a tools-disabled report, not an
+  implementation step. Steps are not a token, spending or completion guarantee.
+- Default-deny stays first. Sol temporarily appends only exact task-specific
+  `read`/`edit` grants to `agents.executor.permissions` in `opencode.json`.
+  No wildcards, directories, shell, glob/grep, network, external-directory access,
+  further delegation or scope/config changes by the worker. Never grant edits to
+  OpenCode configuration or agent/permission instructions; Sol maintains those.
+  Verify the effective
+  loaded agent at the task Location before generation; prompt-only scope is not
+  enforcement. If the merged configuration is broader, stop and resolve it.
+- Exclude credentials, runtime/model/recording data, protected machine paths and
+  unrelated files. Sol supplies necessary instruction excerpts; do not grant broad
+  repository access just to discover instructions.
+- Keep writes serial: while Terra runs, Sol does not edit the owned files or change
+  its grants. Concurrent mutations require separate worktrees and file ownership.
 
-## Delegate once
+## Implement, review, close
 
-1. Read applicable repository instructions. For a proposed code change, identify
-   base SHA, allowed paths, preserved behavior, acceptance criteria and focused tests.
-2. In the Sol architect + Terra Standard workflow, call `executor` by agent name:
-   it uses `openai/gpt-6.1-terra` (non-Fast, no forced reasoning variant).
-   For explicitly free delegation, call `executor-free`, which retains
-   `opencode/minimax-m3.1-flash-free#low`. Do not supply a model override.
-   Both use `steps: 1` and deny all tools. Do not switch from free to paid after a
-   quota/error response without explicit owner authorization; finish directly.
-   Keep the primary model unchanged. Never substitute a stronger paid worker silently.
-3. Supply only the necessary source excerpts and contracts, preferably under 6,000
-   characters total. Do not send secrets, local configuration, recordings or unrelated
-   conversation history. Ask for a small patch or concise answer, not a long narrative.
-4. One invocation per subtask; no automatic retries or follow-ups. On BLOCKED or an
-   unusable proposal, finish directly or report a real blocker. A new call is another
-   cost, not a free extension of the same step allowance.
+1. Supply one bounded task, preferably under 6,000 characters of essential context.
+   Terra reads, edits, inspects and revises through its allowed tools, then reports
+   changed files, actual checks, uncertainties and blockers. No commands or Git.
+2. Sol independently reviews the full diff, verifies file ownership and preservation
+   invariants, and runs focused tests plus applicable final checks. Worker text is
+   not validation evidence.
+3. If review finds a bounded defect, permit at most one targeted correction handoff
+   to the same child session, with the same permissions. It resets the step
+   allowance and is another model call/cost, not a free retry. No automatic loops,
+   budget escalation or silent takeover; report incomplete/blocked work explicitly.
+4. Once the child is idle, Sol removes all temporary grants, verifies the effective
+   default-deny policy, reviews/validates the result and commits verified work.
+   Remove grants on failure/interruption too, after the child is stopped/idle.
+   Never commit task grants or reuse them for a different task. Only one executor
+   scope may be active per Location.
 
-## Review and apply
+The worker cannot push, merge, release, install, start services or mutate protected
+data. Sol's existing publication and host-safety boundaries remain unchanged.
+The worker is a permission-scoped editor, not an OS sandbox.
 
-This lightweight executor has no filesystem access. It does NOT edit its own
-worktree or run tests: it returns a proposal. Do not describe this as an isolated
-filesystem-writing worker or claim a successful call before it has been tested.
+## Free alternative and verification
 
-The primary agent validates the proposed patch against the actual source. Before
-applying an accepted change, create a dedicated branch/worktree at the base SHA;
-parallel mutations must never share an index or runtime. Apply only allowed files,
-inspect the full diff, run focused checks and the applicable final local checks.
-Report real command results, limitations and the resulting commit when authorized.
-An executor's report never replaces independent diff review or tests. Follow the
-owner's current Git/release authorization; task delegation alone does not authorize
-push, publication, release preparation, service startup or installations.
+`executor-free` remains an explicitly free, one-step, tool-less proposal agent.
+Do not use it for multi-step implementation or silently fall back to paid calls
+after free quota/errors. Keep the primary model unchanged.
 
-## Costs and limits
-
-`steps` is a per-turn model-step limit, NOT a token or money cap. The separate
-`executor-free` model has zero listed token prices; availability and provider limits
-can change. Never fall back to a paid provider silently. Account-side budgets,
-credit-use settings and automatic reload are distinct; do not invent a local
-"never use ChatGPT credits" configuration field or assume such a guard is active.
-
-Inspect the loaded agent's model, steps and permissions without generation first.
-Run a generation smoke test only when end-to-end delegation verification is
-explicitly in scope; use one tiny supplied-context task, without retries or fallback.
-Until an actual invocation is observed, report configuration validation separately
-from end-to-end validation.
+Only run a paid generation smoke test when end-to-end verification is in scope.
+Use synthetic fixtures: permitted read/edit/readback, a second permitted revision,
+and single negative read/edit probes against an ungranted fixture. Verify tool
+denials and unchanged bytes independently; unavailable tools are not executed
+negative probes. Remove fixture grants afterwards. Report configuration checks,
+actual tool behavior and token usage separately; never claim a local budget or
+subscription-only guarantee without verified account-side controls.

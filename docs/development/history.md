@@ -1,5 +1,21 @@
 # История изменений
 
+13.11.2026: `executor` (Terra Standard) использует восемь шагов для scoped
+implementation вместо однократного text-only proposal. Последний шаг OpenCode
+зарезервирован для отчёта; конфигурация `steps: 1` не оставляла рабочего шага.
+Committed policy остаётся default-deny без постоянных grants. Sol временно задаёт
+exact read/edit paths, проверяет effective policy в task Location, затем снимает
+grants; shell/network/external directories/subagents не разрешаются. Sol сохраняет
+architecture, review, validation commands и commits. `executor-free` не менялся.
+Текущая процедура — в [agent workflows](agents.md#task-specific-permissions).
+Live smoke на OpenCode 2.2.7: Terra выполнила read/edit/read/revise/read разрешённого
+synthetic fixture; ungranted read и read-only edit получили `permission.rejected`.
+Независимая проверка подтвердила итоговый текст и неизменные bytes обоих negative
+fixtures. Семь model steps, шесть успешных tool calls, два отказа; grants и fixtures
+удалены после завершения child. Это проверка инструментов OpenCode, не OS sandbox.
+Проверки: Fast — 852 passed, 4 skipped и 29 config checks; focused agent tests —
+6 passed, Ruff и локальные ссылки PASS. CSS bundles и UI contract audit не изменились.
+
 13.11.2026: добавлен изолированный прототип workspace tabs на общих `.vd-tabs`:
 расшифровка, перевод и материалы с вложенными конспектом/статьёй. Плеер и
 stop/recovery остаются вне переключаемых областей; ready/empty/busy/error —
