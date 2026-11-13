@@ -109,7 +109,10 @@ Production содержит переключатель расшифровки и
 - Fast с `--workers 4` не запустил параллельную suite: в окружении отсутствует
   pytest-xdist. Последовательный Fast: **836 passed, 4 skipped, 13 failed, 7 errors**;
   конфигурационные проверки и UI audit прошли. В журнале отсутствуют FFmpeg,
-  `tokenizers`, `faster_whisper` и `markdown_it`; полный Fast не считается пройденным.
+  `tokenizers`, `faster_whisper` и `markdown_it`; этот запуск Fast не прошёл.
+- После установки недостающих зависимостей в `.venv` повторный Fast `--workers 4`
+  прошёл: **841 passed, 1 skipped** в параллельной фазе, **16 passed, 2 skipped**
+  в последовательной фазе; конфигурационные проверки и UI audit также прошли.
 
 ### Evidence Task 7
 
