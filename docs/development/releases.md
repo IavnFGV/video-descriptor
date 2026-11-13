@@ -9,6 +9,11 @@ authorization. Preparation, tag push and workflow dispatch are not harmless chec
 `windows-app/release-inputs.json` supplies the Windows product version;
 [BUILD](../../BUILD) is the tracked integer read by local/CI builders.
 `pyproject.toml` is not the Windows release version.
+Starting with build 12, release identifiers use at least four digits: `0012` in
+BUILD, tags, build-specific notes, artifact filenames and displayed labels. Older
+unpadded tags and artifacts remain unchanged and valid for retries. Comparisons
+remain numeric. Already installed builds whose update checker predates this change
+cannot discover padded tags automatically; their users must open the release page.
 
 ## Release notes of a build
 
@@ -42,8 +47,8 @@ on main, then use **Windows release → Run workflow on main**. Its prepare job:
 5. Explicitly dispatches the tagged workflow; GITHUB_TOKEN push alone does not
    provide that follow-up execution.
 
-The product version can stay unchanged: after `0.9.2` build 3, a new preparation
-creates `v0.9.2-build.4` with BUILD 4. Existing `v0.9.2` and previous build tags
+The product version can stay unchanged: after `0.9.4` build 11, a new preparation
+creates `v0.9.4-build.0012` with BUILD 0012. Existing `v0.9.2` and previous build tags
 are never moved or deleted. Retry the tagged workflow to retry the same source
 and BUILD; run preparation on current main to build changed source. A retry does
 not increment BUILD, does not overwrite a published release and does not change
@@ -54,7 +59,7 @@ Legacy `vX.Y.Z` tags remain valid for their existing workflows. Workflow run/att
 IDs are not the build number.
 
 Public Full Acceptance uses `--build-qualified` packaging and gates: for example,
-`VideoDescriptor-0.9.2-build.4-windows-x64.zip` and the matching `-setup.exe`.
+`VideoDescriptor-0.9.4-build.0012-windows-x64.zip` and the matching `-setup.exe`.
 The ZIP, installer, checksums, provenance and publisher use the same build identity.
 Local packaging keeps its existing filenames unless this flag is supplied.
 

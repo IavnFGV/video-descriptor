@@ -1,5 +1,10 @@
 # Сохранение поведения и контрактов
 
+13.11.2026: меню «Вид» скрыто вне открытой записи и не участвует в Tab-порядке;
+скрытие не меняет сохранённые preferences и не затрагивает состояние редактора.
+Верхняя строка имеет постоянную высоту при открытии любого меню; панели
+раскрываются поверх содержимого, не сдвигая команды.
+
 12.11.2026, owner-requested top-only navigation: existing native navigation links
 move to File/Tools with their handlers and IDs. Legacy rail/toggle and incomplete
 recording-only connections entry are hidden, not deleted. Tools always opens the

@@ -29,9 +29,16 @@ def release(tag='v0.9.3-build.8', **fields):
     ('v0.9.3-build.8', 'v0.9.4-build.1', True),
     ('v0.9.4-build.1', 'v0.9.3-build.100', False),
     ('v0.9.4-build.8', 'v0.9.4-build.8', False),
+    ('v0.9.4-build.11', 'v0.9.4-build.0012', True),
     ('v0.9.4-build.9', 'v0.9.4-build.8', False)])
 def test_comparison(installed, available, expected):
     assert (updates.version_tuple(available) > updates.version_tuple(installed)) == expected
+
+
+def test_padded_release_requires_matching_asset():
+    info = updates.release_info(release('v0.9.4-build.0012'))
+    assert info['build'] == 12
+    assert info['tag'] == 'v0.9.4-build.0012'
 
 
 @pytest.mark.parametrize('tag', ['v0.9.3', 'vbad', '', None, 'v0.9.3-build.0',

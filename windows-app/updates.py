@@ -19,13 +19,13 @@ RELEASES = 'https://github.com/IavnFGV/video-descriptor/releases/tag/'
 INTERVAL = 24 * 3600
 MAX_BYTES = 2 * 1024 * 1024
 MAX_PAGES = 100
-TAG = re.compile(r'v(\d+)\.(\d+)\.(\d+)-build\.([1-9]\d*)', re.ASCII)
+TAG = re.compile(r'v(\d+)\.(\d+)\.(\d+)-build\.([1-9]\d*|0\d{3})', re.ASCII)
 
 
 def version_tuple(tag):
     # Legacy vX.Y.Z is valid for release retries, but has no comparable BUILD.
     match = TAG.fullmatch(tag) if isinstance(tag, str) and len(tag) <= 100 else None
-    return tuple(map(int, match.groups())) if match else None
+    return tuple(map(int, match.groups())) if match and int(match[4]) > 0 else None
 
 
 def release_info(release):

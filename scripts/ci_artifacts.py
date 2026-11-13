@@ -70,7 +70,8 @@ def main():
     build = int((ROOT / 'BUILD').read_text(encoding='ascii').strip()) if args.build_qualified else None
     if build is not None and build < 1:
         raise ValueError('BUILD must be positive')
-    prefix = f'VideoDescriptor-{version}' + (f'-build.{build}' if build is not None else '') + '-windows-x64'
+    label = (ROOT / 'BUILD').read_text(encoding='ascii').strip() if build is not None else None
+    prefix = f'VideoDescriptor-{version}' + (f'-build.{label}' if label is not None else '') + '-windows-x64'
     expected = {prefix + '.zip', prefix + '-setup.exe'}
     assert {entry['file'] for entry in entries} == expected, 'Release must supply ZIP and installer checksums'
     if {p.name for suffix in ('*.zip', '*.exe') for p in directory.glob(suffix)} != expected:

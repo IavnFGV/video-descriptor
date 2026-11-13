@@ -1,5 +1,5 @@
 /* Cohesive desktop architecture: command chrome, navigation, document, content. */
-.desktop-header{display:flex;align-items:center;gap:var(--vd-control-gap);min-height:var(--vd-menu-height);padding:var(--vd-space-1) var(--vd-space-4);background:var(--vd-surface);border-bottom:1px solid var(--vd-border);position:fixed;inset:0 0 auto;z-index:var(--vd-layer-sticky)}
+.desktop-header{display:flex;align-items:center;gap:var(--vd-control-gap);height:var(--vd-menu-height);box-sizing:border-box;padding:var(--vd-space-1) var(--vd-space-4);background:var(--vd-surface);border-bottom:1px solid var(--vd-border);position:fixed;inset:0 0 auto;z-index:var(--vd-layer-sticky)}
 .vd-desktop .sidebar-toggle,.vd-desktop .sidebar,.vd-desktop>.vd-global-nav{display:none}
 .desktop-header .sidebar-toggle svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6}
 .desktop-header>p,.desktop-header>.app-menu{display:none}
@@ -8,6 +8,7 @@
 .desktop-menu{position:relative;margin:0}
 .desktop-menu>summary{list-style:none;padding:var(--vd-space-1) var(--vd-space-3);min-height:var(--vd-compact-height);display:flex;align-items:center;cursor:pointer;border-radius:var(--vd-radius-control);font-size:var(--vd-body);font-weight:var(--vd-normal);color:var(--vd-text)}
 .desktop-menu>summary::-webkit-details-marker{display:none}
+.desktop-menu[open]>summary{margin-bottom:0}
 .desktop-menu>summary:hover,.desktop-menu[open]>summary{background:var(--vd-subtle)}
 .desktop-menu-content{position:absolute;left:0;top:100%;width:280px;max-width:calc(100vw - 32px);padding:var(--vd-space-2);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);background:var(--vd-surface);max-height:80vh;overflow:auto}
 .desktop-menu-content>a,.desktop-menu-content>button,.workspace-view-content>button{display:block;width:100%;text-align:left;white-space:normal;min-height:var(--vd-compact-height);padding:var(--vd-space-2);color:var(--vd-text);background:transparent;border:0;border-radius:var(--vd-radius-control);font:inherit;text-decoration:none}

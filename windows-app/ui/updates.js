@@ -1,7 +1,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   let instance, busy=false, revision=0, state;
-  const label = value => value ? value.version+(value.build==null?' (сборка разработки)':' (build '+value.build+')') : '';
+  const label = value => value ? value.version+(value.build==null?' (сборка разработки)':' (build '+(value.build>=12?String(value.build).padStart(4,'0'):value.build)+')') : '';
   function render(value) {
     state=value;
     const available=value.update_available===true && value.status!=='unsupported';

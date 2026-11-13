@@ -34,6 +34,17 @@ def run(c, wait_for, root, base, before=False):
         assert not value['errors'], (name, value['errors'])
 
     workspace = c.evaluate('location.href')
+    if not before:
+        c.call('Emulation.setDeviceMetricsOverride', width=1200, height=800, deviceScaleFactor=1, mobile=False)
+        for menu in ['desktop-file-menu', 'workspace-view-menu', 'desktop-tools-menu', 'desktop-help-menu']:
+            before_rect = c.evaluate('''(()=>{const r=document.querySelector('.desktop-header').getBoundingClientRect();
+                return [r.x,r.y,r.width,r.height]})()''')
+            c.click(f'#{menu} > summary')
+            wait_for(lambda menu=menu: c.evaluate(f'document.getElementById({json.dumps(menu)}).open'))
+            after_rect = c.evaluate('''(()=>{const r=document.querySelector('.desktop-header').getBoundingClientRect();
+                return [r.x,r.y,r.width,r.height]})()''')
+            assert after_rect == before_rect, (menu, before_rect, after_rect)
+            c.click(f'#{menu} > summary')
     for width, height in [(1200, 800), (1440, 900)]:
         capture('recording', width, height)
         if not before:

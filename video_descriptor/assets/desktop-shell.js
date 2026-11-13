@@ -30,6 +30,7 @@
     const oldMenu=document.querySelector('.app-menu');
     if($('stop'))file.body.append($('stop'));
     const view=menu('desktop-view-menu','Вид');
+    view.details.hidden=true;
     const tools=menu('desktop-tools-menu','Инструменты');
     navigationItem(tools.body,'setup-open','Настройки AI и подключения…',native?'#settings':'/#settings');
     navigationItem(tools.body,'diagnostics-open','Диагностика…',native?'#diagnostics':'/#diagnostics');
@@ -58,6 +59,10 @@
     function adoptView(){
       const existing=$('workspace-view-menu');if(!existing)return;
       view.details.replaceWith(existing);existing.classList.add('desktop-menu');
+      const workspace=$('workspace');
+      const sync=()=>{existing.hidden=!workspace||workspace.hidden;if(existing.hidden)existing.open=false;};
+      sync();
+      if(workspace)new MutationObserver(sync).observe(workspace,{attributes:true,attributeFilter:['hidden']});
     }
     adoptView();document.addEventListener('workspace-view-ready',adoptView);
     function closeMenus(except){for(const item of bar.querySelectorAll('details'))if(item!==except)item.open=false;}

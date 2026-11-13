@@ -16,6 +16,11 @@ NOTES_PLACEHOLDER = 'NEXT-BUILD-PLACEHOLDER'
 MINIMUM_NOTES_LENGTH = 40
 
 
+def build_label(build):
+    number = int(build)
+    return f'{number:04d}' if number >= 12 else str(number)
+
+
 def product_version():
     return json.loads((ROOT / 'windows-app/release-inputs.json').read_text(encoding='utf-8'))['version']
 
@@ -25,7 +30,7 @@ def next_notes_path():
 
 
 def build_notes_name(version, build):
-    return f'{version}-build.{build}.md'
+    return f'{version}-build.{build_label(build)}.md'
 
 
 def notes_problems(text):
@@ -49,7 +54,7 @@ def notes_problems(text):
 
 
 def next_notes_template(version, build):
-    return (f'# Video Descriptor {version} — сборка {build}\n'
+    return (f'# Video Descriptor {version} — сборка {build_label(build)}\n'
             '\n'
             f'<!-- {NOTES_PLACEHOLDER}: замените шаблон описанием изменений сборки -->\n'
             '\n'
@@ -66,7 +71,7 @@ def bump_build(path):
     number = int(path.read_text(encoding='ascii').strip())
     if number < 0:
         raise ValueError('BUILD must contain a non-negative integer')
-    path.write_text(str(number + 1) + '\n', encoding='ascii')
+    path.write_text(build_label(number + 1) + '\n', encoding='ascii')
     return number + 1
 
 
@@ -84,7 +89,7 @@ def git_text(revision, path):
 
 def notes_candidates(tag):
     """Release notes paths of a tag: the build notes first, then the legacy version notes."""
-    match = re.fullmatch(r'v(\d+\.\d+\.\d+)(?:-build\.([1-9]\d*))?', tag)
+    match = re.fullmatch(r'v(\d+\.\d+\.\d+)(?:-build\.(\d+))?', tag)
     if not match:
         raise ValueError('Select an existing release tag')
     version, build = match[1], match[2]
@@ -124,7 +129,7 @@ def prepare():
         raise ValueError('Prepare a new release only from main')
     version = product_version()
     number = int((ROOT / 'BUILD').read_text(encoding='ascii').strip()) + 1
-    tag = validate_ref(f'refs/tags/v{version}-build.{number}', version, number)
+    tag = validate_ref(f'refs/tags/v{version}-build.{build_label(number)}', version, number)
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     main = subprocess.check_output(['git', 'rev-parse', 'origin/main'], cwd=ROOT, text=True).strip()
     if head != main:
@@ -174,10 +179,10 @@ def validate_ref(ref, version, build=None):
     if not re.fullmatch(r'\d+\.\d+\.\d+', version):
         raise ValueError('Select an existing matching version/build tag')
     legacy = 'v' + version
-    match = re.fullmatch(re.escape('refs/tags/' + legacy) + r'-build\.([1-9]\d*)', ref)
+    match = re.fullmatch(re.escape('refs/tags/' + legacy) + r'-build\.(\d+)', ref)
     if ref == 'refs/tags/' + legacy:
         return legacy  # Existing immutable version tags remain valid for retries.
-    if match and build is not None and int(match[1]) == build:
+    if match and build is not None and int(match[1]) == build and (match[1] == str(build) or match[1] == build_label(build)):
         return ref.removeprefix('refs/tags/')
     raise ValueError('Select an existing tag matching the product version and BUILD')
 
@@ -200,7 +205,7 @@ def validate():
     previous = []
     tags = subprocess.check_output(['git', 'tag', '--merged', 'HEAD', '--list', 'v*'], cwd=ROOT, text=True).splitlines()
     for older in tags:
-        if older == tag or not re.fullmatch(r'v\d+\.\d+\.\d+(?:-build\.[1-9]\d*)?', older):
+        if older == tag or not re.fullmatch(r'v\d+\.\d+\.\d+(?:-build\.\d+)?', older):
             continue
         try:
             value = subprocess.check_output(['git', 'show', older + ':BUILD'], cwd=ROOT, text=True, stderr=subprocess.DEVNULL)
@@ -231,7 +236,7 @@ def publish(directory, tag, version, sha):
     subprocess.run([sys.executable, str(ROOT / 'scripts/ci_artifacts.py'), '--directory', str(directory),
                     *(['--build-qualified'] if qualified else [])],
                    cwd=ROOT, check=True)
-    names = artifact_names(version, number if qualified else None)
+    names = artifact_names(version, tag.rsplit('-build.', 1)[1] if qualified else None)
     paths = {name: directory / name for name in names}
     for path in paths.values():
         if not path.is_file() or path.stat().st_size >= 2**31:
@@ -247,7 +252,7 @@ def publish(directory, tag, version, sha):
             if 'release not found' not in current.stderr.lower():
                 raise RuntimeError('Cannot inspect GitHub release; publication stopped')
             gh('release', 'create', tag, '--verify-tag', '--target', sha, '--draft',
-               '--title', f'Video Descriptor {version} (build {number})', '--notes-file', str(notes_file))
+               '--title', f'Video Descriptor {version} (build {tag.rsplit("-build.", 1)[1] if qualified else number})', '--notes-file', str(notes_file))
             state = {'isDraft': True, 'assets': [], 'body': text}
         else:
             state = json.loads(current.stdout)

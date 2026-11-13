@@ -154,14 +154,21 @@ def run(c, wait_for, out, root):
         assert evaluate('document.documentElement.dataset.workspaceLayout') == 'side'
     evaluate('workspaceView.setLayout("stacked");window.workspaceURL=location.href')
     url = evaluate('workspaceURL')
-    # Settings has the same controller and can change preferences for the next recording.
+    # Settings keeps preferences but does not offer recording-only controls.
     evaluate('location.href="/#settings"')
     wait_for(lambda: evaluate('location.pathname==="/" && !!document.querySelector(".desktop-menu-bar #workspace-view-menu")'))
     assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu")')
+    assert not visible('#workspace-view-menu')
     assert evaluate('JSON.parse(localStorage.getItem("video-descriptor:ui:workspace")).layout') == 'stacked'
-    evaluate('location.hash="diagnostics"')
+    c.call('Page.navigate', url=evaluate('location.origin') + '/output/')
+    wait_for(lambda: evaluate('location.pathname==="/output/" && !!document.querySelector("#workspace-view-menu")'))
+    assert not visible('#workspace-view-menu')
+    c.call('Page.navigate', url=evaluate('location.origin') + '/create')
+    wait_for(lambda: evaluate('location.pathname==="/create" && !!document.querySelector("#workspace-view-menu")'))
+    assert not visible('#workspace-view-menu')
     evaluate(f'location.href={json.dumps(url)}')
     wait_for(lambda: evaluate('location.pathname==="/create" && !!document.querySelector("#speech-feed .utterance")'))
+    wait_for(lambda: visible('#workspace-view-menu'))
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'
     assert evaluate('!!document.querySelector(".desktop-menu-bar #workspace-view-menu [value=stacked]").checked')
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'stacked'

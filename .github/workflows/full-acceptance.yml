@@ -44,7 +44,7 @@ jobs:
       shell: pwsh
       run: |-
         $version = (Get-Content windows-app/release-inputs.json -Raw | ConvertFrom-Json).version
-        $build = [int](Get-Content BUILD -Raw).Trim()
+        $build = (Get-Content BUILD -Raw).Trim()
         "VD_ZIP=dist/VideoDescriptor-$version-build.$build-windows-x64.zip" >> $env:GITHUB_ENV
         "VD_INSTALLER=dist/VideoDescriptor-$version-build.$build-windows-x64-setup.exe" >> $env:GITHUB_ENV
         "VD_PREFIX=VideoDescriptor-$version-build.$build-windows-x64" >> $env:GITHUB_ENV

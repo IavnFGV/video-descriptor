@@ -90,9 +90,27 @@ def test_release_requires_the_exact_version_tag(ref, version):
 def test_release_accepts_matching_tag():
     assert windows_release.validate_ref('refs/tags/v0.9.0', '0.9.0', 3) == 'v0.9.0'
     assert windows_release.validate_ref('refs/tags/v0.9.0-build.4', '0.9.0', 4) == 'v0.9.0-build.4'
+    assert windows_release.validate_ref('refs/tags/v0.9.0-build.0012', '0.9.0', 12) == 'v0.9.0-build.0012'
+    assert windows_release.validate_ref('refs/tags/v0.9.0-build.12', '0.9.0', 12) == 'v0.9.0-build.12'
     for ref in ['refs/tags/v0.9.0-build.3', 'refs/tags/v0.9.0-build.04', 'refs/tags/v0.9.1-build.4']:
         with pytest.raises(ValueError, match='existing'):
             windows_release.validate_ref(ref, '0.9.0', 4)
+
+
+def test_prepare_build_12_uses_padded_identity(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path, build='11')
+    commit_notes(repo, NOTES)
+    monkeypatch.setattr(windows_release, 'ROOT', repo)
+    monkeypatch.setenv('GITHUB_REF', 'refs/heads/main')
+    dispatch = Mock()
+    monkeypatch.setattr(windows_release, 'gh', dispatch)
+    windows_release.prepare()
+    assert (repo / 'BUILD').read_text() == '0012\n'
+    assert git_blob(repo, 'v0.9.1-build.0012:docs/releases/0.9.1-build.0012.md') == NOTES.encode('utf-8')
+    monkeypatch.setenv('GITHUB_REF', 'refs/tags/v0.9.1-build.0012')
+    assert windows_release.validate()[0] == 'v0.9.1-build.0012'
+    assert windows_release.artifact_names('0.9.1', '0012')[0] == 'VideoDescriptor-0.9.1-build.0012-windows-x64-setup.exe'
+    dispatch.assert_called_once_with('workflow', 'run', 'windows-release.yml', '--ref', 'v0.9.1-build.0012')
 
 
 def test_prepare_records_the_prepared_notes_with_the_build_tag(tmp_path, monkeypatch):

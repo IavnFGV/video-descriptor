@@ -262,7 +262,7 @@ def main():
                     'python_source': inputs['python'], 'vcrt_source': inputs['vcrt'],
                     'wheels': lock, 'files': entries}
         (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-        prefix = f'VideoDescriptor-{inputs["version"]}' + (f'-build.{read_build()}' if args.build_qualified else '') + '-windows-x64'
+        prefix = f'VideoDescriptor-{inputs["version"]}' + (f'-build.{(ROOT / "BUILD").read_text(encoding="ascii").strip()}' if args.build_qualified else '') + '-windows-x64'
         output = args.output / (prefix + '.zip')
         print('Writing reproducible ZIP', flush=True)
         deterministic_zip(folder, output, cached_files)
@@ -270,7 +270,7 @@ def main():
         if args.iscc:
             print('Building Windows installer (Inno Setup)', flush=True)
             subprocess.run([str(args.iscc), f'/DPayload={folder}', f'/DAppVersion={inputs["version"]}',
-                            f'/DBuildNumber={read_build()}', f'/DArtifactPrefix={prefix}',
+                            f'/DBuildNumber={(ROOT / "BUILD").read_text(encoding="ascii").strip()}', f'/DArtifactPrefix={prefix}',
                             '/DPublicRelease=1',
                             f'/O{args.output.resolve()}', str(HERE / 'installer.iss')], check=True)
         accepted = [output]
