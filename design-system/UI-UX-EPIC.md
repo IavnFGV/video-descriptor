@@ -44,8 +44,8 @@ checkboxes меню «Вид» вкладками без потери функц
 | 4 | Общий `.vd-tabs`, первым подключены настройки — `a5e9f00` | Существующие tokens/tabs | Общие selected/hover/focus/forced-colors, прежние ID/ARIA/handlers; CSS bundle и settings browser checks |
 | 5 | `.vd-tabs` для «Конспект / Статья» — `47d5739` | 4 | Equal widths, 8/16 px, keyboard/dirty/Undo/save, empty article, visibility и responsive scenarios PASS |
 
-Tasks 1–4 находятся в main. Task 5 завершён и закоммичен локально, **не включён
-в main и не отправлен** на момент этого среза. Не представлять его как опубликованный.
+Tasks 1–5 и этот backlog включены в main. Интеграция сохраняет исходные commits
+`47d5739` (Task 5) и `659a8a0` (backlog); это не выпуск Windows-пакета.
 
 Сопутствующие изменения: `934e512` ускоряет тестовые fixtures без production-правок;
 `278ecb9` вводит переиспользуемый Sol → Terra workflow и находится в main.
@@ -57,6 +57,8 @@ Edge `--material-tabs-only`, `--material-tabs-empty`, `--workspace-view-only`,
 `--spacing-only`. Повтор параллельно с Fast потерял HTTP-ответ save; итоговые
 последовательные material scenarios прошли без ослабления assertions. Это fixture
 evidence, не installed WebView2, Windows scaling или hardware acceptance.
+При интеграции повторный Fast и четыре Edge scenarios прошли; workspace fixture
+потребовал повторов после CDP reload error и сбоя fetch-trap assertion. Проверки не ослаблялись.
 
 ## Осталось
 
