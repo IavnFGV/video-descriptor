@@ -137,6 +137,19 @@ def run(c, wait_for, root, base, before=False):
                 check_menu_keyboard(['desktop-file-menu', 'desktop-tools-menu', 'desktop-help-menu'])
         if screen == 'settings':
             c.call('Emulation.setDeviceMetricsOverride', width=1200, height=800, deviceScaleFactor=1, mobile=False)
+            if not before:
+                c.call('Emulation.setFocusEmulationEnabled', enabled=True)
+                c.evaluate('document.querySelector("#desktop-settings-index [role=tab]").focus()')
+                for key, code, target in [('End', 35, 'setup-extra'), ('Home', 36, 'setup-preparation'), ('ArrowRight', 39, 'setup-card'), ('ArrowLeft', 37, 'setup-preparation')]:
+                    c.call('Input.dispatchKeyEvent', type='keyDown', key=key, code=key, windowsVirtualKeyCode=code)
+                    assert c.evaluate(f'document.activeElement.dataset.settingsTab==={json.dumps(target)}')
+                    assert c.evaluate('document.activeElement.getAttribute("aria-selected")==="true" && document.activeElement.tabIndex===0')
+                    assert c.evaluate('getComputedStyle(document.activeElement).outlineStyle!=="none"')
+                    assert c.evaluate('document.querySelectorAll("#desktop-settings-index [aria-selected=true]").length===1')
+                    assert c.evaluate('!document.getElementById(document.activeElement.getAttribute("aria-controls")).hidden')
+                c.call('Emulation.setEmulatedMedia', features=[{'name': 'forced-colors', 'value': 'active'}])
+                assert c.evaluate('getComputedStyle(document.activeElement).borderColor===getComputedStyle(document.activeElement).color')
+                c.call('Emulation.setEmulatedMedia', features=[])
             c.evaluate('document.querySelector("[data-settings-tab=setup-local-models]").click()')
             c.evaluate('document.querySelector("#ollama-form").closest("details").scrollIntoView({block:"start"})')
             c.screenshot(out / 'settings-connection-1200x800.png')

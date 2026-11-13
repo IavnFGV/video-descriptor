@@ -48,6 +48,7 @@ def test_preparation_progress_and_stop_are_not_inside_optional_details():
 
 def test_settings_sections_are_real_tabs():
     shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
+    assert "index.className='desktop-settings-index vd-tabs'" in shell
     assert "index.setAttribute('role','tablist')" in shell
     assert "button.setAttribute('role','tab')" in shell
     assert "panel.setAttribute('role','tabpanel')" in shell

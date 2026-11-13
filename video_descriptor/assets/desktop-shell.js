@@ -118,7 +118,7 @@
       preparation.open=$('setup-callout').dataset.complete!=='true';
       // Every settings section is one tab: preparation first, then the existing disclosures.
       const panels=[card,...wizard.querySelectorAll(':scope>details')];
-      const index=document.createElement('nav');index.className='desktop-settings-index';index.id='desktop-settings-index';index.setAttribute('role','tablist');index.setAttribute('aria-label','Разделы настроек');
+      const index=document.createElement('nav');index.className='desktop-settings-index vd-tabs';index.id='desktop-settings-index';index.setAttribute('role','tablist');index.setAttribute('aria-label','Разделы настроек');
       const tabs=[];
       for(const [i,panel] of panels.entries()){
         if(!panel.id)panel.id='desktop-settings-'+i;

@@ -56,5 +56,11 @@
 .vd-control-group{display:grid;gap:var(--vd-control-gap);min-width:0}
 .vd-control-group>.vd-actions{margin:0}
 .vd-control-group+.vd-control-group{margin-block-start:var(--vd-group-gap)}
+:where(.vd-tabs){display:flex;flex-wrap:wrap;gap:var(--vd-control-gap)}
+.vd-tabs button{font:inherit;font-size:var(--vd-label);min-height:var(--vd-compact-height);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);padding:var(--vd-space-1) var(--vd-space-3);color:var(--vd-muted);background:var(--vd-surface);cursor:pointer;display:inline-flex;align-items:center;gap:var(--vd-space-2)}
+.vd-tabs button:hover{border-color:var(--vd-accent);color:var(--vd-accent)}
+.vd-tabs button:focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
+.vd-tabs button[aria-selected="true"]{border-color:var(--vd-accent);color:var(--vd-accent);background:var(--vd-accent-tint);font-weight:var(--vd-medium)}
+@media(forced-colors:active){.vd-tabs button[aria-selected="true"]{border-color:Highlight;color:Highlight}}
 :where(details,section,article,.card,dialog)>:where(label,.vd-field,textarea,select,input)+:where(button,.vd-button,.vd-actions){margin-block-start:var(--vd-control-gap)}
 :where(details,section,article,.card,dialog)>button+button{margin-inline-start:var(--vd-control-gap)}
