@@ -44,13 +44,15 @@ checkboxes меню «Вид» вкладками без потери функц
 | 3 | Keyboard пропускает скрытое «Вид» — `e82474b` | Текущий shell | Left/Right в обе стороны, wraparound, закрытие меню и Escape; recording/library browser regressions |
 | 4 | Общий `.vd-tabs`, первым подключены настройки — `a5e9f00` | Существующие tokens/tabs | Общие selected/hover/focus/forced-colors, прежние ID/ARIA/handlers; CSS bundle и settings browser checks |
 | 5 | `.vd-tabs` для «Конспект / Статья» — `47d5739` | 4 | Equal widths, 8/16 px, keyboard/dirty/Undo/save, empty article, visibility и responsive scenarios PASS |
-| 6 | API-free [прототип workspace tabs](prototype/workspace-tabs.html), task branch `codex/ui-ux-task-6-workspace-prototype` | 1, 5 | Edge: 60 сочетаний размера/состояния/области, keyboard/focus, empty article, persistent player/textarea, stop/recovery; без API/storage/history |
+| 6 | API-free [прототип workspace tabs](prototype/workspace-tabs.html) — `52feee5` | 1, 5 | Edge: 60 сочетаний размера/состояния/области, keyboard/focus, empty article, persistent player/textarea, stop/recovery; без API/storage/history |
 
-Tasks 1–5 и этот backlog включены в main. Интеграция сохраняет исходные commits
-`47d5739` (Task 5) и `659a8a0` (backlog); это не выпуск Windows-пакета.
+Tasks 1–6 и этот backlog включены в main. Интеграция сохраняет исходные commits
+`47d5739` (Task 5), `659a8a0` (backlog), `52feee5` (Task 6) и `77dacb0`
+(scoped Terra executor); это не выпуск Windows-пакета. Task 7 не начат.
 
 Сопутствующие изменения: `934e512` ускоряет тестовые fixtures без production-правок;
-`278ecb9` вводит переиспользуемый Sol → Terra workflow и находится в main.
+`278ecb9` вводит переиспользуемый Sol → Terra workflow, `77dacb0` добавляет восемь
+шагов и task-specific read/edit permissions с default-deny; оба находятся в main.
 Роли и ограничения описаны в [agent workflows](../docs/development/agents.md),
 не дублируются новой конфигурацией или skill.
 
@@ -100,6 +102,10 @@ push, merge или релиз автоматически.
   и UI contract audit PASS. Первый запуск остановлен лимитом команды 120 секунд;
   повтор с увеличенным timeout завершился за 181 секунду без ослабления проверок.
   Prototype JS syntax, Ruff и локальные Markdown link targets также проверены.
+- При интеграции `52feee5` и `77dacb0` повторены полный Fast — **852 passed,
+  4 skipped**, плюс **29** config checks — и все **60** prototype browser scenarios.
+  Прототип и executor сохранены без новых implementation-правок. Post-merge hook
+  обойдён только для этой интеграции: build и restart preview не запускались.
 
 ## Общий gate и передача работы
 
