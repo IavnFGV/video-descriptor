@@ -106,6 +106,10 @@ Production содержит переключатель расшифровки и
 - URL precedence, guarded Back/Forward, смена записи и storage failures всей страницы
   остаются gates 8b–8d. Installed WebView2, Windows scaling и аппаратная приёмка
   не проверены. Сам по себе этот slice не закрывает Task 8.
+- Fast с `--workers 4` не запустил параллельную suite: в окружении отсутствует
+  pytest-xdist. Последовательный Fast: **836 passed, 4 skipped, 13 failed, 7 errors**;
+  конфигурационные проверки и UI audit прошли. В журнале отсутствуют FFmpeg,
+  `tokenizers`, `faster_whisper` и `markdown_it`; полный Fast не считается пройденным.
 
 ### Evidence Task 7
 
