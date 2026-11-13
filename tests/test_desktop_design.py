@@ -46,6 +46,14 @@ def test_preparation_progress_and_stop_are_not_inside_optional_details():
     assert "preparation.contains(document.activeElement)" in (ROOT / 'windows-app/ui/app.js').read_text(encoding='utf-8')
 
 
+def test_material_tabs_share_the_settings_visual_primitive():
+    html = (ROOT / 'video_descriptor/assets/create.html').read_text(encoding='utf-8')
+    assert 'class="material-tabs vd-tabs" role="tablist"' in html
+    css = (ROOT / 'design-system/workspace.css').read_text(encoding='utf-8')
+    assert '.material-tabs button{flex:1}' in css
+    assert '.material-tabs button[aria-selected' not in css
+
+
 def test_settings_sections_are_real_tabs():
     shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
     assert "index.className='desktop-settings-index vd-tabs'" in shell

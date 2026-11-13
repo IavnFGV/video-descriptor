@@ -166,9 +166,8 @@ body:has(>.vd-global-nav).sidebar-collapsed .vd-global-nav{display:none}
 
 /* Source: design-system/workspace.css */
 /* Recording workspace: no API or data state is encoded in layout. */
-.material-tabs{display:flex;gap:var(--vd-space-2);margin-bottom:var(--vd-space-4)}
-.material-tabs button{flex:1;font-weight:var(--vd-medium)}
-.material-tabs button[aria-selected=true]{background:var(--vd-accent-tint);border-color:var(--vd-accent);box-shadow:inset 0 -3px var(--vd-accent)}
+.material-tabs{margin-bottom:var(--vd-space-4)}
+.material-tabs button{flex:1}
 #material-panel{min-width:0}
 .subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
 .studio-header p{color:var(--vd-muted)}.studio-header h1{margin-bottom:var(--vd-space-2)}

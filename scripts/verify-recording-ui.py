@@ -194,6 +194,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             original_speech = evaluate('document.querySelector("#recording-speech").value')
             c.fill('#recording-notes', '/output/notes-b/report.html')
             wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            wait_for(lambda:evaluate('!!document.querySelector("#report-editor").contentDocument?.querySelector(".CodeMirror")'))
             c.click('#material-tab-article')
             assert evaluate('new URLSearchParams(location.search).get("material")')=='article'
             assert evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")')=='true'
@@ -244,7 +245,23 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             for width,height in [(760,560),(1024,768),(1200,820),(1440,900)]:
                 c.call('Emulation.setDeviceMetricsOverride',width=width,height=height,deviceScaleFactor=1,mobile=False)
                 assert evaluate('document.documentElement.scrollWidth<=innerWidth+1')
+                assert evaluate('''(()=>{const strip=document.querySelector('.material-tabs'),tabs=[...strip.querySelectorAll('[role=tab]')],style=getComputedStyle(strip);
+                    return strip.classList.contains('vd-tabs') && style.gap==='8px' && style.marginBottom==='16px'
+                        && Math.abs(tabs[0].getBoundingClientRect().width-tabs[1].getBoundingClientRect().width)<1
+                        && tabs.every(tab=>getComputedStyle(tab).minHeight==='32px' && getComputedStyle(tab).fontSize==='13px');})()''')
+                c.evaluate('document.querySelector(".material-tabs").scrollIntoView({block:"center"})')
                 c.screenshot(out/f'material-tabs-{width}.png')
+            c.evaluate('document.querySelector(".material-tabs").scrollIntoView({block:"center"});document.querySelector("#material-tab-notes").focus()')
+            assert evaluate('''(()=>{const style=getComputedStyle(document.activeElement);return document.activeElement.matches(':focus-visible')
+                && style.outlineStyle==='solid' && style.outlineWidth==='3px' && style.boxShadow==='none' && style.borderColor===style.color;})()''')
+            point=evaluate('''(()=>{const r=document.querySelector('#material-tab-article').getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2];})()''')
+            c.call('Input.dispatchMouseEvent',type='mouseMoved',x=point[0],y=point[1])
+            wait_for(lambda:evaluate('''(()=>{const selected=getComputedStyle(document.querySelector('#material-tab-notes')),other=document.querySelector('#material-tab-article'),hover=getComputedStyle(other);
+                return other.matches(':hover') && hover.color===selected.color && hover.borderColor===selected.borderColor;})()'''))
+            c.call('Emulation.setEmulatedMedia',features=[{'name':'forced-colors','value':'active'}])
+            assert evaluate('''(()=>{const style=getComputedStyle(document.querySelector('#material-tab-notes'));return style.borderColor===style.color;})()''')
+            c.screenshot(out/'material-tabs-forced-colors.png')
+            c.call('Emulation.setEmulatedMedia',features=[])
             assert evaluate('window.uiErrors')==[]
             assert len(list((root/'output/jobs').glob('*/job.json')))==1, 'Tab switching created work'
             print('PASS: material tabs, independent versions, keyboard, empty article, dirty guard, real save and four viewports',flush=True)

@@ -71,7 +71,7 @@ Production библиотека, workspace, редакторы, диалоги �
 | Dialog `.vd-dialog` | native `<dialog>` + aria-labelledby + showModal | initial focus, Escape/Отмена, возврат фокуса; scroll внутри, max-height 90dvh; один primary; удаление: фокус на отмене; не терять введённые данные при ошибке |
 | Status `.vd-status` | текст + необязательная декоративная SVG-иконка | neutral/queued, info/running, success/done, danger/error, warning/unavailable; готовность хранится отдельно; aria-live на сообщении, не на всей странице |
 | Progress `.vd-progress` | `<progress>` с label | upload/model bytes отдельно от обработки; value только при известном знаменателе; без value — неопределённый ход; рядом этап, значение, возможность восстановления; не выдумывать ETA |
-| Tabs `.vd-tabs` | button role=tab + tablist + tabpanel; общие стили полосы и кнопок в `components.css`, используются настройками | один tabIndex=0, aria-selected/controls; Left/Right/Home/End; URL stage, сохранение job/folder/report; не заменять ссылками при локальном переключении панели |
+| Tabs `.vd-tabs` | button role=tab + tablist + tabpanel; общие стили полосы и кнопок в `components.css`, используются настройками и вкладками материалов | один tabIndex=0, aria-selected/controls; Left/Right/Home/End; URL stage, сохранение job/folder/report; не заменять ссылками при локальном переключении панели |
 | Record row | ссылка на запись с именем и статусом | доступное полное имя, перенос длинных имён, текущая aria-current; фильтры/версии не теряют выделение |
 | Disclosure | native details/summary | только дополнительные параметры, не прятать обязательный следующий шаг и ошибки |
 
