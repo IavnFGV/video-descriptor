@@ -3,6 +3,7 @@ import importlib.util
 import json
 import sys
 import threading
+from html.parser import HTMLParser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -71,6 +72,48 @@ def configured(tmp_path):
              'npu_url': 'http://127.0.0.1:8766'}
     manager = compute_module.ComputeManager(value, tmp_path)
     return tmp_path, model, manager, setup_api.SetupService(manager, tmp_path)
+
+
+@pytest.mark.parametrize('provider', ['ollama', 'lmstudio'])
+def test_connection_guide_has_return_links_without_browser_history(configured, monkeypatch, provider):
+    here, _, manager, _ = configured
+    spec = importlib.util.spec_from_file_location('guide_native_app', ROOT / 'windows-app/app.py')
+    app = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(app)
+    monkeypatch.setattr(app, 'HERE', here)
+    (here / 'ui').mkdir()
+    (here / 'ui/index.html').write_text('<main>Application settings and recordings</main>')
+
+    class Navigation(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == 'a':
+                href = dict(attrs).get('href')
+                if href in {'/#settings', '/#records'}:
+                    self.links.append(href)
+
+    with ThreadingHTTPServer(('127.0.0.1', 0), app.make_handler(manager.value, 'instance')) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        try:
+            guide = requests.get(base + f'/help/{provider}', timeout=5)
+            assert guide.status_code == 200
+            parser = Navigation()
+            parser.feed(guide.text)
+            assert parser.links == ['/#settings', '/#records'] * 2
+            assert guide.text.index('href="/#settings"') < guide.text.index('<h1>')
+            assert guide.text.rindex('href="/#settings"') > guide.text.rindex('</h1>')
+            for target in set(parser.links):
+                response = requests.get(base + target, timeout=5)
+                assert response.status_code == 200
+                assert 'Application settings and recordings' in response.text
+        finally:
+            server.shutdown()
+            thread.join()
 
 
 def test_model_import_preserves_config_and_updates_manager_without_restart(configured):

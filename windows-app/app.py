@@ -321,18 +321,17 @@ def make_handler(value, instance, updates=None):
                 return self.json_response(200, events)
             if path in {'/', '/native.js', '/native.css', '/updates.js', '/help/ollama', '/help/lmstudio'}:
                 name = {'/': 'index.html', '/native.js': 'app.js', '/native.css': 'app.css', '/updates.js': 'updates.js', '/help/ollama': 'help.html', '/help/lmstudio': 'help.html'}[path]
-                if path == '/help/ollama':
+                if path in {'/help/ollama', '/help/lmstudio'}:
                     from markdown_it import MarkdownIt
-                    content = MarkdownIt().enable('table').render((REPOSITORY / 'docs/ollama-windows.md').read_text(encoding='utf-8'))
+                    provider = 'Ollama' if path == '/help/ollama' else 'LM Studio'
+                    document = 'ollama-windows.md' if path == '/help/ollama' else 'lmstudio-windows.md'
+                    content = MarkdownIt().enable('table').render((REPOSITORY / 'docs' / document).read_text(encoding='utf-8'))
+                    navigation = ('<nav class="vd-actions" aria-label="Возврат в приложение">'
+                                  '<a class="vd-button" href="/#settings">Вернуться к настройкам AI</a>'
+                                  '<a class="vd-button" href="/#records">К записям</a></nav>')
                     body = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-                            '<title>Ollama — инструкция</title><link rel="stylesheet" href="/native.css">'
-                            '<body><main class="card vd-prose">' + content + '</main></body></html>').encode('utf-8')
-                elif path == '/help/lmstudio':
-                    from markdown_it import MarkdownIt
-                    content = MarkdownIt().enable('table').render((REPOSITORY / 'docs/lmstudio-windows.md').read_text(encoding='utf-8'))
-                    body = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-                            '<title>LM Studio — инструкция</title><link rel="stylesheet" href="/native.css">'
-                            '<body><main class="card vd-prose">' + content + '</main></body></html>').encode('utf-8')
+                            f'<title>{provider} — инструкция</title><link rel="stylesheet" href="/native.css">'
+                            '<body><main class="card vd-prose">' + navigation + content + navigation + '</main></body></html>').encode('utf-8')
                 else:
                     body = (HERE / 'ui' / name).read_bytes()
                 self.send_response(200)
