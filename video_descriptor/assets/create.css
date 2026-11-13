@@ -167,6 +167,15 @@ body:has(>.vd-global-nav).sidebar-collapsed .vd-global-nav{display:none}
 /* Source: design-system/workspace.css */
 /* Recording workspace: no API or data state is encoded in layout. */
 .material-tabs{margin-bottom:var(--vd-space-4)}
+.workspace-tabs{display:none;margin-bottom:var(--vd-space-4)}
+.recording-workspace.has-recording .workspace-tabs{display:flex}
+html[data-workspace-tab=transcript] .recording-workspace.has-recording #stage-notes,
+html[data-workspace-tab=transcript] .recording-workspace.has-recording #recording-translation-panel{display:none!important}
+html[data-workspace-tab=transcript][data-view-transcript=false] .recording-workspace.has-recording #stage-speech{display:block!important;grid-column:2;grid-row:1}
+html[data-workspace-tab=transcript][data-view-transcript=false][data-workspace-layout=stacked] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}
+html[data-workspace-tab=transcript][data-view-video=false] .recording-workspace.has-recording #stage-speech{grid-column:1}
+html[data-workspace-tab=transcript][data-view-video=false][data-view-transcript=false] .recording-workspace.has-recording #workspace-view-empty{display:none}
+@media(max-width:1000px){html[data-workspace-tab=transcript][data-view-transcript=false] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}}
 .material-tabs button{flex:1}
 #material-panel{min-width:0}
 .subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
@@ -347,7 +356,7 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace:not(.has-recording) #source-details{display:none}
 html[data-workspace-layout=stacked] .recording-workspace.has-recording .studio-layout,
 html[data-view-video=false] .recording-workspace.has-recording .studio-layout,
-html[data-view-transcript=false] .recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
+html[data-view-transcript=false]:not([data-workspace-tab=transcript]) .recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
 html[data-workspace-layout=stacked] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}
 html[data-view-video=false] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:1}
 html[data-view-transcript=false] .recording-workspace.has-recording #shared-player{grid-column:1;grid-row:1}
@@ -483,7 +492,7 @@ body.vd-desktop.sidebar-collapsed:has(>.vd-global-nav){padding-left:var(--vd-spa
 .vd-desktop.recording-workspace #stage-notes .recording-notes-heading select{font-size:var(--vd-label)}
 html[data-workspace-layout=stacked] .vd-desktop.recording-workspace.has-recording .studio-layout,
 html[data-view-video=false] .vd-desktop.recording-workspace.has-recording .studio-layout,
-html[data-view-transcript=false] .vd-desktop.recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
+html[data-view-transcript=false]:not([data-workspace-tab=transcript]) .vd-desktop.recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
 html[data-workspace-layout=stacked] .vd-desktop.recording-workspace.has-recording #speech-feed{max-height:55vh}
 .vd-desktop .library-heading{margin-bottom:var(--vd-space-4)}
 .vd-desktop #records>article{padding:var(--vd-space-4);margin-bottom:var(--vd-space-3)}

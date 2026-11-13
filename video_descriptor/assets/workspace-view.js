@@ -13,7 +13,16 @@
     }catch(_error){/* Unavailable storage or invalid JSON: safe in-memory defaults. */}
     return value;
   }
-  let state=read(), menu, content, summary, rail;
+  let state=read(), menu, content, summary, rail, tablist;
+  function selectTab(value){
+    root.dataset.workspaceTab=value;
+    if(!tablist)return;
+    for(const tab of tablist.querySelectorAll('[role="tab"]')){
+      const selected=tab.id==='workspace-tab-'+value;
+      tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;
+    }
+    document.getElementById('workspace-tab-panel').setAttribute('aria-labelledby','workspace-tab-'+value);
+  }
   function apply(){
     root.dataset.workspaceLayout=state.layout;
     for(const [key,value] of Object.entries(state.panels))root.setAttribute('data-view-'+key,String(value));
@@ -29,7 +38,7 @@
     for(const tab of tabs)tab.tabIndex=tab===focusable?0:-1;
   }
   function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(_error){}apply();}
-  function reset(){state=defaults();save();}
+  function reset(){state=defaults();selectTab('transcript');save();}
   // One controller on all full pages; preferences apply when a recording is opened.
   function place(){
     if(!menu||!menu.open)return;
@@ -52,7 +61,7 @@
   }
   // Runs in the head, before stylesheet/DOM rendering: no secondary-panel flash.
   apply();
-  window.workspaceView={reset,refresh:apply,setPanel(key,value){if(key in state.panels&&typeof value==='boolean'){state.panels[key]=value;save();}},setLayout(value){if(['side','stacked'].includes(value)){state.layout=value;save();}}};
+  window.workspaceView={reset,refresh:apply,setPanel(key,value){if(key in state.panels&&typeof value==='boolean'){state.panels[key]=value;selectTab('all');save();}},setLayout(value){if(['side','stacked'].includes(value)){state.layout=value;save();}}};
   window.addEventListener('storage',event=>{if(event.key===KEY||event.key===null){state=read();apply();}});
   document.addEventListener('DOMContentLoaded',()=>{
     menu=document.createElement('details');menu.id='workspace-view-menu';menu.className='workspace-view-menu';
@@ -63,7 +72,7 @@
     const labels={video:'Видео',transcript:'Расшифровка',speakers:'Участники',translation:'Перевод',notes:'Конспект',article:'Статья / отчёт',technical:'Технические сведения и параметры'};
     for(const [key,title] of Object.entries(labels)){
       const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.dataset.panel=key;
-      input.addEventListener('change',()=>{state.panels[key]=input.checked;save();});
+      input.addEventListener('change',()=>{state.panels[key]=input.checked;selectTab('all');save();});
       label.append(input,document.createTextNode(title));panels.append(label);
     }
     const layouts=document.createElement('fieldset'),layoutLegend=document.createElement('legend');layoutLegend.textContent='Видео и расшифровка';layouts.append(layoutLegend);
@@ -81,6 +90,19 @@
     rail=navigation;navigation.append(menu);
     const workspace=document.querySelector('.studio-layout');
     if(workspace){
+      tablist=document.getElementById('workspace-tabs');
+      if(tablist){
+        const tabs=[...tablist.querySelectorAll('[role="tab"]')];
+        const initial=state.panels.transcript&&!state.panels.translation&&!state.panels.notes&&!state.panels.article?'transcript':'all';
+        selectTab(initial);
+        for(const [index,tab] of tabs.entries()){
+          tab.addEventListener('click',()=>selectTab(index===0?'transcript':'all'));
+          tab.addEventListener('keydown',event=>{
+            const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index+tabs.length-1)%tabs.length:-1;
+            if(next<0)return;event.preventDefault();tabs[next].click();tabs[next].focus();
+          });
+        }
+      }
       const empty=document.createElement('p');empty.id='workspace-view-empty';empty.className='feedback';empty.setAttribute('role','status');
       empty.append(document.createTextNode('Видео и расшифровка скрыты. '));
       const button=document.createElement('button');button.type='button';button.className='vd-button';button.textContent='Восстановить рабочее пространство';button.onclick=reset;empty.append(button);

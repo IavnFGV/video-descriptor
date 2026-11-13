@@ -61,8 +61,17 @@ node tests/workspace_view.cjs
 It covers 256 panel/layout combinations, read-without-write, URL-neutral preference
 loading, invalid/partial values, separate storage read/write failures, reset/reload,
 storage events and embedded mode. It does not execute studio/recording routing,
-workspace tabs, DOM geometry, editor guards or Back/Forward. Task 7 changes the
-contract and characterization only; production integration remains a later task.
+workspace tabs, DOM geometry, editor guards or Back/Forward. Task 7 changed the
+contract and characterization only; Task 8a adds the first production slice.
+
+The isolated Edge fixture for the 8a tabs and existing workspace controls is:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-tabs-only
+.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-view-only
+```
+
+These checks do not establish guarded history, installed WebView2 or hardware acceptance.
 
 ## Workspace tabs prototype
 

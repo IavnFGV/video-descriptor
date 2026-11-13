@@ -1,6 +1,8 @@
 # План: вкладки рабочего пространства записи
 
-Это проектный контракт, а не описание реализованного интерфейса. Текущий вид и
+Это проектный контракт последующих slices. Task 8a добавил локальные вкладки
+расшифровки и совместимого вида, но не подключил вкладки перевода/материалов и
+не изменил routing. Текущий вид и
 правила меню «Вид» описаны в [workspace.md](pages/workspace.md); общие требования
 компонентов и маршрутов — в [MASTER](MASTER.md) и [CONTRACTS](CONTRACTS.md).
 Статусы задач, зависимости и порядок внедрения — в [UI/UX Epic](UI-UX-EPIC.md).
@@ -57,7 +59,7 @@ parity остаются старые controls и доступный режим �
 
 ## Решения Task 7 — 13.11.2026
 
-Это контракт для Tasks 8–10, **не реализованное поведение вкладок**. Production
+Это целевой контракт для Tasks 8–10; routing и вкладки перевода/материалов ещё не реализованы. Production
 сохраняет меню «Вид». Проверенная база: `6d4c15c`; исходники
 `workspace-view.js`, `studio.js`, `recording.js` в
 [shared assets](../video_descriptor/assets/). Новый store, schema v2, backend API,
@@ -166,7 +168,7 @@ query-параметр или hash для workspace tab не вводятся.
 | P3 | Default/reset, video off, оба главных off, все flags off, notes+article | Точные defaults, доступный reset; независимые hide и subtabs без смены editor | C: preference state; G: DOM, keyboard, подсказки и один iframe |
 | U1 | flags=false + stage=notes/report/material=article/job/folder/#hash | Сейчас preferences URL-neutral; в будущем explicit target раскрыт без save; recording/version выбирает прежний owner | C: только neutral preferences; S: route owners; G: precedence, reload и конфликт kind/report |
 | U2 | `/`, `?job=`, `/create?folder=...&stage=speech`, пустой `/create`, stage=source; unknown stage/material; недоступный report | Сохранить маршруты, no-recording flow и hash; invalid не создаёт выбор/результат; отсутствующая цель объясняется | C: unknown preference neutrality; S; G: реальные deep links и fallback |
-| H1 | Local tab click; затем reload | Нет новой history entry/save; сохраняются DOM/фокус/ввод; reload по URL/v1 | G, новый tab-controller пока отсутствует |
+| H1 | Local tab click; затем reload | Нет новой history entry/save; сохраняются DOM/фокус/ввод; reload по URL/v1 | 8a: локальный click/DOM/focus без history/save; G: полный URL/reload и editor input |
 | H2 | Back/Forward по stage/report/material, затем другой job/folder; clean и dirty | URL/selection/область согласованы; guard отказал → старые DOM/draft/revision/Undo; нет history loop | S: текущие gaps ниже; G с quick-edit и iframe dirty, stale polling |
 | F1 | getItem throws; setItem throws/quota; reset; reload | Defaults при read failure; изменения в памяти при write failure, старые bytes сохранены; reload читает старое | C; G: полноценная страница при недоступном storage, без ложного обещания save |
 | F2 | storage key / key=null / чужой key, malformed/removed value | Только нужные события перечитывают без записи, invalid → defaults | C; G: активная вкладка, override и focus не теряются |
@@ -177,7 +179,7 @@ query-параметр или hash для workspace tab не вводятся.
 
 ### Известные gaps и граница следующего increment
 
-- `workspace-view.js` не знает URL/вкладок; C доказывает только сохранность v1.
+- `workspace-view.js` знает локальные вкладки 8a, но не разрешает URL; C доказывает только сохранность v1.
   `studio.js` обрабатывает popstate stage/report, но это не полная guarded навигация
   по job/folder/material. `recording.js` читает material при старте/смене source и
   пишет его через replaceState, но не имеет собственного material popstate handler.
@@ -199,9 +201,8 @@ query-параметр или hash для workspace tab не вводятся.
   от stage/report/material. Новое URL encoding и last-tab persistence отложены:
   первый slice работает без них. Любое будущее добавление требует отдельного
   routing/storage решения, а не скрытого переиспользования stage.
-- Контракт требует compatibility view, временного раскрытия и общего feed, но их
-  DOM integration ещё нет. До начала Task 8 разделить wiring/focus, URL/guard gaps
-  и multi-panel parity на проверяемые slices. Не удалять controls до G/P1–A1.
+- Compatibility view и временное раскрытие расшифровки подключены в 8a; URL/guard
+  gaps и полная multi-panel parity остаются отдельными gates. Не удалять controls до G/P1–A1.
 - Прототип Task 6 не моделирует реальный playback, iframe, revision или Undo.
   Ни эта матрица, ни Node VM не доказывают installed WebView2, Windows scaling или
   аппаратную готовность. Открытых решений по precedence/default/reset больше нет;

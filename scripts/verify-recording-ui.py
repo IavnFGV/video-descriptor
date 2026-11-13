@@ -140,6 +140,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--workspace-tabs-only' in sys.argv:
+            from workspace_tabs_checks import run
+            run(c, wait_for, out)
+            raise SystemExit(0)
         if '--desktop-design' in sys.argv:
             from desktop_design_checks import run
             run(c, wait_for, ROOT, f'http://127.0.0.1:{server.server_port}', '--before' in sys.argv)

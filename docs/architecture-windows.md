@@ -909,11 +909,11 @@ The shared `/create` page loads `workspace-view.js` before rendering.
 It uses the existing UI localStorage convention (`video-descriptor:ui:workspace`,
 version 1), scoped to the application's WebView2/browser origin and profile, not
 recordings. It owns presentation attributes only; jobs, player, selection and editor
-state retain their original owners. The View entry is a native disclosure inside
-the existing left navigation rail of the recording workspace; its panel is placed
-beside the rail, or below the entry when the rail becomes a row, and never leaves
-the viewport. The library/settings shell has no recording panels and carries no
-entry. One shared notes/article iframe is never recreated when hidden. Layout radios and the existing expand-player button share
+state retain their original owners. The View entry is a native disclosure in the
+top command bar and is hidden without an open recording. Local workspace tabs select
+the transcript or the saved combination of enabled panels without changing storage
+or routing. Translation/material tabs and guarded route integration remain future
+slices. One shared notes/article iframe is never recreated when hidden. Layout radios and the existing expand-player button share
 one preference; the former `vd-recording-player-position` key is no longer read.
 Invalid/future preferences fall back safely, unavailable storage uses session memory.
 No backend endpoint, AI setting, model or recording mutation is added.

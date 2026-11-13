@@ -162,6 +162,11 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 ## Workspace /create и общие модули
 
+Task 8a: локальные вкладки «Расшифровка» и «Все включённые панели» управляют
+представлением существующих узлов без записи preferences или изменения URL.
+Checkbox меню «Вид» возвращает совместимый режим. Маршруты и guards остаются
+у прежних controllers; URL precedence и history проверяются в последующих slices.
+
 | Функция | Данные / события | Нельзя потерять |
 |---|---|---|
 | Навигация studio.js | query `job`, `folder`, `stage`, `report`; tabs source/speech/notes; `window.studioUI` | aria tabs и keyboard, dirty guard report iframe, reportVariant/resetReport/refreshReport |
