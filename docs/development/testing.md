@@ -37,6 +37,29 @@ Inspect fixtures and platform skips before selecting tests. Cover observable
 failures/data preservation rather than copying implementation strings. Use synthetic
 data and temporary storage; never embed private transcripts or credentials.
 
+## Workspace tabs prototype
+
+Task 6 is a standalone [layout prototype](../../design-system/prototype/workspace-tabs.html),
+not production workspace integration. Open the HTML directly for manual exploration.
+With existing Edge and development dependencies on Windows:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-workspace-prototype.py
+```
+
+The driver starts a temporary loopback static server and isolated headless Edge,
+then closes both. It uses no application backend, models or recordings. It checks
+five viewport sizes, ready/empty/busy/error, three workspace areas, nested material
+tabs, keyboard/focus, persistent DOM/draft and mock stop/recovery. Runtime traps
+reject API, storage and history calls. Full-page screenshots and `result.json` go
+to ignored `windows-app/runtime/zero-config/workspace-prototype/`; `--output` sets
+an alternate evidence directory. Review captures as well as assertions. Forced
+colors and a zoom-equivalent viewport are fixtures, not Windows scaling or
+installed WebView2 acceptance. The media element has no source; actual playback,
+iframe editing, independent versions and dirty/revision/Undo guards are outside
+this prototype. Existing production material/workspace scenarios remain in
+`scripts/verify-recording-ui.py`.
+
 ## CI and evidence
 
 [ci.yml](../../.github/workflows/ci.yml) runs on PR/main push and routes changed paths

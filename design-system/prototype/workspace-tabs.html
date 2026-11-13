@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Прототип вкладок рабочего пространства</title>
+  <link rel="stylesheet" href="../tokens.css">
+  <link rel="stylesheet" href="../components.css">
+  <style>
+    *{box-sizing:border-box}
+    [hidden]{display:none!important}
+    body{margin:0;padding:var(--vd-space-6);font:var(--vd-body)/1.5 var(--vd-font);color:var(--vd-text);background:var(--vd-canvas)}
+    main{max-width:1440px;margin:auto;display:grid;gap:var(--vd-group-gap)}
+    h1{font-size:var(--vd-h2);overflow-wrap:anywhere;margin:0}
+    h2,h3,p{margin:0}
+    .card{padding:var(--vd-space-4);border:1px solid var(--vd-border);border-radius:var(--vd-radius-card);background:var(--vd-surface);min-width:0;display:grid;gap:var(--vd-group-gap);align-content:start}
+    .grid{display:grid;grid-template-columns:minmax(300px,2fr) minmax(420px,3fr);gap:var(--vd-group-gap);align-items:start}
+    .workspace,.content{display:grid;gap:var(--vd-group-gap);min-width:0}
+    .vd-tabs button{flex:1;justify-content:center}
+    video{display:block;width:100%;max-height:360px;background:var(--vd-subtle)}
+    .vd-status{white-space:normal;width:fit-content}
+    .operation{border-inline-start:4px solid var(--vd-info)}
+    .operation[data-state=error]{border-inline-start-color:var(--vd-danger)}
+    .utterance{padding-block:var(--vd-space-2);border-bottom:1px solid var(--vd-border)}
+    @media(max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+    @media(max-width:500px){body{padding:var(--vd-space-3)}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="content">
+    <h1>Обговорення дослідження — длинное демонстрационное название записи и следующих шагов команды</h1>
+    <p>Task 6 · Изолированный прототип. Только вымышленные данные, без API и генерации. Это не рабочий редактор.</p>
+    <p class="vd-help">URL, preferences, Back/Forward и совместимость меню «Вид» здесь не моделируются: решения относятся к Task 7. После перезагрузки демонстрация сбрасывается.</p>
+  </header>
+  <label class="vd-field" for="scenario">Демонстрационное состояние
+    <select class="vd-select" id="scenario">
+      <option value="ready">Готовая запись</option>
+      <option value="empty">Пустой материал: статья отсутствует</option>
+      <option value="busy">Активная операция</option>
+      <option value="error">Ошибка и восстановление</option>
+    </select>
+  </label>
+  <section class="card operation" id="operation" aria-labelledby="operation-title" data-state="ready">
+    <h2 id="operation-title">Состояние записи</h2>
+    <p id="operation-status" role="status">Демонстрация: обработка завершена.</p>
+    <div id="busy" hidden>
+      <label for="operation-progress">Демонстрация: обработка, общий объём неизвестен</label>
+      <progress class="vd-progress" id="operation-progress"></progress>
+    </div>
+    <p class="vd-error" id="operation-error" role="alert" hidden>Демонстрационная ошибка: материал не сохранён. Исходная расшифровка доступна.</p>
+    <div class="vd-actions">
+      <button class="vd-button" id="stop" type="button" disabled>Остановить (имитация)</button>
+      <button class="vd-button" id="recover" type="button" disabled>Восстановление (имитация)</button>
+    </div>
+    <p class="vd-help">Кнопки меняют только этот макет: остановка доступна в активном состоянии, восстановление — при ошибке. Данные никуда не отправляются.</p>
+  </section>
+  <div class="grid">
+    <section class="card" aria-labelledby="player-title">
+      <h2 id="player-title">Общий плеер</h2>
+      <video id="player" controls preload="none" aria-label="Общий плеер без демонстрационного медиа"></video>
+      <p class="vd-help">Медиа не загружается. Один и тот же элемент остаётся вне вкладок; реальное воспроизведение и синхронизация здесь не проверяются.</p>
+    </section>
+    <section class="workspace" aria-label="Рабочая область записи">
+      <div class="vd-tabs" id="workspace-tabs" role="tablist" aria-label="Область записи">
+        <button type="button" id="tab-speech" role="tab" aria-controls="panel-speech" aria-selected="true">Расшифровка</button>
+        <button type="button" id="tab-translation" role="tab" aria-controls="panel-translation" aria-selected="false" tabindex="-1">Перевод</button>
+        <button type="button" id="tab-materials" role="tab" aria-controls="panel-materials" aria-selected="false" tabindex="-1">Материалы</button>
+      </div>
+      <section class="card" id="panel-speech" role="tabpanel" aria-labelledby="tab-speech" tabindex="0">
+        <h2>Расшифровка</h2>
+        <label class="vd-field">Версия речи <select class="vd-select"><option>Демонстрационная версия 1</option></select></label>
+        <p class="utterance">00:00 · Участник 1: Обсудим результаты исследования.</p>
+        <p class="utterance">00:12 · Участник 2: Следующий шаг — проверить выводы.</p>
+        <details><summary>Участники и технические сведения (макет)</summary><p>Два демонстрационных участника. Настройки и действия production не подключены.</p></details>
+      </section>
+      <section class="card" id="panel-translation" role="tabpanel" aria-labelledby="tab-translation" tabindex="0" hidden>
+        <h2>Перевод</h2>
+        <p class="vd-help">Пример совместного чтения; это не решение совместимости режимов production.</p>
+        <p class="utterance" lang="uk">Оригинал: Обговорімо результати дослідження.</p>
+        <p class="utterance">Перевод: Обсудим результаты исследования.</p>
+        <p>Открытие вкладки не запускает перевод.</p>
+      </section>
+      <section class="card" id="panel-materials" role="tabpanel" aria-labelledby="tab-materials" tabindex="0" hidden>
+        <h2>Материалы</h2>
+        <div class="vd-tabs" id="material-tabs" role="tablist" aria-label="Материал записи">
+          <button type="button" id="tab-notes" role="tab" aria-controls="material-panel" aria-selected="true">Конспект</button>
+          <button type="button" id="tab-article" role="tab" aria-controls="material-panel" aria-selected="false" tabindex="-1">Статья</button>
+        </div>
+        <div class="content" id="material-panel" role="tabpanel" aria-labelledby="tab-notes" tabindex="0">
+          <p class="vd-status" id="material-kind">Конспект · демонстрационная версия 1</p>
+          <p id="empty-material" hidden>Статья отсутствует. Для создания в приложении требуется отдельное явное действие; переключение вкладки ничего не генерирует.</p>
+          <label class="vd-field" for="material-draft">Общий черновик макета (не сохраняется)
+            <textarea class="vd-textarea" id="material-draft">Демонстрационный текст. Проверьте, что он остаётся после переключения области.</textarea>
+          </label>
+          <p class="vd-help">Один textarea вместо production iframe. Он общий для обеих вкладок, не моделирует независимые версии, Undo или dirty guards редактора. Пустая статья не показывает текст конспекта.</p>
+        </div>
+      </section>
+    </section>
+  </div>
+</main>
+<script>
+  const byId = id => document.getElementById(id);
+  const materialTabs = [...byId('material-tabs').children];
+  const workspaceTabs = [...byId('workspace-tabs').children];
+  function choose(tabs, selected) {
+    tabs.forEach(tab => {
+      tab.setAttribute('aria-selected', String(tab === selected));
+      tab.tabIndex = tab === selected ? 0 : -1;
+    });
+  }
+  function showMaterial() {
+    const article = byId('tab-article').getAttribute('aria-selected') === 'true';
+    const empty = article && byId('scenario').value === 'empty';
+    byId('material-panel').setAttribute('aria-labelledby', article ? 'tab-article' : 'tab-notes');
+    byId('material-kind').textContent = article ? 'Статья · демонстрационный макет' : 'Конспект · демонстрационная версия 1';
+    byId('empty-material').hidden = !empty;
+    byId('material-draft').parentElement.hidden = empty;
+  }
+  function wireTabs(tabs, activate) {
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => { choose(tabs, tab); activate(tab); });
+      tab.addEventListener('keydown', event => {
+        const target = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 :
+          event.key === 'ArrowRight' ? (index + 1) % tabs.length :
+          event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : null;
+        if (target === null) return;
+        event.preventDefault();
+        event.stopPropagation();
+        choose(tabs, tabs[target]);
+        activate(tabs[target]);
+        tabs[target].focus();
+      });
+    });
+  }
+  wireTabs(workspaceTabs, selected => {
+    workspaceTabs.forEach(tab => { byId(tab.getAttribute('aria-controls')).hidden = tab !== selected; });
+  });
+  wireTabs(materialTabs, showMaterial);
+  byId('scenario').addEventListener('change', () => {
+    const state = byId('scenario').value;
+    byId('operation').dataset.state = state;
+    byId('busy').hidden = state !== 'busy';
+    byId('operation-error').hidden = state !== 'error';
+    byId('stop').disabled = state !== 'busy';
+    byId('recover').disabled = state !== 'error';
+    byId('operation-status').textContent = state === 'busy' ? 'Демонстрация: операция выполняется; можно менять область.' :
+      state === 'error' ? 'Демонстрация: ошибка; восстановление доступно вне вкладок.' : 'Демонстрация: обработка завершена.';
+    showMaterial();
+  });
+  byId('stop').addEventListener('click', () => {
+    byId('operation-status').textContent = 'Имитация остановки: готовые данные сохранены в макете.';
+    byId('busy').hidden = true;
+  });
+  byId('recover').addEventListener('click', () => {
+    byId('operation-status').textContent = 'Имитация: восстановление доступно. Реальная операция не запускалась.';
+  });
+</script>
+</body>
+</html>

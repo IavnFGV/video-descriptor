@@ -1,6 +1,7 @@
 # UI/UX Epic: постепенная стандартизация и вкладки рабочего пространства
 
-Срез: 13.11.2026, реализация до `47d5739`. Это текущий backlog, не новый массовый
+Срез: 13.11.2026, production до `47d5739`, изолированный прототип Task 6 — ниже.
+Это текущий backlog, не новый массовый
 редизайн и не описание уже внедрённых workspace tabs. [PLAN](PLAN.md) — исторический
 план завершённого переноса 19.10.2026. Обновлять статусы и evidence здесь при закрытии
 задач; не создавать параллельный список в README или истории.
@@ -43,6 +44,7 @@ checkboxes меню «Вид» вкладками без потери функц
 | 3 | Keyboard пропускает скрытое «Вид» — `e82474b` | Текущий shell | Left/Right в обе стороны, wraparound, закрытие меню и Escape; recording/library browser regressions |
 | 4 | Общий `.vd-tabs`, первым подключены настройки — `a5e9f00` | Существующие tokens/tabs | Общие selected/hover/focus/forced-colors, прежние ID/ARIA/handlers; CSS bundle и settings browser checks |
 | 5 | `.vd-tabs` для «Конспект / Статья» — `47d5739` | 4 | Equal widths, 8/16 px, keyboard/dirty/Undo/save, empty article, visibility и responsive scenarios PASS |
+| 6 | API-free [прототип workspace tabs](prototype/workspace-tabs.html), task branch `codex/ui-ux-task-6-workspace-prototype` | 1, 5 | Edge: 60 сочетаний размера/состояния/области, keyboard/focus, empty article, persistent player/textarea, stop/recovery; без API/storage/history |
 
 Tasks 1–5 и этот backlog включены в main. Интеграция сохраняет исходные commits
 `47d5739` (Task 5) и `659a8a0` (backlog); это не выпуск Windows-пакета.
@@ -67,16 +69,37 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 
 | ID | Небольшой результат | Зависимости | Приёмка | Исполнение |
 | --- | --- | --- | --- | --- |
-| 6 | API-free прототип workspace tabs на существующих primitives | 1, 5 | Wide/narrow, пустой материал, активная операция/ошибка; плеер и recovery доступны; без API/генерации | Terra: bounded prototype patch; Sol: visual review |
 | 7 | Решения совместимости и тестовая матрица в WORKSPACE-TABS | 1, 2, 6 | Явные URL/preferences precedence, default/reset, Back/Forward, storage failure, v1-комбинации и доступ к переводу с оригиналом; нерешённые вопросы не скрыты | Sol; Terra только для отдельных characterization tests |
 | 8 | Первый production slice: переключение workspace с расшифровкой | 6, 7 | Те же DOM/player/editor, устойчивость к polling, keyboard/focus, deep links и guards; прежние возможности доступны во время перехода | Sol-led integration; без нового state manager |
 | 9a | Подключить существующую область перевода | 8 | Настройки, original/translation modes, версии и экспорты доступны; переключение не запускает перевод; stale/dirty guards сохранены | Sol-led; механические правки можно Terra |
 | 9b | Подключить «Материалы» с прежними subtabs | 8, 9a | Один iframe, independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи | Sol-led; отдельные bounded patches Terra |
 | 10 | Убрать только заменённые checkbox-controls | 9a, 9b и доказанная parity | Для каждого пункта/сочетания из mapping есть доступный эквивалент; layout/reset/video hide сохранены; help/docs/harness refs синхронизированы | Sol: parity review; Terra: отдельные механические slices |
 
-**Следующий increment — Task 6, пока не начат.** Сначала определить конкретные
-allowed paths и состояния прототипа. Этот backlog не запускает следующую реализацию,
+**Следующий increment — Task 7, пока не начат.** Task 6 ограничен изолированным
+прототипом; решения совместимости и production integration не реализованы.
+Этот backlog не запускает следующую реализацию,
 push, merge или релиз автоматически.
+
+### Evidence Task 6
+
+- Base `bf0d4c4`; Terra allowed path: только новый
+  `design-system/prototype/workspace-tabs.html`. Один вызов `executor` завершился
+  step limit без patch; прототип реализован и проверен Sol без повторного вызова.
+- Прототип использует общие tokens/components и `.vd-tabs`; состояния ready, empty,
+  busy, error меняют только DOM. Плеер, прогресс, ошибка, stop/recovery вне вкладок.
+- `scripts/verify-workspace-prototype.py`: 1440×900, 1200×820, 1024×768, 760×560,
+  375×820; mouse, Left/Right/Home/End, wraparound, Tab/Shift+Tab, visible focus,
+  nested tabs, hidden panels, исходный player/textarea и сохранение черновика.
+  Запрещённые API/storage/history calls проверяются runtime traps; запросы — только
+  HTML/CSS и favicon. Captures включают forced-colors и zoom-equivalent viewport.
+- Снимки и JSON находятся в ignored `windows-app/runtime/zero-config/workspace-prototype/`.
+  Это Edge fixture, не installed WebView2, Windows scaling или hardware acceptance.
+  Медиа не загружается; playback, настоящий iframe, Undo/revisions/dirty guards
+  production здесь не моделируются. Прототип не подключён к приложению.
+- Итоговый Fast: **847 passed, 4 skipped**, плюс **29** config checks; CSS bundle
+  и UI contract audit PASS. Первый запуск остановлен лимитом команды 120 секунд;
+  повтор с увеличенным timeout завершился за 181 секунду без ослабления проверок.
+  Prototype JS syntax, Ruff и локальные Markdown link targets также проверены.
 
 ## Общий gate и передача работы
 
