@@ -12,6 +12,7 @@ missing; it does not install model components. Never use live recordings as test
 .\.venv\Scripts\python.exe scripts/check-fast.py --config-only
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests/test_speech_npu.py tests/test_whisper_resume.py
 .\.venv\Scripts\python.exe scripts/check-fast.py
+.\.venv\Scripts\python.exe scripts/check-fast.py --workers 4
 ```
 
 `--config-only` checks workflow syntax/contracts and `test_ci_policy.py`, not
@@ -19,6 +20,15 @@ Markdown links. Full checks also run Ruff, shared UI/CSS auditing, `node --check
 for both JS directories and the remaining pytest suite. `--unit-only` omits repeated
 static checks for OS-specific CI; `--skip-config` assumes configuration was checked.
 Missing tools are an error, not permission to silently skip checks or install models.
+
+The default remains serial. `--workers N` opts into pytest-xdist (installed from
+the development or CI requirements); N must be positive. Configuration tests remain
+serial. The main suite runs in parallel except `test_desktop.py` and
+`test_container_runtime.py`, which run once in a separate serial phase because they
+select a port before starting a listener. This isolation cannot prevent interference
+from other processes. The script removes inherited `PYTEST_ADDOPTS` from its child
+processes so it cannot alter phase selection or parallelism. Other pytest invocations
+are unaffected. Platform-dependent skips remain in effect.
 
 ## Find regression coverage
 

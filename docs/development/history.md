@@ -1,5 +1,11 @@
 # История изменений
 
+13.11.2026: `check-fast.py --workers N` запускает основную pytest suite через
+pytest-xdist, а port-sensitive desktop и container tests — отдельной последовательной
+фазой. По умолчанию запуск остаётся последовательным; конфигурационные проверки
+также последовательны. Дочерние процессы не наследуют `PYTEST_ADDOPTS`.
+Команды и ограничения описаны в [testing guide](testing.md).
+
 13.11.2026: [WORKSPACE-TABS](../../design-system/WORKSPACE-TABS.md) фиксирует
 совместимость будущих workspace tabs: URL/preferences precedence, default/reset,
 историю, сохранение v1-комбинаций и просмотр оригинала с переводом. Node harness

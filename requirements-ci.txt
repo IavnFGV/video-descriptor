@@ -1,5 +1,6 @@
 # CI tooling and dependencies needed to test the Windows app on Linux.
 pytest==8.4.2
+pytest-xdist==3.8.0
 ruff==0.17.1
 PyYAML==6.0.3
 psutil==7.2.2
