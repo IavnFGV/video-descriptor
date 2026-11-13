@@ -11,7 +11,7 @@
     variant = $('notes-variant').value;
     const params = new URLSearchParams(location.search);
     if (variant) params.set('report', variant); else params.delete('report');
-    history.pushState(null, '', '/create?' + params);
+    history.pushState(history.state, '', '/create?' + params + location.hash);
     loadReport();
   };
   const stages = ['source', 'speech', 'notes'];
@@ -56,7 +56,7 @@
     }
     if (updateUrl) {
       const params = new URLSearchParams(location.search); params.set('stage', stage);
-      history.pushState(null, '', '/create?' + params);
+      history.pushState(history.state, '', '/create?' + params + location.hash);
     }
     if (stage === 'notes' || snapshot) loadReport();
   }
@@ -111,7 +111,7 @@
       if($('report-editor').contentWindow?.notesEditorDirty?.()){
         const restored=new URLSearchParams(location.search);
         if(variant)restored.set('report',variant);else restored.delete('report');
-        history.replaceState(null,'','/create?'+restored);
+        history.replaceState(history.state,'','/create?'+restored+location.hash);
         $('report-version-notice').hidden=false;
         $('report-version-notice').textContent='Сохраните правки перед выбором другого варианта.';
       }else{variant=nextVariant;$('notes-variant').value=variant;loadReport();}
@@ -133,9 +133,10 @@
       $('run-title').textContent = info.display; $('source-title-status').textContent = 'Название сохранено.';
     } catch (error) { $('source-title-status').textContent = error.message; }
   };
-  const rememberedEngine = localStorage.getItem('video-descriptor-speech-engine');
+  let rememberedEngine = null;
+  try { rememberedEngine = localStorage.getItem('video-descriptor-speech-engine'); } catch (_) {}
   if ([...$('speech-engine').options].some(option => option.value === rememberedEngine)) $('speech-engine').value = rememberedEngine;
-  $('speech-engine').onchange = () => localStorage.setItem('video-descriptor-speech-engine', $('speech-engine').value);
+  $('speech-engine').onchange = () => { try { localStorage.setItem('video-descriptor-speech-engine', $('speech-engine').value); } catch (_) {} };
   $('rerun-speech').onclick = async () => {
     if (!snapshot) return;
     if(window.speechReplyEditing?.()){$('speech-settings-status').textContent='Сначала завершите правку реплики.';return;}
@@ -252,7 +253,7 @@
       variant = name; $('notes-variant').value = name;
       const params = new URLSearchParams(location.search);
       if (name) params.set('report',name); else params.delete('report');
-      history.replaceState(null,'','/create?'+params); loadReport();
+      history.replaceState(history.state,'','/create?'+params+location.hash); loadReport();
     },
     openStage,
     select(value) {

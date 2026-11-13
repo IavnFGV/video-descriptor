@@ -183,21 +183,22 @@
       $('material-'+kind+'-controls').hidden=!active;
     }
     $('material-panel').setAttribute('aria-labelledby','material-tab-'+activeReportKind);
-    const params=new URLSearchParams(location.search);
-    if(params.get('material')!==activeReportKind){params.set('material',activeReportKind);history.replaceState(null,'','/create?'+params);}
     notesSummary.textContent=activeReportKind==='article'?'Действия со статьёй':'Действия с конспектом';
     $('article-status').hidden=activeReportKind!=='article';
     window.workspaceView?.refresh();
   }
   function selectMaterial(kind){
-    if(kind===activeReportKind)return true;
+    if(kind===activeReportKind){
+      const params=new URLSearchParams(location.search);params.set('material',kind);
+      history.replaceState(history.state,'','/create?'+params+location.hash);return true;
+    }
     if($('report-editor').contentWindow?.notesEditorDirty?.()){
       notice.textContent='Сохраните правки перед переходом на другую вкладку.';
       $('material-tab-'+activeReportKind).focus();return false;
     }
     activeReportKind=kind;newNotes.hidden=true;
     const params=new URLSearchParams(location.search);params.set('material',kind);
-    history.replaceState(null,'','/create?'+params);
+    history.replaceState(history.state,'','/create?'+params+location.hash);
     notice.textContent='';paintMaterialTabs();paint();return true;
   }
   for(const kind of ['notes','article']){
@@ -216,8 +217,8 @@
   $('speech-feed').addEventListener('wheel',pauseLink,{passive:true});
   $('speech-feed').addEventListener('touchmove',pauseLink,{passive:true});
   $('speech-feed').addEventListener('keydown',event=>{if(['PageDown','PageUp','ArrowDown','ArrowUp','Home','End',' '].includes(event.key))pauseLink();});
-  link.onchange=()=>{paused=false;resume.hidden=true;localStorage.setItem('vd-recording-link',String(link.checked));currentTimeKey='';sync(true);};
-  if(localStorage.getItem('vd-recording-link')==='false')link.checked=false;
+  link.onchange=()=>{paused=false;resume.hidden=true;try{localStorage.setItem('vd-recording-link',String(link.checked));}catch(_error){}currentTimeKey='';sync(true);};
+  try{if(localStorage.getItem('vd-recording-link')==='false')link.checked=false;}catch(_error){}
   resume.onclick=()=>{paused=false;resume.hidden=true;currentTimeKey='';sync(true);};
   function scrollInside(container,node){const a=container.getBoundingClientRect(),b=node.getBoundingClientRect();container.scrollTop+=b.top-a.top-24;}
   function sync(force=false){

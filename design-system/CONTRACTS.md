@@ -162,6 +162,11 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 ## Workspace /create и общие модули
 
+Task 8b/8c: явные writers материала/stage сохраняют hash и history.state;
+перерисовка material tabs не записывает URL. Speech-engine и playback-link работают
+в текущем документе при недоступном localStorage. Атомарность guarded Back/Forward
+и приоритет URL остаются открытыми gates; см. UI/UX Epic.
+
 Task 8a: локальные вкладки «Расшифровка» и «Все включённые панели» управляют
 представлением существующих узлов без записи preferences или изменения URL.
 Checkbox меню «Вид» возвращает совместимый режим. Маршруты и guards остаются

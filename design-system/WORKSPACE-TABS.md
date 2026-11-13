@@ -184,19 +184,15 @@ query-параметр или hash для workspace tab не вводятся.
   по job/folder/material. `recording.js` читает material при старте/смене source и
   пишет его через replaceState, но не имеет собственного material popstate handler.
   Нельзя объявлять H2 пройденным или расширять смысл stage на перевод.
-- Существующие URL writers собирают `/create?` из search и не гарантируют сохранение
-  hash. Исправление потери hash и согласование guarded history нужно выделить в
-  bounded slice Task 8; в Task 7 production не исправляется и baseline не меняется.
-- `paintMaterialTabs()` сейчас добавляет `material=notes` даже без выбора пользователя.
-  Отличить такой старый URL от явно созданного deep link невозможно. Приоритет выше
-  применяется к обоим; будущий initial paint не должен добавлять отсутствующий
-  material только ради визуального default. Изменение этого writer — отдельная
-  проверка Task 8 с reload, конфликтующим stage и ссылками из библиотеки.
-- Защита storage в C относится только к workspace preferences: `studio.js` читает
-  speech-engine, а `recording.js` playback-link вне try/catch. Поэтому отказ
-  localStorage всей страницы пока не проверен и может прервать эти controllers.
-  Для F1 нужен отдельный bounded storage-hardening slice перед production acceptance;
-  данные черновиков и другие ключи не переносить и не очищать.
+- URL writers сохраняют hash и history.state; guarded history и precedence ещё
+  не реализованы целиком. Старые history entries не содержат позиции для надёжной
+  отмены произвольного Back/Forward без изменения истории.
+- `paintMaterialTabs()` не добавляет `material`; явный выбор записывает его. Старый
+  нормализованный URL не отличим от явной ссылки; precedence выше применяется к обоим.
+  Reload, конфликтующий stage и ссылки из библиотеки остаются gates Task 8b.
+- Storage-hardening охватывает workspace preferences, speech-engine и playback-link;
+  независимые read/write failures проверены на fixture-странице с reload. Данные
+  черновиков и другие ключи не переносятся и не очищаются.
 - Нет старого URL для выбранной области перевода или workspace «Материалы» отдельно
   от stage/report/material. Новое URL encoding и last-tab persistence отложены:
   первый slice работает без них. Любое будущее добавление требует отдельного

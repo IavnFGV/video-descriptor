@@ -334,9 +334,9 @@
     return result;
   }
   async function select(value, updateUrl=true) {
+    if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; window.recordingUI?.restoreChoices(); return; }
     if(!await window.mayLeaveQuickReply()){window.recordingUI?.restoreChoices();return;}
     window.closeQuickReplyEdit();
-    if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; return; }
     selected = value; lastSnapshot = null; namesFolder = null;
     input.value = ''; $('source-file').value = ''; fileLabel();
     window.studioUI.select(value);
@@ -367,7 +367,7 @@
     for(const [key,item] of Object.entries(value))query.set(key,item);
     query.set('stage', document.querySelector('[role=tab][aria-selected=true]').dataset.stage);
     if (value.folder === params.get('folder') && params.has('report')) query.set('report', params.get('report'));
-    if(updateUrl)history.replaceState(null, '', '/create?' + query);
+    if(updateUrl)history.replaceState(history.state, '', '/create?' + query + location.hash);
     document.dispatchEvent(new CustomEvent('recording-selection',{detail:value}));
     poll();
   }
@@ -736,7 +736,7 @@
           $('workspace').hidden = true; $('setup').hidden = false; $('toggle-upload').hidden = true;
           $('existing-runs').value = '';
           window.studioUI.openStage('source'); updateMediaOptions();
-          history.replaceState(null, '', '/create?stage=source');
+          history.replaceState(history.state, '', '/create?stage=source' + location.hash);
         }
       }
       deletionFolder = null;
@@ -752,7 +752,7 @@
     window.constructionUI.select(null); window.studioUI.select(null); renderVersions();
     $('workspace').hidden = true; $('setup').hidden = false; $('toggle-upload').hidden = true;
     window.studioUI.openStage('source'); updateMediaOptions();
-    history.replaceState(null, '', '/create?stage=source');
+    history.replaceState(history.state, '', '/create?stage=source' + location.hash);
   });
   function fileLabel() { $('file-label').textContent = input.files[0]?.name || 'Выберите или перетащите запись'; }
   input.addEventListener('change', () => { $('source-file').value = ''; fileLabel(); updateMediaOptions(); });

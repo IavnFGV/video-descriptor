@@ -79,20 +79,37 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 | 9b | Подключить «Материалы» с прежними subtabs | 8, 9a | Один iframe, independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи | Sol-led; отдельные bounded patches Terra |
 | 10 | Убрать только заменённые checkbox-controls | 9a, 9b и доказанная parity | Для каждого пункта/сочетания из mapping есть доступный эквивалент; layout/reset/video hide сохранены; help/docs/harness refs синхронизированы | Sol: parity review; Terra: отдельные механические slices |
 
-**Task 8 в работе: slice 8a реализован; 8b–8d остаются открытыми.**
+**Task 8 в работе: slices 8a и 8c реализованы; 8b частично, 8d открыт.**
 Production содержит переключатель расшифровки и совместимого вида;
 вкладки перевода и материалов остаются последующими increments.
 
 | Slice | Результат и проверка | Зависимости | Модель |
 | --- | --- | --- | --- |
 | 8a | Готово: workspace tablist расшифровки и прежнего вида, существующий DOM/feed, локальный выбор; focused browser scenarios | Task 7 на `origin/main` | Реализация и локальная проверка |
-| 8b | Согласовать deep links, URL/hash и guarded Back/Forward по существующим owners; проверить конфликты и отказ guard | 8a; контракт Task 7 | Sol — route/guard дизайн и review; Terra допустим для точечных правок после декомпозиции |
-| 8c | Изолированно обработать недоступность `localStorage` в затронутых controllers, без изменения ключей/данных; проверить ошибки чтения/записи и reload | Task 7; до полного acceptance. Параллельно с 8a/8b — только в отдельном worktree | Sol задаёт поведенческие границы; Terra возможен для строго ограниченного patch и тестов |
+| 8b | Частично: сохранение hash/state и отсутствие записи material при paint; URL precedence и атомарный guarded Back/Forward остаются открыты | 8a; контракт Task 7 | Требует решения для старых history entries без позиции |
+| 8c | Готово: отказ чтения/записи `localStorage` в затронутых controllers, проверка полной fixture-страницы и reload | Task 7 | Ключи и данные без миграции |
 | 8d | Проверить production DOM, keyboard/focus, polling, deep links, guards и storage failures; закрыть Task 8 только по evidence | 8a–8c | Sol выполняет review и validation; отчёт worker не заменяет проверки Sol |
 
 Подключение перевода/материалов остаётся следующими increments (Tasks 9a/9b);
 доступ к прежней комбинации панелей сохранён в переключателе 8a. Этот backlog не запускает
 реализацию, push, merge или релиз автоматически.
+
+### Evidence Tasks 8b/8c
+
+- `studio.js` и `recording.js` переживают отказ storage для существующих настроек
+  speech-engine и playback-link; доступность в текущем документе не обещает запись
+  на диск. Изолированные Edge `--workspace-storage-read` и `--workspace-storage-write`
+  проверяют открытие записи, работу controls, reset и reload.
+- Paint материала не переписывает URL; явный выбор материала и stage сохраняет hash
+  и `history.state`. Изолированный Edge `--workspace-route-writers` и существующие
+  material/workspace fixtures прошли. Guard iframe проверяется до закрытия quick edit;
+  один запуск прошёл assertions, но завершился timeout при закрытии Edge; повтор прошёл.
+- Fast `--workers 4`: **841 passed, 1 skipped** в параллельной фазе,
+  **16 passed, 2 skipped** в последовательной; config checks и UI audit прошли.
+- **8b не закрыт:** popstate по-прежнему обрабатывается разными owners; при отказе
+  guard нет доказанной атомарности job/folder/material и сохранения history. Для старых
+  записей истории без позиции нельзя надёжно вычислить обратный переход из popstate;
+  допустимый fallback требует решения. URL precedence и gate 8d остаются открыты.
 
 ### Evidence Task 8a
 

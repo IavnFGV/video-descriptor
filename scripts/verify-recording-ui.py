@@ -95,6 +95,9 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c=CDP(next(tab for tab in tabs if tab.get('type')=='page')['webSocketDebuggerUrl'])
         c.call('Page.enable')
         c.call('Page.addScriptToEvaluateOnNewDocument',source="""window.uiErrors=[];addEventListener('error',e=>uiErrors.push(e.message));Object.defineProperties(HTMLMediaElement.prototype,{readyState:{get:()=>2},duration:{get:()=>2400},currentTime:{get(){return this._time||0},set(v){this._time=v;this.dispatchEvent(new Event('timeupdate'))}}});HTMLMediaElement.prototype.load=function(){};""")
+        if '--workspace-storage-read' in sys.argv or '--workspace-storage-write' in sys.argv:
+            method = 'getItem' if '--workspace-storage-read' in sys.argv else 'setItem'
+            c.call('Page.addScriptToEvaluateOnNewDocument', source=f"Storage.prototype.{method}=function(){{throw new DOMException('blocked','SecurityError')}}")
         c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
         c.call('Page.navigate',url=f'http://127.0.0.1:{server.server_port}/?job={identity}')
         def workspace_ready():
@@ -140,6 +143,14 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--workspace-storage-read' in sys.argv or '--workspace-storage-write' in sys.argv:
+            from workspace_storage_checks import run
+            run(c, wait_for, '--workspace-storage-write' in sys.argv)
+            raise SystemExit(0)
+        if '--workspace-route-writers' in sys.argv:
+            from workspace_route_checks import run
+            run(c, wait_for)
+            raise SystemExit(0)
         if '--workspace-tabs-only' in sys.argv:
             from workspace_tabs_checks import run
             run(c, wait_for, out)

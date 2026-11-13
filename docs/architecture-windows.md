@@ -916,4 +916,7 @@ or routing. Translation/material tabs and guarded route integration remain futur
 slices. One shared notes/article iframe is never recreated when hidden. Layout radios and the existing expand-player button share
 one preference; the former `vd-recording-player-position` key is no longer read.
 Invalid/future preferences fall back safely, unavailable storage uses session memory.
+Speech-engine and playback-link also tolerate storage read/write failures without
+rewriting their keys. Material rendering does not write the URL; explicit writers
+retain the hash and history state. Atomic guarded history remains an open Task 8 gate.
 No backend endpoint, AI setting, model or recording mutation is added.

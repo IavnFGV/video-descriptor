@@ -1,5 +1,10 @@
 # История изменений
 
+14.11.2026: workspace controllers переживают отказ storage для speech-engine и
+playback-link. Material paint не записывает URL; явные writers сохраняют hash и
+history state. Guard report проверяется до закрытия quick edit. Guarded history и
+URL precedence остаются открыты; evidence — в [UI/UX Epic](../../design-system/UI-UX-EPIC.md#evidence-tasks-8b8c).
+
 13.11.2026: рабочая область получила локальные вкладки расшифровки и совместимого
 вида с существующим DOM и preferences. Проверки и оставшиеся routing/storage gates —
 в [UI/UX Epic](../../design-system/UI-UX-EPIC.md#evidence-task-8a).

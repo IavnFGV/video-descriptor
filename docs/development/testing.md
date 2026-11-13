@@ -69,6 +69,9 @@ The isolated Edge fixture for the 8a tabs and existing workspace controls is:
 ```powershell
 .\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-tabs-only
 .\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-view-only
+.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-read
+.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-write
+.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-route-writers
 ```
 
 These checks do not establish guarded history, installed WebView2 or hardware acceptance.
