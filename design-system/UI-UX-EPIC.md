@@ -46,6 +46,7 @@ checkboxes меню «Вид» вкладками без потери функц
 | 5 | `.vd-tabs` для «Конспект / Статья» — `47d5739` | 4 | Equal widths, 8/16 px, keyboard/dirty/Undo/save, empty article, visibility и responsive scenarios PASS |
 | 6 | API-free [прототип workspace tabs](prototype/workspace-tabs.html) — `52feee5` | 1, 5 | Edge: 60 сочетаний размера/состояния/области, keyboard/focus, empty article, persistent player/textarea, stop/recovery; без API/storage/history |
 | 7 | [Решения совместимости и тестовая матрица](WORKSPACE-TABS.md#тестовая-матрица-task-7) | 1, 2, 6 | URL выше flags без save, default/reset, local tabs без новых history entries/store, compatibility view для v1, original/ru/both; 256 preference cases и storage failures, production gates явно отделены |
+| 8 | Workspace с расшифровкой, URL и storage guards | 6, 7 | Существующие DOM/player/editor; fixture-проверки polling, keyboard/focus, deep links, guards и storage; legacy history fallback описан ниже |
 
 Tasks 1–7 и этот backlog присутствуют на `origin/main` (`450a72e`, проверено
 13.11.2026). Task 7 добавил контракт совместимости и characterization; на этом
@@ -74,21 +75,20 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 
 | ID | Небольшой результат | Зависимости | Приёмка | Исполнение |
 | --- | --- | --- | --- | --- |
-| 8 | Первый production slice: переключение workspace с расшифровкой | 6, 7 | Те же DOM/player/editor, устойчивость к polling, keyboard/focus, deep links и guards; прежние возможности доступны во время перехода | Sol-led integration; без нового state manager |
 | 9a | Подключить существующую область перевода | 8 | Настройки, original/translation modes, версии и экспорты доступны; переключение не запускает перевод; stale/dirty guards сохранены | Sol-led; механические правки можно Terra |
 | 9b | Подключить «Материалы» с прежними subtabs | 8, 9a | Один iframe, independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи | Sol-led; отдельные bounded patches Terra |
 | 10 | Убрать только заменённые checkbox-controls | 9a, 9b и доказанная parity | Для каждого пункта/сочетания из mapping есть доступный эквивалент; layout/reset/video hide сохранены; help/docs/harness refs синхронизированы | Sol: parity review; Terra: отдельные механические slices |
 
-**Task 8 в работе: slices 8a и 8c реализованы; 8b частично, 8d открыт.**
+**Task 8 завершён; следующие increments — 9a и 9b.**
 Production содержит переключатель расшифровки и совместимого вида;
 вкладки перевода и материалов остаются последующими increments.
 
 | Slice | Результат и проверка | Зависимости | Модель |
 | --- | --- | --- | --- |
 | 8a | Готово: workspace tablist расшифровки и прежнего вида, существующий DOM/feed, локальный выбор; focused browser scenarios | Task 7 на `origin/main` | Реализация и локальная проверка |
-| 8b | Частично: сохранение hash/state и отсутствие записи material при paint; URL precedence и атомарный guarded Back/Forward остаются открыты | 8a; контракт Task 7 | Требует решения для старых history entries без позиции |
+| 8b | Готово: URL precedence, transient раскрытие, hash и guarded Back/Forward; fallback заменяет текущий history entry при отказе | 8a; контракт Task 7 | Focused browser checks |
 | 8c | Готово: отказ чтения/записи `localStorage` в затронутых controllers, проверка полной fixture-страницы и reload | Task 7 | Ключи и данные без миграции |
-| 8d | Проверить production DOM, keyboard/focus, polling, deep links, guards и storage failures; закрыть Task 8 только по evidence | 8a–8c | Sol выполняет review и validation; отчёт worker не заменяет проверки Sol |
+| 8d | Готово: production DOM, keyboard/focus, polling, выбранные deep links, guards и storage failures проверены в fixtures | 8a–8c | Границы проверок перечислены в evidence |
 
 Подключение перевода/материалов остаётся следующими increments (Tasks 9a/9b);
 доступ к прежней комбинации панелей сохранён в переключателе 8a. Этот backlog не запускает
@@ -106,10 +106,19 @@ Production содержит переключатель расшифровки и
   один запуск прошёл assertions, но завершился timeout при закрытии Edge; повтор прошёл.
 - Fast `--workers 4`: **841 passed, 1 skipped** в параллельной фазе,
   **16 passed, 2 skipped** в последовательной; config checks и UI audit прошли.
-- **8b не закрыт:** popstate по-прежнему обрабатывается разными owners; при отказе
-  guard нет доказанной атомарности job/folder/material и сохранения history. Для старых
-  записей истории без позиции нельзя надёжно вычислить обратный переход из popstate;
-  допустимый fallback требует решения. URL precedence и gate 8d остаются открыты.
+- До интеграции 8b popstate обрабатывался разными owners. Текущий coordinator сначала
+  проверяет черновики, затем применяет существующие owners; при отказе восстанавливает
+  прежний URL через replaceState. Для старых browser history entries это может изменить
+  следующий Back/Forward, но не заменяет пользовательские правки. Это ограничение
+  относится к браузерной истории; отдельного history UI в приложении нет.
+- Дополнительные изолированные Edge checks: `--workspace-deep-link` проверяет
+  приоритет material над stage и временное раскрытие при flag=false;
+  `--workspace-missing-report` — отсутствие подстановки другого материала;
+  `--workspace-storage-event` — сохранение фокуса при событии storage. Существующие
+  material/workspace fixtures проверяют отказ перехода с реальными черновиками
+  конспекта и реплики. Installed WebView2 и Windows scaling отдельно не проверялись.
+- Итоговый Fast после последних правок: **841 passed, 1 skipped** в параллельной
+  фазе и **16 passed, 2 skipped** в последовательной; config checks и UI audit PASS.
 
 ### Evidence Task 8a
 

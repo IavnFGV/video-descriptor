@@ -187,24 +187,24 @@
     $('article-status').hidden=activeReportKind!=='article';
     window.workspaceView?.refresh();
   }
-  function selectMaterial(kind){
+  function selectMaterial(kind,updateUrl=true){
     if(kind===activeReportKind){
-      const params=new URLSearchParams(location.search);params.set('material',kind);
-      history.replaceState(history.state,'','/create?'+params+location.hash);return true;
+      if(updateUrl){const params=new URLSearchParams(location.search);params.set('material',kind);
+        history.replaceState(history.state,'','/create?'+params+location.hash);document.dispatchEvent(new Event('workspace-route-written'));}return true;
     }
     if($('report-editor').contentWindow?.notesEditorDirty?.()){
       notice.textContent='Сохраните правки перед переходом на другую вкладку.';
       $('material-tab-'+activeReportKind).focus();return false;
     }
     activeReportKind=kind;newNotes.hidden=true;
-    const params=new URLSearchParams(location.search);params.set('material',kind);
-    history.replaceState(history.state,'','/create?'+params+location.hash);
+    if(updateUrl){const params=new URLSearchParams(location.search);params.set('material',kind);params.delete('report');
+      history.replaceState(history.state,'','/create?'+params+location.hash);document.dispatchEvent(new Event('workspace-route-written'));}
     notice.textContent='';paintMaterialTabs();paint();return true;
   }
   for(const kind of ['notes','article']){
     const tab=$('material-tab-'+kind);tab.onclick=()=>selectMaterial(kind);
     tab.onkeydown=event=>{
-      const available=['notes','article'].filter(value=>document.documentElement.getAttribute('data-view-'+value)!=='false');
+      const available=['notes','article'].filter(value=>document.documentElement.getAttribute('data-view-'+value)!=='false'||document.documentElement.dataset.workspaceTarget===value);
       const next=event.key==='Home'?available[0]:event.key==='End'?available.at(-1):['ArrowLeft','ArrowRight'].includes(event.key)?available[(available.indexOf(kind)+1)%available.length]:null;
       if(!next)return;event.preventDefault();if(selectMaterial(next))$('material-tab-'+next).focus();
     };
@@ -270,12 +270,18 @@
     for(const kind of ['notes','article'])$(kind==='notes'?'recording-notes':'recording-article').value=selectedReports[kind]||'';
     paintMaterialTabs();
     for(const kind of ['notes','article'])$('open-recording-'+kind).disabled=!selectedReports[kind];
-    const own=data.reports.find(item=>item.url===selectedReports[activeReportKind]);
+    const requestedReport=new URLSearchParams(location.search).get('report');
+    const explicitReport=requestedReport?data.reports.find(item=>item.name===requestedReport&&
+      item.folder===(snapshot?.folder||data.folder)&&(item.result_kind||'notes')===activeReportKind):null;
+    if(explicitReport){selectedReports[activeReportKind]=explicitReport.url;$(activeReportKind==='notes'?'recording-notes':'recording-article').value=explicitReport.url;}
+    else if(requestedReport)$(activeReportKind==='notes'?'recording-notes':'recording-article').value='';
+    const own=requestedReport?explicitReport:data.reports.find(item=>item.url===selectedReports[activeReportKind]);
+    if(requestedReport)$('open-recording-'+activeReportKind).disabled=!own;
     if(window.studioUI.chooseIndependentReport(own||null)===false)return;
     if(activeReportKind==='article')$('notes-card').hidden=true;
     $('delete-notes').textContent=activeReportKind==='article'?'Удалить статью':'Удалить конспект';
     $('report-editor').title=activeReportKind==='article'?'Чтение и редактирование статьи':'Чтение и редактирование конспекта';
-    $('recording-notes-origin').textContent=own?(activeReportKind==='article'?'Открыта статья':'Открыт конспект')+' · '+when(own.created):(activeReportKind==='article'?'Статья ещё не создана.':'Конспект ещё не создан.')+' Создайте материал по выбранной расшифровке.';
+    $('recording-notes-origin').textContent=own?(activeReportKind==='article'?'Открыта статья':'Открыт конспект')+' · '+when(own.created):requestedReport?'Указанный вариант материала недоступен или относится к другому типу.':(activeReportKind==='article'?'Статья ещё не создана.':'Конспект ещё не создан.')+' Создайте материал по выбранной расшифровке.';
     const empty=$('notes-feed').querySelector('.empty');if(empty)empty.textContent=activeReportKind==='article'?'Статья ещё не создана. Нажмите «Создать статью».':'Конспект ещё не создан. Нажмите «Создать конспект».';
     $('recording-stop').hidden=!window.recordingUI.native||!(data.active_job||['queued','running'].includes(job?.status));
     for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot?.has_ready_transcript||Boolean(data.active_job)||['queued','running'].includes(job?.status);
@@ -291,7 +297,14 @@
       if(snapshot&&query.get('folder')!==snapshot.folder){requested=true;return;}
       if(recordingSource!==value.video_url){recordingSource=value.video_url;selectedReports={notes:null,article:null};activeReportKind=new URLSearchParams(location.search).get('material')==='article'?'article':'notes';libraryKey='';window.studioUI.chooseIndependentReport(null);}
       if(data&&data.video_url===value.video_url){const added=value.reports.find(item=>!data.reports.some(old=>old.url===item.url));if(added&&!$('report-editor').contentWindow?.notesEditorDirty?.()){activeReportKind=added.result_kind||'notes';selectedReports[activeReportKind]=added.url;}}
-      data=value;paint();
+      data=value;
+      const route=new URLSearchParams(location.search),report=route.get('report'),material=route.get('material');
+      if(report&&!['notes','article'].includes(material)&&!$('report-editor').contentWindow?.notesEditorDirty?.()){
+        const match=value.reports.find(item=>item.name===report&&item.folder===(snapshot?.folder||value.folder));
+        if(match)activeReportKind=match.result_kind==='article'?'article':'notes';
+      }
+      paint();
+      if(report&&!['notes','article'].includes(material)&&document.documentElement.dataset.workspaceTarget&&document.documentElement.dataset.workspaceTarget!==activeReportKind)window.workspaceView?.route(route);
       const current=value.speech.find(item=>item.folder===snapshot?.folder);
       if(current?.internal_snapshot&&!['queued','running'].includes(current.status)&&current.status!=='error'){const source=value.speech.find(item=>item.folder===current.source_folder&&!item.internal_snapshot)||value.speech.find(item=>!item.internal_snapshot);if(source)window.recordingSelection.select({folder:source.folder});}
       if(!snapshot){$('stage-source').hidden=true;speech.hidden=false;notes.hidden=false;$('run-title').textContent=value.filename;}
@@ -313,7 +326,10 @@
     if(value==='__new__'){paint();showNewNotes();return;}
     const report=data?.reports.find(item=>item.url===value);if(!report){paint();return;}
     if($('report-editor').contentWindow?.notesEditorDirty?.()){notice.textContent='Сохраните правки перед выбором другого материала.';paint();return;}
-    selectedReports[kind]=value;activeReportKind=kind;paint();
+    selectedReports[kind]=value;activeReportKind=kind;
+    const params=new URLSearchParams(location.search);
+    if(params.has('report')){params.delete('report');history.replaceState(history.state,'','/create?'+params+location.hash);document.dispatchEvent(new Event('workspace-route-written'));}
+    paint();
   };
   for(const kind of ['notes','article'])$('open-recording-'+kind).onclick=()=>$(kind==='notes'?'recording-notes':'recording-article').onchange();
   document.addEventListener('recording-report-deleted',()=>{selectedReports[activeReportKind]=null;libraryKey='';library();});
@@ -361,7 +377,8 @@
   }
   $('recording-diarize').onclick=()=>action('diarize');$('recording-translate').onclick=()=>action('translate');
   $('recording-stop').onclick=async()=>{try{const response=await fetch('/api/native/cancel?id='+encodeURIComponent(data?.active_job?.id||job.id),{method:'POST',headers:{'X-App-Instance':window.recordingUI.instance}});const value=await response.json();if(!response.ok)throw Error(value.error);notice.textContent='Останавливаем. Готовые результаты сохранятся.';window.recordingSelection.refresh();library();}catch(error){notice.textContent=error.message;}};
-  window.recordingUI={seek,sync,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null};
+  window.recordingUI={seek,sync,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null,
+    applyRoute(params){const kind=params.get('material');if(['notes','article'].includes(kind))selectMaterial(kind,false);paint();if(params.get('report'))library();}};
   fetch('/health').then(response=>response.json()).then(value=>{
     if(value.app!=='video-descriptor-windows')return;
     window.recordingUI.native=true;window.recordingUI.instance=value.instance;

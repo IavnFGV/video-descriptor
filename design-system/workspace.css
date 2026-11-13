@@ -8,6 +8,13 @@ html[data-workspace-tab=transcript][data-view-transcript=false] .recording-works
 html[data-workspace-tab=transcript][data-view-transcript=false][data-workspace-layout=stacked] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}
 html[data-workspace-tab=transcript][data-view-video=false] .recording-workspace.has-recording #stage-speech{grid-column:1}
 html[data-workspace-tab=transcript][data-view-video=false][data-view-transcript=false] .recording-workspace.has-recording #workspace-view-empty{display:none}
+html[data-workspace-target][data-view-notes=false][data-view-article=false] .recording-workspace.has-recording #stage-notes{display:block!important}
+html[data-workspace-target=notes][data-view-notes=false] .recording-workspace.has-recording #material-tab-notes,
+html[data-workspace-target=article][data-view-article=false] .recording-workspace.has-recording #material-tab-article{display:inline-flex!important}
+html[data-workspace-target=notes][data-view-notes=false] .recording-workspace.has-recording #material-panel[aria-labelledby=material-tab-notes],
+html[data-workspace-target=article][data-view-article=false] .recording-workspace.has-recording #material-panel[aria-labelledby=material-tab-article]{display:block!important}
+html[data-workspace-target=notes][data-view-notes=false] .recording-workspace.has-recording #stage-notes #workspace-material-hint,
+html[data-workspace-target=article][data-view-article=false] .recording-workspace.has-recording #stage-notes #workspace-material-hint{display:none!important}
 @media(max-width:1000px){html[data-workspace-tab=transcript][data-view-transcript=false] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}}
 .material-tabs button{flex:1}
 #material-panel{min-width:0}

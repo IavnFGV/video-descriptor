@@ -12,6 +12,7 @@
     const params = new URLSearchParams(location.search);
     if (variant) params.set('report', variant); else params.delete('report');
     history.pushState(history.state, '', '/create?' + params + location.hash);
+    document.dispatchEvent(new Event('workspace-route-written'));
     loadReport();
   };
   const stages = ['source', 'speech', 'notes'];
@@ -57,6 +58,7 @@
     if (updateUrl) {
       const params = new URLSearchParams(location.search); params.set('stage', stage);
       history.pushState(history.state, '', '/create?' + params + location.hash);
+      document.dispatchEvent(new Event('workspace-route-written'));
     }
     if (stage === 'notes' || snapshot) loadReport();
   }
@@ -73,9 +75,16 @@
     };
   });
   function loadReport() {
-    const ownReport = snapshot?.report_variants?.find(item => item.name === variant)?.url || snapshot?.report_url || snapshot?.report_variants?.[0]?.url;
+    const matchedReport = snapshot?.report_variants?.find(item => item.name === variant)?.url;
+    const ownReport = variant ? matchedReport : matchedReport || snapshot?.report_url || snapshot?.report_variants?.[0]?.url;
     const busy = snapshot?.running || ['queued', 'running'].includes(job?.status);
-    const url = independentSelection ? independentReport?.url : ownReport || (busy ? snapshot?.previous_report_url : null);
+    const url = independentSelection ? independentReport?.url : ownReport || (!variant && busy ? snapshot?.previous_report_url : null);
+    const frame = $('report-editor');
+    if (frame.contentWindow?.notesEditorDirty?.() && (url || null) !== reportUrl) {
+      $('report-version-notice').hidden = false;
+      $('report-version-notice').textContent = 'Есть другая версия конспекта. Сохраните текущие правки перед переключением версии.';
+      return;
+    }
     $('report-editor-card').hidden = !url;
     const previous = !independentReport && !ownReport && Boolean(url);
     $('report-version-notice').hidden = !previous;
@@ -85,12 +94,6 @@
       return;
     }
     if (reportUrl === url || stage !== 'notes' && !snapshot) return;
-    const frame = $('report-editor');
-    if (frame.contentWindow?.notesEditorDirty?.()) {
-      $('report-version-notice').hidden = false;
-      $('report-version-notice').textContent = 'Есть другая версия конспекта. Сохраните текущие правки перед переключением версии.';
-      return;
-    }
     reportUrl = url;
     frame.src = url + '?embedded=1';
   }
@@ -102,21 +105,14 @@
   $('close-connections').onclick = async () => {if(await closeConnections())$('connections-dialog').close();};
   $('connections-form').addEventListener('connections-saved',()=>{connectionDraft=connectionValue();});
   $('connections-dialog').addEventListener('cancel',async event=>{event.preventDefault();if(await closeConnections())$('connections-dialog').close();});
-  window.addEventListener('popstate',()=>{
-    const params=new URLSearchParams(location.search);
+  function applyRoute(params){
     const next=params.get('stage')||'source';
     if(stages.includes(next))openStage(next,false);
     const nextVariant=params.get('report')||'';
     if(nextVariant!==variant){
-      if($('report-editor').contentWindow?.notesEditorDirty?.()){
-        const restored=new URLSearchParams(location.search);
-        if(variant)restored.set('report',variant);else restored.delete('report');
-        history.replaceState(history.state,'','/create?'+restored+location.hash);
-        $('report-version-notice').hidden=false;
-        $('report-version-notice').textContent='Сохраните правки перед выбором другого варианта.';
-      }else{variant=nextVariant;$('notes-variant').value=variant;loadReport();}
+      variant=nextVariant;$('notes-variant').value=variant;loadReport();
     }
-  });
+  }
   async function post(url, value) {
     const response = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(value)});
     const data = await response.json();
@@ -212,7 +208,7 @@
       if (snapshot.speech_engine && [...$('speech-engine').options].some(option => option.value === snapshot.speech_engine)) $('speech-engine').value = snapshot.speech_engine;
     }
     const reports = snapshot.report_variants || [];
-    if (!reports.some(item => item.name === variant)) variant = reports[0]?.name || '';
+    if (!reports.some(item => item.name === variant) && !new URLSearchParams(location.search).get('report')) variant = reports[0]?.name || '';
     const optionsKey = JSON.stringify(reports);
     if ($('notes-variant').dataset.optionsKey !== optionsKey) {
       $('notes-variant').dataset.optionsKey = optionsKey;
@@ -239,7 +235,7 @@
   window.studioUI = {
     selectedReport: () => independentReport,
     chooseIndependentReport(report) {
-      if(report?.url!==independentReport?.url&&$('report-editor').contentWindow?.notesEditorDirty?.()){
+      if((report?.url!==independentReport?.url||(report?.url||null)!==reportUrl)&&$('report-editor').contentWindow?.notesEditorDirty?.()){
         $('report-version-notice').hidden=false;
         $('report-version-notice').textContent='Сохраните правки перед выбором другого материала.';
         return false;
@@ -254,8 +250,10 @@
       const params = new URLSearchParams(location.search);
       if (name) params.set('report',name); else params.delete('report');
       history.replaceState(history.state,'','/create?'+params+location.hash); loadReport();
+      document.dispatchEvent(new Event('workspace-route-written'));
     },
     openStage,
+    applyRoute,
     select(value) {
       snapshot = null; job = value?.job ? {status:'queued'} : null;
       $('shared-player').hidden = true;

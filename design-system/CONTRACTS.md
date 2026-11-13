@@ -164,13 +164,14 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 Task 8b/8c: явные writers материала/stage сохраняют hash и history.state;
 перерисовка material tabs не записывает URL. Speech-engine и playback-link работают
-в текущем документе при недоступном localStorage. Атомарность guarded Back/Forward
-и приоритет URL остаются открытыми gates; см. UI/UX Epic.
+в текущем документе при недоступном localStorage. Coordinator проверяет черновики
+до popstate-перехода и применяет URL target через существующих owners; отказ сохраняет
+редактор и восстанавливает URL через replaceState. Полный gate — в UI/UX Epic.
 
 Task 8a: локальные вкладки «Расшифровка» и «Все включённые панели» управляют
 представлением существующих узлов без записи preferences или изменения URL.
-Checkbox меню «Вид» возвращает совместимый режим. Маршруты и guards остаются
-у прежних controllers; URL precedence и history проверяются в последующих slices.
+Checkbox меню «Вид» возвращает совместимый режим. Существующие controllers сохраняют
+владение маршрутом и редакторами; coordinator не создаёт новый store.
 
 | Функция | Данные / события | Нельзя потерять |
 |---|---|---|

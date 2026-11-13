@@ -102,6 +102,12 @@ def run(c, wait_for, out, root):
     panel('transcript', False)
     evaluate('workspaceView.reset()')
     assert evaluate('quickDraft===document.querySelector(".quick-reply-editor textarea") && quickDraft.value==="Workspace unsaved transcript" && speechReplyEditing()')
+    evaluate('''window.quickRoute=location.href;document.querySelector('#run-message').textContent='';
+      history.pushState(null,'',location.pathname+'?folder=other&stage=notes#other');history.back()''')
+    wait_for(lambda: evaluate('location.href===window.quickRoute'))
+    evaluate('history.forward()')
+    wait_for(lambda: evaluate('document.querySelector("#run-message").textContent.includes("правки")'))
+    assert evaluate('location.href===window.quickRoute && quickDraft===document.querySelector(".quick-reply-editor textarea") && quickDraft.value==="Workspace unsaved transcript"')
     c.click('.quick-reply-editor button:last-of-type')
     # Existing edit guard may ask for confirmation; keep this fixture isolated.
     evaluate('document.querySelector("dialog[open] .vd-actions button:last-of-type")?.click()')

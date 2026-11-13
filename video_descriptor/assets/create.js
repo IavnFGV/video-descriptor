@@ -5,7 +5,10 @@
   const params = new URLSearchParams(location.search);
   let versionInventory = [];
   let selected = params.has('job') ? {job: params.get('job')} : params.has('folder') ? {folder: params.get('folder')} : null;
-  let polling = false, lastSnapshot = null, uploadBusy = false, polls = 0;
+  let polling = false, lastSnapshot = null, uploadBusy = false, polls = 0, routeEpoch = 0;
+  let acceptedUrl = location.href, acceptedState = history.state;
+  function rememberRoute(){acceptedUrl=location.href;acceptedState=history.state;}
+  document.addEventListener('workspace-route-written',rememberRoute);
   const rendered = {};
   let promptData = null, promptTask = null;
   const promptDrafts = window.studioDraft.prompts();
@@ -333,9 +336,11 @@
     if (!response.ok) throw new Error(result.error || 'Не удалось получить данные');
     return result;
   }
-  async function select(value, updateUrl=true) {
-    if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; window.recordingUI?.restoreChoices(); return; }
-    if(!await window.mayLeaveQuickReply()){window.recordingUI?.restoreChoices();return;}
+  async function select(value, updateUrl=true, routeToken=null) {
+    if ($('report-editor').contentWindow?.notesEditorDirty?.()) { $('run-message').textContent = 'Сохраните правки конспекта перед переключением записи.'; window.recordingUI?.restoreChoices(); return false; }
+    if(!await window.mayLeaveQuickReply()){window.recordingUI?.restoreChoices();return false;}
+    if(routeToken!==null&&routeToken!==routeEpoch)return false;
+    if($('report-editor').contentWindow?.notesEditorDirty?.()){window.recordingUI?.restoreChoices();return false;}
     window.closeQuickReplyEdit();
     selected = value; lastSnapshot = null; namesFolder = null;
     input.value = ''; $('source-file').value = ''; fileLabel();
@@ -367,9 +372,10 @@
     for(const [key,item] of Object.entries(value))query.set(key,item);
     query.set('stage', document.querySelector('[role=tab][aria-selected=true]').dataset.stage);
     if (value.folder === params.get('folder') && params.has('report')) query.set('report', params.get('report'));
-    if(updateUrl)history.replaceState(history.state, '', '/create?' + query + location.hash);
+    if(updateUrl){history.replaceState(history.state, '', '/create?' + query + location.hash);rememberRoute();}
     document.dispatchEvent(new CustomEvent('recording-selection',{detail:value}));
     poll();
+    return true;
   }
   let activeReply = null;
   function syncPlayback() {
@@ -737,6 +743,7 @@
           $('existing-runs').value = '';
           window.studioUI.openStage('source'); updateMediaOptions();
           history.replaceState(history.state, '', '/create?stage=source' + location.hash);
+          rememberRoute();
         }
       }
       deletionFolder = null;
@@ -753,6 +760,7 @@
     $('workspace').hidden = true; $('setup').hidden = false; $('toggle-upload').hidden = true;
     window.studioUI.openStage('source'); updateMediaOptions();
     history.replaceState(history.state, '', '/create?stage=source' + location.hash);
+    rememberRoute();
   });
   function fileLabel() { $('file-label').textContent = input.files[0]?.name || 'Выберите или перетащите запись'; }
   input.addEventListener('change', () => { $('source-file').value = ''; fileLabel(); updateMediaOptions(); });
@@ -809,10 +817,33 @@
   video.addEventListener('pointerdown', () => { follow.checked = false; });
   video.addEventListener('timeupdate', () => { if (!follow.checked) { $('video-clock').textContent = clock(video.currentTime); syncPlayback(); } });
   follow.addEventListener('change', () => { if (follow.checked && lastSnapshot) show(lastSnapshot); });
-  window.addEventListener('popstate',()=>{
+  window.addEventListener('popstate',async()=>{
+    const token=++routeEpoch;
     const query=new URLSearchParams(location.search);
     const value=query.has('job')?{job:query.get('job')}:query.has('folder')?{folder:query.get('folder')}:null;
-    if(value&&JSON.stringify(value)!==JSON.stringify(selected))select(value,false);
+    const previous=new URL(acceptedUrl),before=new URLSearchParams(previous.search);
+    const changed=['job','folder','stage','report','material'].some(key=>before.get(key)!==query.get(key));
+    if(changed&&(window.speechReplyEditing?.()||$('report-editor').contentWindow?.notesEditorDirty?.())){
+      history.replaceState(acceptedState,'',acceptedUrl);
+      $('run-message').textContent='Сначала сохраните или отмените текущие правки.';
+      return;
+    }
+    if(value&&JSON.stringify(value)!==JSON.stringify(selected)){
+      const accepted=await select(value,false,token);
+      if(token!==routeEpoch)return;
+      if(!accepted){history.replaceState(acceptedState,'',acceptedUrl);return;}
+    }
+    if(!value&&selected){
+      selected=null;lastSnapshot=null;namesFolder=null;
+      window.constructionUI.select(null);window.studioUI.select(null);renderVersions();
+      $('workspace').hidden=true;$('setup').hidden=false;$('toggle-upload').hidden=true;
+      updateMediaOptions();
+    }
+    if(token!==routeEpoch)return;
+    window.studioUI.applyRoute(query);
+    window.recordingUI?.applyRoute(query);
+    window.workspaceView?.route(query);
+    rememberRoute();
   });
   loadInventory();
   window.recordingSelection = {select, refresh:poll};

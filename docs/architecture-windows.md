@@ -912,11 +912,13 @@ recordings. It owns presentation attributes only; jobs, player, selection and ed
 state retain their original owners. The View entry is a native disclosure in the
 top command bar and is hidden without an open recording. Local workspace tabs select
 the transcript or the saved combination of enabled panels without changing storage
-or routing. Translation/material tabs and guarded route integration remain future
-slices. One shared notes/article iframe is never recreated when hidden. Layout radios and the existing expand-player button share
+or routing. Explicit URL targets temporarily reveal their existing area; `create.js`
+coordinates guarded traversal using the existing owners. Translation/material tabs
+remain future slices. One shared notes/article iframe is never recreated when hidden. Layout radios and the existing expand-player button share
 one preference; the former `vd-recording-player-position` key is no longer read.
 Invalid/future preferences fall back safely, unavailable storage uses session memory.
 Speech-engine and playback-link also tolerate storage read/write failures without
 rewriting their keys. Material rendering does not write the URL; explicit writers
-retain the hash and history state. Atomic guarded history remains an open Task 8 gate.
+retain the hash and history state. Refusing a guarded traversal restores the previous
+URL with replaceState; legacy browser history may consequently traverse differently.
 No backend endpoint, AI setting, model or recording mutation is added.

@@ -1,5 +1,10 @@
 # История изменений
 
+14.11.2026: workspace URL временно раскрывает речь или выбранный материал без записи
+preferences. Guarded traversal сохраняет черновик и восстанавливает URL при отказе;
+для старых browser history entries fallback может изменить следующий Back/Forward.
+Проверки и оставшиеся gates — в [UI/UX Epic](../../design-system/UI-UX-EPIC.md#evidence-tasks-8b8c).
+
 14.11.2026: workspace controllers переживают отказ storage для speech-engine и
 playback-link. Material paint не записывает URL; явные writers сохраняют hash и
 history state. Guard report проверяется до закрытия quick edit. Guarded history и

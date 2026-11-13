@@ -99,9 +99,16 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             method = 'getItem' if '--workspace-storage-read' in sys.argv else 'setItem'
             c.call('Page.addScriptToEvaluateOnNewDocument', source=f"Storage.prototype.{method}=function(){{throw new DOMException('blocked','SecurityError')}}")
         c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
-        c.call('Page.navigate',url=f'http://127.0.0.1:{server.server_port}/?job={identity}')
+        start = ('/create?folder=original&stage=speech&material=article&report=missing#deep'
+                 if '--workspace-missing-report' in sys.argv else
+                 '/create?folder=original&stage=speech&material=article#deep'
+                 if '--workspace-deep-link' in sys.argv else f'/?job={identity}')
+        c.call('Page.navigate',url=f'http://127.0.0.1:{server.server_port}{start}')
         def workspace_ready():
-            try:return c.evaluate('!!document.querySelector("#recording-notes")?.options.length && !!document.querySelector("#report-editor")?.contentDocument?.querySelector("#personal-preview [data-note-time]")')
+            try:
+                if '--workspace-missing-report' in sys.argv:
+                    return c.evaluate('document.querySelector("#recording-notes-origin")?.textContent.includes("недоступен")')
+                return c.evaluate('!!document.querySelector("#recording-notes")?.options.length && !!document.querySelector("#report-editor")?.contentDocument?.querySelector("#personal-preview [data-note-time]")')
             except RuntimeError as error:
                 if 'navigated' in str(error) or 'context' in str(error):return False
                 raise
@@ -143,6 +150,31 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--workspace-storage-event' in sys.argv:
+            c.call('Emulation.setFocusEmulationEnabled', enabled=True)
+            evaluate('''document.querySelector('#playback-link').focus();
+              const key='video-descriptor:ui:workspace';
+              localStorage.setItem(key,JSON.stringify({version:1,layout:'side',panels:{video:false,transcript:true}}));
+              dispatchEvent(new StorageEvent('storage',{key}))''')
+            assert evaluate('document.activeElement.id==="playback-link" && document.querySelector("#shared-player").checkVisibility()')
+            evaluate('document.querySelector("#workspace-tab-transcript").focus()')
+            wait_for(lambda:not evaluate('document.querySelector("#shared-player").checkVisibility()'))
+            assert evaluate('document.activeElement.id==="workspace-tab-transcript"')
+            print('PASS: cross-window preference update waits for workspace focus to leave', flush=True)
+            raise SystemExit(0)
+        if '--workspace-deep-link' in sys.argv or '--workspace-missing-report' in sys.argv:
+            assert evaluate('document.documentElement.getAttribute("data-view-article")==="false"')
+            assert evaluate('document.querySelector("#stage-notes").checkVisibility()')
+            assert evaluate('document.querySelector("#material-tab-article").checkVisibility()')
+            assert evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")==="true"')
+            assert evaluate('document.querySelector("#material-tab-article").tabIndex===0')
+            assert evaluate('location.hash==="#deep"')
+            if '--workspace-missing-report' in sys.argv:
+                assert evaluate('document.querySelector("#report-editor-card").hidden')
+                assert evaluate('document.querySelector("#recording-notes-origin").textContent.includes("недоступен")')
+            assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
+            print('PASS: explicit material takes precedence over speech and disabled preference', flush=True)
+            raise SystemExit(0)
         if '--workspace-storage-read' in sys.argv or '--workspace-storage-write' in sys.argv:
             from workspace_storage_checks import run
             run(c, wait_for, '--workspace-storage-write' in sys.argv)
@@ -238,10 +270,21 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror textarea").focus()')
             c.call('Input.insertText',text='Черновик вкладки. ')
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            evaluate('window.dirtyDocument=document.querySelector("#report-editor").contentDocument')
+            assert evaluate('studioUI.chooseIndependentReport(null)===false')
+            assert evaluate('document.querySelector("#report-editor").contentDocument===window.dirtyDocument && document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
             c.click('#material-tab-article')
             assert evaluate('document.querySelector("#material-tab-notes").getAttribute("aria-selected")')=='true'
             assert 'Сохраните правки' in c.visible_text('#recording-status')
             assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
+            evaluate('''window.guardUrl=location.href;window.guardFrame=document.querySelector('#report-editor').contentWindow;
+              document.querySelector('#run-message').textContent='';
+              history.pushState(null,'',location.pathname+'?folder=other&stage=notes#other');history.back()''')
+            wait_for(lambda:evaluate('location.href===window.guardUrl'))
+            evaluate('history.forward()')
+            wait_for(lambda:evaluate('document.querySelector("#run-message").textContent.includes("правки")'))
+            assert evaluate('location.href===window.guardUrl && document.querySelector("#report-editor").contentWindow===window.guardFrame')
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
             evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror textarea").focus()')
             c.call('Input.dispatchKeyEvent',type='keyDown',key='z',code='KeyZ',windowsVirtualKeyCode=90,modifiers=2)

@@ -13,8 +13,9 @@
     }catch(_error){/* Unavailable storage or invalid JSON: safe in-memory defaults. */}
     return value;
   }
-  let state=read(), menu, content, summary, rail, tablist;
-  function selectTab(value){
+  let state=read(), pendingState=null, menu, content, summary, rail, tablist;
+  function selectTab(value,keepTarget=false){
+    if(!keepTarget)delete root.dataset.workspaceTarget;
     root.dataset.workspaceTab=value;
     if(!tablist)return;
     for(const tab of tablist.querySelectorAll('[role="tab"]')){
@@ -33,12 +34,23 @@
     const expand=document.getElementById('expand-player');
     if(expand){expand.textContent=state.layout==='stacked'?'Вернуть сбоку':'Развернуть наверх';expand.setAttribute('aria-pressed',String(state.layout==='stacked'));}
     const tabs=['notes','article'].map(kind=>document.getElementById('material-tab-'+kind)).filter(Boolean);
-    const selected=tabs.find(tab=>tab.getAttribute('aria-selected')==='true'&&state.panels[tab.id.slice(13)]);
-    const focusable=selected||tabs.find(tab=>state.panels[tab.id.slice(13)]);
+    const available=tab=>state.panels[tab.id.slice(13)]||root.dataset.workspaceTarget===tab.id.slice(13);
+    const selected=tabs.find(tab=>tab.getAttribute('aria-selected')==='true'&&available(tab));
+    const focusable=selected||tabs.find(available);
     for(const tab of tabs)tab.tabIndex=tab===focusable?0:-1;
   }
-  function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(_error){}apply();}
-  function reset(){state=defaults();selectTab('transcript');save();}
+  function save(){pendingState=null;try{localStorage.setItem(KEY,JSON.stringify(state));}catch(_error){}apply();}
+  function initialTab(){return state.panels.transcript&&!state.panels.translation&&!state.panels.notes&&!state.panels.article?'transcript':'all';}
+  function route(params){
+    const material=params.get('material'),stage=params.get('stage');
+    const current=document.getElementById('material-tab-article')?.getAttribute('aria-selected')==='true'?'article':'notes';
+    const target=['notes','article'].includes(material)?material:params.get('report')||stage==='notes'?current:null;
+    if(target){root.dataset.workspaceTarget=target;selectTab('all',true);}
+    else if(stage==='speech')selectTab('transcript');
+    else selectTab(initialTab());
+    apply();
+  }
+  function reset(){state=defaults();route(new URLSearchParams(location.search));save();}
   // One controller on all full pages; preferences apply when a recording is opened.
   function place(){
     if(!menu||!menu.open)return;
@@ -61,8 +73,14 @@
   }
   // Runs in the head, before stylesheet/DOM rendering: no secondary-panel flash.
   apply();
-  window.workspaceView={reset,refresh:apply,setPanel(key,value){if(key in state.panels&&typeof value==='boolean'){state.panels[key]=value;selectTab('all');save();}},setLayout(value){if(['side','stacked'].includes(value)){state.layout=value;save();}}};
-  window.addEventListener('storage',event=>{if(event.key===KEY||event.key===null){state=read();apply();}});
+  window.workspaceView={reset,refresh:apply,route,setPanel(key,value){if(key in state.panels&&typeof value==='boolean'){state.panels[key]=value;selectTab('all');save();}},setLayout(value){if(['side','stacked'].includes(value)){state.layout=value;save();}}};
+  function focusedWorkspace(){return document.getElementById('workspace-tab-panel')?.contains(document.activeElement);}
+  window.addEventListener('storage',event=>{if(event.key===KEY||event.key===null){
+    const next=read();if(focusedWorkspace()){pendingState=next;return;}pendingState=null;state=next;apply();
+  }});
+  document.addEventListener('focusout',()=>{if(pendingState)setTimeout(()=>{
+    if(pendingState&&!focusedWorkspace()){state=pendingState;pendingState=null;apply();}
+  },0);});
   document.addEventListener('DOMContentLoaded',()=>{
     menu=document.createElement('details');menu.id='workspace-view-menu';menu.className='workspace-view-menu';
     summary=document.createElement('summary');summary.textContent='Вид';menu.append(summary);
@@ -93,8 +111,7 @@
       tablist=document.getElementById('workspace-tabs');
       if(tablist){
         const tabs=[...tablist.querySelectorAll('[role="tab"]')];
-        const initial=state.panels.transcript&&!state.panels.translation&&!state.panels.notes&&!state.panels.article?'transcript':'all';
-        selectTab(initial);
+        route(new URLSearchParams(location.search));
         for(const [index,tab] of tabs.entries()){
           tab.addEventListener('click',()=>selectTab(index===0?'transcript':'all'));
           tab.addEventListener('keydown',event=>{
