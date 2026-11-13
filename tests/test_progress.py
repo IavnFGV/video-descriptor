@@ -1,5 +1,5 @@
 import json
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 from video_descriptor.notes import chat_json
 from video_descriptor.progress import ProgressLog
@@ -50,13 +50,21 @@ def test_connection_failure_clears_waiting_state(monkeypatch):
 
     messages = []
     log = ProgressLog(messages.append, "lecture.mp4")
-    monkeypatch.setattr("video_descriptor.notes.requests.post",
-                        Mock(side_effect=requests.ConnectionError("offline")))
+    post = Mock(side_effect=requests.ConnectionError("offline"))
+    sleep = Mock()
+    monkeypatch.setattr("video_descriptor.notes.requests.post", post)
+    monkeypatch.setattr("video_descriptor.notes.time.sleep", sleep)
     with pytest.raises(requests.ConnectionError):
         chat_json("hello", [], {}, "model", "http://local", log)
     log("ошибка")
     assert "ошибка соединения" in messages[-1]
     assert log.state["request_started"] is None
+    assert post.call_count == 5  # Three requests and two failed unload attempts.
+    assert [args.args[0] for args in post.call_args_list] == [
+        'http://local/api/chat', 'http://local/api/generate', 'http://local/api/chat',
+        'http://local/api/generate', 'http://local/api/chat',
+    ]
+    assert sleep.call_args_list == [call(2), call(2)]
 
 
 def test_cpu_override_is_sent_without_affecting_default(monkeypatch):

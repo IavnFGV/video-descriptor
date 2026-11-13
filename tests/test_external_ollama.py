@@ -76,7 +76,7 @@ def server():
             self.reply(state['generation'])
 
     http = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    thread = threading.Thread(target=http.serve_forever, daemon=True)
+    thread = threading.Thread(target=http.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
     thread.start()
     try:
         yield Ollama(f'http://127.0.0.1:{http.server_port}'), state
@@ -102,7 +102,7 @@ def native(server, tmp_path, monkeypatch):
     value = {'workspace': str(tmp_path / 'workspace'), 'npu_worker_directory': str(tmp_path / 'no-workers'),
              'ollama_url': provider.endpoint, 'ai_components_directory': str(tmp_path / 'components')}
     with ThreadingHTTPServer(('127.0.0.1', 0), app.make_handler(value, 'test-instance')) as http:
-        thread = threading.Thread(target=http.serve_forever, daemon=True)
+        thread = threading.Thread(target=http.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
         thread.start()
         base = f'http://127.0.0.1:{http.server_port}'
         try:
