@@ -1,4 +1,4 @@
-"""Committed agents are locked down; task grants must never become standing access."""
+"""Check the primary coding agent and the context-only advisor configuration."""
 import json
 from pathlib import Path
 
@@ -10,63 +10,27 @@ def config():
     return json.loads((Path(__file__).resolve().parents[1] / 'opencode.json').read_text(encoding='utf-8'))
 
 
-def test_luna_coordinator_can_delegate_only_to_configured_agents(config):
-    agents = config['agents']
-    assert config['model'] == 'openai/gpt-6-luna'
+def test_terra_is_primary_coding_agent(config):
+    build = config['agents']['build']
+    assert config['model'] == 'openai/gpt-6.1-terra'
     assert config['default_agent'] == 'build'
-    assert agents['build']['model'] == 'openai/gpt-6-luna#low'
-    assert agents['executor']['model'] == 'openai/gpt-6.1-terra'
-    assert agents['architecture-advisor']['model'] == 'openai/gpt-6.1-sol'
-    assert agents['executor-free']['model'] == 'opencode/minimax-m3.1-flash-free#low'
-    for name in ['executor', 'executor-free', 'architecture-advisor']:
-        assert agents[name]['mode'] == 'subagent'
-        assert {'action': 'subagent', 'resource': name, 'effect': 'allow'} in agents['build']['permissions']
-    assert agents['build']['permissions'][0] == {'action': 'subagent', 'resource': '*', 'effect': 'deny'}
-    assert {rule['resource'] for rule in agents['build']['permissions'] if rule['action'] == 'subagent' and rule['effect'] == 'allow'} == {
-        'executor', 'executor-free', 'architecture-advisor'
-    }
-    assert 'system' not in agents['build']  # Keep the built-in coding prompt.
-
-
-def test_terra_has_working_steps_but_no_model_variant_override(config):
-    worker = config['agents']['executor']
-    assert worker['steps'] == 8  # The last step is a terminal report, not a tool step.
-    assert worker['model'] == 'openai/gpt-6.1-terra'
-    assert 'request' not in worker
-
-
-@pytest.mark.parametrize('name', ['executor', 'executor-free'])
-def test_committed_workers_have_no_persistent_task_grants(config, name):
-    # Exact equality catches stale path exceptions, wildcards and later allow rules.
-    assert config['agents'][name]['permissions'] == [
-        {'action': '*', 'resource': '*', 'effect': 'deny'},
+    assert build['model'] == 'openai/gpt-6.1-terra'
+    assert 'steps' not in build
+    assert 'system' not in build  # Keep the built-in coding prompt.
+    assert build['permissions'] == [
+        {'action': 'subagent', 'resource': '*', 'effect': 'deny'},
+        {'action': 'subagent', 'resource': 'architecture-advisor', 'effect': 'allow'},
     ]
+    assert set(config['agents']) == {'build', 'architecture-advisor'}
 
 
-def test_terra_prompt_retains_review_and_host_safety_boundaries(config):
-    prompt = config['agents']['executor']['system']
-    assert 'task-specific permissions' in prompt
-    assert 'without grants, report BLOCKED' in prompt
-    assert 'Never bypass or retry a denied action' in prompt
-    assert 'Never change permissions, agent instructions or OpenCode configuration; Luna owns these' in prompt
-    assert 'Luna owns architecture, validation commands, review, integration and commits' in prompt
-    assert 'No shell, network, external directories, further delegation' in prompt
-    assert 'not approval to merge, push or release' in prompt
-    assert 'You have no tools or filesystem access' not in prompt
-
-
-def test_sol_architecture_advisor_is_context_only_and_toolless(config):
+def test_sol_advisor_is_context_only_and_toolless(config):
     advisor = config['agents']['architecture-advisor']
+    assert advisor['mode'] == 'subagent'
+    assert advisor['model'] == 'openai/gpt-6.1-sol'
     assert advisor['permissions'] == [
         {'action': '*', 'resource': '*', 'effect': 'deny'},
     ]
     assert 'Use only the context and excerpts supplied' in advisor['system']
     assert 'cannot delegate' in advisor['system']
     assert 'cannot edit, validate, integrate, commit, push, or release' in advisor['system']
-
-
-def test_free_worker_remains_explicitly_free_and_proposal_only(config):
-    worker = config['agents']['executor-free']
-    assert worker['steps'] == 1
-    assert worker['model'] == 'opencode/minimax-m3.1-flash-free#low'
-    assert 'You have no tools or filesystem access' in worker['system']

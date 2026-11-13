@@ -1,12 +1,17 @@
 # История изменений
 
+13.11.2026: OpenCode использует Terra Standard как основной `build`, а Sol — как
+контекстного советника для сложной архитектуры и отладки. Обязательная схема
+координации и временных разрешений удалена. Текущая конфигурация и ограничения
+описаны в [agent workflows](agents.md#terra-primary-and-sol-advisor).
+
 13.11.2026: `check-fast.py --workers N` запускает основную pytest suite через
 pytest-xdist, а port-sensitive desktop и container tests — отдельной последовательной
 фазой. По умолчанию запуск остаётся последовательным; конфигурационные проверки
 также последовательны. Дочерние процессы не наследуют `PYTEST_ADDOPTS`.
 Команды и ограничения описаны в [testing guide](testing.md).
 
-13.11.2026: OpenCode использует `build` как лёгкого координатора Luna (`gpt-6-luna#low`),
+13.11.2026 (историческая конфигурация): OpenCode использовал `build` как лёгкого координатора Luna (`gpt-6-luna#low`),
 `executor` как восьмишагового Terra worker и `architecture-advisor` как контекстного
 Sol expert без инструментов. Luna может вызывать только эти роли и сохранённый
 `executor-free`; Terra сохраняет committed default-deny с временными точными grants.
@@ -15,7 +20,7 @@ Effective agent API подтвердила роли и модели. Два no-t
 session использовал Luna default variant, не перенастраивался. Это проверяет model
 routing, но не исполнение tool permissions. Проверки: `tests/test_agent_config.py` —
 7 passed; config-only — 29 passed; полный Fast — 853 passed, 4 skipped.
-Операционные детали — в [agent workflows](agents.md#luna-coordinator-and-terra-standard-worker-with-sol-advisor).
+Текущая конфигурация — в [agent workflows](agents.md#terra-primary-and-sol-advisor).
 
 13.11.2026: [WORKSPACE-TABS](../../design-system/WORKSPACE-TABS.md) фиксирует
 совместимость будущих workspace tabs: URL/preferences precedence, default/reset,
@@ -31,7 +36,7 @@ Committed policy остаётся default-deny без постоянных grant
 exact read/edit paths, проверяет effective policy в task Location, затем снимает
 grants; shell/network/external directories/subagents не разрешаются. Sol сохраняет
 architecture, review, validation commands и commits. `executor-free` не менялся.
-Текущая процедура — в [agent workflows](agents.md#task-specific-permissions).
+Текущая конфигурация — в [agent workflows](agents.md#terra-primary-and-sol-advisor).
 Live smoke на OpenCode 2.2.7: Terra выполнила read/edit/read/revise/read разрешённого
 synthetic fixture; ungranted read и read-only edit получили `permission.rejected`.
 Независимая проверка подтвердила итоговый текст и неизменные bytes обоих negative

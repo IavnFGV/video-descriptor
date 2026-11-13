@@ -151,12 +151,10 @@ Multi-panel compatibility view и подключение перевода/мат
 - Использовать существующие material/workspace browser fixtures и focused tests;
   CSS `--check`, UI audit и финальный Fast — по [testing guide](../docs/development/testing.md).
   Для docs-only допустим `check-fast.py --config-only` плюс отдельная проверка ссылок.
-- Sol задаёт base SHA, максимум два writable files, exact read/edit grants,
-  excerpts, invariants и acceptance для Terra `executor`; worker реализует scoped
-  patch за восемь шагов без shell/network. Sol проверяет diff, снимает grants,
-  собирает CSS, обновляет operational docs и запускает checks; процедура — в
-  [agent workflows](../docs/development/agents.md#task-specific-permissions). Архитектуру,
-  migration/dirty-state integration не отдавать как механическую задачу.
+- Terra непосредственно исследует, реализует и проверяет изменения, включая CSS и
+  operational docs. Sol доступен как контекстный советник для сложных решений или
+  при блокировке; подробнее — в [agent workflows](../docs/development/agents.md#terra-primary-and-sol-advisor).
+  Архитектура и migration/dirty-state integration требуют отдельного анализа.
 - Использовать dedicated task branch, отдельный worktree для concurrent mutations.
   Проверенный commit — единица отката; пользовательские данные не откатывать.
   Публикация отдельна от реализации; перед merge проверить build/preview hooks.
