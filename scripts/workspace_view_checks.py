@@ -42,8 +42,7 @@ def run(c, wait_for, out, root):
     evaluate('window.originalPlayer=document.querySelector("#process-video");window.originalFeed=document.querySelector("#speech-feed");originalPlayer.currentTime=45')
     for key, selector in [('video', '#shared-player'), ('transcript', '#stage-speech'),
                           ('speakers', '#recording-diarize'),
-                          ('notes', '#stage-notes'), ('article', '#material-tab-article'),
-                          ('technical', '#diagnostics')]:
+                          ('notes', '#stage-notes'), ('article', '#material-tab-article')]:
         panel(key, True)
         assert visible(selector), key
         panel(key, False)

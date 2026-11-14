@@ -133,7 +133,7 @@ recompiling Sass. Migration status and the next bounded task are in the
 - [Release procedure](releases.md): version source, BUILD and automatic tag handling.
 - [Agent discovery](agents.md): portable workflows and assistant-specific entry points.
 - [UI/UX Epic](../../design-system/UI-UX-EPIC.md): current backlog, dependencies and acceptance gates.
-- [Workspace details cleanup](../../design-system/WORKSPACE-DETAILS-CLEANUP.md): redundant Windows speech form removed and file information moved to Details; processing log migration remains planned.
+- [Workspace details cleanup](../../design-system/WORKSPACE-DETAILS-CLEANUP.md): redundant Windows speech form removed; file information and processing details use separate Details and Processing tabs; auxiliary prompts remain in place.
 - [Documentation audit](documentation-audit.md): historical contradictions and gaps.
 
 Dependency updates require intentional lock/input changes and packaging validation.

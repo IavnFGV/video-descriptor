@@ -36,18 +36,31 @@
   };
   const originalReports=$('notes-variant-label');originalReports.hidden=true;
   actions.append($('record-menu'));
-  const detail=document.createElement('details');detail.id='recording-processing';
-  const summary=document.createElement('summary');summary.textContent='Подробности обработки';detail.append(summary);
-  const workspace=$('workspace'); workspace.append(detail);
+  // Hidden compatibility container for retired translation-only details, not another disclosure.
+  const detail=document.createElement('div');detail.id='recording-processing';detail.hidden=true;
+  const workspace=$('workspace');
   // Keep selection, actions, warnings and stop available even with the text hidden.
   workspace.append(speechHeading);
   const speechSettings=$('speech-settings').closest('section');speechSettings.id='recording-speech-settings';
   const translationSection=translationPanel.closest('section');translationSection.id='recording-translation-panel';layout.append(translationSection);
   const fileDetails=document.createElement('div');fileDetails.id='recording-details';fileDetails.setAttribute('role','region');fileDetails.setAttribute('aria-labelledby','workspace-tab-details');
   $('source-details').open=true;fileDetails.append($('source-details'));document.querySelector('.stage-content').append(fileDetails);
+  const processingPanel=document.createElement('div');processingPanel.id='recording-processing-tab';processingPanel.setAttribute('role','region');processingPanel.setAttribute('aria-labelledby','workspace-tab-processing');
+  const processingHeading=document.createElement('h3');processingHeading.textContent='Ход обработки';
+  const processingOverview=document.createElement('p');processingOverview.id='processing-overview';processingOverview.className='hint';processingOverview.tabIndex=-1;
+  const processingEmpty=document.createElement('p');processingEmpty.className='hint processing-empty';processingEmpty.textContent='Для этой версии пока нет подробных данных обработки.';
+  processingPanel.append(processingHeading,processingOverview,processingEmpty,$('diagnostics'),detail);document.querySelector('.stage-content').append(processingPanel);
   workspace.append($('errors-card'));
   workspace.append($('speaker-notice'));
   const jobError=document.createElement('p');jobError.id='recording-job-error';jobError.className='feedback vd-error';jobError.setAttribute('role','alert');jobError.hidden=true;workspace.insertBefore(jobError,$('stage-progress'));
+  const openLog=document.createElement('button');openLog.id='recording-open-log';openLog.type='button';openLog.className='vd-button vd-button--secondary';openLog.textContent='Открыть журнал';openLog.hidden=true;jobError.after(openLog);
+  openLog.onclick=()=>{$('workspace-tab-processing').click();const log=$('processing-log');if($('diagnostics').hidden||log.hidden){processingOverview.focus();processingOverview.scrollIntoView({block:'center'});}else{log.open=true;log.querySelector('summary').focus();log.scrollIntoView({block:'center'});}};
+  function processingStatus(value){
+    openLog.hidden=value?.status!=='error';
+    const message=value?.status==='error'?(!jobError.hidden?jobError.textContent:(value.cancelled?'Обработка остановлена. ':'Ошибка обработки. ')+(value.error||$('run-message').textContent)):[$('stage-label').textContent,$('run-message').textContent].filter(Boolean).join(' · ');
+    if(processingOverview.textContent!==message)processingOverview.textContent=message;
+  }
+  document.addEventListener('recording-job-status',event=>processingStatus(event.detail));
   const retryJob=document.createElement('button');retryJob.id='recording-retry';retryJob.type='button';retryJob.className='vd-button';retryJob.textContent='Продолжить с сохранёнными ответами';retryJob.hidden=true;workspace.insertBefore(retryJob,$('stage-progress'));
   const repairNotes=document.createElement('button');repairNotes.type='button';repairNotes.className='vd-button';repairNotes.textContent='Исправить конспект вручную';repairNotes.hidden=true;workspace.insertBefore(repairNotes,$('stage-progress'));
   async function recoveryPost(value){
@@ -174,7 +187,7 @@
     diarizationProgress.querySelector('.diarization-progress-time').textContent=[measured?value.completed+' из '+value.total:null,elapsed!==null?'На этапе: '+Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0'):null,age>=60?'Новых данных от модели нет '+age+' с':null].filter(Boolean).join(' · ');
   }
   setInterval(renderDiarizationProgress,1000);
-  const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,detail);
+  const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,$('stage-progress'));
   for(const id of ['translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false,epoch=0;
   function initialMaterialKind(){
@@ -366,13 +379,14 @@
     if(!snapshot.report_variants?.length)$('notes-feed').querySelector('.empty')?.replaceChildren(document.createTextNode('Конспект ещё не создан. Выберите «Создать новый конспект…» в списке выше.'));
     $('recording-stop').hidden=!window.recordingUI.native||!['queued','running'].includes(job?.status);
     for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot.has_ready_transcript||snapshot.running||['queued','running'].includes(job?.status);
-    if(changed)detail.open=job?.status==='error';
+    processingStatus(job);
+    processingEmpty.hidden=Boolean(snapshot.running||snapshot.processing?.request_available||snapshot.thinking||snapshot.response||snapshot.log?.length);
     const stateInfo=snapshot.status||{},active=snapshot.running||['queued','running'].includes(job?.status);
     requestStatus.hidden=!active;
     requestStatus.textContent=active?[stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
     renderDiarizationProgress();paint();sync();
   });
-  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';jobError.hidden=true;retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
+  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';jobError.hidden=true;openLog.hidden=true;processingEmpty.hidden=false;processingOverview.textContent='Ожидаем данные обработки.';retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
   async function postprocess(task,extra={}){
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;

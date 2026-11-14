@@ -20,7 +20,12 @@
   }
   $('prompt-task').onchange = selectPrompt;
   $('model-prompt').addEventListener('input',()=>{if(promptTask){promptDrafts[promptTask]=$('model-prompt').value;window.studioDraft.savePrompts(promptDrafts,promptTask);}});
-  $('open-prompt-settings').onclick = () => { window.studioUI.openStage('notes'); $('prompt-settings-panel').open = true; };
+  $('open-prompt-settings').onclick = event => {
+    event.preventDefault();
+    const kind=$('material-tab-article').getAttribute('aria-selected')==='true'?'article':'notes';
+    window.workspaceView.setPanel('technical',true);$('workspace-tab-'+kind).click();
+    window.studioUI.openStage('notes');$('prompt-settings-panel').open=true;$('model-prompt').focus();
+  };
   if (location.hash === '#translation-settings-panel') {
     window.studioUI.openStage('speech'); $('translation-settings-panel').open = true;
   }
@@ -570,14 +575,14 @@
       node.scrollTop = node.scrollHeight;
     });
     const processing = snapshot.processing || {title: phases[snapshot.phase - 1], parameters: [], message: 'Параметры этого этапа не опубликованы.'};
-    $('model-card').hidden = !snapshot.running && !processing.request_available;
+    $('model-card').hidden = !snapshot.running && !processing.request_available && !snapshot.thinking && !snapshot.response;
     $('processing-title').textContent = processing.title;
     $('processing-message').textContent = processing.message;
     $('task-label').textContent = processing.task && processing.task !== '—' ? processing.task : 'Ожидание';
     $('thinking-controls').hidden = !processing.supports_thinking;
-    $('thinking-panel').hidden = !processing.supports_thinking;
+    $('thinking-panel').hidden = !snapshot.thinking;
     $('request-panel').hidden = !processing.request_available;
-    $('response-panel').hidden = !processing.request_available;
+    $('response-panel').hidden = !snapshot.response;
     const stats = $('request-stats'); stats.replaceChildren();
     if (processing.engine) stats.append(text('span', 'Обработчик: ' + processing.engine));
     for (const parameter of processing.parameters) {
@@ -599,6 +604,7 @@
     $('errors-card').hidden = !gaps;
     changed('errors-feed', snapshot.errors, node => { node.replaceChildren(); snapshot.errors.forEach(error => node.append(text('p', 'Блок ' + error.block + ': ' + error.error, 'error-item'))); });
     $('log-feed').textContent = snapshot.log.length?snapshot.log.join('\n'):'События обработки ещё не поступили.';
+    $('processing-log').hidden = !snapshot.log.length;
 
     $('retry-job').hidden = !job || (!error && !(done && gaps));
     $('retry-job').textContent = 'Продолжить из кэша';
@@ -617,7 +623,7 @@
           $('workspace').hidden = false; $('run-title').textContent = data.job.title || data.job.filename;
           $('run-state').textContent = data.job.status === 'error' ? 'Ошибка' : 'В очереди';
           $('run-message').textContent = data.job.error || 'Запись сохранена. Начнём, когда завершится текущая обработка.';
-          if(data.job.status==='error'&&$('recording-processing'))$('recording-processing').open=true;
+          document.dispatchEvent(new CustomEvent('recording-job-status',{detail:data.job}));
           $('retry-job').hidden = data.job.status !== 'error';
         }
       } else {

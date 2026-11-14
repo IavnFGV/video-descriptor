@@ -53,6 +53,14 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     identity='a'*32
     job_folder=root/'output/jobs'/identity;job_folder.mkdir(parents=True)
     write_json(job_folder/'job.json',{'id':identity,'video':str(video),'filename':video.name,'folder':'notes-a','status':'done','mode':'postprocess','task':'notes','created':1})
+    if '--processing-tab-only' in sys.argv:
+        fixture_folder=root/'output/notes-a';request_folder=fixture_folder/'requests/fixture-request';request_folder.mkdir(parents=True)
+        write_json(request_folder/'request.json',{'url':'http://fixture.invalid/api/chat','context':{'task':'notes','chunk':1},'payload':{'model':'fixture-model','think':True,'messages':[{'role':'system','content':'Fixture instruction'},{'role':'user','content':'Fixture source text'}],'options':{'num_ctx':8192}}})
+        (request_folder/'events.jsonl').write_text(json.dumps({'message':{'content':'Fixture original response','thinking':'Fixture original reasoning'}})+'\n',encoding='utf-8')
+        write_json(fixture_folder/'progress.json',{'stage':'[4/5] Конспект','task':'notes','request_log':str(request_folder),'request_state':'получен ответ','message':'Fixture processing message'})
+        (fixture_folder/'run.log').write_text('Fixture processing journal\n',encoding='utf-8')
+        write_json(fixture_folder/'construction-job.json',{'id':identity})
+        write_json(job_folder/'job.json',{'id':identity,'video':str(video),'filename':video.name,'folder':'notes-a','status':'error','error':'Fixture processing failure','stage':'notes','mode':'postprocess','task':'notes','created':1})
     if '--recovery-only' in sys.argv:
         from video_descriptor import serve
         serve.start_worker = lambda _: None
@@ -151,6 +159,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--processing-tab-only' in sys.argv:
+            from processing_tab_checks import run
+            run(c, wait_for, root, out, identity)
+            raise SystemExit(0)
         if '--file-details-only' in sys.argv:
             from file_details_checks import run
             run(c, wait_for, root, out)

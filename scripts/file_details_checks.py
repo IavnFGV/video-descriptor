@@ -42,9 +42,11 @@ def run(c, wait_for, root, out):
     assert evaluate('document.querySelector("#delete-version-name").textContent.includes("original")')
     c.click('#cancel-delete-version')
     assert (root / 'output/original/speech.json').is_file()
-    # End/Home/Left now include the fourth tab without adding history or preferences.
+    # End reaches Processing; Left returns to Details without adding history/preferences.
     c.click('#workspace-tab-transcript')
     c.call('Input.dispatchKeyEvent', type='keyDown', key='End', code='End', windowsVirtualKeyCode=35)
+    assert evaluate('document.activeElement.id==="workspace-tab-processing"')
+    c.call('Input.dispatchKeyEvent', type='keyDown', key='ArrowLeft', code='ArrowLeft', windowsVirtualKeyCode=37)
     assert evaluate('document.activeElement.id==="workspace-tab-details"')
     assert evaluate('document.querySelector("#workspace-tab-panel").getAttribute("aria-labelledby")==="workspace-tab-details"')
     assert evaluate('document.querySelectorAll("#workspace-tabs [tabindex=\\"0\\"]").length===1')
