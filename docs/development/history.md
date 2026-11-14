@@ -1,5 +1,14 @@
 # История изменений
 
+14.11.2026: полный Fast через существующий проектный
+`.\.venv\Scripts\python.exe scripts/check-fast.py` — PASS: 29 config tests,
+Ruff, CSS/UI audit, JS syntax и 865 passed / 3 skipped за 177.33 с.
+Первый запуск правильным Python прерван лимитом команды 120 с; повторный завершён
+с увеличенным лимитом. Прежние утверждения об отсутствующем `.venv` исправлены:
+каталог и интерпретатор существуют, environment guard отклонял системный Python.
+Ручной просмотр выявил отдельный визуальный дефект раскрытого меню удаления
+версии; автоматический PASS не означает исправления этого дефекта.
+
 14.11.2026: отдельная пятая вкладка «Обработка» содержит сводку, прежние запросы,
 рассуждения/ответ модели и журнал. Подробности больше не зависят от `technical`;
 дублирующий disclosure убран, legacy translation IDs остаются скрытыми. Прогресс,
@@ -9,7 +18,7 @@
 промпты не перенесены; ссылка из запроса открывает их прежнюю форму в текущем
 материале. CSS пересобран. Edge fixtures обработки, файла и workspace tabs — PASS;
 24 профильных теста, Ruff, JS syntax и UI audit — PASS. Исходные fixture-запросы
-и ответы совпали по SHA-256. Полный Fast заблокирован отсутствием проектного `.venv`;
+и ответы совпали по SHA-256. Первоначальный запуск Fast системным Python отклонён guard;
 installed WebView2 и реальные модели не проверялись.
 
 14.11.2026: вкладка «Сведения» добавлена после «Статьи». В неё перенесены прежние
@@ -19,8 +28,8 @@ installed WebView2 и реальные модели не проверялись.
 Вкладки сохраняют DOM, черновик названия, iframe/Undo, URL и preferences.
 Журнал и подробности обработки не переносились. CSS пересобран из общих источников.
 Edge fixtures файла, workspace tabs и Windows speech — PASS; 17 профильных тестов
-в UTF-8, Node harness, Ruff и UI audit — PASS. Полный Fast заблокирован отсутствием
-проектного `.venv`; installed WebView2 и распознавание не проверялись.
+в UTF-8, Node harness, Ruff и UI audit — PASS. Первоначальный запуск Fast системным
+Python отклонён guard; installed WebView2 и распознавание не проверялись.
 
 14.11.2026: форма «Настройки речи» убрана из Windows workspace. Кнопка создания
 новой расшифровки и сообщения запуска находятся возле версии; технические панели
@@ -29,8 +38,8 @@ Edge fixtures файла, workspace tabs и Windows speech — PASS; 17 проф
 журнала и вспомогательных промптов во вкладку «Сведения» остаётся в
 [плане](../../design-system/WORKSPACE-DETAILS-CLEANUP.md).
 Edge fixtures для Windows, shared web и workspace tabs — PASS; 13 профильных
-тестов, Node harness, Ruff и UI audit — PASS. Полный Fast заблокирован отсутствием
-проектного `.venv`. Installed WebView2 и распознавание не запускались.
+тестов, Node harness, Ruff и UI audit — PASS. Первоначальный запуск Fast системным
+Python отклонён guard. Installed WebView2 и распознавание не запускались.
 
 14.11.2026: техническая проверка Bootstrap и общей оболочки — UI audit сохраняет
 неизменный baseline и проверяет relocation evidence для stop, setup handler и API.

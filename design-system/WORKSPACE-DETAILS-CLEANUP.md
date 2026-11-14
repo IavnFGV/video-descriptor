@@ -140,8 +140,8 @@ backend API нет.
   Undo/Redo, таймкоды, клавиатура и адаптивная компоновка.
 - `tests/test_workspace_view.py`, `tests/test_recording.py`: 13 passed.
 - Node workspace harness: PASS, 256 сочетаний; JS syntax, Ruff и UI audit: PASS.
-- `python scripts/check-fast.py`: остановлен environment guard из-за отсутствия
-  проектного `.venv`; полный Fast не выполнен. Профильные проверки выше запускались
+- `python scripts/check-fast.py`: системный Python отклонён environment guard;
+  проектный `.venv` существует, но при этом запуске не использовался. Профильные проверки выше запускались
   доступным системным Python, без установки зависимостей и обхода guard.
 - Installed WebView2, реальные модели и распознавание не проверялись.
 
@@ -159,7 +159,8 @@ backend API нет.
   tests/test_recording.py tests/test_library.py`: 17 passed. Без UTF-8 режима
   тест сохранения кириллического названия завершался 400; в режиме UTF-8 прошёл.
 - CSS build, UI audit, Node workspace harness, JS syntax и Ruff: PASS.
-- Полный Fast остановлен environment guard: проектного `.venv` нет. Зависимости
+- Первоначальный Fast системным Python остановлен environment guard. Проектный
+  `.venv` существует; отсутствие окружения было ошибочно указано как причина. Зависимости
   не устанавливались; guard не обходился. Installed WebView2 и реальные модели
   не проверялись. Название изменялось только в временном fixture; удаления не было.
 
@@ -178,5 +179,18 @@ backend API нет.
   участвует в клавиатуре, скрытие редактора сохраняет его черновик/Undo.
 - `tests/test_workspace_view.py`, `tests/test_recording.py`, `tests/test_jobs_live.py`
   в режиме UTF-8: 24 passed. Ruff, JS syntax, CSS build и UI audit: PASS.
-- Полный Fast заблокирован environment guard из-за отсутствия проектного `.venv`.
+- Первоначальный Fast системным Python отклонён environment guard; проектный
+  `.venv` существует. Правильная команда: `.\.venv\Scripts\python.exe scripts/check-fast.py`.
   Installed WebView2 и реальные модели не проверялись.
+
+## Итоговая проверка текущей реализации
+
+`.\.venv\Scripts\python.exe scripts/check-fast.py` завершён: 29 config tests,
+Ruff, CSS/UI audit, JS syntax и 865 passed / 3 skipped за 177.33 с — PASS.
+Окружение уже существовало; зависимости не устанавливались. Первый запуск этой
+команды остановлен лимитом shell 120 с, повторный выполнен с лимитом 600 с.
+
+Остаётся визуальный дефект меню версии: native marker и многоточие дублируются,
+отдельная кнопка удаления выступает поверх содержимого. Нужен оформленный popup
+с пунктом удаления, без изменения подтверждения и выбора удаляемой версии.
+Этот сценарий не покрывается прошедшими статическими и unit-проверками.
