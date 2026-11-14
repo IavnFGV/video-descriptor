@@ -20,9 +20,10 @@ def test_workspace_assets_and_critical_controls():
     serve = (ROOT / 'video_descriptor/serve.py').read_text(encoding='utf-8')
     assert "'workspace-view.js'" in serve
     source = (ROOT / 'video_descriptor/assets/recording.js').read_text(encoding='utf-8')
-    assert 'workspace.append(speechHeading)' in source
+    assert 'speech.prepend(speechHeading)' in source
+    assert "workspace.append(notice,$('recording-stop'))" in source
     assert "workspace.append($('errors-card'))" in source
-    assert "workspace.append($('speaker-notice'))" in source
+    assert "speechHeading.after($('speaker-notice'))" in source
     assert "['translation-summary','translation-blocks-panel']" in source
     css = (ROOT / 'design-system/workspace.css').read_text(encoding='utf-8')
     for key in ['video', 'transcript', 'speakers', 'translation', 'notes', 'article', 'technical']:

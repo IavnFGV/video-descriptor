@@ -21,7 +21,7 @@ html[data-workspace-target=article][data-view-article=false] .recording-workspac
 .subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
 .studio-header p{color:var(--vd-muted)}.studio-header h1{margin-bottom:var(--vd-space-2)}
 #open-connections{float:right}.record-toolbar{display:flex;align-items:center;gap:var(--vd-space-4);margin:var(--vd-space-4) 0;flex-wrap:wrap}
-.record-toolbar label{flex:1}.record-menu{position:relative;margin-left:auto}.record-menu>summary{padding:var(--vd-space-2) var(--vd-space-3)}.record-menu>button{position:absolute;right:0;top:100%;z-index:var(--vd-layer-sticky);width:max-content;max-width:70vw}
+.record-toolbar label{flex:1}.record-menu>summary{padding:var(--vd-space-2) var(--vd-space-3)}.record-menu>button{margin-top:var(--vd-control-gap);max-width:100%}.record-menu:not([open])>button{display:none}
 .stage-tabs{margin:var(--vd-space-6) 0}
 .stage-tabs button span{display:block;margin-top:var(--vd-space-1);font-size:var(--vd-caption);font-weight:var(--vd-normal);color:var(--vd-muted)}
 .stage-tabs button[data-status=done] span{color:var(--vd-success)}.stage-tabs button[data-status=active] span{color:var(--vd-info)}.stage-tabs button[data-status=error] span{color:var(--vd-danger)}

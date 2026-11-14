@@ -96,7 +96,8 @@ checks that shared web retains the engine picker and new-transcript form.
 
 `--file-details-only` uses a partial-transcript fixture to check the fourth tab,
 file information, title draft/save, delete confirmation/cancel, coverage warning,
-keyboard, preserved DOM/history/preferences and widths 375–1440 px. The title save
+keyboard, transcript-only version controls, in-flow open/closed deletion menu,
+preserved DOM/history/preferences and widths 375–1440 px. The title save
 writes only temporary fixture metadata; no deletion or recognition is performed.
 
 `--processing-tab-only` checks recorded fixture request/response/reasoning/log data,

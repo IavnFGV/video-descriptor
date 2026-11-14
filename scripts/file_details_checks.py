@@ -27,6 +27,8 @@ def run(c, wait_for, root, out):
     assert evaluate('document.querySelector("#source-info").textContent.includes("Только фрагмент")')
     assert evaluate('document.documentElement.dataset.viewTechnical==="false"')
     assert evaluate('document.querySelector(".recording-actions").contains(document.querySelector("#record-menu"))')
+    assert evaluate('document.querySelector("#stage-speech").contains(document.querySelector(".recording-speech-heading"))')
+    assert not evaluate('document.querySelector("#recording-speech").checkVisibility()')
     c.fill('#source-title', 'Несохранённое название / Незбережена назва')
     c.click('#workspace-tab-transcript')
     assert evaluate('document.querySelector("#source-coverage-notice").checkVisibility()')
@@ -36,12 +38,16 @@ def run(c, wait_for, root, out):
     wait_for(lambda: evaluate('document.querySelector("#source-title-status").textContent.includes("Название сохранено")'))
     titles = json.loads((root / 'output/lecture-titles.json').read_text(encoding='utf-8'))
     assert titles[str(root / 'data/meeting.mp4')] == 'Несохранённое название / Незбережена назва'
+    c.click('#workspace-tab-transcript')
+    assert not evaluate('document.querySelector("#delete-version").checkVisibility()')
     c.click('#record-menu > summary')
     c.click('#delete-version')
     assert evaluate('document.querySelector("#delete-version-dialog").open')
     assert evaluate('document.querySelector("#delete-version-name").textContent.includes("original")')
+    assert evaluate('document.querySelector("#delete-version-heading").textContent.includes("расшифровки")')
     c.click('#cancel-delete-version')
     assert (root / 'output/original/speech.json').is_file()
+    assert evaluate('!document.querySelector("#stage-speech").contains(document.querySelector("#recording-stop"))')
     # End reaches Processing; Left returns to Details without adding history/preferences.
     c.click('#workspace-tab-transcript')
     c.call('Input.dispatchKeyEvent', type='keyDown', key='End', code='End', windowsVirtualKeyCode=35)
@@ -57,6 +63,18 @@ def run(c, wait_for, root, out):
         if width > 1000:
             assert evaluate('document.querySelector("#recording-details").getBoundingClientRect().left>=document.querySelector("#shared-player").getBoundingClientRect().right'), width
         c.screenshot(out / f'file-details-{width}.png')
+        c.click('#workspace-tab-transcript')
+        assert evaluate('document.querySelector("#recording-speech").getBoundingClientRect().width>=250'), width
+        c.click('#record-menu > summary')
+        assert evaluate('''(()=>{const button=document.querySelector('#delete-version').getBoundingClientRect(),
+          panel=document.querySelector('#stage-speech').getBoundingClientRect(),
+          tabs=document.querySelector('#workspace-tabs').getBoundingClientRect();
+          return button.width>0 && button.left>=panel.left && button.right<=panel.right+1 &&
+            button.top>=tabs.bottom && button.bottom<=document.querySelector('#speech-feed').getBoundingClientRect().top;})()'''), width
+        c.screenshot(out / f'transcript-version-actions-{width}.png')
+        c.click('#record-menu > summary')
+        assert not evaluate('document.querySelector("#delete-version").checkVisibility()')
+        c.click('#workspace-tab-details')
     # The warning follows actual coverage, not just the existence of a transcript.
     evaluate('Object.defineProperty(fileFixture.player,"duration",{value:600,configurable:true});fileFixture.player.dispatchEvent(new Event("loadedmetadata"))')
     c.click('#workspace-tab-transcript')
@@ -76,5 +94,9 @@ def run(c, wait_for, root, out):
         history:history.length,beforeHistory:fileFixture.history,url:location.href,beforeUrl:fileFixture.url,
         storage:localStorage.getItem('video-descriptor:ui:workspace'),beforeStorage:fileFixture.storage})''')
     assert evaluate('window.fileMutations') == ['/output/original/title.json']
+    for tab in ['notes', 'article', 'details', 'processing']:
+        c.click('#workspace-tab-' + tab)
+        assert not evaluate('document.querySelector("#recording-speech").checkVisibility()'), tab
+        assert not evaluate('document.querySelector("#record-menu").checkVisibility()'), tab
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
     print('PASS: file details tab, partial coverage warning, title draft/save, delete confirmation/cancel, keyboard, DOM/history/storage and responsive layout; no inference or deletion', flush=True)

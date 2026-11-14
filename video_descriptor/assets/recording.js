@@ -39,8 +39,8 @@
   // Hidden compatibility container for retired translation-only details, not another disclosure.
   const detail=document.createElement('div');detail.id='recording-processing';detail.hidden=true;
   const workspace=$('workspace');
-  // Keep selection, actions, warnings and stop available even with the text hidden.
-  workspace.append(speechHeading);
+  // Version controls belong to the transcript; shared guards and stop span tabs.
+  workspace.append(notice,$('recording-stop'));
   const speechSettings=$('speech-settings').closest('section');speechSettings.id='recording-speech-settings';
   const translationSection=translationPanel.closest('section');translationSection.id='recording-translation-panel';layout.append(translationSection);
   const fileDetails=document.createElement('div');fileDetails.id='recording-details';fileDetails.setAttribute('role','region');fileDetails.setAttribute('aria-labelledby','workspace-tab-details');
@@ -51,7 +51,7 @@
   const processingEmpty=document.createElement('p');processingEmpty.className='hint processing-empty';processingEmpty.textContent='Для этой версии пока нет подробных данных обработки.';
   processingPanel.append(processingHeading,processingOverview,processingEmpty,$('diagnostics'),detail);document.querySelector('.stage-content').append(processingPanel);
   workspace.append($('errors-card'));
-  workspace.append($('speaker-notice'));
+  speechHeading.after($('speaker-notice'));
   const jobError=document.createElement('p');jobError.id='recording-job-error';jobError.className='feedback vd-error';jobError.setAttribute('role','alert');jobError.hidden=true;workspace.insertBefore(jobError,$('stage-progress'));
   const openLog=document.createElement('button');openLog.id='recording-open-log';openLog.type='button';openLog.className='vd-button vd-button--secondary';openLog.textContent='Открыть журнал';openLog.hidden=true;jobError.after(openLog);
   openLog.onclick=()=>{$('workspace-tab-processing').click();const log=$('processing-log');if($('diagnostics').hidden||log.hidden){processingOverview.focus();processingOverview.scrollIntoView({block:'center'});}else{log.open=true;log.querySelector('summary').focus();log.scrollIntoView({block:'center'});}};

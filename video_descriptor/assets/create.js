@@ -694,11 +694,11 @@
     deletionReport = kind === 'notes' ? (window.studioUI.selectedReport()?.name ?? window.studioUI.reportVariant()) : '';
     const option = [...$('existing-runs').options].find(item => item.value === deletionFolder);
     $('delete-version-name').textContent = (option?.textContent || lastSnapshot.display_title || lastSnapshot.filename) + ' · ' + deletionFolder + (deletionReport ? ' · ' + deletionReport : '');
-    $('delete-version-heading').textContent = kind === 'notes' ? (window.studioUI.selectedReport()?.result_kind === 'article' ? 'Удалить эту статью?' : 'Удалить этот конспект?') : 'Удалить версию целиком?';
+    $('delete-version-heading').textContent = kind === 'notes' ? (window.studioUI.selectedReport()?.result_kind === 'article' ? 'Удалить эту статью?' : 'Удалить этот конспект?') : 'Удалить выбранную версию расшифровки?';
     $('delete-version-description').textContent = kind === 'notes'
       ? 'Будут удалены только выбранный конспект и его ручные правки. Расшифровка, имена голосов и кадры сохранятся. Отменить удаление нельзя.'
-      : 'Будут удалены расшифровка, конспект и сохранённые правки этой версии. Исходный видеофайл и другие версии сохранятся. Отменить удаление нельзя.';
-    $('confirm-delete-version').textContent = kind === 'notes' ? 'Удалить конспект' : 'Удалить версию целиком';
+      : 'Будут удалены выбранная расшифровка, все материалы и сохранённые правки в папке этой версии. Исходный видеофайл и другие версии сохранятся. Отменить удаление нельзя.';
+    $('confirm-delete-version').textContent = kind === 'notes' ? 'Удалить конспект' : 'Удалить выбранную версию';
     $('delete-version-status').textContent = '';
     $('confirm-delete-version').disabled = false;
     $('record-menu').open = false;
