@@ -68,6 +68,8 @@ The isolated Edge fixture for the unified Task 9 tabs and existing workspace con
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-only
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --speech-settings-retired
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --speech-settings-web
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-empty
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --translation-retired
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-storage-read
@@ -83,6 +85,12 @@ Undo/Redo, independent versions, timestamp dispatch to the existing player, no e
 history entries or processing requests, five viewport sizes and forced colors.
 `--workspace-tabs-empty` repeats this with no article result. Media readyState/time
 are shimmed in this fixture: it proves timestamp wiring, not media decoding/playback.
+
+`--speech-settings-retired` checks the removed Windows speech form with technical
+details both enabled and disabled, the separate rerun action, transcript dirty guard,
+request payload, visible failure, unchanged preferences and 1200/760 px layouts.
+It intercepts the speech request before any processing. `--speech-settings-web`
+checks that shared web retains the engine picker and new-transcript form.
 The ResizeObserver warning remains a failing UI error; it is not filtered. Production
 transcript sizing defers/coalesces writes outside observer delivery. Readiness waits
 for the recording shell as well as report content, avoiding an early iframe-load race.

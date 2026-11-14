@@ -264,7 +264,7 @@
   function paint(){
     if(!data)return;
     const key=JSON.stringify([data.speech,data.reports]);
-    if(key!==libraryKey){libraryKey=key;speechSelect.replaceChildren(...data.speech.filter(item=>!item.internal_snapshot).map(item=>option(item.folder,speechName(item))),option('__new__','＋ Создать новую расшифровку…'));
+    if(key!==libraryKey){libraryKey=key;speechSelect.replaceChildren(...data.speech.filter(item=>!item.internal_snapshot).map(item=>option(item.folder,speechName(item))),...(window.recordingUI.native?[]:[option('__new__','＋ Создать новую расшифровку…')]));
       for(const kind of ['notes','article']){
         const control=$(kind==='notes'?'recording-notes':'recording-article');
         const reports=data.reports.filter(item=>(item.result_kind||'notes')===kind);
@@ -332,7 +332,7 @@
   $('create-recording-notes').onclick=showNewNotes;
   $('cancel-new-notes').onclick=()=>{newNotes.hidden=true;};
   speechSelect.onchange=()=>{
-    if(speechSelect.value==='__new__'){speechSelect.value=snapshot?.folder||'';window.workspaceView.setPanel('technical',true);$('speech-settings').open=true;$('speech-engine').focus();return;}
+    if(speechSelect.value==='__new__'){speechSelect.value=snapshot?.folder||'';if(window.recordingUI.native){$('rerun-speech').click();return;}window.workspaceView.setPanel('technical',true);$('speech-settings').open=true;$('speech-engine').focus();return;}
     window.recordingSelection.select({folder:speechSelect.value});paint();
   };
   for(const kind of ['notes','article'])$(kind==='notes'?'recording-notes':'recording-article').onchange=()=>{
@@ -402,7 +402,11 @@
     if(value.development){const notice=document.createElement('p');notice.className='feedback';notice.textContent='Локальная версия '+value.version+' · '+(value.source_commit||'').slice(0,12)+' · общие записи с установленным приложением';workspace.prepend(notice);document.title='Локальная версия '+value.version+' · Video Descriptor';}
     $('construction-input').value='speech';$('construction-input').closest('label').hidden=true;
     const engine=$('speech-engine');engine.replaceChildren(option('whisper-local','Локальное распознавание · устройство из настроек AI'));engine.value='whisper-local';
-    $('speech-engine-label').querySelector('small').textContent='Используется подготовленная модель и выбранное устройство из настроек AI. Новый запуск сохраняет предыдущую расшифровку.';
+    // Retain hidden engine/legacy IDs for shared upload handlers, not a Windows settings form.
+    speechSettings.hidden=true;
+    const rerun=$('rerun-speech');rerun.textContent='Создать новую расшифровку';rerun.title='Использовать модель и устройство из настроек AI. Предыдущая расшифровка сохранится.';actions.prepend(rerun);
+    const status=$('speech-settings-status');status.textContent='';speechHeading.after(status);
+    libraryKey='';paint();
     for(const id of ['recording-diarize','recording-translate'])$(id).hidden=false;
   });
   if(location.search.includes('folder=')||location.search.includes('job='))library();

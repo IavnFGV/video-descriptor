@@ -1,5 +1,15 @@
 # История изменений
 
+14.11.2026: форма «Настройки речи» убрана из Windows workspace. Кнопка создания
+новой расшифровки и сообщения запуска находятся возле версии; технические панели
+и preferences при запуске не раскрываются. Скрытые controls сохранены для общих
+обработчиков загрузки; shared web сохраняет выбор обработчика. Перенос файла,
+журнала и вспомогательных промптов во вкладку «Сведения» остаётся в
+[плане](../../design-system/WORKSPACE-DETAILS-CLEANUP.md).
+Edge fixtures для Windows, shared web и workspace tabs — PASS; 13 профильных
+тестов, Node harness, Ruff и UI audit — PASS. Полный Fast заблокирован отсутствием
+проектного `.venv`. Installed WebView2 и распознавание не запускались.
+
 14.11.2026: техническая проверка Bootstrap и общей оболочки — UI audit сохраняет
 неизменный baseline и проверяет relocation evidence для stop, setup handler и API.
 Edge `verify-updates-ui.py` прошёл для обновлений, общих маршрутов, повторного

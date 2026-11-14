@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
                 fixture = native_fixture(path)
                 if fixture is not None:
                     return self.json_response(200, fixture)
-            if path=='/health':return self.json_response(200,{'status':'ok','app':'video-descriptor-windows','instance':'fixture'})
+            if path=='/health':return self.json_response(200,{'status':'ok'} if '--speech-settings-web' in sys.argv else {'status':'ok','app':'video-descriptor-windows','instance':'fixture'})
             if path=='/api/construction-models':
                 provider=parse_qs(urlsplit(self.path).query).get('provider',['ollama'])[0]
                 names=['gemini-test'] if provider=='gemini' else ['qwen3.5:9b','model-a','model-b','gpt-oss:20b']
@@ -99,7 +99,8 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             method = 'getItem' if '--workspace-storage-read' in sys.argv else 'setItem'
             c.call('Page.addScriptToEvaluateOnNewDocument', source=f"Storage.prototype.{method}=function(){{throw new DOMException('blocked','SecurityError')}}")
         c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
-        start = ('/create?folder=original&stage=speech&material=article&report=missing#deep'
+        start = ('/create?folder=original&stage=speech' if '--speech-settings-web' in sys.argv else
+                 '/create?folder=original&stage=speech&material=article&report=missing#deep'
                  if '--workspace-missing-report' in sys.argv else
                  '/create?folder=original&stage=speech&material=article#deep'
                  if '--workspace-deep-link' in sys.argv else f'/?job={identity}')
@@ -150,6 +151,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--speech-settings-retired' in sys.argv or '--speech-settings-web' in sys.argv:
+            from speech_settings_checks import run
+            run(c, wait_for, out, '--speech-settings-web' in sys.argv)
+            raise SystemExit(0)
         if '--translation-retired' in sys.argv:
             from translation_retired_checks import run
             run(c, wait_for, root, out)
@@ -740,9 +745,9 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c.click('#construction-run')
         wait_for(lambda:'Подтвердите отправку' in c.visible_text('#construction-status'),timeout=5)
         c.click('#cancel-new-notes')
-        c.fill('#recording-speech','__new__')
-        assert evaluate('document.querySelector("#speech-settings").open')
-        evaluate('document.querySelector("#speech-settings").open=false;scrollTo(0,0)')
+        assert evaluate('!document.querySelector("#speech-settings").checkVisibility()')
+        assert evaluate('document.querySelector("#rerun-speech").checkVisibility()')
+        evaluate('scrollTo(0,0)')
         def frame_eval(expression):
             return evaluate('(()=>{const doc=document.querySelector("#report-editor").contentDocument;return '+expression+'})()')
         def frame_click(selector):
