@@ -25,6 +25,23 @@ for(const layout of ['side','stacked'])for(let mask=0;mask<128;mask++){
   assert.equal(combination.values.get(key),bytes,label+' bytes');
   assert.equal(combination.attempts.get,1,label+' reads');
   assert.equal(combination.attempts.set,0,label+' writes');
+  combination.ui.route(new URLSearchParams());
+  const expected=flags.transcript?(flags.notes||flags.article?'all':'transcript'):(flags.notes?'notes':flags.article?'article':'all');
+  assert.equal(combination.root.dataset.workspaceTab,expected,label+' initial tab');
+  assert.equal(combination.values.get(key),bytes,label+' route does not rewrite preferences');
+  assert.equal(combination.attempts.set,0,label+' route writes');
+}
+for(const [search,tab,target] of [
+  ['?material=article&stage=speech','article','article'],
+  ['?material=notes&stage=speech','notes','notes'],
+  ['?stage=speech','transcript',undefined],
+  ['?material=invalid&stage=speech','transcript',undefined],
+  ['?report=missing&stage=speech','notes','notes'],
+]){
+  const app=boot();app.ui.route(new URLSearchParams(search));
+  assert.equal(app.root.dataset.workspaceTab,tab,search);
+  assert.equal(app.root.dataset.workspaceTarget,target,search+' override');
+  assert.equal(app.attempts.set,0,search+' route writes');
 }
 const urlFlags={video:false,transcript:true,speakers:false,translation:true,notes:false,article:false,technical:true};
 const urlBytes=JSON.stringify({version:1,layout:'stacked',panels:urlFlags});

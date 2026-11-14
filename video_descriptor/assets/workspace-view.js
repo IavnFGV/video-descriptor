@@ -40,12 +40,15 @@
     for(const tab of tabs)tab.tabIndex=tab===focusable?0:-1;
   }
   function save(){pendingState=null;try{localStorage.setItem(KEY,JSON.stringify(state));}catch(_error){}apply();}
-  function initialTab(){return state.panels.transcript&&!state.panels.notes&&!state.panels.article?'transcript':'all';}
+  function initialTab(){
+    if(state.panels.transcript)return !state.panels.notes&&!state.panels.article?'transcript':'all';
+    return state.panels.notes||state.panels.article?(state.panels.notes?'notes':'article'):'all';
+  }
   function route(params){
     const material=params.get('material'),stage=params.get('stage');
     const current=document.getElementById('material-tab-article')?.getAttribute('aria-selected')==='true'?'article':'notes';
     const target=['notes','article'].includes(material)?material:params.get('report')||stage==='notes'?current:null;
-    if(target){root.dataset.workspaceTarget=target;selectTab('all',true);}
+    if(target){root.dataset.workspaceTarget=target;selectTab(target,true);}
     else if(stage==='speech')selectTab('transcript');
     else selectTab(initialTab());
     apply();
@@ -74,7 +77,7 @@
   // Runs in the head, before stylesheet/DOM rendering: no secondary-panel flash.
   apply();
   window.workspaceView={reset,refresh:apply,route,setPanel(key,value){if(key in state.panels&&typeof value==='boolean'){state.panels[key]=value;selectTab('all');save();}},setLayout(value){if(['side','stacked'].includes(value)){state.layout=value;save();}}};
-  function focusedWorkspace(){return document.getElementById('workspace-tab-panel')?.contains(document.activeElement);}
+  function focusedWorkspace(){return document.getElementById('workspace-tab-panel')?.contains(document.activeElement)&&!tablist?.contains(document.activeElement);}
   window.addEventListener('storage',event=>{if(event.key===KEY||event.key===null){
     const next=read();if(focusedWorkspace()){pendingState=next;return;}pendingState=null;state=next;apply();
   }});
@@ -113,10 +116,17 @@
         const tabs=[...tablist.querySelectorAll('[role="tab"]')];
         route(new URLSearchParams(location.search));
         for(const [index,tab] of tabs.entries()){
-          tab.addEventListener('click',()=>selectTab(index===0?'transcript':'all'));
+          tab.addEventListener('click',()=>{
+            const value=tab.id.slice('workspace-tab-'.length);
+            if(['notes','article'].includes(value)){
+              if(!window.recordingUI?.selectMaterial(value))return;
+              root.dataset.workspaceTarget=value;selectTab(value,true);
+            }else selectTab(value);
+            apply();
+          });
           tab.addEventListener('keydown',event=>{
             const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index+tabs.length-1)%tabs.length:-1;
-            if(next<0)return;event.preventDefault();tabs[next].click();tabs[next].focus();
+            if(next<0)return;event.preventDefault();tabs[next].click();if(tabs[next].getAttribute('aria-selected')==='true')tabs[next].focus();
           });
         }
       }

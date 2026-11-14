@@ -31,7 +31,10 @@ def run(c, wait_for, root, out):
         !form.elements.translation.checkVisibility() && !form.elements.rightTranslation.checkVisibility();})()''')
     c.fill('dialog.reply-editor textarea[name=left]', 'Original edited without translation loss')
     c.click('dialog.reply-editor button[type=submit]')
-    wait_for(lambda: evaluate('!document.querySelector("dialog.reply-editor[open]")'))
+    wait_for(lambda: evaluate('''!document.querySelector('dialog.reply-editor[open]') ||
+      (()=>{const error=document.querySelector('dialog.reply-editor .error');return error?.textContent && error.textContent!=='Сохраняем…'})()'''))
+    assert evaluate('!document.querySelector("dialog.reply-editor[open]")'), evaluate('''({error:document.querySelector('dialog.reply-editor .error')?.textContent,
+      fields:[...document.querySelector('dialog.reply-editor form').elements].map(e=>({name:e.name,value:e.value}))})''')
     overlays = list((root / 'output').glob('*/transcript-edits.json'))
     assert overlays
     assert any('Сохранённый перевод' in p.read_text(encoding='utf-8') for p in overlays)

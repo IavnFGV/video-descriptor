@@ -64,21 +64,34 @@ storage events and embedded mode. It does not execute studio/recording routing,
 workspace tabs, DOM geometry, editor guards or Back/Forward. Task 7 changed the
 contract and characterization only; Task 8a adds the first production slice.
 
-The isolated Edge fixture for the 8a tabs and existing workspace controls is:
+The isolated Edge fixture for the unified Task 9 tabs and existing workspace controls is:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-tabs-only
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --translation-retired
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-view-only
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-read
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-write
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-route-writers
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-deep-link
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-missing-report
-.\.venv\Scripts\python.exe scripts/verify-recording-ui.py --workspace-storage-event
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-only
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-empty
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --translation-retired
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-view-only
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-storage-read
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-storage-write
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-route-writers
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-deep-link
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-missing-report
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-storage-event
 ```
 
-These checks do not establish guarded history, installed WebView2 or hardware acceptance.
+`--workspace-tabs-only` also checks the real shared editor's dirty guard, hide/show,
+Undo/Redo, independent versions, timestamp dispatch to the existing player, no extra
+history entries or processing requests, five viewport sizes and forced colors.
+`--workspace-tabs-empty` repeats this with no article result. Media readyState/time
+are shimmed in this fixture: it proves timestamp wiring, not media decoding/playback.
+The ResizeObserver warning remains a failing UI error; it is not filtered. Production
+transcript sizing defers/coalesces writes outside observer delivery. Readiness waits
+for the recording shell as well as report content, avoiding an early iframe-load race.
+Reload checks also require a marker from the old document to disappear before accepting
+the new shell. `-X utf8` matches the Windows launcher and prevents the fixture backend
+from reading Cyrillic UTF-8 files with the host's legacy code page.
+The route/material/workspace scenarios cover selected guarded-history cases, not all
+legacy stacks. These checks do not establish installed WebView2 or hardware acceptance.
 
 `--translation-retired` checks hidden translation controls with the persisted v1
 flag enabled, unavailable prompt selection, `translate_after:false` despite an old

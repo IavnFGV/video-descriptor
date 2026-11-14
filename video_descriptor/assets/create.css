@@ -174,9 +174,7 @@ body[data-subtitles] .subtitle-original{display:block!important}
 .recording-workspace.has-recording .workspace-tabs{display:flex}
 html[data-workspace-tab=transcript] .recording-workspace.has-recording #stage-notes,
 html[data-workspace-tab=transcript] .recording-workspace.has-recording #recording-translation-panel{display:none!important}
-html[data-workspace-tab=transcript][data-view-transcript=false] .recording-workspace.has-recording #stage-speech{display:block!important;grid-column:2;grid-row:1}
-html[data-workspace-tab=transcript][data-view-transcript=false][data-workspace-layout=stacked] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}
-html[data-workspace-tab=transcript][data-view-video=false] .recording-workspace.has-recording #stage-speech{grid-column:1}
+html[data-workspace-tab=transcript][data-view-transcript=false] .recording-workspace.has-recording #stage-speech{display:block!important}
 html[data-workspace-tab=transcript][data-view-video=false][data-view-transcript=false] .recording-workspace.has-recording #workspace-view-empty{display:none}
 html[data-workspace-target][data-view-notes=false][data-view-article=false] .recording-workspace.has-recording #stage-notes{display:block!important}
 html[data-workspace-target=notes][data-view-notes=false] .recording-workspace.has-recording #material-tab-notes,
@@ -185,7 +183,6 @@ html[data-workspace-target=notes][data-view-notes=false] .recording-workspace.ha
 html[data-workspace-target=article][data-view-article=false] .recording-workspace.has-recording #material-panel[aria-labelledby=material-tab-article]{display:block!important}
 html[data-workspace-target=notes][data-view-notes=false] .recording-workspace.has-recording #stage-notes #workspace-material-hint,
 html[data-workspace-target=article][data-view-article=false] .recording-workspace.has-recording #stage-notes #workspace-material-hint{display:none!important}
-@media(max-width:1000px){html[data-workspace-tab=transcript][data-view-transcript=false] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}}
 .material-tabs button{flex:1}
 #material-panel{min-width:0}
 .subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
@@ -366,10 +363,10 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace:not(.has-recording) #source-details{display:none}
 html[data-workspace-layout=stacked] .recording-workspace.has-recording .studio-layout,
 html[data-view-video=false] .recording-workspace.has-recording .studio-layout,
-html[data-view-transcript=false]:not([data-workspace-tab=transcript]) .recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
+html[data-view-transcript=false][data-workspace-tab=all] .recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
 html[data-workspace-layout=stacked] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}
 html[data-view-video=false] .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:1}
-html[data-view-transcript=false] .recording-workspace.has-recording #shared-player{grid-column:1;grid-row:1}
+html[data-view-transcript=false] .recording-workspace.has-recording #shared-player{grid-column:1}
 html[data-view-video=false] .recording-workspace #shared-player,
 html[data-view-transcript=false] .recording-workspace.has-recording #stage-speech,
 html[data-view-speakers=false] .recording-workspace #recording-diarize,
@@ -399,6 +396,28 @@ html[data-view-article=false] .recording-workspace #stage-notes:has(#material-ta
 @media(max-width:1000px){
   .recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
   .recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}
+}
+
+/* No reparenting on tab changes: iframe history, drafts and playback stay intact. */
+.recording-workspace.has-recording #workspace-tabs{grid-column:1/-1;grid-row:1;flex-wrap:wrap;margin-bottom:0}
+.recording-workspace.has-recording #shared-player,.recording-workspace.has-recording #stage-speech{grid-row:2}
+html:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{display:block;grid-column:2;grid-row:1;min-width:0}
+html:not([data-workspace-tab=all]) .recording-workspace.has-recording #workspace-tabs{margin-bottom:var(--vd-group-gap)}
+html:not([data-workspace-tab=all]) .recording-workspace.has-recording #shared-player{grid-row:1}
+html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording #stage-speech{display:none!important}
+html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording #stage-notes{display:block!important}
+html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording .material-tabs{display:none}
+html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording #workspace-view-empty{display:none}
+html:is([data-workspace-layout=stacked],[data-view-video=false]):not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{grid-column:1;grid-row:2}
+html[data-view-video=false]:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{grid-row:1}
+html[data-workspace-layout=stacked][data-workspace-tab=all] .recording-workspace.has-recording #shared-player{grid-row:2}
+html[data-workspace-layout=stacked][data-workspace-tab=all] .recording-workspace.has-recording #stage-speech{grid-row:3}
+html[data-view-video=false][data-workspace-tab=all] .recording-workspace.has-recording #stage-speech{grid-row:2}
+@media(max-width:1000px){
+  html:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{grid-column:1;grid-row:2}
+  html[data-view-video=false]:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{grid-row:1}
+  html[data-workspace-tab=all] .recording-workspace.has-recording #stage-speech{grid-row:3}
+  html[data-view-video=false][data-workspace-tab=all] .recording-workspace.has-recording #stage-speech{grid-row:2}
 }
 
 /* Source: design-system/desktop.css */
@@ -502,7 +521,7 @@ body.vd-desktop.sidebar-collapsed:has(>.vd-global-nav){padding-left:var(--vd-spa
 .vd-desktop.recording-workspace #stage-notes .recording-notes-heading select{font-size:var(--vd-label)}
 html[data-workspace-layout=stacked] .vd-desktop.recording-workspace.has-recording .studio-layout,
 html[data-view-video=false] .vd-desktop.recording-workspace.has-recording .studio-layout,
-html[data-view-transcript=false]:not([data-workspace-tab=transcript]) .vd-desktop.recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
+html[data-view-transcript=false][data-workspace-tab=all] .vd-desktop.recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}
 html[data-workspace-layout=stacked] .vd-desktop.recording-workspace.has-recording #speech-feed{max-height:55vh}
 .vd-desktop .library-heading{margin-bottom:var(--vd-space-4)}
 .vd-desktop #records>article{padding:var(--vd-space-4);margin-bottom:var(--vd-space-3)}
@@ -524,7 +543,8 @@ dialog.vd-dialog,dialog.reply-editor{border-radius:var(--vd-radius-dialog)}
 .vd-desktop .file-drop{position:relative}
 .vd-desktop .file-drop input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
 @media(max-width:1100px){.vd-desktop #diagnostics-view .check{grid-template-columns:1fr}}
-@media(max-width:1000px){.vd-desktop.recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}.vd-desktop.recording-workspace.has-recording #stage-speech{grid-column:1;grid-row:2}}
+html:not([data-workspace-tab=all]) .vd-desktop.recording-workspace.has-recording #stage-notes{padding-top:0;border-top:0}
+@media(max-width:1000px){.vd-desktop.recording-workspace.has-recording .studio-layout{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:800px){
   .desktop-header .sidebar-toggle,[data-sidebar-command]{display:none}
   .desktop-header{padding-inline:var(--vd-space-2);gap:var(--vd-space-1)}.desktop-app-caption{display:none}

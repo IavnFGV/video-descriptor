@@ -918,10 +918,18 @@ version 1), scoped to the application's WebView2/browser origin and profile, not
 recordings. It owns presentation attributes only; jobs, player, selection and editor
 state retain their original owners. The View entry is a native disclosure in the
 top command bar and is hidden without an open recording. Local workspace tabs select
-the transcript or the saved combination of enabled panels without changing storage
-or routing. Explicit URL targets temporarily reveal their existing area; `create.js`
-coordinates guarded traversal using the existing owners. Translation/material tabs
-remain future slices. One shared notes/article iframe is never recreated when hidden. Layout radios and the existing expand-player button share
+transcript, notes, article or the saved combination of enabled panels without changing
+workspace storage. Notes/article delegate to `recordingUI.selectMaterial`, retaining
+its material/replaceState URL contract and dirty guard. The existing stage-content
+container groups the tab row and content beside the player or below it on narrow
+screens; compatibility uses the former full-width material layout. Explicit URL
+targets temporarily reveal their existing area; `create.js` coordinates guarded
+traversal using the existing owners. Translation UI is retired, not its saved data
+or backend. One shared notes/article iframe is never recreated when hidden. Material
+navigation uses child location.replace rather than src assignment, preventing extra
+Back/Forward entries. Transcript sizing schedules coalesced animation-frame writes
+outside ResizeObserver delivery to avoid recursive layout notifications.
+Layout radios and the existing expand-player button share
 one preference; the former `vd-recording-player-position` key is no longer read.
 Invalid/future preferences fall back safely, unavailable storage uses session memory.
 Speech-engine and playback-link also tolerate storage read/write failures without

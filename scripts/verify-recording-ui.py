@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     video = root / 'data/meeting.mp4'
     video.parent.mkdir(); video.write_bytes(b'fixture')
     for name, model in [('original', ''), ('notes-a', 'model-a'), ('notes-b', 'model-b'), ('article-a', 'model-a')]:
-        if name == 'article-a' and '--material-tabs-empty' in sys.argv:
+        if name == 'article-a' and any(flag in sys.argv for flag in ['--material-tabs-empty', '--workspace-tabs-empty']):
             continue
         folder = root / 'output' / name; folder.mkdir(parents=True)
         rows = [{'id': f's{i}', 'start': i*30, 'end': i*30+30, 'text': f'Реплика {i}. Проверка синхронизации и правок.', 'speaker':'speaker_1'} for i in range(80)]
@@ -108,7 +108,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             try:
                 if '--workspace-missing-report' in sys.argv:
                     return c.evaluate('document.querySelector("#recording-notes-origin")?.textContent.includes("недоступен")')
-                return c.evaluate('!!document.querySelector("#recording-notes")?.options.length && !!document.querySelector("#report-editor")?.contentDocument?.querySelector("#personal-preview [data-note-time]")')
+                return c.evaluate('document.body?.classList.contains("has-recording") && !!document.querySelector("#recording-notes")?.options.length && !!document.querySelector("#report-editor")?.contentDocument?.querySelector("#personal-preview [data-note-time]") && document.querySelector("#workspace-tabs").checkVisibility()')
             except RuntimeError as error:
                 if 'navigated' in str(error) or 'context' in str(error):return False
                 raise
@@ -169,9 +169,9 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         if '--workspace-deep-link' in sys.argv or '--workspace-missing-report' in sys.argv:
             assert evaluate('document.documentElement.getAttribute("data-view-article")==="false"')
             assert evaluate('document.querySelector("#stage-notes").checkVisibility()')
-            assert evaluate('document.querySelector("#material-tab-article").checkVisibility()')
+            assert evaluate('document.querySelector("#workspace-tab-article").checkVisibility()')
             assert evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")==="true"')
-            assert evaluate('document.querySelector("#material-tab-article").tabIndex===0')
+            assert evaluate('document.querySelector("#workspace-tab-article").tabIndex===0')
             assert evaluate('location.hash==="#deep"')
             if '--workspace-missing-report' in sys.argv:
                 assert evaluate('document.querySelector("#report-editor-card").hidden')
@@ -187,9 +187,11 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             from workspace_route_checks import run
             run(c, wait_for)
             raise SystemExit(0)
-        if '--workspace-tabs-only' in sys.argv:
+        if '--workspace-tabs-only' in sys.argv or '--workspace-tabs-empty' in sys.argv:
             from workspace_tabs_checks import run
             run(c, wait_for, out)
+            from workspace_material_checks import run as material_checks
+            material_checks(c, wait_for, root, out, '--workspace-tabs-empty' in sys.argv)
             raise SystemExit(0)
         if '--desktop-design' in sys.argv:
             from desktop_design_checks import run
@@ -243,10 +245,12 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             c.call('Emulation.setFocusEmulationEnabled', enabled=True)
             original_speech = evaluate('document.querySelector("#recording-speech").value')
             c.fill('#recording-notes', '/output/notes-b/report.html')
-            wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL'))
             wait_for(lambda:evaluate('!!document.querySelector("#report-editor").contentDocument?.querySelector(".CodeMirror")'))
             c.click('#material-tab-article')
-            assert evaluate('new URLSearchParams(location.search).get("material")')=='article'
+            assert evaluate('new URLSearchParams(location.search).get("material")')=='article', evaluate('''({url:location.href,focus:document.activeElement.id,
+              dirty:document.querySelector('#report-editor').contentWindow?.notesEditorDirty?.(),notice:document.querySelector('#recording-status').textContent,
+              article:document.querySelector('#material-tab-article').getBoundingClientRect().toJSON()})''')
             assert evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")')=='true'
             assert evaluate('document.querySelector("#material-notes-controls").hidden')
             assert evaluate('!document.querySelector("#material-article-controls").hidden')
@@ -256,11 +260,11 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
                 assert 'Статья ещё не создана' in c.visible_text('#recording-notes-origin')
                 assert evaluate('document.querySelector("#construction-article").checkVisibility()')
             else:
-                wait_for(lambda:'article-a/report.html' in evaluate('document.querySelector("#report-editor").src'))
+                wait_for(lambda:'article-a/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL'))
             c.screenshot(out/'material-tab-article.png')
             c.call('Input.dispatchKeyEvent',type='keyDown',key='Home',code='Home',windowsVirtualKeyCode=36)
             wait_for(lambda:evaluate('document.activeElement.id==="material-tab-notes"'))
-            wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            wait_for(lambda:'notes-b/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL'))
             wait_for(lambda:evaluate('!!document.querySelector("#report-editor").contentDocument?.querySelector(".CodeMirror")'))
             c.screenshot(out/'material-tab-notes.png')
 
@@ -279,7 +283,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             c.click('#material-tab-article')
             assert evaluate('document.querySelector("#material-tab-notes").getAttribute("aria-selected")')=='true'
             assert 'Сохраните правки' in c.visible_text('#recording-status')
-            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL')
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
             evaluate('''window.guardUrl=location.href;window.guardFrame=document.querySelector('#report-editor').contentWindow;
               document.querySelector('#run-message').textContent='';
@@ -297,10 +301,19 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             click_frame('#save-notes')
             wait_for(lambda:not evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()'))
             assert 'Черновик вкладки.' in (root/'output/notes-b/notes.user.md').read_text(encoding='utf-8')
+            c.click('#workspace-tab-all')
             c.click('#material-tab-article')
+            assert evaluate('document.activeElement.id')=='material-tab-article', evaluate('''({focus:document.activeElement.id,
+              workspace:document.documentElement.dataset.workspaceTab,selected:document.querySelector('#material-panel').getAttribute('aria-labelledby'),url:location.href})''')
             for key,code,target in [('ArrowLeft',37,'notes'),('End',35,'article'),('Home',36,'notes')]:
                 c.call('Input.dispatchKeyEvent',type='keyDown',key=key,code=key,windowsVirtualKeyCode=code)
-                wait_for(lambda target=target:evaluate('document.activeElement.id')=='material-tab-'+target)
+                try:
+                    wait_for(lambda target=target:evaluate('document.activeElement.id')=='material-tab-'+target, timeout=10)
+                except TimeoutError:
+                    print('Material keyboard diagnostics:', key, evaluate('''({focus:document.activeElement.id,
+                      workspace:document.documentElement.dataset.workspaceTab,selected:document.querySelector('#material-panel').getAttribute('aria-labelledby'),
+                      dirty:document.querySelector('#report-editor').contentWindow?.notesEditorDirty?.(),url:location.href})'''), flush=True)
+                    raise
             assert evaluate('document.querySelector("#recording-notes").value')=='/output/notes-b/report.html'
             assert evaluate('document.querySelector("#recording-speech").value')==original_speech
             for width,height in [(760,560),(1024,768),(1200,820),(1440,900)]:
@@ -373,17 +386,17 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             original = evaluate('document.querySelector("#recording-speech").value')
             assert not evaluate('[...document.querySelector("#recording-speech").options].some(item=>item.value==="notes-a")')
             evaluate("document.querySelector('#recording-article').value='/output/article-a/report.html';document.querySelector('#recording-article').dispatchEvent(new Event('change'))")
-            wait_for(lambda: 'article-a/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            wait_for(lambda: 'article-a/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL'))
             assert evaluate('document.querySelector("#recording-speech").value') == original
             evaluate("document.querySelector('#recording-notes').value='/output/notes-b/report.html';document.querySelector('#recording-notes').dispatchEvent(new Event('change'))")
-            wait_for(lambda: 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src'))
+            wait_for(lambda: 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL'))
             assert evaluate('document.querySelector("#recording-speech").value') == original
             evaluate("document.querySelector('#recording-speech').value='original';document.querySelector('#recording-speech').dispatchEvent(new Event('change'))")
             wait_for(lambda: evaluate('document.querySelector("#recording-speech").value') == 'original')
-            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL')
             evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror").CodeMirror.replaceRange("Draft",{line:0,ch:0})')
             evaluate("document.querySelector('#recording-notes').value='/output/notes-a/report.html';document.querySelector('#recording-notes').dispatchEvent(new Event('change'))")
-            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").src')
+            assert 'notes-b/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL')
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
             assert evaluate('window.uiErrors') == []
             c.screenshot(out/'independent-versions.png')
@@ -703,7 +716,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert evaluate('document.querySelector("#stage-speech").getBoundingClientRect().top>=document.querySelector("#shared-player").getBoundingClientRect().bottom')
         c.click('#expand-player')
         c.fill('#recording-notes','/output/notes-b/report.html')
-        wait_for(lambda:evaluate('location.search.includes("notes-b") && document.querySelector("#report-editor").src.includes("notes-b")'),timeout=15)
+        wait_for(lambda:evaluate('location.search.includes("notes-b") && document.querySelector("#report-editor").contentDocument.URL.includes("notes-b")'),timeout=15)
         assert evaluate('document.querySelector("#process-video")===originalPlayer && originalPlayer.currentTime===75')
         wait_for(lambda:evaluate('!!document.querySelector("#report-editor").contentDocument.querySelector("#personal-preview [data-note-time]")'))
         evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty=()=>true')
@@ -719,7 +732,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert not evaluate('recordingUI.linked()')
         c.fill('#recording-notes','__new__')
         assert not evaluate('document.querySelector("#recording-notes-settings").hidden')
-        assert evaluate('document.querySelector("#report-editor").src.includes("notes-b")')
+        assert evaluate('document.querySelector("#report-editor").contentDocument.URL.includes("notes-b")')
         c.fill('#construction-provider','gemini')
         wait_for(lambda:evaluate('[...document.querySelector("#construction-model").options].some(o=>o.value==="gemini-test")'))
         c.fill('#construction-model','gemini-test')

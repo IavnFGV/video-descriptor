@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id), player=$('process-video'), layout=document.querySelector('.studio-layout');
   const speech=$('stage-speech'), notes=$('stage-notes'), left=document.createElement('div');
-  left.className='recording-left'; layout.prepend(left); left.append($('shared-player'),speech);
+  left.className='recording-left'; layout.prepend(left); left.append($('shared-player'));
   $('record-versions').hidden=true;
   const speechHeading=document.createElement('div');speechHeading.className='recording-speech-heading';
   const label=document.createElement('label'); label.textContent='Версия расшифровки';
@@ -175,7 +175,12 @@
   const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,detail);
   for(const id of ['translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false,epoch=0;
-  let selectedReports={notes:null,article:null}, activeReportKind=new URLSearchParams(location.search).get('material')==='article'?'article':'notes', recordingSource=null;
+  function initialMaterialKind(){
+    const kind=new URLSearchParams(location.search).get('material');
+    if(['notes','article'].includes(kind))return kind;
+    return document.documentElement.dataset.viewNotes==='false'&&document.documentElement.dataset.viewArticle==='true'?'article':'notes';
+  }
+  let selectedReports={notes:null,article:null}, activeReportKind=initialMaterialKind(), recordingSource=null;
   function paintMaterialTabs(){
     for(const kind of ['notes','article']){
       const active=kind===activeReportKind,tab=$('material-tab-'+kind);
@@ -194,7 +199,8 @@
     }
     if($('report-editor').contentWindow?.notesEditorDirty?.()){
       notice.textContent='Сохраните правки перед переходом на другую вкладку.';
-      $('material-tab-'+activeReportKind).focus();return false;
+      const materialTab=$('material-tab-'+activeReportKind),workspaceTab=$('workspace-tab-'+document.documentElement.dataset.workspaceTab);
+      (materialTab.checkVisibility()?materialTab:workspaceTab)?.focus();return false;
     }
     activeReportKind=kind;newNotes.hidden=true;
     if(updateUrl){const params=new URLSearchParams(location.search);params.set('material',kind);params.delete('report');
@@ -228,7 +234,7 @@
     const frame=$('report-editor'),doc=frame.contentDocument;
     let target=null;
     if(doc){for(const heading of doc.querySelectorAll('#personal-preview [data-note-time]')){if(Number(heading.dataset.noteTime)<=time&&(!target||Number(heading.dataset.noteTime)>=Number(target.dataset.noteTime)))target=heading;}}
-    const key=index+'|'+target?.id+'|'+frame.src;
+    const key=index+'|'+target?.id+'|'+doc?.URL;
     if(!force&&key===currentTimeKey)return;currentTimeKey=key;
     // Unresolved intervals are interleaved, so replies are located by their own index.
     for(const row of $('speech-feed').querySelectorAll('[data-speech-index]'))row.classList.toggle('active',Number(row.dataset.speechIndex)===index);
@@ -295,8 +301,16 @@
       if(!response.ok)throw Error(value.error);
       if(version!==epoch){requested=true;return;}
       if(snapshot&&query.get('folder')!==snapshot.folder){requested=true;return;}
-      if(recordingSource!==value.video_url){recordingSource=value.video_url;selectedReports={notes:null,article:null};activeReportKind=new URLSearchParams(location.search).get('material')==='article'?'article':'notes';libraryKey='';window.studioUI.chooseIndependentReport(null);}
-      if(data&&data.video_url===value.video_url){const added=value.reports.find(item=>!data.reports.some(old=>old.url===item.url));if(added&&!$('report-editor').contentWindow?.notesEditorDirty?.()){activeReportKind=added.result_kind||'notes';selectedReports[activeReportKind]=added.url;}}
+      if(recordingSource!==value.video_url){recordingSource=value.video_url;selectedReports={notes:null,article:null};activeReportKind=initialMaterialKind();libraryKey='';window.studioUI.chooseIndependentReport(null);}
+      if(data&&data.video_url===value.video_url){
+        const added=value.reports.find(item=>!data.reports.some(old=>old.url===item.url));
+        if(added&&!$('report-editor').contentWindow?.notesEditorDirty?.()){
+          const kind=added.result_kind||'notes',tab=document.documentElement.dataset.workspaceTab;
+          selectedReports[kind]=added.url;
+          // A background result must not show an article under a selected Notes tab.
+          if(!['notes','article'].includes(tab)||tab===kind)activeReportKind=kind;
+        }
+      }
       data=value;
       const route=new URLSearchParams(location.search),report=route.get('report'),material=route.get('material');
       if(report&&!['notes','article'].includes(material)&&!$('report-editor').contentWindow?.notesEditorDirty?.()){
@@ -377,7 +391,7 @@
   }
   $('recording-diarize').onclick=()=>action('diarize');$('recording-translate').onclick=()=>action('translate');
   $('recording-stop').onclick=async()=>{try{const response=await fetch('/api/native/cancel?id='+encodeURIComponent(data?.active_job?.id||job.id),{method:'POST',headers:{'X-App-Instance':window.recordingUI.instance}});const value=await response.json();if(!response.ok)throw Error(value.error);notice.textContent='Останавливаем. Готовые результаты сохранятся.';window.recordingSelection.refresh();library();}catch(error){notice.textContent=error.message;}};
-  window.recordingUI={seek,sync,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null,
+  window.recordingUI={seek,sync,selectMaterial,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null,
     applyRoute(params){const kind=params.get('material');if(['notes','article'].includes(kind))selectMaterial(kind,false);paint();if(params.get('report'))library();}};
   fetch('/health').then(response=>response.json()).then(value=>{
     if(value.app!=='video-descriptor-windows')return;

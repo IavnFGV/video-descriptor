@@ -1,5 +1,18 @@
 # История изменений
 
+14.11.2026: Task 9b — общий ряд «Расшифровка / Конспект / Статья» справа от видео
+или под ним на узком экране. Совместимый вид, independent versions, общий плеер,
+iframe, dirty/revision/Undo и таймкоды сохранены. Смена материала не добавляет
+дочерних history entries; новый материал другого kind при polling не меняет
+открытую вкладку. ResizeObserver планирует запись высоты на следующий frame,
+не фильтруя ошибки. Storage reload fixture различает старый и новый документ;
+Windows browser fixtures запускаются с `-X utf8`. Контракт и evidence — в
+[UI/UX Epic](../../design-system/UI-UX-EPIC.md#evidence-task-9b).
+Fast: 860 passed, 3 skipped; config: 29 passed. Четырнадцать focused Edge сценариев
+прошли; material scenario дважды прошёл последовательно. CSS/UI audit, JS syntax,
+Node preference/route checks и 118 локальных Markdown targets/anchors проверены.
+Installed WebView2 и Windows scaling не проверялись; media в fixtures подменены.
+
 14.11.2026: перевод убран из UI записи, Windows controls и новых отчётов;
 новые native notes явно отключают дополнительный перевод, включая старые черновики
 форм. Сохранены данные, CLI/API и восстановление старых заданий. Анализ общих

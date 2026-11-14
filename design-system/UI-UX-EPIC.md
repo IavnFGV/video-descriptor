@@ -68,7 +68,7 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 При интеграции повторный Fast и четыре Edge scenarios прошли; workspace fixture
 потребовал повторов после CDP reload error и сбоя fetch-trap assertion. Проверки не ослаблялись.
 
-## Осталось
+## Статус Tasks 9–10
 
 Каждая строка — отдельный проверяемый increment; крупную интеграцию делить дальше
 до правок. Порядок определяется зависимостями, а не только номером.
@@ -76,15 +76,15 @@ evidence, не installed WebView2, Windows scaling или hardware acceptance.
 | ID | Небольшой результат | Зависимости | Приёмка | Исполнение |
 | --- | --- | --- | --- | --- |
 | 9a | Убрать отдельную область перевода из UI записи, не удаляя механизм и данные | 8 | Нет отдельной вкладки перевода и её controls; сохранены результаты, backend, восстановление и независимые операции конспекта; отсутствие доступа к переводу в UI явно документировано | Реализовано; browser evidence ниже, installed WebView2 не проверен |
-| 9b | Единый ряд «Расшифровка / Конспект / Статья» рядом с видео, на узком экране под ним | 8, 9a | Один плеер и iframe; переходы по таймкодам конспекта управляют тем же плеером; independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи; совместимый вид сохранён | Не выполнено |
+| 9b | Единый ряд «Расшифровка / Конспект / Статья» рядом с видео, на узком экране под ним | 8, 9a | Один плеер и iframe; переходы по таймкодам конспекта управляют тем же плеером; independent versions, notes/article/empty, dirty navigation и Undo; нет автогенерации или смены речи; совместимый вид сохранён | Реализовано; evidence ниже, installed WebView2 не проверен |
 | 10 | Убрать только заменённые checkbox-controls | 9a, 9b и доказанная parity | Для оставшихся пунктов/сочетаний из mapping есть доступный эквивалент; layout/reset/video hide сохранены; help/docs/harness refs синхронизированы | Не выполнено |
 
 Скрытие перевода не удаляет сохранённые переводы и не изменяет обработку уже
 запущенных заданий. Новые конспекты не запускают дополнительный перевод; создание
 статьи также не запускает перевод реплик. Поддержка произвольных языков ещё не реализована.
 
-**Task 8 завершён; 9a реализован, следующий increment — 9b.**
-Production содержит переключатель расшифровки и совместимого вида. Перевод убран
+**Tasks 8 и 9 реализованы; следующий increment — Task 10 с отдельным gate parity.**
+Production содержит общий ряд расшифровки, конспекта, статьи и совместимого вида. Перевод убран
 из UI без удаления backend и данных. Task 9b объединяет расшифровку, конспект и статью
 в одном ряду без промежуточной вкладки «Материалы». Действие перевода рядом с
 расшифровкой и выбор языка отложены в [issue #10](https://github.com/IavnFGV/video-descriptor/issues/10).
@@ -96,8 +96,46 @@ Production содержит переключатель расшифровки и
 | 8c | Готово: отказ чтения/записи `localStorage` в затронутых controllers, проверка полной fixture-страницы и reload | Task 7 | Ключи и данные без миграции |
 | 8d | Готово: production DOM, keyboard/focus, polling, выбранные deep links, guards и storage failures проверены в fixtures | 8a–8c | Границы проверок перечислены в evidence |
 
-Подключение конспекта и статьи в общий ряд остаётся следующим increment (Task 9b); доступ к прежней
-комбинации оставшихся панелей сохранён. Весь Task 9 ещё не завершён.
+Конспект и статья подключены в общий ряд (Task 9b); доступ к прежней комбинации
+оставшихся панелей сохранён. Task 10 не входит в эту реализацию: checkbox-controls
+не удаляются без доказанной замены всех действий и сочетаний.
+
+### Evidence Task 9b
+
+- Общий `.vd-tabs` расположен справа от одного плеера, до 1000 px и при stacked —
+  под ним. Существующий stage-content группирует ряд и текст без reparenting iframe
+  при переключении. Совместимый режим сохраняет прежние панели и material subtabs.
+- `recordingUI.selectMaterial` сохраняет independent versions и dirty guard;
+  заблокированный переход возвращает фокус на видимую активную вкладку. Hide/show
+  того же документа сохраняет черновик и Undo/Redo. Новая версия другого kind при
+  polling не меняет kind выбранной workspace-вкладки.
+- `studio.js` использует iframe location.replace: присваивание src создавало
+  дочерние history entries даже без parent pushState. Hash и history.state сохранены.
+- ResizeObserver предупреждение воспроизводилось в приложении: callback менял
+  высоту текста во время доставки resize notifications. Coalesced animation-frame
+  write устраняет рекурсивную доставку; ошибки в harness не фильтруются.
+- Storage reload fixture ждёт смены документа и готовности snapshot, а не реплик
+  старой страницы. Запуск без UTF-8 приводил к HTTP 400 при правке кириллицы;
+  `-X utf8` воспроизводит штатный режим Windows launcher. Команды — в
+  [testing guide](../docs/development/testing.md#workspace-preferences-and-compatibility).
+- Media readyState/duration/time в fixture подменены: клики настоящих таймкодов
+  проверяют проводку к общему плееру, не декодирование или реальное воспроизведение.
+  Installed WebView2, Windows scaling и hardware acceptance отдельно не выполнялись.
+- Edge fixtures: `--workspace-tabs-only`, `--workspace-tabs-empty`,
+  `--workspace-view-only`, `--material-tabs-only`, `--material-tabs-empty`,
+  `--workspace-deep-link`, `--workspace-missing-report`, `--workspace-route-writers`,
+  `--workspace-storage-read`, `--workspace-storage-write`, `--workspace-storage-event`,
+  `--translation-retired`, `--release-harness-only`, `--spacing-only` прошли. Captures для 1440, 1200,
+  1024, 760 и 375 px и forced-colors просмотрены; находятся в ignored
+  `windows-app/runtime/zero-config/unified-recording/`.
+- Промежуточные material-fixture запуски теряли click/focus в keyboard сценарии;
+  diagnostics теперь показывают реальный фокус и kind вместо долгого timeout.
+  Два последовательных финальных повтора прошли без ослабления assertions.
+- Итоговый `check-fast.py --workers 4`: **844 passed, 1 skipped** в параллельной
+  фазе, **16 passed, 2 skipped** в последовательной, плюс **29 config checks passed**.
+  Ruff, JS syntax, CSS bundles и UI audit PASS; Node проверяет 256 preferences/initial
+  tab cases и URL precedence без записи. **118** локальных Markdown targets/anchors
+  проверены. После Fast повторены `--workspace-view-only` и `--spacing-only` — PASS.
 
 ### Evidence Task 9a
 

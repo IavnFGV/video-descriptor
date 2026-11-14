@@ -12,11 +12,15 @@ def run(c, wait_for, blocked_write):
     assert not evaluate('document.querySelector("#shared-player").checkVisibility()')
     assert not evaluate('document.querySelector("#playback-link").checked')
     evaluate('workspaceView.reset()')
-    assert evaluate('document.querySelector("#shared-player").checkVisibility()')
+    assert evaluate('document.querySelector("#shared-player").checkVisibility()'), evaluate('({body:document.body.className,hidden:document.querySelector("#shared-player").hidden,video:document.documentElement.dataset.viewVideo,tab:document.documentElement.dataset.workspaceTab})')
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
+    # Page.reload returns before navigation commits. The old document already has
+    # utterances, so require the new shell and its snapshot, not stale readiness.
+    evaluate('window.beforeStorageReload=true')
     c.call('Page.reload')
-    wait_for(lambda: evaluate('!!document.querySelector("#speech-feed .utterance")'), timeout=35)
-    assert evaluate('document.querySelector("#shared-player").checkVisibility()')
+    wait_for(lambda: evaluate('''!window.beforeStorageReload && document.body?.classList.contains('has-recording') &&
+      !!document.querySelector('#speech-feed .utterance') && document.querySelector('#shared-player')?.hidden===false'''), timeout=35)
+    assert evaluate('document.querySelector("#shared-player").checkVisibility()'), evaluate('({body:document.body.className,hidden:document.querySelector("#shared-player").hidden,video:document.documentElement.dataset.viewVideo,tab:document.documentElement.dataset.workspaceTab})')
     assert evaluate('document.querySelector("#playback-link").checked')
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
     print('PASS: blocked storage ' + ('writes' if blocked_write else 'reads') + ', controls and reload', flush=True)

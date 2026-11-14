@@ -208,9 +208,13 @@
         const value=Math.max(240,window.innerHeight-top-24)+'px';
         if(feed.style.getPropertyValue('--desktop-feed-height')!==value)feed.style.setProperty('--desktop-feed-height',value);
       };
-      const observer=new ResizeObserver(fit);
+      // Resizing the feed can resize the observed workspace. Write on the next
+      // frame, outside ResizeObserver delivery, and coalesce repeated snapshots.
+      let fitFrame=null;
+      const scheduleFit=()=>{if(fitFrame===null)fitFrame=requestAnimationFrame(()=>{fitFrame=null;fit();});};
+      const observer=new ResizeObserver(scheduleFit);
       for(const node of [$('workspace'),feed.closest('section')?.querySelector('.subtitle-tools')])if(node)observer.observe(node);
-      window.addEventListener('resize',fit);document.addEventListener('recording-snapshot',()=>requestAnimationFrame(fit));fit();
+      window.addEventListener('resize',scheduleFit);document.addEventListener('recording-snapshot',scheduleFit);scheduleFit();
     }
     document.dispatchEvent(new Event('desktop-shell-ready'));
   }

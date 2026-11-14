@@ -90,12 +90,14 @@
     $('report-version-notice').hidden = !previous;
     if (previous) $('report-version-notice').textContent = 'Показана предыдущая версия. Новая ' + (job?.status === 'queued' ? 'ожидает в очереди.' : 'ещё не готова.');
     if (!url) {
-      if (reportUrl) { reportUrl = null; $('report-editor').src = 'about:blank'; }
+      if (reportUrl) { reportUrl = null; frame.contentWindow.location.replace('about:blank'); }
       return;
     }
     if (reportUrl === url || stage !== 'notes' && !snapshot) return;
     reportUrl = url;
-    frame.src = url + '?embedded=1';
+    // Material selection is local/replaceState navigation. A src assignment
+    // adds child-frame entries to the parent's Back/Forward history as well.
+    frame.contentWindow.location.replace(url + '?embedded=1');
   }
   $('new-notes').onclick = () => { $('notes-settings').open = true; $('construction-model').focus(); };
   let connectionDraft='';
@@ -263,7 +265,7 @@
     },
     show(value, currentJob) { snapshot = value; job = currentJob || value.job; update(); },
     queued(value) { job = value; update(); },
-    resetReport() { reportUrl = null; $('report-editor').src = 'about:blank'; },
+    resetReport() { reportUrl = null; $('report-editor').contentWindow.location.replace('about:blank'); },
     reportVariant: () => variant,
     refreshReport: loadReport
   };

@@ -171,6 +171,15 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 
 ## Workspace /create и общие модули
 
+Task 9b: единый ряд «Расшифровка / Конспект / Статья» и совместимый вид используют
+существующие DOM/player/iframe. Материал выбирает `recordingUI.selectMaterial`;
+блокировка dirty возвращает фокус на видимую активную вкладку. Hide/show того же
+материала не перезагружает editor, revision или Undo. `studio.js` загружает другой
+материал через iframe location.replace без добавления дочерних history entries;
+material URL writer сохраняет replaceState, hash и state. Transient workspace target
+не записывает v1 preferences. Transcript ResizeObserver только планирует измерение
+и запись высоты на следующий animation frame; сообщения ошибок в harness не фильтруются.
+
 Task 8b/8c: явные writers материала/stage сохраняют hash и history.state;
 перерисовка material tabs не записывает URL. Speech-engine и playback-link работают
 в текущем документе при недоступном localStorage. Coordinator проверяет черновики

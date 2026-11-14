@@ -27,7 +27,9 @@ def run(c, wait_for, out, root):
     for selector in ['#stage-notes', '#recording-translation-panel', '#source-details', '#diagnostics']:
         assert not visible(selector), selector
     video, speech = rect('#shared-player'), rect('#stage-speech')
-    assert video['x'] < speech['x'] and abs(video['y'] - speech['y']) < 2
+    tabs = rect('#workspace-tabs')
+    assert video['x'] < speech['x'] and abs(video['y'] - tabs['y']) < 2
+    assert abs(speech['y'] - tabs['y'] - tabs['h'] - 16) < 2
     # The panel opens under the command bar and stays inside the viewport.
     evaluate('document.querySelector("#workspace-view-menu").open=true')
     wait_for(lambda: evaluate('document.querySelector(".workspace-view-content").checkVisibility()'))
