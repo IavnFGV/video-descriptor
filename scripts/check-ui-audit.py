@@ -38,6 +38,29 @@ def inventory(files):
     return result
 
 
+def reviewed_relocations(review, failures):
+    """Require concrete source evidence for each moved contract, never retire it."""
+    ids, handlers, apis = set(), set(), set()
+    for group, accepted in [('dynamic_ids', ids), ('handler_relocations', handlers)]:
+        for name, entry in review.get(group, {}).items():
+            path = ROOT / entry['source']
+            source = path.read_text(encoding='utf-8') if path.is_file() else ''
+            required = entry.get('required', [])
+            if not required or any(marker not in source for marker in required):
+                failures.append(f'Incomplete relocated contract {name}: {entry["source"]}')
+                continue
+            accepted.add(tuple(name.rsplit('.', 1)) if group == 'handler_relocations' else name)
+    for api, name in review.get('api_relocations', {}).items():
+        path = ROOT / name
+        source = path.read_text(encoding='utf-8') if path.is_file() else ''
+        literals = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", source))
+        if api not in literals:
+            failures.append(f'Missing relocated API {api}: {name}')
+        else:
+            apis.add(api)
+    return ids, handlers, apis
+
+
 def main():
     if '--record' in sys.argv:
         if BASELINE.exists():
@@ -54,6 +77,8 @@ def main():
     failures = []
     migrations = {} if '--stage-zero' in sys.argv else json.loads(
         (ROOT / 'design-system/migrations/main.json').read_text(encoding='utf-8'))['allowed_changes']
+    review = json.loads((ROOT / 'design-system/migrations/shell-unification.json').read_text(encoding='utf-8')) if migrations else {}
+    dynamic_ids, relocated_handlers, relocated_apis = reviewed_relocations(review, failures)
     unchanged = 0
     for name, expected in baseline['sha256'].items():
         path = ROOT / name
@@ -70,15 +95,15 @@ def main():
     original = baseline['inventory']
     previous_ids = set(original['windows-app/ui/index.html']['ids'])
     retired = set(json.loads((ROOT / 'design-system/migrations/external-ollama.json').read_text(encoding='utf-8'))['removed_ids'])
-    failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids) - retired))
+    failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids) - retired - dynamic_ids))
     previous_apis = set(original['windows-app/ui/app.js']['api_literals'])
-    current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js))
+    current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js)) | relocated_apis
     # Explicit additive Stop contract, reviewed in migrations/main.json and CONTRACTS.md.
     if previous_apis | {'/api/native/cancel?id=', '/api/components', '/api/storage', '/api/translation-settings', '/api/construction-models?provider=lmstudio'} != current_apis:
         failures.append('Desktop API literals changed; explicit API contract review required')
     original_js = git('show', baseline['commit'] + ':windows-app/ui/app.js').decode('utf-8')
     pattern = r"\$\(['\"]([^'\"]+)['\"]\)\.(on\w+)\s*="
-    before, after = set(re.findall(pattern, original_js)), set(re.findall(pattern, js))
+    before, after = set(re.findall(pattern, original_js)), set(re.findall(pattern, js)) | relocated_handlers
     failures.extend('Original handler removed: ' + '.'.join(pair) for pair in sorted(before - after) if pair[0] not in retired)
     if len(ids) != len(set(ids)):
         failures.append('Duplicate desktop ids')
@@ -109,6 +134,7 @@ def main():
     print(f"PASS: {unchanged} production files unchanged; {len(migrations)} reviewed UI paths; "
           f'{len(ids)} unique desktop ids; {len(refs)} direct handler targets resolved.')
     print(f'{len(previous_ids)} original ids, {len(before)} handler assignments and API literals preserved.')
+    print(f'{len(dynamic_ids)} runtime IDs, {len(relocated_handlers)} handlers and {len(relocated_apis)} API literals explicitly relocated with source evidence.')
     print('Static contract checks only; browser scenarios and backend tests are separate.')
     return 0
 

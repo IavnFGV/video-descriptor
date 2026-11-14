@@ -236,6 +236,10 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
                     page = re.sub(r'<(?:video|source|track)\b[^>]*>',
                                   lambda match: re.sub(r'\s+src\s*=\s*(?:"[^"]*"|\'[^\']*\')', '', match[0]), page)
                     page = re.sub(r"<script>.*?</script>", '<script src="/studio-assets/report-embed.js"></script>', page, flags=re.DOTALL)
+                    # Older report HTML keeps its original bytes on disk. Supply only
+                    # the known editor roles needed by the current shared stylesheet.
+                    from .report import with_editor_control_roles
+                    page = with_editor_control_roles(page)
                     # Older generated reports retain their local assets; serve the current editor.
                     page = page.replace('src="assets/editor.js"', 'src="/studio-assets/editor.js"')
                     page = page.replace('href="assets/editor.css"', 'href="/studio-assets/editor.css"')

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f4f6f5">
 <title>Video Descriptor — Записи</title>
 <script src="/studio-assets/workspace-view.js"></script>
-<script defer src="/studio-assets/desktop-shell.js"></script>
+<script src="/studio-assets/desktop-shell.js"></script>
 <link rel="stylesheet" href="/native.css">
 </head>
 <body>
@@ -18,7 +18,6 @@
 <span>Video<br>Descriptor</span>
 </a>
 <nav aria-label="Основная навигация">
-<a class="nav-item" id="new-record-open" href="#new">＋ Новая запись</a>
 <a class="nav-item" id="records-open" href="#records" aria-current="page">Записи</a>
 <a class="nav-item" id="setup-open" href="#settings">Настройки AI</a>
 <a class="nav-item" id="diagnostics-open" href="#diagnostics">Диагностика</a>
@@ -34,33 +33,13 @@
 </button>
 <p>Video Descriptor · <span id="view-label">Записи</span>
 </p>
-<details class="app-menu">
-<summary>Приложение</summary>
-<div class="menu-content">
-<button id="updates-check" type="button" class="vd-button vd-button--quiet">Проверить обновления</button>
-<button id="stop" type="button" class="vd-button vd-button--quiet">Завершить приложение</button>
-</div>
-</details>
-<button id="updates-badge" type="button" class="vd-button vd-button--quiet" hidden aria-label="Доступно обновление">Обновление</button>
 </header>
-<dialog id="updates-dialog" class="vd-dialog" aria-labelledby="updates-heading">
-<h2 id="updates-heading">Обновления</h2>
-<p id="updates-status" role="status" aria-live="polite"></p>
-<p id="updates-installed"></p>
-<p id="updates-available"></p>
-<h3 id="updates-title"></h3>
-<p id="updates-notes" class="vd-help"></p>
-<div class="vd-actions">
-<button id="updates-open" type="button" class="vd-button vd-button--primary" hidden>Открыть релиз</button>
-<button id="updates-later" type="button" class="vd-button">Позже</button>
-</div>
-</dialog>
 <main id="main" tabindex="-1">
 <div class="page-heading">
 <h1 id="main-heading" tabindex="-1">Записи</h1>
 <p id="view-description">Откройте запись, чтобы продолжить работу с её текстом и результатами.</p>
 </div>
-<p id="message" class="feedback" role="status" aria-live="polite"></p>
+<p id="message" class="vd-status feedback" role="status" aria-live="polite"></p>
 <section class="card setup-callout" id="setup-callout" hidden aria-labelledby="setup-callout-heading">
 <h2 id="setup-callout-heading">Подготовьте AI один раз</h2>
 <p id="setup-callout-message">Откройте настройки, выберите нужные функции и разрешите загрузки. Приложение само подготовит выбранные компоненты.</p>
@@ -155,9 +134,10 @@
 </p>
 </section>
 <section class="card" id="jobs-panel" aria-labelledby="jobs-heading">
-<div class="card-title">
-<h2 id="jobs-heading">Ваши записи</h2>
-<button id="refresh" type="button" class="vd-button vd-button--quiet">Обновить записи</button>
+<h2 id="jobs-heading" hidden>Записи</h2>
+<div class="vd-actions desktop-record-actions">
+<a class="vd-button vd-button--primary" id="new-record-open" href="#new">＋ Новая запись</a>
+<button id="refresh" type="button" class="vd-button vd-button--quiet">Обновить список</button>
 </div>
 <div id="jobs" class="jobs">
 <p class="empty">Здесь появятся добавленные записи</p>
@@ -169,19 +149,19 @@
 <details id="desktop-preparation" hidden><summary>Изменить функции и подготовить компоненты</summary></details>
 <h2>Выберите функции — остальное подготовим сами</h2>
 <p>Один раз выберите нужные функции и устройства, разрешите загрузки и нажмите «Сохранить и подготовить». Установка, проверка и переход к следующему компоненту выполняются автоматически. Можно уйти со страницы настроек и вернуться за прогрессом.</p>
-<label class="check-label"><input type="checkbox" id="prepare-whisper" checked> Распознавание речи</label>
+<label class="check-label"><input type="checkbox" id="prepare-whisper" checked class="vd-check"> Распознавание речи</label>
 <label class="vd-field">Устройство распознавания<select id="settings-speech-device" class="vd-select"><option value="AUTO">Автоматически (рекомендуется)</option><option value="CPU">Процессор (CPU)</option><option value="GPU">Видеокарта (GPU)</option><option value="NPU">Нейропроцессор (NPU)</option></select></label>
-<label class="check-label"><input type="checkbox" id="prepare-diarization"> Разделение по участникам</label>
+<label class="check-label"><input type="checkbox" id="prepare-diarization" class="vd-check"> Разделение по участникам</label>
 <label class="vd-field">Устройство для разделения по участникам<select id="diarization-device" class="vd-select"><option value="auto">Автоматически (рекомендуется)</option><option value="cpu">Процессор (CPU)</option><option value="xpu">Видеокарта (GPU)</option><option value="npu" disabled>Нейропроцессор (NPU) · не поддерживается для этой задачи</option></select></label>
 <button type="button" id="open-hf-settings" class="vd-button vd-button--quiet">Условия Hugging Face и токен →</button>
 <p id="diarization-prepare-help" class="footnote">Для работы на видеокарте (GPU) выберите её выше и отметьте разрешение на загрузку ниже. Для участников также примите условия и укажите токен Hugging Face в разделе «Участники».</p>
-<label class="check-label"><input type="checkbox" id="prepare-ollama"> Локальные конспекты через Ollama</label>
+<label class="check-label"><input type="checkbox" id="prepare-ollama" class="vd-check"> Локальные конспекты через Ollama</label>
 <button type="button" id="open-local-settings" class="vd-button vd-button--quiet">Подключение и языковая модель →</button>
 <p class="footnote">Подключение и модель выбираются в разделе «Локальный AI». Ollama используется только как внешний HTTP(S)-сервер; приложение не устанавливает и не запускает его.</p>
 <p id="prepare-sources" class="footnote"></p>
-<label class="check-label"><input type="checkbox" id="prepare-consent"> Разрешаю скачивание моделей и установку окружений для выбранных функций, включая выбранную видеокарту (GPU). Проверенные компоненты будут использованы повторно.</label>
+<label class="check-label"><input type="checkbox" id="prepare-consent" class="vd-check"> Разрешаю скачивание моделей и установку окружений для выбранных функций, включая выбранную видеокарту (GPU). Проверенные компоненты будут использованы повторно.</label>
 <div class="setup-actions"><button type="button" id="prepare-selected" class="vd-button vd-button--primary">Сохранить и подготовить</button><button type="button" id="prepare-selected-stop" class="vd-button" hidden>Остановить подготовку</button></div>
-<p id="preparation-status" class="feedback" role="status" aria-live="polite"></p>
+<p id="preparation-status" class="vd-status feedback" role="status" aria-live="polite"></p>
 <p id="ai-summary" role="status">Проверяем компоненты…</p>
 <a class="vd-link" href="#diagnostics">Проверить компоненты в диагностике →</a>
 </section>
@@ -211,7 +191,7 @@
 </p>
 <p class="footnote">Требуются OpenVINO/GenAI 2026.4.1 (включены в установщик), около 550 МиБ на диске и CPU либо совместимый Intel GPU/NPU с драйвером. Существующие модели сохраняются.</p>
 <label class="check-label">
-<input id="download-consent" type="checkbox" name="download-consent"> Разрешаю скачать эту модель с Hugging Face</label>
+<input id="download-consent" type="checkbox" name="download-consent" class="vd-check"> Разрешаю скачать эту модель с Hugging Face</label>
 <button type="button" id="download-model" class="vd-button">Установить и проверить Whisper</button>
 </details>
 <p class="footnote">Подключённая модель запускается автоматически. Дополнительная проверка доступна ниже.</p>
@@ -270,7 +250,7 @@
 </select>
 </label>
 <label class="check-label">
-<input id="gemini-ack" type="checkbox" name="gemini-ack"> При бесплатном проекте принимаю условия обработки данных Google</label>
+<input id="gemini-ack" type="checkbox" name="gemini-ack" class="vd-check"> При бесплатном проекте принимаю условия обработки данных Google</label>
 <div class="setup-actions">
 <button type="submit" class="vd-button">Сохранить Gemini</button>
 <button id="gemini-check" type="button" class="vd-button">Проверить доступ / получить модели</button>
@@ -288,7 +268,7 @@
 <div class="vd-actions"><button type="button" id="hf-terms" class="vd-button">Открыть условия community-1</button>
 <button type="button" id="hf-tokens" class="vd-button">Получить токен Hugging Face</button></div>
 <label class="vd-field">Токен чтения Hugging Face (пустое поле сохраняет прежний)<input id="hf-token" type="password" autocomplete="off" maxlength="512" class="vd-input"></label>
-</div><label class="check-label"><input id="diarization-consent" type="checkbox"> Условия доступа приняты; разрешаю загрузку окружения и модели</label>
+</div><label class="check-label"><input id="diarization-consent" type="checkbox" class="vd-check"> Условия доступа приняты; разрешаю загрузку окружения и модели</label>
 <button type="button" id="diarization-install" class="vd-button">Подготовить диаризацию</button></div>
 <p class="footnote">Автоматический режим пробует видеокарту, затем процессор. Явно выбранное устройство не заменяется другим. Нейропроцессор (NPU) пока не поддерживается для разделения по участникам.</p>
 </details>
@@ -363,11 +343,11 @@
 <button id="notes-model-refresh" type="button" class="vd-button">Обновить модели</button>
 <details><summary>Разбиение и контекст</summary>
 <label class="vd-field">Обработка<select id="notes-strategy" class="vd-select"><option value="auto">Автоматически: целиком, если помещается</option><option value="chunks">По частям с памятью предыдущих частей</option><option value="whole">Целиком одним запросом</option></select></label>
-<label class="check-label"><input id="notes-auto-context" type="checkbox" checked>Определять доступный контекст модели автоматически</label>
+<label class="check-label"><input id="notes-auto-context" type="checkbox" checked class="vd-check">Определять доступный контекст модели автоматически</label>
 <label class="vd-field">Ручной предел контекста, токенов<input id="notes-context" class="vd-input" type="number" min="8192" max="2097152" step="1024" value="16384" disabled></label>
 <p class="footnote">В автоматическом режиме вся расшифровка отправляется одним запросом генерации, если помещается в контекст модели. Для Google размер проверяется точным подсчётом токенов. На части делим только при превышении лимита; режим «По частям» можно выбрать вручную.</p>
 </details>
-<label id="notes-cloud-label" class="check-label" hidden><input id="notes-cloud-consent" type="checkbox">Разрешаю отправить текст расшифровки в Google. Возможны расходы и ограничения квоты; видео не отправляется.</label>
+<label id="notes-cloud-label" class="check-label" hidden><input id="notes-cloud-consent" type="checkbox" class="vd-check">Разрешаю отправить текст расшифровки в Google. Возможны расходы и ограничения квоты; видео не отправляется.</label>
 <input id="notes-translate-after" type="hidden" value=""><p id="notes-choice-status" class="footnote" role="status" aria-live="polite"></p>
 <button id="notes-open-settings" type="button" class="vd-button">Настроить подключение AI</button>
 <div class="vd-actions"><button id="notes-confirm" type="button" class="vd-button vd-button--primary">Создать конспект</button><button id="notes-cancel" type="button" class="vd-button">Отмена</button></div>
@@ -388,13 +368,12 @@
 <div class="vd-actions"><button id="speaker-terms" type="button" class="vd-button">Условия community-1</button>
 <button id="speaker-tokens" type="button" class="vd-button">Получить токен</button></div>
 <label class="vd-field">Токен чтения<input id="speaker-token" class="vd-input" type="password" autocomplete="off" maxlength="512"></label>
-</div><label class="check-label"><input id="speaker-consent" type="checkbox">Условия приняты; разрешаю загрузку окружения и модели</label>
+</div><label class="check-label"><input id="speaker-consent" type="checkbox" class="vd-check">Условия приняты; разрешаю загрузку окружения и модели</label>
 </details>
 <div class="setup-actions"><button id="speaker-go" type="button" class="vd-button vd-button--primary">Продолжить</button><button id="speaker-cancel" type="button" class="vd-button">Закрыть</button></div>
 </dialog>
 <script src="/studio-assets/speech-edit.js">
 </script>
-<script src="/updates.js"></script>
 <script src="/native.js">
 </script>
 </body>

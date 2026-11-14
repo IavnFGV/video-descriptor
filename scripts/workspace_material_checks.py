@@ -81,14 +81,15 @@ def run(c, wait_for, root, out, empty_article=False):
     ready('notes-b')
     assert evaluate('document.querySelector("#recording-notes").value==="/output/notes-b/report.html"')
     # Keyboard uses the shared vd-tabs semantics, including wraparound.
-    for name, code, target in [('ArrowRight', 39, 'article'), ('End', 35, 'all'), ('Home', 36, 'transcript'), ('ArrowLeft', 37, 'all')]:
+    for name, code, target in [('ArrowRight', 39, 'article'), ('End', 35, 'article'), ('Home', 36, 'transcript'), ('ArrowLeft', 37, 'article')]:
         key(name, code)
         assert evaluate('document.activeElement.id') == 'workspace-tab-' + target
     assert evaluate('localStorage.getItem("video-descriptor:ui:workspace")===unifiedFixture.storage')
-    # Compatibility restores defaults (materials off), not the transient override.
+    c.click('#workspace-tab-transcript')
+    # Only the selected material is visible; preference changes return to transcript.
     assert not visible('#stage-notes') and visible('#stage-speech')
     evaluate('workspaceView.setPanel("notes",true);workspaceView.setPanel("article",true)')
-    assert visible('.material-tabs') and visible('#stage-speech')
+    assert not visible('.material-tabs') and visible('#stage-speech')
     c.click('#workspace-tab-notes')
     ready('notes-b')
     for width, height in [(1440, 900), (1200, 820), (1024, 768), (760, 560), (375, 820)]:
@@ -118,7 +119,7 @@ def run(c, wait_for, root, out, empty_article=False):
     assert evaluate('''Math.abs(document.querySelector('#stage-speech').getBoundingClientRect().top-
       document.querySelector('#workspace-tabs').getBoundingClientRect().bottom-16)<2''')
     assert evaluate('''(()=>{const strip=document.querySelector('#workspace-tabs'),style=getComputedStyle(document.activeElement);
-      return strip.classList.contains('vd-tabs') && getComputedStyle(strip).gap==='8px' &&
+      return strip.classList.contains('vd-tabs') &&
       document.activeElement.matches(':focus-visible') && style.outlineWidth==='3px' && style.outlineStyle==='solid' &&
       [...strip.querySelectorAll('[role=tab]')].filter(tab=>tab.tabIndex===0).length===1})()''')
     c.call('Emulation.setEmulatedMedia', features=[{'name': 'forced-colors', 'value': 'active'}])

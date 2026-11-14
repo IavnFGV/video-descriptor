@@ -19,11 +19,26 @@ def main():
     state = {'installed': {'version': '0.9.3', 'build': 7}, 'latest': None,
              'status': 'ok', 'update_available': False}
     calls = []
+    health_calls = []
+    health_mode = {'value': 'windows'}
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.path == '/api/updates':
+            if self.path == '/health':
+                health_calls.append(self.path)
+                if health_mode['value'] == 'unavailable':
+                    self.send_error(503)
+                    return
+                health = {'app': 'video-descriptor-windows', 'instance': 'test-instance', 'version': '0.9.3', 'build': 7}
+                body, kind = json.dumps(health if health_mode['value'] == 'windows' else {'status': 'ok'}).encode(), 'application/json'
+            elif self.path == '/api/updates':
                 body, kind = json.dumps(state).encode(), 'application/json'
+            elif self.path.split('?')[0] in {'/create', '/output/', '/help/ollama', '/help/lmstudio'}:
+                body = ('<!doctype html><html><meta charset="utf-8"><link rel="stylesheet" href="/native.css">'
+                        '<script src="/studio-assets/desktop-shell.js"></script><body>'
+                        '<nav class="vd-global-nav"><a href="/output/">Записи</a></nav>'
+                        '<main>Isolated shared shell fixture</main></body></html>').encode()
+                kind = 'text/html'
             elif self.path == '/studio-assets/desktop-shell.js':
                 body, kind = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_bytes(), 'text/javascript'
             else:
@@ -45,6 +60,13 @@ def main():
 
         def do_POST(self):
             calls.append((self.path, self.rfile.read(int(self.headers.get('Content-Length', 0))).decode()))
+            if self.path == '/api/native/stop':
+                assert self.headers.get('X-App-Instance') == 'test-instance'
+                self.send_response(409)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Active fixture job prevents shutdown'}).encode())
+                return
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
@@ -95,6 +117,44 @@ def main():
             wait_for(lambda: len(calls) == 2)
             assert calls[1][0] == '/api/updates/check'
             print('PASS: update badge, text safety, manual check, fixed external command, Escape/focus, 375–1440 px')
+            base = f'http://127.0.0.1:{server.server_port}'
+            shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
+            for path in ['/create?job=old&report=old', '/output/', '/help/ollama', '/help/lmstudio']:
+                before = len(health_calls)
+                c.call('Page.navigate', url=base + path)
+                wait_for(lambda: c.evaluate('!!window.updatesUI && !!document.querySelector("#stop")'))
+                assert len(health_calls) == before + 1
+                c.evaluate(shell)
+                assert c.evaluate('document.querySelectorAll(".desktop-menu-bar").length===1 && document.querySelectorAll("#stop").length===1')
+                assert c.evaluate('''[...document.querySelectorAll('#desktop-file-menu a')].map(a=>a.getAttribute('href')).join('|')==='/#new|/#records' ''')
+                assert c.evaluate('document.querySelector("#setup-open").getAttribute("href")==="/#settings"')
+            c.call('Emulation.setDeviceMetricsOverride', width=1440, height=900, deviceScaleFactor=1, mobile=False)
+            c.evaluate('window.notesEditorDirty=()=>true;document.querySelector("#desktop-file-menu").open=true')
+            c.click('#desktop-file-menu a')
+            wait_for(lambda: c.evaluate('document.querySelector(".desktop-command-status").textContent.includes("правки")'))
+            assert c.evaluate('location.pathname==="/help/lmstudio" && document.querySelector("#desktop-file-menu").open && document.activeElement===document.querySelector("#desktop-file-menu a")')
+            before = len(calls)
+            c.click('#stop')
+            assert len(calls) == before  # Dirty guard must precede the mutation.
+            c.evaluate('window.notesEditorDirty=()=>false')
+            c.click('#stop')
+            wait_for(lambda: c.evaluate('document.querySelector(".desktop-command-status").textContent.includes("Active fixture")'))
+            assert calls[-1][0] == '/api/native/stop'
+            assert c.evaluate('!document.querySelector("#stop").disabled && !window.desktopShellStopped && document.activeElement.id==="stop"')
+            c.evaluate('document.querySelector("#desktop-file-menu").open=false')
+            health_mode['value'] = 'unavailable'
+            c.evaluate('desktopShellEnvironment.read(true)')
+            assert c.evaluate('!document.querySelector(".desktop-environment-status").hidden && document.querySelector("#stop").disabled')
+            health_mode['value'] = 'windows'
+            c.click('.desktop-environment-status button')
+            wait_for(lambda: c.evaluate('desktopShellEnvironment.read().then(v=>v.kind==="windows")'))
+            assert c.evaluate('document.querySelectorAll("#stop").length===1 && document.querySelectorAll("#updates-dialog").length===1')
+            health_mode['value'] = 'web'
+            c.call('Page.navigate', url=base + '/create?job=old')
+            wait_for(lambda: c.evaluate('!!window.desktopShellEnvironment && desktopShellEnvironment.read().then(v=>v.kind==="web")'))
+            assert c.evaluate('''!document.querySelector('#stop') && !document.querySelector('#updates-check') &&
+              [...document.querySelectorAll('#desktop-file-menu a')].map(a=>a.getAttribute('href')).join('|')==='/create|/output/' ''')
+            print('PASS: shared-page commands, canonical routes, one health read, repeated initialization/retry, dirty focus and guarded stop refusal; isolated HTTP only')
         finally:
             for process in reversed(browser.children(recursive=True)):
                 try:

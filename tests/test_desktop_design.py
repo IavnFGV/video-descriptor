@@ -7,22 +7,33 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_shared_shell_is_loaded_on_all_full_page_surfaces():
-    for name in ['video_descriptor/assets/create.html', 'windows-app/ui/index.html', 'video_descriptor/library.py', 'video_descriptor/report.py']:
+    for name in ['video_descriptor/assets/create.html', 'video_descriptor/assets/speech.html', 'windows-app/ui/index.html', 'video_descriptor/library.py', 'video_descriptor/report.py', 'windows-app/app.py']:
         assert 'desktop-shell.js' in (ROOT / name).read_text(encoding='utf-8'), name
     shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
     assert "get('embedded')==='1'" in shell  # never nested chrome in the iframe
-    assert "help.body.append($('updates-check'))" in shell
-    assert "file.body.append($('stop'))" in shell
+    assert "check.id='updates-check'" in shell
+    assert "stop.id='stop'" in shell
+    assert "script.src='/updates.js'" in shell
+    assert "if(value.kind==='windows')" in shell
+    html = (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
+    assert 'id="updates-check"' not in html and 'id="stop"' not in html
     assert 'view.details.replaceWith(existing)' in shell  # same preferences/controller
     assert 'mayLeaveQuickReply' in shell and 'notesEditorDirty' in shell
-    assert 'fetch(' not in shell
+    assert shell.count("fetch('/health'") == 1
+    assert "if(location.protocol==='file:')" in shell
+    assert "if(mounted)return" in shell
     assert '.cloneNode(' not in shell
 
 
 def test_top_navigation_uses_shared_connections_and_view_on_every_surface():
     shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
-    assert "navigationItem(tools.body,'setup-open'" in shell
-    assert "navigationItem(tools.body,'diagnostics-open'" in shell
+    assert "'settings','setup-open'" in shell
+    assert "'diagnostics','diagnostics-open'" in shell
+    assert "windows:{new:'/#new',records:'/#records',settings:'/#settings',diagnostics:'/#diagnostics'" in shell
+    assert "web:{new:'/create',records:'/output/'}" in shell
+    assert "params.set('workspace'" not in shell
+    assert 'restoreFocus(a)' not in shell  # one common guard restores its target
+    assert 'restoreFocus(target);return false' in shell
     assert "$('open-connections').hidden=true" in shell
     assert "tools.body.append($('open-connections'))" not in shell
     assert 'data-sidebar-command' not in shell

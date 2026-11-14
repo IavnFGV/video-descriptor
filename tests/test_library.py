@@ -47,7 +47,7 @@ def test_saved_title_is_shared_survives_refresh_and_appears_in_library(tmp_path)
         page = requests.get(base + "/output/", timeout=5).text
         assert "Лекция AWS &lt;test&gt; [original.mp4]" in page
         assert "Лекция AWS <test>" not in page
-        assert library_page(tmp_path / "output").count('<article>') == 1
+        assert library_page(tmp_path / "output").count('<article class="vd-panel">') == 1
         assert video.read_bytes() == b"video"
         assert requests.post(url, json={"title": "x" * 201}, timeout=5).status_code == 400
         assert requests.post(url, json={"title": "changed"}, headers={"Origin": "https://other.example"}, timeout=5).status_code == 403

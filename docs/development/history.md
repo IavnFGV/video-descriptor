@@ -1,5 +1,41 @@
 # История изменений
 
+14.11.2026: техническая проверка Bootstrap и общей оболочки — UI audit сохраняет
+неизменный baseline и проверяет relocation evidence для stop, setup handler и API.
+Edge `verify-updates-ui.py` прошёл для обновлений, общих маршрутов, повторного
+подключения, dirty focus и mocked stop refusal; `--workspace-tabs-only` прошёл
+для вкладок, версий, Undo/Redo, таймкодов, DOM/history/storage и responsive geometry.
+Добавлены проверки неизменности старых отчётов и literal textarea/script при
+адаптации HTTP-разметки. Устаревшие assertions разметки и retired `all` заменены
+текущими контрактами. Проверено 134 локальные Markdown link targets, отсутствующих нет.
+Итоговый Fast: 865 passed, 3 skipped; отдельно 29 config checks, Ruff, UI audit и
+JS syntax checks — PASS. Заметки следующей сборки обновлены с сохранением предыдущих пунктов; BUILD 0012
+не изменён. Installed WebView2 и hardware acceptance не выполнялись.
+
+14.11.2026: визуальный Bootstrap-проход в отдельном Edge/CDP — 39 снимков локального
+UI и временных fixtures, ширины 375–1440 px. Исправлены конфликт высоты шапки 64/44 px,
+skip links, читаемость статуса записи и роли старых embedded editor controls в
+HTTP-ответе без регенерации файлов. Ошибок JS и горизонтального overflow на снимках
+нет; один сохранённый пользовательский report.html и legacy fixture совпали по SHA-256
+до/после просмотра. Мутации браузера блокировались; сохранение, обработка, загрузки
+моделей и выход не выполнялись. [Охват и ограничения](../../design-system/BOOTSTRAP-REVIEW.md).
+Fast, audit, regression scenarios и installed WebView2 остаются следующим этапом.
+
+14.11.2026: шаги 2–4 объединения оболочки — Windows update/stop controls и диалог
+создаёт общий shell после `/health`; существующий update controller владеет одним
+polling timer. Глобальные ссылки больше не наследуют job/query и не переписываются
+отдельно главной страницей, recording.js и studio.js. Отказ dirty guard сохраняет
+открытое меню и возвращает focus. Шапка подключена к обеим инструкциям; `/speech`
+сохраняет redirect на `/create`, legacy HTML синхронизирован без возврата отдельного
+маршрута. Старые сохранённые отчёты не изменены. CSS пересобран общей командой; ручной
+просмотр, адаптация устаревших тестовых assertions и автоматические проверки отложены.
+
+14.11.2026: шаг 1 объединения оболочки — общий `desktop-shell.js` определяет
+среду по одному результату `/health` для главной и записи. Недоступность сервера
+показывается с повтором, offline file-отчёт не выполняет запрос. Команды и переходы
+остаются в последующих шагах; ручной просмотр и тесты не выполнены.
+Статус — в [плане оболочки](../../design-system/SHELL-UNIFICATION.md).
+
 14.11.2026: Bootstrap migration step 1 — Bootstrap 5.3.9 и Sass 1.108.2 закреплены
 локальным npm lock. Центральная тема экспортирует прежние vd-токены; адаптер
 использует Sass extend для настоящих библиотечных компонентов, без Bootstrap JS.

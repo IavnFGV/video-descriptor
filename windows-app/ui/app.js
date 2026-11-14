@@ -22,11 +22,6 @@
     if(selected&&!['new','settings','diagnostics'].includes(location.hash.slice(1))){
       location.replace('/create?'+new URLSearchParams({job:selected}));return;
     }
-    const context=new URLSearchParams(location.search);
-    if(context.get('workspace')==='1'){
-      context.delete('workspace');$('records-open').href='/create?'+context;
-    }
-
     const view=['new','settings','diagnostics'].includes(location.hash.slice(1))?location.hash.slice(1):'records';
     $('readiness-panel').hidden=view!=='diagnostics';
     $('bootstrap-notice').hidden=view==='settings';
@@ -51,7 +46,6 @@
     showView();
   });
   showView();
-  $('records-open').onclick=async e=>{if($('records-open').getAttribute('href').startsWith('/create'))return;if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(!await window.mayLeaveQuickReply())return;const url=new URL(location.href);url.searchParams.delete('job');url.hash='records';history.pushState(null,'',url);clearTimeout(timer);selected=null;resetResult();showView(true);};
   $('skip-link').onclick=e=>{e.preventDefault();$('main').focus();};
   const SIDEBAR_STORAGE_KEY='video-descriptor:ui:sidebar';
   const SIDEBAR_TOGGLE_ICONS={open:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',close:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>'};
@@ -346,7 +340,6 @@
   $('start-npu').onclick=async()=>{message('Запускаем распознавание: загружаем модель с диска в память устройства. Скачивание не требуется.');try{await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});$('start-npu').disabled=true;}catch(e){message(e.message,true);}finally{readiness();}};
   $('speech-device').onchange=async()=>{try{await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('speech-device').value})});await api('/api/native/prepare',{method:'POST',headers:{'X-App-Instance':instance}});await readiness();}catch(e){message(e.message,true);}};
   $('settings-speech-device').onchange=async()=>{try{$('speech-device').value=$('settings-speech-device').value;await api('/api/compute-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speech_device:$('settings-speech-device').value})});}catch(e){message(e.message,true);}};
-  $('stop').onclick=async()=>{try{await api('/api/native/stop',{method:'POST',headers:{'X-App-Instance':instance}});clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;}catch(e){message(e.message,true);}};
   $('refresh').onclick=()=>jobs().catch(e=>message(e.message,true));
   async function postprocess(task,options={}) {
     if(!currentJob?.folder||processing)return;
@@ -422,7 +415,7 @@
   };
   localControls();
   localPreferences().catch(e=>{$('ollama-feedback').textContent=e.message;});
-  $('setup-open').onclick=()=>{diagnostics().catch(e=>message(e.message,true));};
+  window.addEventListener('desktop-navigation',event=>{if(event.detail.command==='settings')diagnostics().catch(e=>message(e.message,true));});
   $('setup-finish').onclick=async()=>{const b=$('setup-finish'),route=location.hash;b.disabled=true;try{await setupPost('complete');if(location.hash===route){location.hash='records';showView(true);}}catch(e){message(e.message,true);}finally{b.disabled=false;}};
   $('diagnostics-refresh').onclick=async()=>{try{await setupPost('refresh');await diagnostics();await readiness();}catch(e){message(e.message,true);}};
   $('download-model').onclick=()=>componentAction('whisper','install',{confirmed:$('download-consent').checked});
@@ -707,6 +700,17 @@
   $('cancel-preparation').onclick=async()=>{const d=await api('/api/components');if(d.active)await componentAction(d.active,'cancel');};
 
   for(const section of document.querySelectorAll('.ai-section')){const summary=section.querySelector(':scope > summary');summary.setAttribute('aria-expanded',String(section.open));section.addEventListener('toggle',()=>summary.setAttribute('aria-expanded',String(section.open)));}
-  api('/health').then(h=>{instance=h.instance;window.updatesUI?.init(instance);$('build-label').textContent='Video Descriptor '+h.version+(h.build!=null?' · билд '+(h.build>=12?String(h.build).padStart(4,'0'):h.build):'');return Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics(),storageStatus()]));}).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
-  const checks=setInterval(()=>{window.updatesUI?.refresh();readiness();jobs().catch(()=>{});},15000);
+  let healthInitialized=false;
+  window.desktopShellEnvironment.subscribe(({kind,health})=>{
+    if(kind==='unavailable'){message('Приложение недоступно. Повторите проверку подключения.',true);return;}
+    if(kind!=='windows')return;
+    if($('message').textContent==='Приложение недоступно. Повторите проверку подключения.')message('');
+    instance=health.instance;
+    if(healthInitialized)return;
+    healthInitialized=true;
+    $('build-label').textContent='Video Descriptor '+health.version+(health.build!=null?' · билд '+(health.build>=12?String(health.build).padStart(4,'0'):health.build):'');
+    Promise.all([readiness(),jobs(),setupStatus(),componentStatus()]).then(()=>Promise.allSettled([ollamaStatus(),diagnostics(),storageStatus()])).then(()=>{if(selected)poll();}).catch(e=>message(e.message,true));
+  });
+  const checks=setInterval(()=>{readiness();jobs().catch(()=>{});},15000);
+  window.addEventListener('desktop-application-stopped',()=>{clearTimeout(timer);clearInterval(checks);message('Приложение завершено. Эту вкладку можно закрыть.');$('start').disabled=true;});
 })();

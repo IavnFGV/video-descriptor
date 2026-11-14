@@ -8,11 +8,17 @@ const node = id => {
 };
 let result={installed:{version:'0.9.3',build:7},latest:null,update_available:false,status:'ok'};
 const calls=[];
-const context={document:{getElementById:node},window:{},fetch:async(url,options)=>{calls.push([url,options]);return {ok:true,json:async()=>result};}};
+const events={},timers=new Set();
+const context={document:{getElementById:node,hidden:false},window:{addEventListener:(name,handler)=>events[name]=handler},
+  setInterval:handler=>{timers.add(handler);return handler;},clearInterval:handler=>timers.delete(handler),
+  fetch:async(url,options)=>{calls.push([url,options]);return {ok:true,json:async()=>result};}};
 vm.runInNewContext(fs.readFileSync('windows-app/ui/updates.js','utf8'),context);
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
   context.window.updatesUI.init('instance');await tick();
+  context.window.updatesUI.init('instance');await tick();
+  assert.equal(timers.size,1,'repeated init never adds polling loops');
+  assert.equal(calls.length,1,'repeated init does not duplicate initial GET');
   assert.equal(node('updates-badge').hidden,true);
   assert.match(node('updates-status').textContent,/актуальную/);
   result={...result,update_available:true,latest:{version:'0.9.3',build:8,title:'Title',notes:'<img src=x onerror=alert(1)>',url:'https://evil.invalid'}};
@@ -38,5 +44,24 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
   await context.window.updatesUI.refresh();
   assert.match(node('updates-status').textContent,/недоступен/);
   assert.equal(node('updates-check').disabled,false);
+  events.pagehide();
+  assert.equal(timers.size,0);
+  assert.equal(node('updates-check').disabled,true);
+  const before=calls.length;
+  await context.window.updatesUI.refresh();
+  assert.equal(calls.length,before,'suspended controller has no instance and cannot fetch');
+  context.fetch=async(url,options)=>{calls.push([url,options]);return {ok:true,json:async()=>result};};
+  context.window.updatesUI.init('new-instance');await tick();
+  assert.equal(timers.size,1);
+  let answer;
+  context.fetch=()=>new Promise(resolve=>answer=resolve);
+  const stale=context.window.updatesUI.refresh();
+  context.window.updatesUI.suspend();
+  const status=node('updates-status').textContent;
+  answer({ok:true,json:async()=>({...result,status:'ok',update_available:true,latest:{version:'9.0.0',build:99,title:'Stale',notes:'Stale'}})});
+  await stale;
+  assert.equal(node('updates-status').textContent,status,'stale response cannot repaint a suspended controller');
+  assert.equal(node('updates-badge').hidden,true);
+  assert.equal(timers.size,0);
   console.log('Update UI tests passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -5,7 +5,9 @@ const assert = require('node:assert/strict');
 const source = fs.readFileSync('windows-app/ui/app.js', 'utf8').replace(/\r\n/g,'\n');
 const html = fs.readFileSync('windows-app/ui/index.html', 'utf8');
 const controller = source.slice(source.indexOf('  // Historical ollama-*'), source.indexOf('  function check('));
-const handlers = source.slice(source.indexOf("  $('local-provider').onchange="), source.indexOf("  $('setup-open').onclick="))
+const handlerStart=source.indexOf("  $('local-provider').onchange="),handlerEnd=source.indexOf("  window.addEventListener('desktop-navigation'");
+assert(handlerStart>=0 && handlerEnd>handlerStart,'production settings controller boundaries must exist');
+const handlers = source.slice(handlerStart,handlerEnd)
   .replace(/  localControls\(\);\n  localPreferences\(\)\.catch[^\n]+\n/, '');
 const endpointHandlers = source.slice(source.indexOf("  $('ollama-service-url').oninput="), source.indexOf("  $('diarization-device').onchange="));
 function field(value = '') {

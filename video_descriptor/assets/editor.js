@@ -71,7 +71,7 @@
   });
   const actions=saveButton.parentElement;
   const undo=document.createElement('button'),redo=document.createElement('button'),reset=document.createElement('button');
-  undo.id='undo-notes';redo.id='redo-notes';reset.id='reset-notes';
+  undo.className=redo.className=reset.className='vd-button vd-button--quiet vd-button--compact';undo.id='undo-notes';redo.id='redo-notes';reset.id='reset-notes';
   for(const button of [undo,redo,reset])button.type='button';
   undo.textContent='↶ Отменить';redo.textContent='↷ Повторить';reset.textContent='Сбросить несохранённые правки';
   undo.title='Ctrl+Z';redo.title='Ctrl+Shift+Z';actions.insertBefore(undo,saveButton);actions.insertBefore(redo,saveButton);actions.insertBefore(reset,document.getElementById('add-section'));
@@ -88,7 +88,7 @@
     const stop=next?.line??lines.length,body=lines.slice(section.line+1,stop).join('\n');
     const dialog=document.createElement('dialog');sectionDialog=dialog;dialog.className='vd-dialog notes-section-editor';
     dialog.setAttribute('aria-label',creating?(article?'Новый раздел статьи':'Новый раздел конспекта'):(article?'Правка раздела статьи':'Правка раздела конспекта'));
-    dialog.innerHTML='<form><h2>Правка раздела</h2><label>Заголовок с временной меткой<input name="heading" required></label><label>Текст раздела · Markdown<textarea name="body" rows="12"></textarea></label><p role="status">«Применить» меняет черновик. Для записи на диск нажмите «Сохранить».</p><div class="vd-actions"><button type="submit">Применить</button><button type="button" data-cancel>Отмена</button></div></form>';
+    dialog.innerHTML='<form><h2>Правка раздела</h2><label>Заголовок с временной меткой<input class="vd-input" name="heading" required></label><label>Текст раздела · Markdown<textarea class="vd-textarea" name="body" rows="12"></textarea></label><p role="status">«Применить» меняет черновик. Для записи на диск нажмите «Сохранить».</p><div class="vd-actions"><button class="vd-button vd-button--primary" type="submit">Применить</button><button class="vd-button" type="button" data-cancel>Отмена</button></div></form>';
     const form=dialog.querySelector('form');form.elements.heading.value=section.title;form.elements.body.value=body;
     let localTouched=false;form.addEventListener('input',()=>{localTouched=true;});
     sectionDirty=()=>form.elements.heading.value!==section.title||form.elements.body.value!==body;
@@ -151,7 +151,7 @@
         const jump = document.createElement('button');
         const stamp=heading.textContent.match(/^\s*\[(\d{2,}:\d{2}:\d{2})(?:\s*[-–—]\s*\d{2,}:\d{2}:\d{2})?\]\s*/);
         jump.textContent=stamp?stamp[1]:new Date(time*1000).toISOString().slice(11,19);
-        jump.className='note-time';jump.dataset.time=time;
+        jump.className='vd-button vd-button--quiet vd-button--compact note-time';jump.dataset.time=time;
         if(stamp){
           const walker=document.createTreeWalker(heading,NodeFilter.SHOW_TEXT);
           let remaining=stamp[0].length,node;
@@ -164,7 +164,7 @@
     sections.forEach((section, index) => {
       if (section.time === null) return;
       const row = document.createElement('div'); row.className = 'outline-row';
-      const jump = document.createElement('button'); jump.textContent = section.title;
+      const jump = document.createElement('button'); jump.className = 'vd-button vd-button--quiet vd-button--compact'; jump.textContent = section.title;
       jump.addEventListener('click', () => {
         seekTo(section.time);
         if (editing) { editor.codemirror.setCursor(section.line, 0); editor.codemirror.focus(); }
@@ -175,7 +175,7 @@
           target?.scrollIntoView({block: 'center'});
         }
       });
-      const remove = document.createElement('button'); remove.className = 'outline-delete';
+      const remove = document.createElement('button'); remove.className = 'vd-button vd-button--danger vd-button--compact outline-delete';
       remove.textContent = 'Удалить'; remove.title = 'Удалить раздел; можно отменить ↶';
       remove.addEventListener('click', () => {
         editor.codemirror.changeGeneration(true);

@@ -16,12 +16,6 @@
     loadReport();
   };
   const stages = ['source', 'speech', 'notes'];
-  for(const link of document.querySelectorAll('.vd-global-nav a[href^="/#"]')){
-    link.addEventListener('click',()=>{
-      const target=new URL(link.href),params=new URLSearchParams(location.search);
-      params.set('workspace','1');target.search=params.toString();link.href=target.href;
-    });
-  }
   const SIDEBAR_STORAGE_KEY='video-descriptor:ui:sidebar';
   const SIDEBAR_TOGGLE_ICONS={open:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',close:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>'};
   const sidebarToggle=$('sidebar-toggle');

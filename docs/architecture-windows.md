@@ -23,18 +23,37 @@ Gemini/LM Studio, используемых другими операциями. 
 
 ## Cohesive desktop presentation (12 November 2026)
 
+Шаги 1–4 [объединения оболочки](../design-system/SHELL-UNIFICATION.md): общий
+`desktop-shell.js` предоставляет полным страницам один результат `/health` с timeout
+10 с; ошибка сети отображается отдельно от shared web и допускает повтор.
+В переносимом file-отчёте запрос не выполняется, онлайн-меню скрыты; embedded
+пропускает оболочку. Старые сохранённые HTML/assets не переписываются.
+Отдельный [визуальный Edge/CDP проход](../design-system/BOOTSTRAP-REVIEW.md) выполнен;
+технические результаты записаны там же; installed WebView2 не проверен.
+
+При выдаче embedded report `report.with_editor_control_roles` добавляет роли
+адаптера известным старым controls и переключателю режима только в HTTP-разметке.
+Сохранённые HTML/assets, revisions и пользовательский текст не переписываются.
+Новые отчёты уже содержат эти роли. Skip link использует общий компонент и остаётся
+перед шапкой в DOM; статус записи — `.vd-status` вместо конфликтующего `.badge`.
+
 `video_descriptor/assets/desktop-shell.js` is shared by the native index, `/create`,
-web library and generated standalone reports; embedded reports deliberately skip it.
-It owns command chrome and DOM composition, not jobs, routing, settings or editors.
-Existing controls are moved, keeping IDs/handlers. File/View/Tools/Help are native
-disclosures; the existing View controller is adopted without another preference
-store. Owner's follow-up removes the visible sidebar/toggle entirely; original
-native navigation anchors move to File/Tools, retaining their handlers. View is
-loaded on every full page, shown only for an open recording and skipped in embedded
-reports. Tools always opens the
-shared settings containing Ollama, LM Studio and Gemini instead of the incomplete
-recording-only dialog. Legacy IDs remain for compatibility. New command
-links respect quick-edit and report dirty guards; settings index buttons only open
+web library, connection help and newly generated standalone reports. The existing
+`/speech` alias still redirects to `/create`; its legacy form is not restored.
+It owns global command chrome, environment discovery and global navigation, not
+jobs, workspace URL state, settings or editors. Navigation IDs remain compatible.
+File/View/Tools/Help use native disclosures on Windows; the existing View controller
+is adopted without another preference store and shown only for an open recording.
+Windows commands are built once after host identification, never inferred from
+page markup. The shell loads the existing `/updates.js` controller, which owns one
+local snapshot polling timer and suspends it on pagehide or lost environment.
+Stop retains the existing instance-protected endpoint and backend 409 guards.
+Canonical Windows destinations are `/#new`, `/#records`, `/#settings`, `/#diagnostics`;
+shared web uses `/create` and `/output/` and does not offer Windows-only commands.
+Global links never inherit a source job/query; Back retains the original recording URL.
+Unsaved edits are checked before closing the menu; refusal restores focus to its item.
+Tools opens shared settings containing Ollama, LM Studio and Gemini instead of the
+incomplete recording-only dialog. Settings index buttons only open
 and focus existing sections. Initial ready preparation is compact, while its live
 status/stop stay outside optional controls. User-triggered transcript copy writes
 rendered original utterances to the clipboard, with no backend/API persistence.
@@ -42,7 +61,8 @@ rendered original utterances to the clipboard, with no backend/API persistence.
 is now the final layer in all three generated bundles; its Sass theme exports the
 existing vd token names. Node/Sass are build-only, not Windows runtime requirements.
 No Bootstrap JS, framework migration, API or preference-store change is involved.
-Surface migration is incomplete; [status and build contract](../design-system/BOOTSTRAP-MIGRATION.md).
+Presentation migration has a completed browser visual pass, not release acceptance;
+[status and build contract](../design-system/BOOTSTRAP-MIGRATION.md).
 See [design evidence and acceptance limits](../design-system/DESKTOP-REDESIGN.md).
 
 ## Уведомления об обновлениях (12.11.2026)

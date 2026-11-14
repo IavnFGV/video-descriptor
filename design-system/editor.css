@@ -3,7 +3,7 @@
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:var(--vd-space-6);align-items:start}.watch-pane{position:sticky;top:var(--vd-space-4);min-width:0}.read-pane{min-width:0}.player{padding:0;position:static}.player video{max-height:45vh}
 #caption{padding:var(--vd-space-3);background:var(--vd-surface);border-radius:var(--vd-radius-control)}#caption p{margin:var(--vd-space-1) 0}.transcript{max-height:32vh;overflow:auto;border:1px solid var(--vd-border)}
 #title-form{display:flex;gap:var(--vd-space-2);flex-wrap:wrap;align-items:center;margin:var(--vd-space-3) 0}#title-input{width:min(100%,300px)}#title-status,#editor-status{color:var(--vd-muted);min-height:1.6em}
-.notes-toolbar button[aria-pressed=true]{background:var(--vd-accent);color:var(--vd-inverse)}#personal-outline{max-height:180px;overflow:auto;margin:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border)}
+#personal-outline{max-height:180px;overflow:auto;margin:var(--vd-space-3) 0;border-bottom:1px solid var(--vd-border)}
 .notes-fold{padding:var(--vd-space-3);border:1px solid var(--vd-border);border-radius:var(--vd-radius-control);background:var(--vd-subtle)}.outline-row{display:flex;gap:var(--vd-space-2);align-items:center;margin:var(--vd-space-2) 0}.outline-row>button:first-child{text-align:left;flex:1}.outline-delete{color:var(--vd-danger)}[data-editing=false] .outline-delete{display:none}
 #personal-preview{font-size:var(--vd-reading);line-height:1.65;overflow-wrap:anywhere}#personal-preview pre{background:var(--vd-subtle);padding:var(--vd-space-3);border-radius:var(--vd-radius-control)}#personal-preview blockquote{border-left:3px solid var(--vd-control);margin-left:0;padding-left:var(--vd-space-4);color:var(--vd-muted)}
 #personal-preview table{display:block;overflow:auto;border-collapse:collapse;max-width:100%}#personal-preview td,#personal-preview th{border:1px solid var(--vd-border);padding:var(--vd-space-2)}
@@ -14,8 +14,7 @@ section[role=alert]{border-color:var(--vd-warning);background:var(--vd-warning-b
 @media(max-width:900px){.workspace{grid-template-columns:1fr}.watch-pane{position:static}.player video{max-height:40vh}}
 
 #personal-preview [data-note-time]{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
-#personal-preview .note-time{min-height:var(--vd-compact-height);padding:var(--vd-space-1);border-color:transparent;background:transparent;color:var(--vd-accent);font-size:var(--vd-label);font-weight:var(--vd-normal);font-variant-numeric:tabular-nums;vertical-align:baseline}
-#personal-preview .note-time:hover{background:var(--vd-accent-tint);text-decoration:underline}
+#personal-preview .note-time{font-variant-numeric:tabular-nums;vertical-align:baseline}
 /* Translation UI is retired; stored subtitle artifacts remain compatible. */
 #subtitle-mode,.subtitle-ru{display:none!important}
 body[data-subtitles] .subtitle-original{display:block!important}

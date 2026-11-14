@@ -330,8 +330,13 @@ def make_handler(value, instance, updates=None):
                                   '<a class="vd-button" href="/#settings">Вернуться к настройкам AI</a>'
                                   '<a class="vd-button" href="/#records">К записям</a></nav>')
                     body = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-                            f'<title>{provider} — инструкция</title><link rel="stylesheet" href="/native.css">'
-                            '<body><main class="card vd-prose">' + navigation + content + navigation + '</main></body></html>').encode('utf-8')
+                             f'<title>{provider} — инструкция</title><link rel="stylesheet" href="/native.css">'
+                             '<script src="/studio-assets/desktop-shell.js"></script>'
+                             '<body><a class="vd-skip" href="#help-content">К инструкции</a>'
+                             '<nav class="vd-global-nav" aria-label="Основная навигация">'
+                             '<a href="/#records">Записи</a><a href="/#settings">Настройки AI</a>'
+                             '<a href="/#diagnostics">Диагностика</a></nav>'
+                             '<main id="help-content" tabindex="-1" class="card vd-prose">' + navigation + content + navigation + '</main></body></html>').encode('utf-8')
                 else:
                     body = (HERE / 'ui' / name).read_bytes()
                 self.send_response(200)

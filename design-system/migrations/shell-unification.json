@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-14",
+  "scope": "Explicit relocation of existing desktop commands into the shared shell. Immutable baseline, endpoint identity, instance/dirty guards and command IDs remain protected.",
+  "dynamic_ids": {
+    "stop": {
+      "source": "video_descriptor/assets/desktop-shell.js",
+      "required": ["const stop=command(file.body,'Завершить приложение',async()=>{", "});stop.id='stop';", "await mayLeave(stop)", "'X-App-Instance':environment.health.instance"]
+    }
+  },
+  "handler_relocations": {
+    "stop.onclick": {
+      "source": "video_descriptor/assets/desktop-shell.js",
+      "required": ["b.onclick=run", "const stop=command(file.body,'Завершить приложение',async()=>{", "fetch('/api/native/stop',{method:'POST'", "await mayLeave(stop)", "if(!response.ok)throw Error"]
+    },
+    "setup-open.onclick": {
+      "source": "windows-app/ui/app.js",
+      "required": ["window.addEventListener('desktop-navigation'", "event.detail.command==='settings'", "diagnostics().catch(e=>message(e.message,true))"]
+    }
+  },
+  "api_relocations": {
+    "/api/native/stop": "video_descriptor/assets/desktop-shell.js"
+  }
+}

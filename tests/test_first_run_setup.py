@@ -104,7 +104,8 @@ def test_connection_guide_has_return_links_without_browser_history(configured, m
             assert guide.status_code == 200
             parser = Navigation()
             parser.feed(guide.text)
-            assert parser.links == ['/#settings', '/#records'] * 2
+            assert parser.links == ['/#records', '/#settings'] + ['/#settings', '/#records'] * 2
+            assert '/studio-assets/desktop-shell.js' in guide.text
             assert guide.text.index('href="/#settings"') < guide.text.index('<h1>')
             assert guide.text.rindex('href="/#settings"') > guide.text.rindex('</h1>')
             for target in set(parser.links):

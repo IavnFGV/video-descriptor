@@ -2,6 +2,8 @@ import hashlib
 import html
 import json
 import os
+import re
+from html.parser import HTMLParser
 from importlib.resources import files
 from pathlib import Path
 from urllib.parse import quote
@@ -9,6 +11,68 @@ from urllib.parse import quote
 from .library import lecture_info
 from .models import Chapter, Note, Source
 from .speech_recovery import pending_unresolved
+
+
+def with_editor_control_roles(page: str) -> str:
+    """Style known legacy report controls in memory, never rewrite saved reports."""
+    roles = {
+        'rename-lecture': 'vd-button vd-button--quiet',
+        'title-input': 'vd-input',
+        'cancel-title': 'vd-button',
+        'save-notes': 'vd-button vd-button--primary vd-button--compact',
+        'add-section': 'vd-button vd-button--quiet vd-button--compact',
+        'download-notes': 'vd-button vd-button--quiet vd-button--compact',
+        'download-html': 'vd-button vd-button--quiet vd-button--compact',
+        'download-draft': 'vd-button vd-button--quiet vd-button--compact',
+    }
+    offsets, offset = [], 0
+    for line in page.splitlines(keepends=True):
+        offsets.append(offset)
+        offset += len(line)
+    edits = []
+
+    class Controls(HTMLParser):
+        protected = None
+
+        def handle_endtag(self, tag):
+            if tag == self.protected:
+                self.protected = None
+
+        def handle_starttag(self, tag, attributes):
+            if self.protected:
+                return
+            if tag in {'textarea', 'script', 'style'}:
+                self.protected = tag
+                return
+            attributes = dict(attributes)
+            classes = (attributes.get('class') or '').split()
+            extra = roles.get(attributes.get('id'), '') if tag in {'button', 'input'} else ''
+            if tag == 'div' and 'notes-toolbar' in classes:
+                extra = 'vd-mode-switch'
+            missing = [name for name in extra.split() if name not in classes]
+            if not missing:
+                return
+            raw = self.get_starttag_text()
+            value = html.escape(' '.join(classes + missing), quote=True)
+            if 'class' in attributes:
+                # Consume whole attributes so a literal "class=" inside another
+                # quoted value cannot be mistaken for the class attribute.
+                updated = raw
+                for attribute in re.finditer(r'''\s+([^\s=/>]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?''', raw):
+                    if attribute[1].lower() == 'class':
+                        updated = raw[:attribute.start()] + f' class="{value}"' + raw[attribute.end():]
+                        break
+            else:
+                updated = re.sub(r'(\s*/?>)$', lambda match: f' class="{value}"' + match[1], raw)
+            line, column = self.getpos()
+            edits.append((offsets[line - 1] + column, len(raw), updated))
+
+    parser = Controls(convert_charrefs=False)
+    parser.feed(page)
+    parser.close()
+    for offset, length, updated in reversed(edits):
+        page = page[:offset] + updated + page[offset + length:]
+    return page
 
 
 def clock(seconds: float) -> str:
@@ -24,7 +88,7 @@ def source_details(evidence: list[Source]) -> str:
             if source.image else ""
         )
         details.append(
-            f'<p><button data-time="{source.start}">{clock(source.start)} '
+            f'<p><button class="vd-button vd-button--quiet vd-button--compact" data-time="{source.start}">{clock(source.start)} '
             f'{html.escape(source.id)}</button></p>{picture}'
             f"<pre>{html.escape(source.text)}</pre>"
         )
@@ -97,7 +161,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
             time_range = f"{clock(chapter.start)}–{clock(chapter.end)}"
             navigation.append(
                 f'<li data-start="{chapter.start}" data-end="{chapter.end}">'
-                f'<button data-time="{chapter.start}">{time_range}</button> '
+                f'<button class="vd-button vd-button--quiet vd-button--compact" data-time="{chapter.start}">{time_range}</button> '
                 f'<span class="kind">{label}</span> {html.escape(display_title)}</li>'
             )
             markdown.extend([f"### [{time_range}] {display_title} ({chapter.kind})", "",
@@ -124,7 +188,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
                 if quiz.explanation:
                     body += f"<p>{html.escape(quiz.explanation)}</p>"
             chapter_cards.append(
-                f'<section><h3><button data-time="{chapter.start}">{clock(chapter.start)}</button> '
+                f'<section><h3><button class="vd-button vd-button--quiet vd-button--compact" data-time="{chapter.start}">{clock(chapter.start)}</button> '
                 f'{html.escape(display_title)}</h3>{body}'
                 + source_details([by_id[key] for key in chapter.source_ids]) + "</section>"
             )
@@ -144,7 +208,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
             markdown.append(f"- Источник {source.id}: {clock(source.start)}")
         markdown.append("")
         sections.append(
-            f'<section class="lecture-note" data-note-time="{timestamp}"><h2><button data-time="{timestamp}">{clock(timestamp)}</button> '
+            f'<section class="lecture-note" data-note-time="{timestamp}"><h2><button class="vd-button vd-button--quiet vd-button--compact" data-time="{timestamp}">{clock(timestamp)}</button> '
             f'{html.escape(note.title)}</h2>{body}' + source_details(evidence) + "</section>"
         )
     if not notes:
@@ -162,18 +226,19 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
 <title>Video Descriptor</title>"""
     page += '<link rel="stylesheet" href="assets/editor.css">'
     page += '<script src="assets/workspace-view.js"></script>'
-    page += '<script defer src="assets/desktop-shell.js"></script>'
+    page += '<script src="assets/desktop-shell.js"></script>'
     try:
         display_title = lecture_info(folder)["display"]
     except (OSError, ValueError, KeyError):
         display_title = video.name
+    page += '<a class="vd-skip" href="#report-content">К материалу</a>'
     page += '<nav class="vd-global-nav" aria-label="Основная навигация"><a href="/output/" aria-current="page">Записи</a><a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
     page += f'<h1 id="lecture-title">{html.escape(display_title)}</h1>'
-    page += '<button id="rename-lecture">Изменить название</button>'
+    page += '<button class="vd-button vd-button--quiet" id="rename-lecture">Изменить название</button>'
     page += '<form id="title-form" hidden><label>Название записи '
-    page += '<input id="title-input" maxlength="200" placeholder="Например: Лекция AWS"></label> '
-    page += '<button type="submit">Сохранить название</button> '
-    page += '<button type="button" id="cancel-title">Отмена</button></form>'
+    page += '<input class="vd-input" id="title-input" maxlength="200" placeholder="Например: Лекция AWS"></label> '
+    page += '<button class="vd-button vd-button--primary" type="submit">Сохранить название</button> '
+    page += '<button class="vd-button" type="button" id="cancel-title">Отмена</button></form>'
     page += '<p id="title-status" role="status" hidden></p>'
     page += '<p>Конспект создан моделью. Проверяйте существенные детали по источникам.</p>'
     error_path = folder / "analysis-errors.json"
@@ -183,7 +248,7 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
         page += '<strong>Конспект неполный: есть необработанные фрагменты.</strong><ul>'
         for error in errors:
             page += (f'<li>Блок {error["block"]}/{error["total_blocks"]}: '
-                     f'<button data-time="{error["start"]}">{clock(error["start"])}</button>'
+                     f'<button class="vd-button vd-button--quiet vd-button--compact" data-time="{error["start"]}">{clock(error["start"])}</button>'
                      f'–{clock(error["end"])} — {html.escape(error["error"])}</li>')
         page += '</ul><p>Подробности и запросы сохранены в папке результата.</p></section>'
     page += '<div class="workspace"><aside class="watch-pane">'
@@ -194,8 +259,8 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
     page += '<p id="playback-status" role="status" hidden></p></div>'
     if speech or unresolved:
         page += f'<section data-subtitle-folder="{html.escape(speech_folder.name, quote=True)}"><h2>Расшифровка</h2><div class="subtitle-tools">'
-        page += '<select id="subtitle-mode" hidden><option value="original">Оригинал</option></select><label><input id="follow" type="checkbox" checked>Следить за видео</label>'
-        page += '<a href="original.vtt" download>Субтитры</a>'
+        page += '<select class="vd-select" id="subtitle-mode" hidden><option value="original">Оригинал</option></select><label><input class="vd-check" id="follow" type="checkbox" checked>Следить за видео</label>'
+        page += '<a class="vd-link" href="original.vtt" download>Субтитры</a>'
         page += '</div><p>Нажмите на время реплики, чтобы перейти к ней.</p>'
         if unresolved:
             page += ('<p class="unresolved-note">Расшифровка неполная: '
@@ -211,30 +276,30 @@ def render(folder: Path, video: Path, sources: list[Source], notes: list[Note],
             if 'gap' in item:
                 gap = item['gap']
                 page += (f'<div class="unresolved-interval" data-start="{gap["start"]}" data-end="{gap["end"]}">'
-                         f'<button data-time="{gap["start"]}">{clock(gap["start"])}</button>'
-                         f'<button class="edit-reply" data-edit-gap="{html.escape(gap["id"], quote=True)}" '
+                         f'<button class="vd-button vd-button--quiet vd-button--compact" data-time="{gap["start"]}">{clock(gap["start"])}</button>'
+                         f'<button class="vd-button vd-button--quiet vd-button--compact edit-reply" data-edit-gap="{html.escape(gap["id"], quote=True)}" '
                          f'title="Заполнить участок вручную" aria-label="Заполнить участок {clock(gap["start"])}">✎</button>'
                          f'<strong> · Без таймкодов</strong>'
                          f'<p class="unresolved-note">{html.escape(gap["note"])}</p></div>')
                 continue
             source = item['source']
             page += (f'<div class="utterance" data-start="{source.start}" data-end="{source.end}">'
-                     f'<button data-time="{source.start}">{clock(source.start)}</button>')
-            page += f'<button class="edit-reply" data-edit-subtitle="{html.escape(source.id, quote=True)}" title="Редактировать реплику" aria-label="Редактировать реплику {clock(source.start)}">✎</button>'
+                     f'<button class="vd-button vd-button--quiet vd-button--compact" data-time="{source.start}">{clock(source.start)}</button>')
+            page += f'<button class="vd-button vd-button--quiet vd-button--compact edit-reply" data-edit-subtitle="{html.escape(source.id, quote=True)}" title="Редактировать реплику" aria-label="Редактировать реплику {clock(source.start)}">✎</button>'
             speaker = speakers.get((source.start, source.end))
             if speaker:
                 page += f'<strong> · {html.escape(speaker_names.get(speaker) or speaker)}</strong>'
             page += f'<p class="subtitle-original">{html.escape(source.text)}</p>'
             page += '</div>'
         page += '</div></section>'
-    page += f'</aside><main class="read-pane"><section id="personal-notes" data-editing="false" data-result-kind="{result_kind}">'
-    page += f'<div class="notes-toolbar"><button data-notes-view="read">{result_label}</button>'
+    page += f'</aside><main class="read-pane" id="report-content" tabindex="-1"><section id="personal-notes" data-editing="false" data-result-kind="{result_kind}">'
+    page += f'<div class="notes-toolbar vd-mode-switch"><button data-notes-view="read">{result_label}</button>'
     page += '<button data-notes-view="edit">Редактировать</button>'
     page += '<button data-notes-view="model">Оригинальный ответ модели</button></div>'
-    page += '<div class="notes-actions"><button id="save-notes" disabled>Сохранить</button>'
-    page += '<button id="add-section">+ Раздел в этом месте</button>'
-    page += '<span>Экспорт:</span><button id="download-notes">Markdown</button><button id="download-html">HTML</button>'
-    page += '<button id="download-draft" hidden>Скачать старый черновик</button></div>'
+    page += '<div class="notes-actions"><button class="vd-button vd-button--primary vd-button--compact" id="save-notes" disabled>Сохранить</button>'
+    page += '<button class="vd-button vd-button--quiet vd-button--compact" id="add-section">+ Раздел в этом месте</button>'
+    page += '<span>Экспорт:</span><button class="vd-button vd-button--quiet vd-button--compact" id="download-notes">Markdown</button><button class="vd-button vd-button--quiet vd-button--compact" id="download-html">HTML</button>'
+    page += '<button class="vd-button vd-button--quiet vd-button--compact" id="download-draft" hidden>Скачать старый черновик</button></div>'
     page += '<p id="editor-status" role="status">Открываем конспект…</p>'
     page += '<details id="outline-group" class="notes-fold"><summary>Оглавление</summary>'
     page += '<div id="personal-outline" aria-label="Оглавление конспекта"></div></details>'

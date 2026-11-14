@@ -6,9 +6,9 @@
   $('record-versions').hidden=true;
   const speechHeading=document.createElement('div');speechHeading.className='recording-speech-heading';
   const label=document.createElement('label'); label.textContent='Версия расшифровки';
-  const speechSelect=document.createElement('select');speechSelect.id='recording-speech';label.append(speechSelect);speechHeading.append(label);speech.prepend(speechHeading);
+  const speechSelect=document.createElement('select');speechSelect.id='recording-speech';speechSelect.className='vd-select';label.append(speechSelect);speechHeading.append(label);speech.prepend(speechHeading);
   const actions=document.createElement('div');actions.className='recording-actions';
-  actions.innerHTML='<button id="recording-diarize" type="button" hidden>Разделить по участникам</button><button id="recording-translate" type="button" hidden>Перевести на русский</button><button id="recording-stop" type="button" hidden>Остановить обработку</button>';
+  actions.innerHTML='<button class="vd-button vd-button--secondary vd-button--compact" id="recording-diarize" type="button" hidden>Разделить по участникам</button><button class="vd-button vd-button--secondary vd-button--compact" id="recording-translate" type="button" hidden>Перевести на русский</button><button class="vd-button vd-button--secondary vd-button--compact" id="recording-stop" type="button" hidden>Остановить обработку</button>';
   speechHeading.append(actions);
   const translationPanel=$('translation-settings-panel');
   translationPanel.insertBefore($('recording-translate'),$('translation-settings-form'));
@@ -25,7 +25,7 @@
   if(location.search.includes('folder=')||location.search.includes('job='))newNotes.hidden=true;
   const notesMenu=document.createElement('details'),notesSummary=document.createElement('summary');notesSummary.textContent='Действия с конспектом';notesMenu.append(notesSummary,$('delete-notes'));$('material-panel').append(notesMenu);
   notesMenu.id='recording-notes-actions';
-  const originalResponse=document.createElement('button');originalResponse.id='recording-original-response';originalResponse.type='button';originalResponse.textContent='Оригинальный ответ модели';originalResponse.disabled=true;originalResponse.setAttribute('aria-controls','report-editor');
+  const originalResponse=document.createElement('button');originalResponse.id='recording-original-response';originalResponse.type='button';originalResponse.className='vd-button vd-button--quiet vd-button--compact';originalResponse.textContent='Оригинальный ответ модели';originalResponse.disabled=true;originalResponse.setAttribute('aria-controls','report-editor');
   const notesMenuActions=document.createElement('div');notesMenuActions.className='notes-actions';notesMenuActions.append($('delete-notes'),originalResponse);notesMenu.append(notesMenuActions);
   originalResponse.onclick=()=>{
     const frame=$('report-editor'),button=frame.contentDocument?.querySelector('[data-notes-view="model"]');
@@ -59,7 +59,7 @@
     try{
       const state=await recoveryPost({folder});if(snapshot?.folder!==folder)return;
       const dialog=document.createElement('dialog');dialog.className='vd-dialog construction-recovery';dialog.setAttribute('aria-labelledby','recovery-title');
-      dialog.innerHTML='<form><h2 id="recovery-title">Проверить и исправить конспект</h2><p>Ответ модели сохранён. Проверка нужна для переходов от тем к видео: метки должны совпадать с началами реплик, а оглавление — идти по времени. Новый запрос к модели не нужен.</p><p data-summary role="status" aria-live="polite"></p><button type="button" data-fix-all>Исправить все метки</button><ul class="recovery-issues" data-issues aria-label="Места, требующие исправления"></ul><label>Текст конспекта<textarea rows="12" required aria-describedby="recovery-help"></textarea></label><p id="recovery-help" class="hint">«Исправить все метки» выбирает ближайшие подтверждённые начала реплик. Проверьте замены по смыслу, затем нажмите «Проверить всё».</p><details><summary>Выбрать другую реплику</summary><label>Подтверждённые начала реплик<select data-anchors><option value="">Выберите реплику…</option></select></label><p class="hint">Сначала выделите только метку времени в тексте, затем выберите реплику.</p></details><p role="alert" data-error></p><div class="vd-actions"><button type="button" data-check>Проверить всё</button><button type="submit">Сохранить и завершить конспект</button><button type="button" data-cancel>Отмена</button></div></form>';
+      dialog.innerHTML='<form><h2 id="recovery-title">Проверить и исправить конспект</h2><p>Ответ модели сохранён. Проверка нужна для переходов от тем к видео: метки должны совпадать с началами реплик, а оглавление — идти по времени. Новый запрос к модели не нужен.</p><p data-summary role="status" aria-live="polite"></p><button class="vd-button" type="button" data-fix-all>Исправить все метки</button><ul class="recovery-issues" data-issues aria-label="Места, требующие исправления"></ul><label>Текст конспекта<textarea class="vd-textarea" rows="12" required aria-describedby="recovery-help"></textarea></label><p id="recovery-help" class="hint">«Исправить все метки» выбирает ближайшие подтверждённые начала реплик. Проверьте замены по смыслу, затем нажмите «Проверить всё».</p><details><summary>Выбрать другую реплику</summary><label>Подтверждённые начала реплик<select class="vd-select" data-anchors><option value="">Выберите реплику…</option></select></label><p class="hint">Сначала выделите только метку времени в тексте, затем выберите реплику.</p></details><p role="alert" data-error></p><div class="vd-actions"><button class="vd-button" type="button" data-check>Проверить всё</button><button class="vd-button vd-button--primary" type="submit">Сохранить и завершить конспект</button><button class="vd-button" type="button" data-cancel>Отмена</button></div></form>';
       const text=dialog.querySelector('textarea'),anchors=dialog.querySelector('[data-anchors]'),error=dialog.querySelector('[data-error]'),save=dialog.querySelector('[type=submit]'),check=dialog.querySelector('[data-check]'),summary=dialog.querySelector('[data-summary]'),issueList=dialog.querySelector('[data-issues]'),fixAll=dialog.querySelector('[data-fix-all]');text.value=state.text;
       const clock=t=>[Math.floor(t/3600),Math.floor(t/60)%60,t%60].map(x=>String(x).padStart(2,'0')).join(':');
       for(const anchor of state.anchors){const item=document.createElement('option');item.value=clock(anchor.time);item.textContent=item.value+' · '+anchor.text.slice(0,160);anchors.append(item);}
@@ -109,9 +109,9 @@
         for(const [index,issue] of currentIssues.entries()){
           const item=document.createElement('li'),title=document.createElement('strong'),description=document.createElement('p'),show=document.createElement('button');
           title.textContent=[issue.section,'строка '+issue.line,issue.value?'['+issue.value+']':''].filter(Boolean).join(' · ');description.textContent=issue.message;
-          show.type='button';show.textContent='Показать в тексте';show.onclick=()=>{if(!manualChanged)jump(position(issue));else error.textContent='Позиции изменились после ручной правки. Нажмите «Проверить всё», чтобы обновить их.';};const resolution=document.createElement('p');resolution.className='hint';resolution.dataset.resolution='';item.append(title,description,show,resolution);
+          show.type='button';show.className='vd-button vd-button--quiet vd-button--compact';show.textContent='Показать в тексте';show.onclick=()=>{if(!manualChanged)jump(position(issue));else error.textContent='Позиции изменились после ручной правки. Нажмите «Проверить всё», чтобы обновить их.';};const resolution=document.createElement('p');resolution.className='hint';resolution.dataset.resolution='';item.append(title,description,show,resolution);
           for(const candidate of issue.candidates){
-            const context=document.createElement('p'),replace=document.createElement('button');context.className='hint';context.textContent=candidate.time+' · '+candidate.text.slice(0,240);
+            const context=document.createElement('p'),replace=document.createElement('button');replace.className='vd-button vd-button--quiet vd-button--compact';context.className='hint';context.textContent=candidate.time+' · '+candidate.text.slice(0,240);
             replace.type='button';replace.textContent='Заменить на '+candidate.time;replace.dataset.candidate=candidate.time;
             replace.onclick=()=>{if(saving||checking||manualChanged)return;replacements.set(index,candidate.time);applyReplacements();jump(position(issue));};
             item.append(context,replace);
@@ -393,16 +393,18 @@
   $('recording-stop').onclick=async()=>{try{const response=await fetch('/api/native/cancel?id='+encodeURIComponent(data?.active_job?.id||job.id),{method:'POST',headers:{'X-App-Instance':window.recordingUI.instance}});const value=await response.json();if(!response.ok)throw Error(value.error);notice.textContent='Останавливаем. Готовые результаты сохранятся.';window.recordingSelection.refresh();library();}catch(error){notice.textContent=error.message;}};
   window.recordingUI={seek,sync,selectMaterial,linked:()=>link.checked&&!paused,pauseLink,restoreChoices:paint,postprocess,native:false,instance:null,
     applyRoute(params){const kind=params.get('material');if(['notes','article'].includes(kind))selectMaterial(kind,false);paint();if(params.get('report'))library();}};
-  fetch('/health').then(response=>response.json()).then(value=>{
-    if(value.app!=='video-descriptor-windows')return;
+  let nativeEnvironmentApplied=false;
+  window.desktopShellEnvironment.subscribe(({kind,health:value})=>{
+    if(kind!=='windows')return;
     window.recordingUI.native=true;window.recordingUI.instance=value.instance;
+    if(nativeEnvironmentApplied)return;
+    nativeEnvironmentApplied=true;
     if(value.development){const notice=document.createElement('p');notice.className='feedback';notice.textContent='Локальная версия '+value.version+' · '+(value.source_commit||'').slice(0,12)+' · общие записи с установленным приложением';workspace.prepend(notice);document.title='Локальная версия '+value.version+' · Video Descriptor';}
-    document.querySelector('.vd-global-nav a[aria-current="page"]').href='/#records';
     $('construction-input').value='speech';$('construction-input').closest('label').hidden=true;
     const engine=$('speech-engine');engine.replaceChildren(option('whisper-local','Локальное распознавание · устройство из настроек AI'));engine.value='whisper-local';
     $('speech-engine-label').querySelector('small').textContent='Используется подготовленная модель и выбранное устройство из настроек AI. Новый запуск сохраняет предыдущую расшифровку.';
     for(const id of ['recording-diarize','recording-translate'])$(id).hidden=false;
-  }).catch(()=>{});
+  });
   if(location.search.includes('folder=')||location.search.includes('job='))library();
   setInterval(()=>{if(!document.hidden&&document.body.classList.contains('has-recording'))library();},10000);
 })();

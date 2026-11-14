@@ -37,7 +37,11 @@ def test_workspace_assets_and_critical_controls():
     shell = (ROOT / 'video_descriptor/assets/desktop-shell.js').read_text(encoding='utf-8')
     assert 'view.details.replaceWith(existing)' in shell
     surfaces = (ROOT / 'design-system/surfaces.css').read_text(encoding='utf-8')
-    assert 'input:not([type=checkbox]):not([type=radio])' in surfaces
+    assert 'label:has(>input:not([type=checkbox]):not([type=radio]))' in surfaces
+    assert '\ninput:not([type=checkbox]):not([type=radio]){' not in surfaces
+    adapter = (ROOT / 'design-system/bootstrap-adapter.scss').read_text(encoding='utf-8')
+    assert '.vd-check { @extend .form-check-input; }' in adapter
+    assert '.vd-tabs > [role=tab]' in adapter and 'cursor: pointer' in adapter
 
 
 def test_visibility_module_has_no_processing_side_effects():

@@ -26,11 +26,17 @@ for(const layout of ['side','stacked'])for(let mask=0;mask<128;mask++){
   assert.equal(combination.attempts.get,1,label+' reads');
   assert.equal(combination.attempts.set,0,label+' writes');
   combination.ui.route(new URLSearchParams());
-  const expected=flags.transcript?(flags.notes||flags.article?'all':'transcript'):(flags.notes?'notes':flags.article?'article':'all');
+  const expected=flags.transcript?'transcript':flags.notes?'notes':flags.article?'article':'transcript';
   assert.equal(combination.root.dataset.workspaceTab,expected,label+' initial tab');
   assert.equal(combination.values.get(key),bytes,label+' route does not rewrite preferences');
   assert.equal(combination.attempts.set,0,label+' route writes');
 }
+const compatibility=boot();
+compatibility.ui.route(new URLSearchParams('?material=notes'));
+assert.equal(compatibility.root.dataset.workspaceTab,'notes');
+compatibility.ui.setPanel('technical',true); // Existing controls request the retired all view internally.
+assert.equal(compatibility.root.dataset.workspaceTab,'transcript','legacy all selects transcript');
+assert.equal(compatibility.attempts.set,1,'one explicit preference change performs one write');
 for(const [search,tab,target] of [
   ['?material=article&stage=speech','article','article'],
   ['?material=notes&stage=speech','notes','notes'],

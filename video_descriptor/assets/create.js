@@ -102,7 +102,7 @@
       const names = [...new Set([...result.segments.map(row => row.speaker).filter(Boolean), ...Object.keys(result.speaker_names || {})])];
       $('speaker-names').replaceChildren(...names.map(speaker => {
         const count=result.segments.filter(row=>row.speaker===speaker).length;
-        const label = text('label', (result.speaker_names?.[speaker] || (speaker==='unknown'?'Участник не указан':speaker))+' · реплик: '+count), input = document.createElement('input');
+        const label = text('label', (result.speaker_names?.[speaker] || (speaker==='unknown'?'Участник не указан':speaker))+' · реплик: '+count), input = document.createElement('input');input.className='vd-input';
         input.dataset.speaker = speaker; input.maxLength = 100; input.placeholder = 'Имя участника';
         input.value = result.speaker_names?.[speaker] || ''; label.append(input); return label;
       }));
@@ -381,7 +381,7 @@
   }
   function jump(time) { if(window.recordingUI)window.recordingUI.seek(time);else { follow.checked = false; video.currentTime = time; syncPlayback(); } }
   function stamp(time) {
-    const button = text('button', clock(time), 'timestamp');
+    const button = text('button', clock(time), 'vd-button vd-button--quiet vd-button--compact timestamp');
     button.type = 'button'; button.addEventListener('click', () => jump(time)); return button;
   }
   function changed(id, value, build) {
@@ -404,7 +404,7 @@
     if (!gaps.length) return;
     node.append(text('span', ' · участков без таймкодов: ' + gaps.length));
     for (const gap of gaps) {
-      const button = text('button', clock(gap.start), 'gap-link');
+      const button = text('button', clock(gap.start), 'vd-button vd-button--quiet vd-button--compact gap-link');
       button.type = 'button';
       button.title = 'Перейти к участку без таймкодов ' + clock(gap.start);
       button.setAttribute('aria-label', 'Перейти к участку без таймкодов ' + clock(gap.start) + '–' + clock(gap.end));
@@ -449,7 +449,8 @@
     const gaps = snapshot.errors.length;
     const label = error ? (job?.cancelled?'Остановлено':'Ошибка') : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
     $('run-state').textContent = label;
-    $('run-state').className = 'badge ' + (error || gaps ? 'error' : done ? 'done' : '');
+    $('run-state').className = 'vd-status';
+    $('run-state').dataset.tone = error || gaps ? 'danger' : done ? 'success' : 'info';
     $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !snapshot.running && !['queued','running'].includes(job?.status) && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено · можно построить конспект' : (snapshot.phase===4&&snapshot.construction_settings?.result_kind==='article'?'Создание статьи':phases[snapshot.phase - 1]) + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');
     $('position-label').textContent = clock(snapshot.position) + ' / ' + clock(snapshot.start + snapshot.duration);
     const fraction = (status.chunk || '').match(/(\d+)\/(\d+)/);
@@ -516,7 +517,7 @@
           heading.append(badge);
           heading.append(tools);row.append(heading,text('p',gap.note||'Речь на этом участке не распознана.','unresolved-note'));
           if(snapshot.speech_editor_url){
-            const edit=text('button','✎','edit-subtitle');edit.type='button';
+            const edit=text('button','✎','vd-button vd-button--quiet vd-button--compact edit-subtitle');edit.type='button';
             edit.title='Заполнить участок вручную';edit.setAttribute('aria-label','Заполнить участок '+clock(gap.start));
             edit.onclick=()=>editGap(gap,edit);tools.append(edit);
           }
@@ -534,7 +535,7 @@
         heading.append(tools);row.append(heading,content);
         if(source.translation!=null)row.append(text('p',source.translation,'subtitle-ru'));
         if (snapshot.speech_editor_url) {
-          const edit = text('button', '✎', 'edit-subtitle'); edit.type = 'button';
+          const edit = text('button', '✎', 'vd-button vd-button--quiet vd-button--compact edit-subtitle'); edit.type = 'button';
           edit.title = 'Редактировать реплику'; edit.setAttribute('aria-label', 'Редактировать реплику ' + clock(source.start));
           edit.onclick = () => editSubtitle(source, edit); tools.append(edit);
         }
@@ -632,7 +633,7 @@
       const jobs = await json('/api/jobs'); const node = $('job-list'); node.replaceChildren();
       jobs.sort((a, b) => b.created - a.created).forEach(job => {
         const status = {queued: 'В очереди', running: 'В работе', done: 'Готово', error: 'Ошибка'}[job.status];
-        const button = text('button', (job.title || job.filename) + ' · ' + status);
+        const button = text('button', (job.title || job.filename) + ' · ' + status, 'vd-button vd-button--secondary');
         button.type = 'button'; button.addEventListener('click', () => { select({job: job.id}); }); node.append(button);
       });
     } catch (_) {}

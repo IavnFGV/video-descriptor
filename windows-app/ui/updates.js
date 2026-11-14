@@ -1,12 +1,14 @@
 (() => {
+  if(window.updatesUI)return;
   const $ = id => document.getElementById(id);
-  let instance, busy=false, revision=0, state;
+  let instance, busy=false, revision=0, state, polling=null;
   const label = value => value ? value.version+(value.build==null?' (сборка разработки)':' (build '+(value.build>=12?String(value.build).padStart(4,'0'):value.build)+')') : '';
   function render(value) {
     state=value;
     const available=value.update_available===true && value.status!=='unsupported';
     $('updates-badge').hidden=!available;
     $('updates-open').hidden=!available;
+    $('updates-open').disabled=!available;
     $('updates-check').disabled=value.status==='checking';
     $('updates-check').setAttribute('aria-busy', String(value.status==='checking'));
     $('updates-heading').textContent=available?'Доступно обновление':'Обновления';
@@ -17,9 +19,11 @@
     $('updates-notes').textContent=available?value.latest.notes:'';
   }
   async function refresh(manual=false) {
-    if (!instance || (busy&&!manual)) return;
+    if (!instance || busy) return;
     const current=++revision;
     busy=true;
+    $('updates-check').disabled=true;$('updates-check').setAttribute('aria-busy','true');
+    if(manual)$('updates-status').textContent='Проверяем обновления…';
     try {
       const response=await fetch(manual?'/api/updates/check':'/api/updates', manual?{method:'POST',headers:{'X-App-Instance':instance}}:{});
       if (!response.ok) throw new Error('unavailable');
@@ -47,5 +51,20 @@
       if(!response.ok)throw new Error('open');
     } catch (_) {$('updates-status').textContent='Не удалось открыть релиз. Повторите позже.';}
   };
-  window.updatesUI={init:value=>{instance=value;refresh();},refresh};
+  function suspend(){
+    instance=null;revision++;busy=false;state=null;
+    if(polling!==null){clearInterval(polling);polling=null;}
+    $('updates-check').disabled=true;$('updates-check').setAttribute('aria-busy','false');$('updates-badge').hidden=true;
+    $('updates-open').disabled=true;
+  }
+  window.updatesUI={
+    init(value){
+      if(instance===value&&polling!==null)return;
+      if(instance!==value){revision++;busy=false;state=null;}
+      instance=value;
+      if(polling===null)polling=setInterval(()=>{if(!document.hidden)refresh();},15000);
+      refresh();
+    },refresh,suspend
+  };
+  window.addEventListener('pagehide',suspend);
 })();

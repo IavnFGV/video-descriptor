@@ -122,6 +122,20 @@
   }
   .vd-button[aria-busy=true] { cursor: progress; }
 
+  // Menu commands share geometry regardless of link/button or compact variant.
+  .desktop-menu-content > :is(a, button) {
+    box-sizing: border-box;
+    min-height: var(--vd-compact-height);
+    padding: var(--vd-space-2);
+    border: 0;
+    border-radius: var(--vd-radius-control);
+    color: var(--vd-text);
+    background: transparent;
+    font: inherit;
+    text-decoration: none;
+  }
+  .desktop-menu-content > :is(a, button):hover { background: var(--vd-subtle); }
+
   .vd-input, .vd-textarea { @extend .form-control; min-height: var(--vd-control-height); }
   .vd-textarea { min-height: 112px; resize: vertical; }
   .vd-select { @extend .form-select; min-height: var(--vd-control-height); }
@@ -130,7 +144,8 @@
   :is(.vd-input, .vd-textarea, .vd-select)[aria-invalid=true] { border-color: var(--vd-danger); }
 
   .vd-tabs { @extend .nav; @extend .nav-tabs; }
-  .vd-tabs > [role=tab] { @extend .nav-link; min-height: var(--vd-space-12); }
+  .vd-tabs > [role=tab] { @extend .nav-link; min-height: var(--vd-space-12); cursor: pointer; }
+  .vd-tabs > [role=tab]:is(:disabled, [aria-disabled=true]) { cursor: default; }
   .vd-tabs > [role=tab][aria-selected=true] {
     color: var(--bs-nav-tabs-link-active-color);
     background: var(--bs-nav-tabs-link-active-bg);
@@ -146,9 +161,22 @@
   }
   .vd-panel { @extend .card; }
   .vd-badge { @extend .badge; color: var(--vd-text); background: var(--vd-subtle); }
-  .vd-status { @extend .alert; }
+  .vd-status {
+    @extend .alert;
+    --bs-alert-color: var(--vd-muted);
+    --bs-alert-bg: var(--vd-subtle);
+    --bs-alert-border-color: var(--vd-border);
+    --bs-alert-padding-x: var(--vd-space-2);
+    --bs-alert-padding-y: var(--vd-space-1);
+    --bs-alert-margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--vd-space-2);
+    font-size: var(--vd-caption);
+    font-weight: var(--vd-medium);
+  }
   @each $kind in (success, info, warning, danger) {
-    .vd-status--#{$kind} {
+    .vd-status--#{$kind}, .vd-status[data-tone=#{$kind}] {
       --bs-alert-color: var(--vd-#{$kind});
       --bs-alert-bg: var(--vd-#{$kind}-bg);
       --bs-alert-border-color: var(--vd-#{$kind});
@@ -165,6 +193,7 @@
   [hidden] { display: none !important; }
   @media (forced-colors: active) {
     :focus-visible { outline-color: Highlight; }
+    .vd-status { border-color: CanvasText; }
     .vd-tabs > [role=tab][aria-selected=true], .vd-mode-switch > button[aria-pressed=true] {
       border-color: Highlight; color: Highlight;
     }

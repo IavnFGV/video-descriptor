@@ -100,7 +100,7 @@ def test_report_escapes_content_and_links_to_source_time(tmp_path):
                 limitations=[], source_ids=["s1"])
     render(folder, video, [source], [note])
     page = (folder / "report.html").read_text()
-    assert '<button data-time="613.5">00:10:13' in page
+    assert 'data-time="613.5">00:10:13' in page
     assert "&lt;script&gt;" in page
     assert "<script>alert(1)</script>" not in page
     assert "../clip%20with%20spaces.mp4" in page

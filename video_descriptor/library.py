@@ -80,22 +80,22 @@ def library_page(output):
             status = "Конспект с пропущенными фрагментами"
         if not score[0]:
             status += " · фрагмент записи"
-        report_link = (f'<a href="{url}&amp;stage=notes">Читать конспект →</a>'
+        report_link = (f'<a class="vd-link" href="{url}&amp;stage=notes">Читать конспект →</a>'
                        if ready else "")
-        cards.append(f'<article><a href="{url}">{html.escape(info["display"])}</a>'
-                     f'<p>{status}</p><div class="vd-actions"><a href="{url}">Открыть запись →</a>'
+        cards.append(f'<article class="vd-panel"><a class="vd-link" href="{url}">{html.escape(info["display"])}</a>'
+                     f'<p>{status}</p><div class="vd-actions"><a class="vd-link" href="{url}">Открыть запись →</a>'
                      f'{report_link}</div></article>')
     return ('<!doctype html><html lang="ru"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             '<title>Записи · Video Descriptor</title>'
             '<link rel="stylesheet" href="/studio-assets/create.css">'
             '<script src="/studio-assets/workspace-view.js"></script>'
-            '<script defer src="/studio-assets/desktop-shell.js"></script>'
+            '<script src="/studio-assets/desktop-shell.js"></script>'
             '<a class="vd-skip" href="#records">К записям</a>'
             '<nav class="vd-global-nav" aria-label="Основная навигация">'
             '<a href="/output/" aria-current="page">Записи</a>'
             '<a href="/#settings">Настройки AI</a><a href="/#diagnostics">Диагностика</a></nav>'
             '<main id="records" tabindex="-1"><div class="library-heading"><h1>Записи</h1>'
-            '<a class="vd-button vd-button--primary" href="/">Новая запись</a></div>'
+            '<a class="vd-button vd-button--primary" data-desktop-command="new" data-desktop-navigation href="/create">Новая запись</a></div>'
             '<p>Откройте запись для просмотра расшифровки и конспекта.</p>'
             + ("".join(cards) or '<p>Готовых материалов пока нет.</p>') + '</main></html>')

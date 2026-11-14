@@ -70,7 +70,6 @@ The isolated Edge fixture for the unified Task 9 tabs and existing workspace con
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-empty
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --translation-retired
-.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-view-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-storage-read
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-storage-write
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-route-writers
@@ -92,6 +91,17 @@ the new shell. `-X utf8` matches the Windows launcher and prevents the fixture b
 from reading Cyrillic UTF-8 files with the host's legacy code page.
 The route/material/workspace scenarios cover selected guarded-history cases, not all
 legacy stacks. These checks do not establish installed WebView2 or hardware acceptance.
+
+`--workspace-view-only` retains historical simultaneous-panel assertions and is not
+a current single-tab acceptance command. The View-menu checkbox parity is unresolved;
+use the current tab scenarios above without treating them as multi-panel parity.
+
+Shared application commands have a separate isolated Edge check:
+`.\.venv\Scripts\python.exe -X utf8 scripts/verify-updates-ui.py`.
+It covers update text safety and focus, canonical Windows/web links, one health read,
+repeated initialization/retry, dirty-guard focus and a mocked stop refusal. It never
+stops the running application. Legacy embedded HTML preservation and relocation-evidence
+negative cases are in `test_report_presentation.py` and `test_ui_audit_relocations.py`.
 
 `--translation-retired` checks hidden translation controls with the persisted v1
 flag enabled, unavailable prompt selection, `translate_after:false` despite an old

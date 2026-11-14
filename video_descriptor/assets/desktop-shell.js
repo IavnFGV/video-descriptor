@@ -1,63 +1,176 @@
-/* Shared desktop chrome. Moves existing controls; never owns jobs, media or editors. */
+/* Shared application commands and chrome; never owns jobs, media or editors. */
 (() => {
   if(new URLSearchParams(location.search).get('embedded')==='1')return;
+  if(window.desktopShellEnvironment)return;
+  // One health snapshot for the shell and its existing page controllers.
+  const listeners=new Set();
+  let environment={kind:'pending',health:null}, request=null, confirmedKind=null;
+  function notify(listener,value){try{listener(value);}catch(error){console.error('Desktop shell environment listener failed',error);}}
+  function publish(value){
+    environment=value;
+    if(['windows','web','offline'].includes(value.kind))confirmedKind=value.kind;
+    for(const listener of listeners)notify(listener,value);
+    return value;
+  }
+  function readEnvironment(retry=false){
+    if(request)return request;
+    if(!retry&&environment.kind!=='pending')return Promise.resolve(environment);
+    if(location.protocol==='file:')return Promise.resolve(publish({kind:'offline',health:null}));
+    publish({kind:'pending',health:null});
+    const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),10000);
+    request=fetch('/health',{cache:'no-store',signal:controller.signal}).then(response=>{
+      if(!response.ok)throw Error('health unavailable');
+      return response.json();
+    }).then(health=>{
+      if(health?.app==='video-descriptor-windows'&&typeof health.instance==='string'&&health.instance)
+        return publish({kind:'windows',health});
+      if(health?.status==='ok'&&!health.app)return publish({kind:'web',health});
+      throw Error('unknown health response');
+    }).catch(()=>publish({kind:'unavailable',health:null})).finally(()=>{clearTimeout(timeout);request=null;});
+    return request;
+  }
+  const shellEnvironment={read:readEnvironment,subscribe(listener){listeners.add(listener);notify(listener,environment);return()=>listeners.delete(listener);}};
+  window.desktopShellEnvironment=shellEnvironment;
+  readEnvironment();
+  const menuDescriptions={file:'Файл',view:'Вид',tools:'Инструменты',help:'Справка'};
+  const routeMaps={
+    windows:{new:'/#new',records:'/#records',settings:'/#settings',diagnostics:'/#diagnostics',ollama:'/help/ollama',lmstudio:'/help/lmstudio'},
+    web:{new:'/create',records:'/output/'},
+    offline:{}
+  };
+  const route=command=>(routeMaps[confirmedKind]||routeMaps.web)[command];
+  let mounted=false;
   function start(){
-    const $=id=>document.getElementById(id), native=!!$('app-shell');
-    const navigation=native?document.querySelector('.sidebar nav'):document.querySelector('.vd-global-nav');
+    if(mounted)return;
+    const $=id=>document.getElementById(id), localNavigation=document.querySelector('.sidebar nav');
+    const navigation=localNavigation||document.querySelector('.vd-global-nav');
     if(!navigation)return;
+    mounted=true;
     document.body.classList.add('vd-desktop');
     const brand=document.querySelector('.brand>span:last-child');if(brand)brand.textContent='Video Descriptor';
-    const header=native?document.querySelector('.topbar'):document.createElement('header');
+    const existingHeader=document.querySelector('.topbar');
+    const header=existingHeader||document.createElement('header');
     header.classList.add('desktop-header');
-    if(!native)document.body.prepend(header);
+    if(!existingHeader){
+      const skip=document.querySelector('body>.vd-skip,body>.skip');
+      if(skip)skip.after(header);else document.body.prepend(header);
+    }
     // Retain legacy IDs for their existing handlers, but no second navigation surface.
     if($('sidebar-toggle'))$('sidebar-toggle').hidden=true;
-    const bar=document.createElement('div');bar.className='desktop-menu-bar';bar.setAttribute('aria-label','Команды приложения');header.append(bar);
+    const bar=document.createElement('nav');bar.className='desktop-menu-bar';bar.setAttribute('aria-label','Команды приложения');header.append(bar);
     function menu(id,title){
       const details=document.createElement('details'),summary=document.createElement('summary'),body=document.createElement('div');
       details.id=id;details.className='desktop-menu';summary.textContent=title;body.className='desktop-menu-content';details.append(summary,body);bar.append(details);return {details,body};
     }
-    function link(body,title,href){const a=document.createElement('a');a.textContent=title;a.href=href;a.dataset.desktopNavigation='';body.append(a);return a;}
-    function command(body,title,run){const b=document.createElement('button');b.type='button';b.textContent=title;b.onclick=run;body.append(b);return b;}
-    const file=menu('desktop-file-menu','Файл');
-    link(file.body,'Новая запись…',native?'#new':'/#new');
-    function navigationItem(body,id,title,href){
-      const item=native?$(id):null;
-      if(item){item.textContent=title;body.append(item);return item;}
-      return link(body,title,href);
+    function link(body,title,key,id){
+      const a=id&&$(id)||document.createElement('a');a.textContent=title;
+      if(id)a.id=id;
+      a.dataset.desktopCommand=key;a.dataset.desktopNavigation='';
+      body.append(a);return a;
     }
-    navigationItem(file.body,'records-open','Записи',native?'#records':'/output/');
-    const oldMenu=document.querySelector('.app-menu');
-    if($('stop'))file.body.append($('stop'));
-    const view=menu('desktop-view-menu','Вид');
+    function command(body,title,run){const b=document.createElement('button');b.type='button';b.className='vd-button vd-button--quiet vd-button--compact';b.textContent=title;b.onclick=run;body.append(b);return b;}
+    const file=menu('desktop-file-menu',menuDescriptions.file);
+    link(file.body,'Новая запись…','new');
+    link(file.body,'Записи','records','records-open');
+    const view=menu('desktop-view-menu',menuDescriptions.view);
     view.details.hidden=true;
-    const tools=menu('desktop-tools-menu','Инструменты');
-    navigationItem(tools.body,'setup-open','Настройки AI и подключения…',native?'#settings':'/#settings');
-    navigationItem(tools.body,'diagnostics-open','Диагностика…',native?'#diagnostics':'/#diagnostics');
+    const tools=menu('desktop-tools-menu',menuDescriptions.tools);
+    link(tools.body,'Настройки AI и подключения…','settings','setup-open');
+    link(tools.body,'Диагностика…','diagnostics','diagnostics-open');
     // The old recording-only dialog omits Ollama. All entry points use the shared form.
     if($('open-connections'))$('open-connections').hidden=true;
-    const help=menu('desktop-help-menu','Справка');
-    if($('updates-check'))help.body.append($('updates-check'));
+    const help=menu('desktop-help-menu',menuDescriptions.help);
     const about=document.createElement('dialog');about.id='desktop-help-dialog';about.className='vd-dialog';about.setAttribute('aria-labelledby','desktop-help-heading');
     about.innerHTML='<h2 id="desktop-help-heading">Video Descriptor</h2><p>Рабочее пространство записи</p><ol><li>Откройте или добавьте видео или аудио.</li><li>Расшифруйте речь и при необходимости разделите её по участникам.</li><li>Проверьте текст по видео. Нажмите на время для перехода, на карандаш — для правки.</li><li>Скопируйте нужный текст или скачайте TXT, SRT либо VTT рядом с расшифровкой.</li></ol><p>В меню «Вид» включаются конспект, статья и технические сведения. Скрытие не останавливает обработку и не удаляет материалы.</p><p>В редакторе: Ctrl+S — сохранить, Ctrl+Z — отменить. Несохранённые изменения защищены при переходах.</p><p class="desktop-help-version vd-help"></p><div class="vd-actions"><button type="button" class="vd-button">Закрыть</button></div>';
-    const aboutButton=command(help.body,'О приложении и работе с записью',()=>{about.querySelector('.desktop-help-version').textContent=$('build-label')?.textContent||'Локальное рабочее пространство';about.showModal();});
-    link(help.body,'Подключение Ollama','/help/ollama');
-    link(help.body,'Подключение LM Studio','/help/lmstudio');
-    about.querySelector('button').onclick=()=>about.close();about.addEventListener('close',()=>help.details.querySelector('summary').focus());document.body.append(about);
-    // Native dialogs cannot restore focus into a command menu that just closed.
-    const returns=new Map();
-    bar.addEventListener('click',event=>{
-      const id=event.target.closest('button')?.id;
-      if(id==='open-connections')returns.set($('connections-dialog'),tools.details.querySelector('summary'));
-      if(id==='updates-check')returns.set($('updates-dialog'),help.details.querySelector('summary'));
-    },true);
-    for(const id of ['connections-dialog','updates-dialog'])$(id)?.addEventListener('close',()=>{const target=returns.get($(id));if(target){returns.delete($(id));target.focus();}});
-    if(oldMenu)oldMenu.hidden=true;
+    function openAbout(){
+      about.querySelector('.desktop-help-version').textContent=versionLabel(environment.health)||'Video Descriptor';
+      closeMenus();about.showModal();
+    }
+    command(help.body,'О приложении и работе с записью',openAbout);
+    const helpAction=command(bar,'Справка',openAbout);helpAction.hidden=true;
+    link(help.body,'Подключение Ollama','ollama');
+    link(help.body,'Подключение LM Studio','lmstudio');
+    about.querySelector('button').onclick=()=>about.close();about.addEventListener('close',()=>{(helpAction.hidden?help.details.querySelector('summary'):helpAction).focus();});document.body.append(about);
     const caption=document.createElement('span');caption.className='desktop-app-caption';caption.textContent='Video Descriptor';header.append(caption);
-    if($('updates-badge'))header.append($('updates-badge'));
+    const feedback=document.createElement('p');feedback.className='desktop-command-status';feedback.setAttribute('role','status');header.after(feedback);
+    const connection=document.createElement('p');connection.className='desktop-environment-status';connection.hidden=true;header.after(connection);
+    const connectionText=document.createElement('span');connectionText.setAttribute('role','status');
+    const retry=document.createElement('button');retry.type='button';retry.className='vd-button vd-button--quiet vd-button--compact';retry.textContent='Повторить';
+    retry.addEventListener('click',()=>readEnvironment(true));connection.append(connectionText,retry);
+    function versionLabel(health){
+      return health?.version?'Video Descriptor '+health.version+(health.build==null?'':' · билд '+(health.build>=12?String(health.build).padStart(4,'0'):health.build)):'';
+    }
+    let updatesLoading=null, commandsMounted=false, stopping=false;
+    function loadUpdates(){
+      if(window.updatesUI)return Promise.resolve(window.updatesUI);
+      if(updatesLoading)return updatesLoading;
+      updatesLoading=new Promise((resolve,reject)=>{
+        const script=document.createElement('script');script.src='/updates.js';
+        script.onload=()=>window.updatesUI?resolve(window.updatesUI):reject(Error('updates controller unavailable'));
+        script.onerror=()=>{script.remove();reject(Error('updates controller unavailable'));};
+        document.head.append(script);
+      }).catch(error=>{updatesLoading=null;throw error;});
+      return updatesLoading;
+    }
+    function mountWindowsCommands(){
+      if(commandsMounted)return;
+      commandsMounted=true;
+      const stop=command(file.body,'Завершить приложение',async()=>{
+        if(stopping||environment.kind!=='windows')return;
+        stopping=true;
+        if(!await mayLeave(stop)||environment.kind!=='windows'){stopping=false;return;}
+        stop.disabled=true;stop.setAttribute('aria-busy','true');feedback.textContent='Завершаем приложение…';
+        try{
+          const response=await fetch('/api/native/stop',{method:'POST',headers:{'X-App-Instance':environment.health.instance}});
+          const result=await response.json();
+          if(!response.ok)throw Error(result.error||'Не удалось завершить приложение.');
+          window.desktopShellStopped=true;window.updatesUI?.suspend();closeMenus();file.details.querySelector('summary').focus();
+          feedback.textContent='Приложение завершено. Эту вкладку можно закрыть.';
+          window.dispatchEvent(new Event('desktop-application-stopped'));
+        }catch(error){feedback.textContent=error.message;stop.disabled=false;restoreFocus(stop);}
+        finally{stopping=false;stop.disabled=window.desktopShellStopped===true;stop.setAttribute('aria-busy','false');}
+      });stop.id='stop';
+      const check=command(help.body,'Проверить обновления',()=>{});check.id='updates-check';check.disabled=true;help.body.prepend(check);
+      const badge=command(header,'Обновление',()=>{});badge.id='updates-badge';badge.hidden=true;badge.setAttribute('aria-label','Доступно обновление');
+      const dialog=document.createElement('dialog');dialog.id='updates-dialog';dialog.className='vd-dialog';dialog.setAttribute('aria-labelledby','updates-heading');
+      dialog.innerHTML='<h2 id="updates-heading">Обновления</h2><p id="updates-status" role="status" aria-live="polite"></p><p id="updates-installed"></p><p id="updates-available"></p><h3 id="updates-title"></h3><p id="updates-notes" class="vd-help"></p><div class="vd-actions"><button id="updates-open" type="button" class="vd-button vd-button--primary" hidden>Открыть релиз</button><button id="updates-later" type="button" class="vd-button">Позже</button></div>';
+      document.body.append(dialog);
+      let returnTo=help.details.querySelector('summary');
+      check.addEventListener('click',()=>{returnTo=help.details.querySelector('summary');closeMenus();});
+      badge.addEventListener('click',()=>{returnTo=badge;closeMenus();});
+      dialog.addEventListener('close',()=>{(returnTo.checkVisibility()?returnTo:helpAction.hidden?help.details.querySelector('summary'):helpAction).focus();});
+    }
+    shellEnvironment.subscribe(value=>{
+      if(value.kind!=='unavailable'&&connection.contains(document.activeElement))file.details.querySelector('summary').focus();
+      connection.hidden=value.kind!=='unavailable';retry.disabled=value.kind==='pending';
+      connectionText.textContent=value.kind==='unavailable'?'Приложение недоступно.':'';
+      const helpFocused=help.details.contains(document.activeElement)||document.activeElement===helpAction;
+      bar.hidden=value.kind==='offline';
+      help.details.hidden=confirmedKind!=='windows';helpAction.hidden=confirmedKind==='windows';
+      if(helpFocused&&!document.activeElement.checkVisibility())(helpAction.hidden?help.details.querySelector('summary'):helpAction).focus();
+      caption.textContent=versionLabel(value.health)||'Video Descriptor';
+      for(const a of document.querySelectorAll('[data-desktop-command]')){
+        const href=route(a.dataset.desktopCommand);a.hidden=!href;if(href)a.href=href;
+      }
+      tools.details.hidden=![...tools.body.querySelectorAll('a')].some(a=>!a.hidden);
+      if(value.kind==='windows'){
+        mountWindowsCommands();$('stop').disabled=stopping||window.desktopShellStopped===true;
+        loadUpdates().then(ui=>{
+          if(environment.kind==='windows'&&!window.desktopShellStopped){ui.init(environment.health.instance);feedback.textContent='';}
+        }).catch(()=>{feedback.textContent='Не удалось загрузить обновления. Повторите проверку подключения.';connection.hidden=false;retry.disabled=false;});
+      }else{
+        window.updatesUI?.suspend();
+        if(commandsMounted){$('stop').disabled=true;$('updates-check').disabled=true;}
+      }
+      if(commandsMounted){$('stop').hidden=confirmedKind!=='windows';$('updates-check').hidden=confirmedKind!=='windows';}
+    });
+    window.addEventListener('pageshow',event=>{if(event.persisted)readEnvironment(true);});
     // One View controller and one persisted preference structure, not a second menu.
+    let viewAdopted=false;
     function adoptView(){
+      if(viewAdopted)return;
       const existing=$('workspace-view-menu');if(!existing)return;
+      viewAdopted=true;
       view.details.replaceWith(existing);existing.classList.add('desktop-menu');
       const workspace=$('workspace');
       const sync=()=>{existing.hidden=!workspace||workspace.hidden;if(existing.hidden)existing.open=false;};
@@ -69,33 +182,53 @@
     bar.addEventListener('toggle',event=>{if(event.target.open)closeMenus(event.target);},true);
     bar.addEventListener('keydown',event=>{
       if(event.key==='Escape'){const active=event.target.closest('details');if(active){active.open=false;active.querySelector('summary').focus();event.preventDefault();}}
-      if(['ArrowLeft','ArrowRight'].includes(event.key)&&event.target.tagName==='SUMMARY'){
-        const entries=[...bar.querySelectorAll(':scope>details:not([hidden])>summary')],i=entries.indexOf(event.target),next=entries[(i+(event.key==='ArrowRight'?1:entries.length-1))%entries.length];
+      if(['ArrowLeft','ArrowRight'].includes(event.key)&&(event.target.tagName==='SUMMARY'||event.target===helpAction)){
+        const entries=[...bar.querySelectorAll(':scope>details:not([hidden])>summary,:scope>button:not([hidden])')],i=entries.indexOf(event.target),next=entries[(i+(event.key==='ArrowRight'?1:entries.length-1))%entries.length];
         closeMenus();next.focus();event.preventDefault();
       }
     });
-    document.addEventListener('click',event=>{if(!bar.contains(event.target))closeMenus();else if(event.target.closest('a,button')&&!event.target.closest('#workspace-view-menu'))closeMenus();});
-    // New menu links and shared navigation retain the existing dirty owners.
-    document.addEventListener('click',async event=>{
-      const a=event.target.closest('a[data-desktop-navigation],.vd-global-nav a');
-      if(!a||event.button||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
-      event.preventDefault();
-      const frame=$('report-editor');
-      if(frame?.contentWindow?.notesEditorDirty?.()||window.notesEditorDirty?.()){
-        const status=$('recording-status')||$('editor-status');if(status)status.textContent='Сохраните правки материала перед переходом.';return;
-      }
-      if(window.mayLeaveQuickReply&&!await window.mayLeaveQuickReply())return;
-      const target=new URL(a.href);
-      if(location.pathname==='/create'&&a.hasAttribute('data-desktop-navigation')&&target.origin===location.origin&&target.pathname==='/'&&target.hash){
-        const params=new URLSearchParams(location.search);params.set('workspace','1');target.search=params.toString();
-      }
-      location.assign(target.href);
-    },true);
-    // Library action next to the library heading, not a miscellaneous sidebar item.
-    if(native&&$('new-record-open')){
-      const row=$('jobs-panel')?.querySelector('.card-title');if(row){$('new-record-open').className='vd-button vd-button--primary';row.insertBefore($('new-record-open'),$('refresh'));}
+    document.addEventListener('click',event=>{if(!bar.contains(event.target))closeMenus();});
+    function restoreFocus(target){
+      const menu=target?.closest('details');if(menu)menu.open=true;
+      target?.focus();
     }
-    if(!native){
+    async function mayLeave(target){
+      try{
+        const frame=$('report-editor');
+        if(frame?.contentWindow?.notesEditorDirty?.()||window.notesEditorDirty?.()){
+          const status=$('recording-status')||$('editor-status');
+          feedback.textContent='Сохраните правки материала перед переходом.';
+          if(status)status.textContent=feedback.textContent;
+          restoreFocus(target);return false;
+        }
+        if(window.mayLeaveQuickReply&&!await window.mayLeaveQuickReply()){restoreFocus(target);return false;}
+        return true;
+      }catch(_error){
+        feedback.textContent='Не удалось проверить несохранённые правки. Завершите редактирование и повторите.';
+        restoreFocus(target);return false;
+      }
+    }
+    // New menu links and shared navigation retain the existing dirty owners.
+    let navigating=false;
+    async function navigateFromShell(event){
+      const a=event.target.closest('a[data-desktop-navigation]');
+      if(!a||event.button||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+      event.preventDefault();event.stopImmediatePropagation();
+      if(navigating)return;
+      navigating=true;
+      try{
+        if(environment.kind==='pending')await readEnvironment();
+        if(a.hidden||!await mayLeave(a))return;
+        // Global destinations are canonical and never inherit the previous job.
+        feedback.textContent='';window.dispatchEvent(new CustomEvent('desktop-navigation',{detail:{command:a.dataset.desktopCommand}}));
+        closeMenus();location.assign(a.href);
+      }finally{navigating=false;}
+    }
+    document.addEventListener('click',navigateFromShell,true);
+    if($('new-record-open')){
+      const button=$('new-record-open');button.dataset.desktopCommand='new';button.dataset.desktopNavigation='';button.href=route('new')||'/create';
+    }
+    if(!localNavigation){
       navigation.classList.add('desktop-navigation');
       for(const a of navigation.querySelectorAll('a'))a.classList.add('desktop-nav-item');
     }
