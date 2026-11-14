@@ -15,6 +15,8 @@
   }
   let state=read(), pendingState=null, menu, content, summary, rail, tablist;
   function selectTab(value,keepTarget=false){
+    // Visual draft: legacy multi-panel requests fall back to the transcript tab.
+    if(value==='all')value='transcript';
     if(!keepTarget)delete root.dataset.workspaceTarget;
     root.dataset.workspaceTab=value;
     if(!tablist)return;

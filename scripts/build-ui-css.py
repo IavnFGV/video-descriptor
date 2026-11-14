@@ -1,4 +1,6 @@
 """Bundle the shared design-system CSS for the existing /native.css route."""
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,6 +13,26 @@ BUNDLES = {
     'video_descriptor/assets/create.css': SHARED + ['design-system/workspace.css', 'design-system/desktop.css'],
     'video_descriptor/assets/editor.css': SHARED + ['design-system/editor.css', 'design-system/desktop.css'],
 }
+BOOTSTRAP = 'design-system/bootstrap.css'
+for sources in BUNDLES.values():
+    sources.append(BOOTSTRAP)
+
+
+def compile_bootstrap():
+    node = shutil.which('node')
+    sass = ROOT / 'design-system/node_modules/sass/sass.js'
+    if not node or not sass.is_file():
+        raise SystemExit(
+            'CSS build needs Node >=20.19 and local Sass. '
+            'Run npm ci --prefix design-system --ignore-scripts --no-audit --no-fund. '
+            'No global install or npx download is used.'
+        )
+    subprocess.run([
+        node, str(sass), '--load-path=design-system/node_modules',
+        '--style=expanded', '--no-source-map', '--quiet-deps',
+        '--silence-deprecation=import,global-builtin,color-functions,if-function',
+        'design-system/bootstrap-adapter.scss', BOOTSTRAP,
+    ], cwd=ROOT, check=True)
 
 
 def bundle(sources=SOURCES):
@@ -21,6 +43,8 @@ def bundle(sources=SOURCES):
 
 
 if __name__ == '__main__':
+    if '--check' not in sys.argv:
+        compile_bootstrap()
     for target, sources in BUNDLES.items():
         expected = bundle(sources)
         path = ROOT / target
@@ -29,4 +53,5 @@ if __name__ == '__main__':
                 raise SystemExit('CSS bundle is stale: ' + target)
         else:
             path.write_text(expected, encoding='utf-8')
-    print('PASS: all production CSS bundles match shared sources.')
+    print('PASS: all production CSS bundles match shared sources.' if '--check' in sys.argv
+          else 'Built Bootstrap foundation and production CSS bundles.')

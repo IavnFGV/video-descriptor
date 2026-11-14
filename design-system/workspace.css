@@ -232,6 +232,15 @@ html[data-view-article=false] .recording-workspace #stage-notes:has(#material-ta
 }
 
 /* No reparenting on tab changes: iframe history, drafts and playback stay intact. */
+.recording-workspace.has-recording .workspace-tabs{gap:0;border-bottom:1px solid var(--vd-border);background:var(--vd-subtle);border-radius:var(--vd-radius-control) var(--vd-radius-control) 0 0}
+.recording-workspace.has-recording .workspace-tabs button{border:0;border-bottom:3px solid transparent;border-radius:var(--vd-radius-control) var(--vd-radius-control) 0 0;background:transparent;color:var(--vd-text);font-size:var(--vd-reading);font-weight:var(--vd-medium);min-height:var(--vd-space-12);padding:var(--vd-space-3) var(--vd-space-4)}
+.recording-workspace.has-recording .workspace-tabs button:hover{background:var(--vd-accent-tint);color:var(--vd-accent)}
+.recording-workspace.has-recording .workspace-tabs button[aria-selected=true]{border-bottom-color:var(--vd-accent);background:var(--vd-accent-tint);color:var(--vd-accent);font-weight:var(--vd-heading)}
+@media(forced-colors:active){.recording-workspace.has-recording .workspace-tabs button[aria-selected=true]{border-bottom-color:Highlight;color:Highlight}}
+.recording-workspace.has-recording .recording-notes-heading .vd-actions button{background:transparent;border-color:transparent;color:var(--vd-muted);font-weight:var(--vd-normal);box-shadow:none}
+.recording-workspace.has-recording .recording-notes-heading .vd-actions button:hover:not(:disabled){background:var(--vd-subtle);border-color:var(--vd-border);color:var(--vd-accent)}
+.recording-workspace.has-recording .recording-notes-heading .vd-actions button:focus-visible{outline:3px solid var(--vd-focus);outline-offset:3px}
+@media(forced-colors:active){.recording-workspace.has-recording .recording-notes-heading .vd-actions button{color:ButtonText}}
 .recording-workspace.has-recording #workspace-tabs{grid-column:1/-1;grid-row:1;flex-wrap:wrap;margin-bottom:0}
 .recording-workspace.has-recording #shared-player,.recording-workspace.has-recording #stage-speech{grid-row:2}
 html:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{display:block;grid-column:2;grid-row:1;min-width:0}

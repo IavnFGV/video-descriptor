@@ -38,7 +38,11 @@ links respect quick-edit and report dirty guards; settings index buttons only op
 and focus existing sections. Initial ready preparation is compact, while its live
 status/stop stay outside optional controls. User-triggered transcript copy writes
 rendered original utterances to the clipboard, with no backend/API persistence.
-`design-system/desktop.css` is the final shared layer in all three generated bundles.
+`design-system/desktop.css` owns shared chrome layout. The Bootstrap 5.3.9 CSS adapter
+is now the final layer in all three generated bundles; its Sass theme exports the
+existing vd token names. Node/Sass are build-only, not Windows runtime requirements.
+No Bootstrap JS, framework migration, API or preference-store change is involved.
+Surface migration is incomplete; [status and build contract](../design-system/BOOTSTRAP-MIGRATION.md).
 See [design evidence and acceptance limits](../design-system/DESKTOP-REDESIGN.md).
 
 ## Уведомления об обновлениях (12.11.2026)

@@ -1,0 +1,91 @@
+// The only Bootstrap theme input. No screen-specific selectors here.
+// tokens.css supplies fallback tokens; this theme is the final component input.
+$primary: #17644d;
+$secondary: #53665c;
+$success: #17644d;
+$info: #245ea8;
+$warning: #795000;
+$danger: #a32929;
+$body-bg: #f4f6f5;
+$body-color: #202e29;
+$surface: #fff;
+$subtle: #eef3f0;
+$border-color: #cdd8d1;
+$control-border: #81958a;
+$focus-color: #245ea8;
+$accent-hover: #10513d;
+$accent-pressed: #0b4030;
+$accent-tint: #e6f2ec;
+$font-family-sans-serif: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+// Explicit px values retain our 14px document root without shrinking rem controls.
+$font-size-base: 14px;
+$font-size-sm: 13px;
+$font-size-lg: 16px;
+$font-weight-normal: 400;
+$font-weight-semibold: 600;
+$line-height-base: 1.5;
+$border-radius: 8px;
+$border-radius-sm: 8px;
+$border-radius-lg: 12px;
+$input-btn-padding-y: 8px;
+$input-btn-padding-x: 16px;
+$input-btn-font-size: $font-size-base;
+$input-border-color: $control-border;
+$input-bg: $surface;
+$input-color: $body-color;
+$input-focus-border-color: $focus-color;
+$input-btn-focus-width: 3px;
+$input-btn-focus-color: rgba($focus-color, .25);
+$btn-font-weight: $font-weight-normal;
+$btn-box-shadow: none;
+$btn-focus-box-shadow: none;
+$btn-active-box-shadow: none;
+$btn-disabled-opacity: 1;
+$component-active-bg: $primary;
+$nav-link-padding-y: 12px;
+$nav-link-padding-x: 16px;
+$nav-link-font-size: 16px;
+$nav-link-font-weight: $font-weight-semibold;
+$nav-link-color: $secondary;
+$nav-link-hover-color: $primary;
+$nav-tabs-border-color: $border-color;
+$nav-tabs-link-active-color: $body-color;
+$nav-tabs-link-active-bg: $surface;
+$nav-tabs-link-active-border-color: $border-color $border-color $surface;
+$card-bg: $surface;
+$card-border-color: $border-color;
+$card-cap-bg: $subtle;
+$enable-shadows: false;
+$enable-gradients: false;
+$enable-dark-mode: false;
+$enable-validation-icons: false;
+
+// The adapter exports these as public vd tokens for all documents.
+// Layout consumers keep the same token names when the implementation changes.
+$vd-theme-tokens: (
+  canvas: $body-bg, surface: $surface, subtle: $subtle,
+  text: $body-color, muted: $secondary, inverse: $surface,
+  accent: $primary, accent-hover: $accent-hover,
+  accent-pressed: $accent-pressed, accent-tint: $accent-tint,
+  border: $border-color, control: $control-border, focus: $focus-color,
+  success: $success, success-bg: #e6f2ec,
+  warning: $warning, warning-bg: #fff4d6,
+  danger: $danger, danger-bg: #fcecec,
+  info: $info, info-bg: #eaf1fc,
+  font: $font-family-sans-serif,
+  caption: 12px, label: 13px, body: $font-size-base, reading: 16px,
+  h3: 18px, h2: 22px, h1: 28px,
+  normal: $font-weight-normal, medium: $font-weight-semibold, heading: 650,
+  space-1: 4px, space-2: 8px, space-3: 12px, space-4: 16px,
+  space-6: 24px, space-8: 32px, space-12: 48px,
+  control-gap: 8px, group-gap: 16px,
+  radius-control: $border-radius, radius-card: $border-radius-lg,
+  radius-dialog: 16px, radius-pill: 999px,
+  control-height: 40px, compact-height: 32px,
+  nav-width: 208px, content-width: 1200px,
+  backdrop: #122a2466, dialog-width: 560px, editor-width: 760px,
+  reading-width: 76ch, motion: 150ms,
+  dialog-shadow: 0 16px 48px #122a2426, layer-sticky: 10,
+  menu-height: 44px, desktop-panel-radius: 8px,
+  desktop-gap: 16px, desktop-reading: 16px
+);

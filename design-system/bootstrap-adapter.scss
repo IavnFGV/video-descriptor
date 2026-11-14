@@ -1,0 +1,171 @@
+/*!
+ * Video Descriptor Bootstrap adapter. Generated CSS includes Bootstrap 5.3.9.
+ * Bootstrap Copyright 2011-2026 The Bootstrap Authors; MIT license.
+ * Full notice: design-system/vendor/bootstrap-LICENSE.txt
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+// Bootstrap 5.3 itself uses Sass imports. Keep them confined to this build entry.
+@import 'bootstrap/scss/functions';
+@import 'themes/bootstrap';
+@import 'bootstrap/scss/variables';
+@import 'bootstrap/scss/maps';
+@import 'bootstrap/scss/mixins';
+
+// No Reboot, root reset, grid, utilities, modal, dropdown or tab JavaScript.
+// Shared foundation for every document; no opt-in flag or legacy theme switch.
+:root {
+  color-scheme: light;
+  @each $name, $value in $vd-theme-tokens {
+    --vd-#{$name}: #{$value};
+  }
+  // Upstream rules refer to these root variables even without Bootstrap's root.
+  --bs-body-font-family: var(--vd-font);
+  --bs-body-font-size: var(--vd-body);
+  --bs-body-font-weight: var(--vd-normal);
+  --bs-body-line-height: #{$line-height-base};
+  --bs-body-color: var(--vd-text);
+  --bs-body-bg: var(--vd-canvas);
+  --bs-secondary-color: var(--vd-muted);
+  --bs-secondary-bg: var(--vd-subtle);
+  --bs-tertiary-color: var(--vd-muted);
+  --bs-tertiary-bg: var(--vd-subtle);
+  --bs-emphasis-color: var(--vd-text);
+  --bs-border-color: var(--vd-border);
+  --bs-border-width: 1px;
+  --bs-border-style: solid;
+  --bs-border-radius: var(--vd-radius-control);
+  --bs-border-radius-sm: var(--vd-radius-control);
+  --bs-border-radius-lg: var(--vd-radius-card);
+  --bs-border-radius-pill: var(--vd-radius-pill);
+  --bs-link-color: var(--vd-accent);
+  --bs-link-hover-color: var(--vd-accent-hover);
+  --bs-link-color-rgb: #{to-rgb($primary)};
+  --bs-link-hover-color-rgb: #{to-rgb($accent-hover)};
+  --bs-highlight-color: var(--vd-text);
+  --bs-highlight-bg: var(--vd-accent-tint);
+  --bs-form-valid-color: var(--vd-success);
+  --bs-form-valid-border-color: var(--vd-success);
+  --bs-form-invalid-color: var(--vd-danger);
+  --bs-form-invalid-border-color: var(--vd-danger);
+}
+
+  @import 'bootstrap/scss/buttons';
+  @import 'bootstrap/scss/button-group';
+  @import 'bootstrap/scss/forms/labels';
+  @import 'bootstrap/scss/forms/form-control';
+  @import 'bootstrap/scss/forms/form-select';
+  @import 'bootstrap/scss/forms/form-check';
+  @import 'bootstrap/scss/forms/form-range';
+  @import 'bootstrap/scss/nav';
+  @import 'bootstrap/scss/card';
+  @import 'bootstrap/scss/badge';
+  @import 'bootstrap/scss/alert';
+
+  .vd-button { @extend .btn; min-height: var(--vd-control-height); }
+  .vd-button--primary { @extend .btn-primary; }
+  .vd-button--secondary { @extend .btn-light; }
+  .vd-button--quiet { @extend .btn-link; text-decoration: none; }
+  .vd-button--danger { @extend .btn-outline-danger; }
+  .vd-button--compact { @extend .btn-sm; min-height: var(--vd-compact-height); }
+  .vd-button:not(.vd-button--primary):not(.vd-button--danger) {
+    --bs-btn-color: var(--vd-text);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-color: var(--vd-text);
+    --bs-btn-hover-bg: var(--vd-subtle);
+    --bs-btn-hover-border-color: var(--vd-border);
+    --bs-btn-active-color: var(--vd-text);
+    --bs-btn-active-bg: var(--vd-accent-tint);
+    --bs-btn-active-border-color: var(--vd-border);
+    --bs-btn-disabled-color: var(--vd-muted);
+    --bs-btn-disabled-bg: var(--vd-subtle);
+    --bs-btn-disabled-border-color: var(--vd-border);
+  }
+  .vd-button--primary {
+    --bs-btn-color: var(--vd-inverse);
+    --bs-btn-bg: var(--vd-accent);
+    --bs-btn-border-color: var(--vd-accent);
+    --bs-btn-hover-color: var(--vd-inverse);
+    --bs-btn-hover-bg: var(--vd-accent-hover);
+    --bs-btn-hover-border-color: var(--vd-accent-hover);
+    --bs-btn-active-color: var(--vd-inverse);
+    --bs-btn-active-bg: var(--vd-accent-pressed);
+    --bs-btn-active-border-color: var(--vd-accent-pressed);
+    --bs-btn-disabled-color: var(--vd-muted);
+    --bs-btn-disabled-bg: var(--vd-subtle);
+    --bs-btn-disabled-border-color: var(--vd-border);
+  }
+  .vd-button--danger {
+    --bs-btn-color: var(--vd-danger);
+    --bs-btn-border-color: var(--vd-danger);
+    --bs-btn-hover-bg: var(--vd-danger);
+    --bs-btn-hover-border-color: var(--vd-danger);
+    --bs-btn-hover-color: var(--vd-inverse);
+    --bs-btn-active-bg: var(--vd-danger);
+    --bs-btn-active-border-color: var(--vd-danger);
+    --bs-btn-active-color: var(--vd-inverse);
+  }
+  .vd-button[aria-busy=true] { cursor: progress; }
+
+  .vd-input, .vd-textarea { @extend .form-control; min-height: var(--vd-control-height); }
+  .vd-textarea { min-height: 112px; resize: vertical; }
+  .vd-select { @extend .form-select; min-height: var(--vd-control-height); }
+  .vd-check { @extend .form-check-input; }
+  .vd-range { @extend .form-range; }
+  :is(.vd-input, .vd-textarea, .vd-select)[aria-invalid=true] { border-color: var(--vd-danger); }
+
+  .vd-tabs { @extend .nav; @extend .nav-tabs; }
+  .vd-tabs > [role=tab] { @extend .nav-link; min-height: var(--vd-space-12); }
+  .vd-tabs > [role=tab][aria-selected=true] {
+    color: var(--bs-nav-tabs-link-active-color);
+    background: var(--bs-nav-tabs-link-active-bg);
+    border-color: var(--bs-nav-tabs-link-active-border-color);
+    font-weight: var(--vd-medium);
+  }
+  .vd-mode-switch { @extend .btn-group; }
+  .vd-mode-switch > button { @extend .btn; @extend .btn-sm; @extend .btn-outline-secondary; }
+  .vd-mode-switch > button[aria-pressed=true] {
+    color: var(--bs-btn-active-color);
+    background: var(--bs-btn-active-bg);
+    border-color: var(--bs-btn-active-border-color);
+  }
+  .vd-panel { @extend .card; }
+  .vd-badge { @extend .badge; color: var(--vd-text); background: var(--vd-subtle); }
+  .vd-status { @extend .alert; }
+  @each $kind in (success, info, warning, danger) {
+    .vd-status--#{$kind} {
+      --bs-alert-color: var(--vd-#{$kind});
+      --bs-alert-bg: var(--vd-#{$kind}-bg);
+      --bs-alert-border-color: var(--vd-#{$kind});
+    }
+  }
+  // Dialog/file picker/progress retain native semantics, not Bootstrap modal markup.
+  .vd-dialog { color: var(--vd-text); background: var(--vd-surface); }
+  :is(.vd-button, .vd-input, .vd-select, .vd-textarea, .vd-check, .vd-range,
+      .vd-tabs > [role=tab], .vd-mode-switch > button):focus-visible {
+    outline: 3px solid var(--vd-focus);
+    outline-offset: 3px;
+    box-shadow: none;
+  }
+  [hidden] { display: none !important; }
+  @media (forced-colors: active) {
+    :focus-visible { outline-color: Highlight; }
+    .vd-tabs > [role=tab][aria-selected=true], .vd-mode-switch > button[aria-pressed=true] {
+      border-color: Highlight; color: Highlight;
+    }
+  }

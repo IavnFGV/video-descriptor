@@ -114,6 +114,18 @@ The authoritative checklist is [Keep documentation synchronized](../../AGENTS.md
 apply it to human and agent contributions. State validation limits and any blocked
 documentation updates in the task report.
 
+## UI styles build
+
+The shared UI uses local Bootstrap 5.3.9 CSS through a project-owned adapter, not
+Bootstrap JavaScript. Restore build dependencies with
+`npm ci --prefix design-system --ignore-scripts --no-audit --no-fund` using Node
+>=20.19, then run `python scripts/build-ui-css.py`. The application and packaged
+runtime need neither Node nor Sass. Edit `design-system/themes/bootstrap.scss`
+for theme values and `design-system/bootstrap-adapter.scss` for component mapping;
+never edit generated CSS. `--check` compares bundles with prepared CSS without
+recompiling Sass. Migration status and the next bounded task are in the
+[Bootstrap plan](../../design-system/BOOTSTRAP-MIGRATION.md).
+
 ## Task routes and dependencies
 
 - [Testing and CI](testing.md): commands, regression ownership and evidence limits.

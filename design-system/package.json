@@ -1,0 +1,13 @@
+{
+  "name": "video-descriptor-design-system",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Build-only CSS dependencies; never loaded by the application runtime",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "devDependencies": {
+    "bootstrap": "5.3.9",
+    "sass": "1.108.2"
+  }
+}
