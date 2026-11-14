@@ -96,9 +96,12 @@ checks that shared web retains the engine picker and new-transcript form.
 
 `--file-details-only` uses a partial-transcript fixture to check the fourth tab,
 file information, title draft/save, delete confirmation/cancel, coverage warning,
-keyboard, transcript-only version controls, in-flow open/closed deletion menu,
+keyboard, transcript-only version controls, direct deletion confirmation/cancel,
 preserved DOM/history/preferences and widths 375–1440 px. The title save
 writes only temporary fixture metadata; no deletion or recognition is performed.
+`--workspace-tabs-only` и `--workspace-tabs-empty` также проверяют одинаковые
+полужирные подписи/размеры полей, соседнюю кнопку удаления, подтверждение и отмену
+для каждого вида результата; у пустой статьи удаление скрыто. Удаление не выполняется.
 
 `--processing-tab-only` checks recorded fixture request/response/reasoning/log data,
 error-to-log navigation (including a job without a snapshot), hidden empty sections,

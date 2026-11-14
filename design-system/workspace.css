@@ -21,7 +21,7 @@ html[data-workspace-target=article][data-view-article=false] .recording-workspac
 .subtitle-history{display:flex;gap:var(--vd-space-2);align-items:center;flex-wrap:wrap}
 .studio-header p{color:var(--vd-muted)}.studio-header h1{margin-bottom:var(--vd-space-2)}
 #open-connections{float:right}.record-toolbar{display:flex;align-items:center;gap:var(--vd-space-4);margin:var(--vd-space-4) 0;flex-wrap:wrap}
-.record-toolbar label{flex:1}.record-menu>summary{padding:var(--vd-space-2) var(--vd-space-3)}.record-menu>button{margin-top:var(--vd-control-gap);max-width:100%}.record-menu:not([open])>button{display:none}
+.record-toolbar label{flex:1}
 .stage-tabs{margin:var(--vd-space-6) 0}
 .stage-tabs button span{display:block;margin-top:var(--vd-space-1);font-size:var(--vd-caption);font-weight:var(--vd-normal);color:var(--vd-muted)}
 .stage-tabs button[data-status=done] span{color:var(--vd-success)}.stage-tabs button[data-status=active] span{color:var(--vd-info)}.stage-tabs button[data-status=error] span{color:var(--vd-danger)}
@@ -68,8 +68,10 @@ body.recording-workspace:has(>.vd-global-nav){max-width:none}
 .recording-workspace .studio-header{display:none!important}
 .recording-workspace:not(.has-recording) .studio-header{display:block!important}
 .recording-workspace .recording-notes-heading,.recording-workspace .recording-speech-heading{margin-bottom:var(--vd-space-4)}
-.recording-workspace .recording-notes-heading .vd-control-group>label,.recording-workspace .recording-speech-heading>label{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
-.recording-workspace .recording-notes-heading select,.recording-workspace .recording-speech-heading select{font-size:var(--vd-body);font-weight:var(--vd-normal)}
+.recording-version{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+.recording-version>label{font-size:var(--vd-h3);font-weight:var(--vd-medium)}
+.recording-version select{min-height:var(--vd-control-height);font-size:var(--vd-label);font-weight:var(--vd-normal)}
+.recording-version .vd-button{min-height:var(--vd-control-height)}
 .recording-workspace #stage-speech>section,.recording-workspace #stage-notes>section,.recording-workspace #material-panel>section{padding:var(--vd-space-4)}
 .recording-workspace #speech-feed{max-height:55vh;overflow:auto;scrollbar-gutter:stable}
 .recording-workspace #report-editor-card> .card-heading{display:none}

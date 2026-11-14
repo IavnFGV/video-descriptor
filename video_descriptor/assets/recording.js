@@ -6,7 +6,8 @@
   $('record-versions').hidden=true;
   const speechHeading=document.createElement('div');speechHeading.className='recording-speech-heading';
   const label=document.createElement('label'); label.textContent='Версия расшифровки';
-  const speechSelect=document.createElement('select');speechSelect.id='recording-speech';speechSelect.className='vd-select';label.append(speechSelect);speechHeading.append(label);speech.prepend(speechHeading);
+  const speechVersion=document.createElement('div');speechVersion.className='recording-version vd-control-group';
+  const speechSelect=document.createElement('select');speechSelect.id='recording-speech';speechSelect.className='vd-select';label.append(speechSelect);speechVersion.append(label,$('record-menu'));speechHeading.append(speechVersion);speech.prepend(speechHeading);
   const actions=document.createElement('div');actions.className='recording-actions';
   actions.innerHTML='<button class="vd-button vd-button--secondary vd-button--compact" id="recording-diarize" type="button" hidden>Разделить по участникам</button><button class="vd-button vd-button--secondary vd-button--compact" id="recording-translate" type="button" hidden>Перевести на русский</button><button class="vd-button vd-button--secondary vd-button--compact" id="recording-stop" type="button" hidden>Остановить обработку</button>';
   speechHeading.append(actions);
@@ -24,18 +25,17 @@
   let actionPending=false;
   const newNotes=$('notes-settings').closest('section');newNotes.id='recording-notes-settings';
   if(location.search.includes('folder=')||location.search.includes('job='))newNotes.hidden=true;
-  const notesMenu=document.createElement('details'),notesSummary=document.createElement('summary');notesSummary.textContent='Действия с конспектом';notesMenu.append(notesSummary,$('delete-notes'));$('material-panel').append(notesMenu);
+  const notesMenu=document.createElement('div');notesMenu.className='vd-actions';$('material-panel').append(notesMenu);
   notesMenu.id='recording-notes-actions';
   const originalResponse=document.createElement('button');originalResponse.id='recording-original-response';originalResponse.type='button';originalResponse.className='vd-button vd-button--quiet vd-button--compact';originalResponse.textContent='Оригинальный ответ модели';originalResponse.disabled=true;originalResponse.setAttribute('aria-controls','report-editor');
-  const notesMenuActions=document.createElement('div');notesMenuActions.className='notes-actions';notesMenuActions.append($('delete-notes'),originalResponse);notesMenu.append(notesMenuActions);
+  notesMenu.append(originalResponse);
   originalResponse.onclick=()=>{
     const frame=$('report-editor'),button=frame.contentDocument?.querySelector('[data-notes-view="model"]');
     if(!button)return;
-    button.click();notesMenu.open=false;frame.scrollIntoView({block:'start'});
+    button.click();frame.scrollIntoView({block:'start'});
     frame.contentDocument.querySelector('[data-notes-view="read"]')?.focus();
   };
   const originalReports=$('notes-variant-label');originalReports.hidden=true;
-  actions.append($('record-menu'));
   // Hidden compatibility container for retired translation-only details, not another disclosure.
   const detail=document.createElement('div');detail.id='recording-processing';detail.hidden=true;
   const workspace=$('workspace');
@@ -203,7 +203,8 @@
       $('material-'+kind+'-controls').hidden=!active;
     }
     $('material-panel').setAttribute('aria-labelledby','material-tab-'+activeReportKind);
-    notesSummary.textContent=activeReportKind==='article'?'Действия со статьёй':'Действия с конспектом';
+    const versionRow=$('material-'+activeReportKind+'-controls').querySelector('.recording-version');
+    if($('delete-notes').parentElement!==versionRow)versionRow.append($('delete-notes'));
     $('article-status').hidden=activeReportKind!=='article';
     window.workspaceView?.refresh();
   }
@@ -300,7 +301,8 @@
     if(requestedReport)$('open-recording-'+activeReportKind).disabled=!own;
     if(window.studioUI.chooseIndependentReport(own||null)===false)return;
     if(activeReportKind==='article')$('notes-card').hidden=true;
-    $('delete-notes').textContent=activeReportKind==='article'?'Удалить статью':'Удалить конспект';
+    $('delete-notes').textContent='Удалить';
+    $('delete-notes').setAttribute('aria-label',activeReportKind==='article'?'Удалить выбранную версию статьи':'Удалить выбранную версию конспекта');
     $('report-editor').title=activeReportKind==='article'?'Чтение и редактирование статьи':'Чтение и редактирование конспекта';
     $('recording-notes-origin').textContent=own?(activeReportKind==='article'?'Открыта статья':'Открыт конспект')+' · '+when(own.created):requestedReport?'Указанный вариант материала недоступен или относится к другому типу.':(activeReportKind==='article'?'Статья ещё не создана.':'Конспект ещё не создан.')+' Создайте материал по выбранной расшифровке.';
     const empty=$('notes-feed').querySelector('.empty');if(empty)empty.textContent=activeReportKind==='article'?'Статья ещё не создана. Нажмите «Создать статью».':'Конспект ещё не создан. Нажмите «Создать конспект».';

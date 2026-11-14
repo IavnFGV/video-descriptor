@@ -15,6 +15,31 @@ def run(c, wait_for, root, out, empty_article=False):
     def key(name, code, modifiers=0):
         c.call('Input.dispatchKeyEvent', type='keyDown', key=name, code=name, windowsVirtualKeyCode=code, modifiers=modifiers)
 
+    def version_control(kind, empty=False):
+        select = '#recording-' + ('speech' if kind == 'transcript' else kind)
+        button = '#delete-version' if kind == 'transcript' else '#delete-notes'
+        style = evaluate(f'''(()=>{{const select=document.querySelector({json.dumps(select)}),
+          label=select.closest('label'),button=document.querySelector({json.dumps(button)}),
+          row=select.closest('.recording-version'),s=getComputedStyle(select),l=getComputedStyle(label),
+          a=select.getBoundingClientRect(),b=button.getBoundingClientRect();return {{
+          font:s.fontSize,weight:l.fontWeight,label:l.fontSize,height:a.height,
+          adjacent:row.contains(button)&&b.left>=a.right+7&&Math.abs(b.bottom-a.bottom)<1}};}})()''')
+        assert style['font'] == '13px' and style['label'] == '18px' and style['weight'] == '600', style
+        assert style['height'] == 40, style
+        if empty:
+            assert not visible(button)
+            return
+        assert visible(button) and style['adjacent'], style
+        c.click(button)
+        assert evaluate('document.querySelector("#delete-version-dialog").open')
+        assert evaluate('document.activeElement.id==="cancel-delete-version"')
+        heading = c.visible_text('#delete-version-heading')
+        assert {'transcript': 'расшифровки', 'notes': 'конспект', 'article': 'статью'}[kind] in heading, heading
+        assert evaluate(f'document.querySelector("#delete-version-name").textContent.includes(document.querySelector({json.dumps(select)}).selectedOptions[0].textContent)')
+        if kind == 'article':
+            assert 'выбранная статья' in c.visible_text('#delete-version-description')
+        c.click('#cancel-delete-version')
+
     evaluate('''workspaceView.reset();window.unifiedFixture={player:document.querySelector('#process-video'),
       frame:document.querySelector('#report-editor'),feed:document.querySelector('#speech-feed'),
       speech:document.querySelector('#recording-speech').value,history:history.length,
@@ -22,12 +47,15 @@ def run(c, wait_for, root, out, empty_article=False):
       history.replaceState({sentinel:'tabs'},'',location.pathname+location.search+'#tabs');
       window.unifiedMutations=[];window.unifiedFetch=fetch;
       window.fetch=(url,options)=>{if(options?.method && options.method!=='GET')unifiedMutations.push(String(url));return unifiedFetch(url,options)}''')
+    c.click('#workspace-tab-transcript')
+    version_control('transcript')
     c.click('#workspace-tab-notes')
     assert visible('#material-notes-controls') and not visible('.material-tabs')
     assert not visible('#stage-speech') and visible('#stage-notes')
     assert evaluate('document.documentElement.dataset.workspaceTab==="notes"')
     c.fill('#recording-notes', '/output/notes-b/report.html')
     ready('notes-b')
+    version_control('notes')
     # A newly completed opposite-kind result must not change the visible kind.
     evaluate('''window.beforeInventoryDoc=unifiedFixture.frame.contentDocument;window.unifiedInventorySeen=false;window.unifiedInventoryRestored=false;
       window.beforeInventoryFetch=fetch;window.fetch=async(url,options)=>{
@@ -78,9 +106,11 @@ def run(c, wait_for, root, out, empty_article=False):
         assert evaluate('document.querySelector("#report-editor-card").hidden')
         assert 'Статья ещё не создана' in c.visible_text('#recording-notes-origin')
         assert visible('#construction-article')
+        version_control('article', empty=True)
     else:
         ready('article-a')
         assert visible('#material-article-controls')
+        version_control('article')
     c.click('#workspace-tab-notes')
     ready('notes-b')
     assert evaluate('document.querySelector("#recording-notes").value==="/output/notes-b/report.html"')
@@ -107,6 +137,7 @@ def run(c, wait_for, root, out, empty_article=False):
         else:
             assert tabs['y'] >= video['bottom'] and abs(tabs['x'] - video['x']) < 2, geometry
         assert abs(notes['y'] - tabs['bottom'] - 16) < 2, geometry
+        version_control('notes')
         evaluate('''document.querySelector('#report-editor').contentDocument.querySelector('button[data-time="60"]').click()''')
         assert evaluate('unifiedFixture.player.currentTime===60')
         c.screenshot(out / f'unified-tabs-{width}{"-empty" if empty_article else ""}.png')
