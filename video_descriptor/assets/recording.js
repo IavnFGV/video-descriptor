@@ -280,12 +280,12 @@
   function paint(){
     if(!data)return;
     const key=JSON.stringify([data.speech,data.reports]);
-    if(key!==libraryKey){libraryKey=key;speechSelect.replaceChildren(...data.speech.filter(item=>!item.internal_snapshot).map(item=>option(item.folder,speechName(item))),...(window.recordingUI.native?[]:[option('__new__','＋ Создать новую расшифровку…')]));
+    if(key!==libraryKey){libraryKey=key;speechSelect.replaceChildren(...data.speech.filter(item=>!item.internal_snapshot).map(item=>option(item.folder,speechName(item))),option('__new__','＋ Создать новую расшифровку…'));
       for(const kind of ['notes','article']){
         const control=$(kind==='notes'?'recording-notes':'recording-article');
         const reports=data.reports.filter(item=>(item.result_kind||'notes')===kind);
         if(!reports.some(item=>item.url===selectedReports[kind]))selectedReports[kind]=reports[0]?.url||null;
-        control.replaceChildren(option('',kind==='notes'?'Конспект ещё не создан':'Статья ещё не создана'),...reports.map((item,index)=>option(item.url,'Версия '+(reports.length-index)+' · '+when(item.created))),...(kind==='notes'?[option('__new__','＋ Создать новый конспект…')]:[]));
+        control.replaceChildren(option('',kind==='notes'?'Конспект ещё не создан':'Статья ещё не создана'),...reports.map((item,index)=>option(item.url,'Версия '+(reports.length-index)+' · '+when(item.created))),option('__new__',kind==='notes'?'＋ Создать новый конспект…':'＋ Создать новую статью…'));
       }
     }
     speechSelect.value=snapshot?.folder||data.folder;
@@ -305,7 +305,7 @@
     $('delete-notes').setAttribute('aria-label',activeReportKind==='article'?'Удалить выбранную версию статьи':'Удалить выбранную версию конспекта');
     $('report-editor').title=activeReportKind==='article'?'Чтение и редактирование статьи':'Чтение и редактирование конспекта';
     $('recording-notes-origin').textContent=own?(activeReportKind==='article'?'Открыта статья':'Открыт конспект')+' · '+when(own.created):requestedReport?'Указанный вариант материала недоступен или относится к другому типу.':(activeReportKind==='article'?'Статья ещё не создана.':'Конспект ещё не создан.')+' Создайте материал по выбранной расшифровке.';
-    const empty=$('notes-feed').querySelector('.empty');if(empty)empty.textContent=activeReportKind==='article'?'Статья ещё не создана. Нажмите «Создать статью».':'Конспект ещё не создан. Нажмите «Создать конспект».';
+    const empty=$('notes-feed').querySelector('.empty');if(empty)empty.textContent=activeReportKind==='article'?'Статья ещё не создана. Выберите «Создать новую статью…» в списке выше.':'Конспект ещё не создан. Выберите «Создать новый конспект…» в списке выше.';
     $('recording-stop').hidden=!window.recordingUI.native||!(data.active_job||['queued','running'].includes(job?.status));
     for(const id of ['recording-diarize','recording-translate'])$(id).disabled=actionPending||!snapshot?.has_ready_transcript||Boolean(data.active_job)||['queued','running'].includes(job?.status);
   }
@@ -354,9 +354,10 @@
   };
   for(const kind of ['notes','article'])$(kind==='notes'?'recording-notes':'recording-article').onchange=()=>{
     const value=$(kind==='notes'?'recording-notes':'recording-article').value;
-    if(value==='__new__'){paint();showNewNotes();return;}
+    if(value==='__new__'){paint();if(kind==='article')$('construction-article').click();else showNewNotes();return;}
     const report=data?.reports.find(item=>item.url===value);if(!report){paint();return;}
     if($('report-editor').contentWindow?.notesEditorDirty?.()){notice.textContent='Сохраните правки перед выбором другого материала.';paint();return;}
+    newNotes.hidden=true;
     selectedReports[kind]=value;activeReportKind=kind;
     const params=new URLSearchParams(location.search);
     if(params.has('report')){params.delete('report');history.replaceState(history.state,'','/create?'+params+location.hash);document.dispatchEvent(new Event('workspace-route-written'));}
@@ -422,7 +423,7 @@
     const engine=$('speech-engine');engine.replaceChildren(option('whisper-local','Локальное распознавание · устройство из настроек AI'));engine.value='whisper-local';
     // Retain hidden engine/legacy IDs for shared upload handlers, not a Windows settings form.
     speechSettings.hidden=true;
-    const rerun=$('rerun-speech');rerun.textContent='Создать новую расшифровку';rerun.title='Использовать модель и устройство из настроек AI. Предыдущая расшифровка сохранится.';actions.prepend(rerun);
+    const rerun=$('rerun-speech');rerun.hidden=true;rerun.title='Использовать модель и устройство из настроек AI. Предыдущая расшифровка сохранится.';
     const status=$('speech-settings-status');status.textContent='';speechHeading.after(status);
     libraryKey='';paint();
     for(const id of ['recording-diarize','recording-translate'])$(id).hidden=false;

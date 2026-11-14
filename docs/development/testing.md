@@ -89,7 +89,7 @@ history entries or processing requests, five viewport sizes and forced colors.
 are shimmed in this fixture: it proves timestamp wiring, not media decoding/playback.
 
 `--speech-settings-retired` checks the removed Windows speech form with technical
-details both enabled and disabled, the separate rerun action, transcript dirty guard,
+details both enabled and disabled, the creation entry in the version dropdown, transcript dirty guard,
 request payload, visible failure, unchanged preferences and 1200/760 px layouts.
 It intercepts the speech request before any processing. `--speech-settings-web`
 checks that shared web retains the engine picker and new-transcript form.
@@ -102,6 +102,12 @@ writes only temporary fixture metadata; no deletion or recognition is performed.
 `--workspace-tabs-only` и `--workspace-tabs-empty` также проверяют одинаковые
 полужирные подписи/размеры полей, соседнюю кнопку удаления, подтверждение и отмену
 для каждого вида результата; у пустой статьи удаление скрыто. Удаление не выполняется.
+Все три списка проверяются на пункт создания и отсутствие отдельных Open/Create
+controls. Выбор готовой версии показывает прежний editor; создание конспекта/статьи
+раскрывает правильную форму, сохраняет текущую версию и не запускает генерацию.
+`--article-only`, `--spacing-only` и `--notes-menu-only` используют текущую
+single-tab геометрию: создание статьи через список с перехваченным запросом,
+отступы версии/удаления и отдельная кнопка оригинального ответа без меню.
 
 `--processing-tab-only` checks recorded fixture request/response/reasoning/log data,
 error-to-log navigation (including a job without a snapshot), hidden empty sections,

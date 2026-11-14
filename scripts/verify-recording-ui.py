@@ -259,9 +259,15 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         assert not evaluate('document.querySelector("#report-editor").contentDocument.querySelector("video")?.hasAttribute("src")')
         geometry=evaluate('''(()=>{const r=id=>{const a=document.getElementById(id).getBoundingClientRect();return {x:a.x,y:a.y,w:a.width,h:a.height}};return {video:r('shared-player'),speech:r('stage-speech'),notes:r('stage-notes')}})()''')
         print('Geometry:',geometry,flush=True)
-        assert abs(geometry['speech']['y']-geometry['video']['y'])<2
-        assert geometry['speech']['x']>geometry['video']['x']
-        assert geometry['notes']['y']>=geometry['speech']['y']+geometry['speech']['h']
+        if any(flag in sys.argv for flag in ['--spacing-only','--notes-menu-only','--article-only']):
+            # These controls now belong to the single-tab workspace, not the legacy simultaneous view.
+            assert evaluate('Math.abs(document.querySelector("#stage-speech").getBoundingClientRect().top-document.querySelector("#workspace-tabs").getBoundingClientRect().bottom-16)<2')
+            assert geometry['speech']['x']>geometry['video']['x']
+            assert geometry['notes']['h']==0
+        else:
+            assert abs(geometry['speech']['y']-geometry['video']['y'])<2
+            assert geometry['speech']['x']>geometry['video']['x']
+            assert geometry['notes']['y']>=geometry['speech']['y']+geometry['speech']['h']
         if '--material-tabs-only' in sys.argv or '--material-tabs-empty' in sys.argv:
             c.call('Emulation.setFocusEmulationEnabled', enabled=True)
             original_speech = evaluate('document.querySelector("#recording-speech").value')
@@ -279,7 +285,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
                 assert evaluate('document.querySelector("#report-editor-card").hidden')
                 assert evaluate('document.querySelector("#notes-card").hidden')
                 assert 'Статья ещё не создана' in c.visible_text('#recording-notes-origin')
-                assert evaluate('document.querySelector("#construction-article").checkVisibility()')
+                assert not evaluate('document.querySelector("#construction-article").checkVisibility()')
             else:
                 wait_for(lambda:'article-a/report.html' in evaluate('document.querySelector("#report-editor").contentDocument.URL'))
             c.screenshot(out/'material-tab-article.png')
@@ -362,17 +368,15 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('PASS: material tabs, independent versions, keyboard, empty article, dirty guard, real save and four viewports',flush=True)
             raise SystemExit(0)
         if '--spacing-only' in sys.argv:
-            def gap(first,second):
-                return evaluate(f"document.querySelector('{second}').getBoundingClientRect().top-document.querySelector('{first}').getBoundingClientRect().bottom")
-            assert gap('#recording-notes','#open-recording-notes')==8
-            assert gap('.material-tabs','#material-panel')==16
-            c.click('#material-tab-article')
-            wait_for(lambda:evaluate('document.querySelector("#material-tab-article").getAttribute("aria-selected")==="true" && document.querySelector("#material-article-controls").checkVisibility()'))
-            assert gap('#recording-article','#open-recording-article')==8, evaluate('({selected:document.querySelector("#material-tab-article").getAttribute("aria-selected"),visible:document.querySelector("#material-article-controls").checkVisibility(),field:document.querySelector("#recording-article").getBoundingClientRect().toJSON(),button:document.querySelector("#open-recording-article").getBoundingClientRect().toJSON()})')
-            assert evaluate("document.querySelector('#construction-article').getBoundingClientRect().left-document.querySelector('#open-recording-article').getBoundingClientRect().right")==8
+            for kind in ['notes','article']:
+                c.click('#workspace-tab-'+kind)
+                wait_for(lambda:evaluate(f'document.querySelector("#material-{kind}-controls").checkVisibility()'))
+                assert evaluate(f'document.querySelector("#delete-notes").getBoundingClientRect().left-document.querySelector("#recording-{kind}").getBoundingClientRect().right')==8
+                assert evaluate('document.querySelector("#stage-notes").getBoundingClientRect().top-document.querySelector("#workspace-tabs").getBoundingClientRect().bottom')==16
+                assert not evaluate(f'document.querySelector("#open-recording-{kind}").checkVisibility()')
             c.screenshot(out/'consistent-control-spacing.png')
             assert evaluate('window.uiErrors')==[]
-            print('PASS: related field/action gaps 8 px, action button gaps 8 px, tab/content gap 16 px',flush=True)
+            print('PASS: version/delete gaps 8 px, tab/content gap 16 px, Open controls hidden',flush=True)
             sys.exit(0)
         if '--recovery-only' in sys.argv:
             evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent==="Исправить конспект вручную").click()')
@@ -424,16 +428,16 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('PASS: independent report/transcript selection and unsaved report guard',flush=True)
             sys.exit(0)
         if '--notes-menu-only' in sys.argv:
+            c.click('#workspace-tab-notes')
             assert evaluate('document.querySelector("#recording-original-response").closest("#recording-notes-actions")!==null')
             assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("[data-notes-view=model]").checkVisibility()')
             assert evaluate('[...document.querySelector("#report-editor").contentDocument.querySelectorAll(".notes-toolbar button")].filter(x=>x.checkVisibility()).length')==2
             evaluate('document.querySelector("#report-editor").contentDocument.querySelector(".CodeMirror").CodeMirror.replaceRange(" Unsaved edit",{line:0,ch:0})')
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
-            c.click('#recording-notes-actions>summary')
             c.click('#recording-original-response')
             assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("#model-material").hidden')
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
-            assert not evaluate('document.querySelector("#recording-notes-actions").open')
+            assert not evaluate('document.querySelector("#recording-notes-actions>summary")')
             assert 'Ваши правки сохраняются отдельно' in evaluate('document.querySelector("#report-editor").contentDocument.querySelector("#editor-status").textContent')
             evaluate('document.querySelector("#report-editor").contentDocument.querySelector("[data-notes-view=read]").click()')
             assert evaluate('!document.querySelector("#report-editor").contentDocument.querySelector("#personal-preview").hidden')
@@ -441,19 +445,19 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('document.querySelector("#report-editor").contentWindow.notesEditorDirty()')
             c.screenshot(out/'notes-original-response-menu.png')
             assert evaluate('window.uiErrors')==[]
-            print('PASS: model result moved into notes actions; read/edit remain; unsaved draft survives mode switches',flush=True)
+            print('PASS: direct original-response button; read/edit remain; unsaved draft survives mode switches',flush=True)
             sys.exit(0)
         if '--article-only' in sys.argv:
-            c.click('#material-tab-article')
+            c.click('#workspace-tab-article')
             wait_for(lambda:not evaluate('document.querySelector("#construction-article").disabled'))
             wait_for(lambda:evaluate('!document.querySelector("#construction-model").disabled'))
             evaluate("window.articleCalls=[];window.originalFetch=window.fetch;window.fetch=(url,options)=>url==='/api/native/postprocess'?(articleCalls.push(JSON.parse(options.body)),new Promise(resolve=>{window.replyArticle=resolve})):originalFetch(url,options)")
             evaluate('window.originalEditing=speechReplyEditing;window.speechReplyEditing=()=>true')
-            c.click('#construction-article')
+            c.fill('#recording-article','__new__')
             assert 'Сначала сохраните' in c.visible_text('#article-status')
             assert evaluate('articleCalls.length')==0
             evaluate('window.speechReplyEditing=originalEditing')
-            c.click('#construction-article')
+            c.fill('#recording-article','__new__')
             assert evaluate('articleCalls.length')==0
             assert 'статьи' in c.visible_text('#construction-heading')
             evaluate('document.querySelector("#construction-article-prompt").value="Custom article instruction"')
@@ -465,7 +469,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert payload['translate_after'] is False and payload['construction']['model']=='model-a'
             assert evaluate('document.querySelector("#construction-article").disabled')
             assert evaluate('document.querySelector("#construction-article").getAttribute("aria-busy")==="true"')
-            evaluate('document.querySelector("#construction-article").click()')
+            c.fill('#recording-article','__new__')
             assert evaluate('articleCalls.length')==1
             evaluate("replyArticle(new Response(JSON.stringify({error:'Эта запись уже находится в обработке'}),{status:409,headers:{'Content-Type':'application/json'}}))")
             wait_for(lambda:'уже находится' in c.visible_text('#article-status'))

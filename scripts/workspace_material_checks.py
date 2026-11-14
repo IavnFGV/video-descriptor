@@ -18,6 +18,10 @@ def run(c, wait_for, root, out, empty_article=False):
     def version_control(kind, empty=False):
         select = '#recording-' + ('speech' if kind == 'transcript' else kind)
         button = '#delete-version' if kind == 'transcript' else '#delete-notes'
+        assert evaluate(f'!!document.querySelector({json.dumps(select)}+" option[value=__new__]")')
+        if kind != 'transcript':
+            assert not visible('#open-recording-' + kind)
+            assert not visible('#create-recording-notes' if kind == 'notes' else '#construction-article')
         style = evaluate(f'''(()=>{{const select=document.querySelector({json.dumps(select)}),
           label=select.closest('label'),button=document.querySelector({json.dumps(button)}),
           row=select.closest('.recording-version'),s=getComputedStyle(select),l=getComputedStyle(label),
@@ -105,7 +109,8 @@ def run(c, wait_for, root, out, empty_article=False):
     if empty_article:
         assert evaluate('document.querySelector("#report-editor-card").hidden')
         assert 'Статья ещё не создана' in c.visible_text('#recording-notes-origin')
-        assert visible('#construction-article')
+        assert not visible('#construction-article')
+        assert evaluate('!!document.querySelector("#recording-article option[value=__new__]")')
         version_control('article', empty=True)
     else:
         ready('article-a')
@@ -168,6 +173,24 @@ def run(c, wait_for, root, out, empty_article=False):
     assert evaluate('unifiedMutations') == []
     assert len(list((root / 'output/jobs').glob('*/job.json'))) == 1
     assert evaluate('window.uiErrors') == [], evaluate('window.uiErrors')
+    # Creation entries open the matching form; only the existing preview may run.
+    for kind in ['notes', 'article']:
+        c.click('#workspace-tab-' + kind)
+        control = '#recording-' + kind
+        previous = evaluate(f'document.querySelector({json.dumps(control)}).value')
+        wait_for(lambda: evaluate('!document.querySelector("#construction-article").disabled'))
+        before = evaluate('unifiedFixture.frame.contentDocument.URL')
+        c.fill(control, '__new__')
+        assert visible('#recording-notes-settings')
+        assert evaluate('document.querySelector("#construction-heading").textContent') == ('Настройки новой статьи' if kind == 'article' else 'Настройки нового конспекта')
+        assert evaluate(f'document.querySelector({json.dumps(control)}).value') == previous
+        assert evaluate('unifiedFixture.frame.contentDocument.URL') == before
+        if previous:
+            c.fill(control, previous)
+            assert not visible('#recording-notes-settings')
+        else:
+            c.click('#cancel-new-notes')
+    assert evaluate('unifiedMutations.every(url=>url==="/api/construction-plan")'), evaluate('unifiedMutations')
     # A sole enabled material opens its own tab on a fresh document, not an
     # incompatible hidden kind. Preference loading must not rewrite the bytes.
     for kind in ['notes', 'article']:

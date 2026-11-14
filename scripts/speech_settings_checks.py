@@ -18,8 +18,8 @@ def run(c, wait_for, out, web=False):
     assert c.evaluate('document.querySelector("#recording-speech-settings").hidden')
     assert c.evaluate('!document.querySelector("#speech-settings").checkVisibility()')
     assert c.evaluate('document.querySelector("#speech-engine").value==="whisper-local"')
-    assert c.evaluate('document.querySelector(".recording-actions").contains(document.querySelector("#rerun-speech"))')
-    assert c.evaluate('!document.querySelector("#recording-speech option[value=__new__]")')
+    assert c.evaluate('!document.querySelector("#rerun-speech").checkVisibility()')
+    assert c.evaluate('!!document.querySelector("#recording-speech option[value=__new__]")')
     c.evaluate('window.workspaceView.setPanel("technical",true)')
     assert c.evaluate('!document.querySelector("#speech-settings").checkVisibility()')
     c.evaluate('window.workspaceView.setPanel("technical",false)')
@@ -34,11 +34,11 @@ def run(c, wait_for, out, web=False):
       window.savedPreferences=localStorage.getItem('video-descriptor:ui:workspace');
       window.originalSpeechEditing=window.speechReplyEditing;
       window.speechReplyEditing=()=>true;''')
-    c.click('#rerun-speech')
+    c.fill('#recording-speech', '__new__')
     assert c.evaluate('window.speechRequests.length===0')
     assert c.evaluate('document.querySelector("#speech-settings-status").textContent.includes("Завершите") || document.querySelector("#speech-settings-status").textContent.includes("завершите")')
     c.evaluate('window.speechReplyEditing=window.originalSpeechEditing')
-    c.click('#rerun-speech')
+    c.fill('#recording-speech', '__new__')
     wait_for(lambda: c.evaluate('document.querySelector("#speech-settings-status").textContent.includes("Проверочный отказ")'))
     assert c.evaluate('window.speechRequests.length===1')
     assert c.evaluate('window.speechRequests[0].engine==="whisper-local" && window.speechRequests[0].speech_only===true && !!window.speechRequests[0].video')
@@ -49,10 +49,10 @@ def run(c, wait_for, out, web=False):
     assert c.evaluate('document.querySelectorAll("#process-video").length===1 && document.querySelectorAll("#report-editor").length===1')
     for width in [1200, 760]:
         c.call('Emulation.setDeviceMetricsOverride', width=width, height=900, deviceScaleFactor=1, mobile=False)
-        assert c.evaluate('document.querySelector("#rerun-speech").checkVisibility()')
+        assert c.evaluate('!document.querySelector("#rerun-speech").checkVisibility()')
         assert c.evaluate('!document.querySelector("#speech-settings").checkVisibility()')
         assert c.evaluate('document.querySelector("#recording-speech").getBoundingClientRect().width>=200')
         assert c.evaluate('document.documentElement.scrollWidth<=innerWidth'), width
     c.screenshot(out / 'speech-settings-retired.png')
     assert c.evaluate('window.uiErrors.length===0'), c.evaluate('window.uiErrors')
-    print('PASS: native form hidden with technical on/off; separate action, dirty guard, request payload, visible failure, unchanged preferences, responsive layout; no recognition', flush=True)
+    print('PASS: native form hidden with technical on/off; dropdown creation, dirty guard, request payload, visible failure, unchanged preferences, responsive layout; no recognition', flush=True)
