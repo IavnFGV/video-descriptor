@@ -285,7 +285,7 @@
         const control=$(kind==='notes'?'recording-notes':'recording-article');
         const reports=data.reports.filter(item=>(item.result_kind||'notes')===kind);
         if(!reports.some(item=>item.url===selectedReports[kind]))selectedReports[kind]=reports[0]?.url||null;
-        control.replaceChildren(option('',kind==='notes'?'Конспект ещё не создан':'Статья ещё не создана'),...reports.map((item,index)=>option(item.url,'Версия '+(reports.length-index)+' · '+when(item.created))),option('__new__',kind==='notes'?'＋ Создать новый конспект…':'＋ Создать новую статью…'));
+        control.replaceChildren(...(reports.length?[]:[option('',kind==='notes'?'Конспект ещё не создан':'Статья ещё не создана')]),...reports.map((item,index)=>option(item.url,'Версия '+(reports.length-index)+' · '+when(item.created))),option('__new__',kind==='notes'?'＋ Создать новый конспект…':'＋ Создать новую статью…'));
       }
     }
     speechSelect.value=snapshot?.folder||data.folder;

@@ -19,6 +19,7 @@ def run(c, wait_for, root, out, empty_article=False):
         select = '#recording-' + ('speech' if kind == 'transcript' else kind)
         button = '#delete-version' if kind == 'transcript' else '#delete-notes'
         assert evaluate(f'!!document.querySelector({json.dumps(select)}+" option[value=__new__]")')
+        assert evaluate(f'!!document.querySelector({json.dumps(select)}+\' option[value=""]\')') == empty
         if kind != 'transcript':
             assert not visible('#open-recording-' + kind)
             assert not visible('#create-recording-notes' if kind == 'notes' else '#construction-article')
