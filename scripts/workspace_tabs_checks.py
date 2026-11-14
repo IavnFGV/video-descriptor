@@ -26,8 +26,8 @@ def run(c, wait_for, out):
       tabFixture.player===document.querySelector('#process-video') && tabFixture.player.currentTime===45 &&
       tabFixture.feed===document.querySelector('#speech-feed') && tabFixture.frame===document.querySelector('#report-editor')''')
     c.call('Input.dispatchKeyEvent', type='keyDown', key='ArrowLeft', code='ArrowLeft', windowsVirtualKeyCode=37)
-    assert evaluate('document.activeElement.id==="workspace-tab-article"')
-    assert evaluate('document.querySelector("#stage-notes").checkVisibility() && !document.querySelector("#recording-translation-panel").checkVisibility()')
+    assert evaluate('document.activeElement.id==="workspace-tab-details"')
+    assert evaluate('document.querySelector("#recording-details").checkVisibility() && !document.querySelector("#stage-notes").checkVisibility()')
     assert evaluate('!document.querySelector("#workspace-view-menu [data-panel=translation]")')
     assert evaluate('!document.querySelector("#prompt-task option[value=translate]")')
     assert evaluate('''['#subtitle-mode-label','#download-ru-srt','#download-translation'].every(
@@ -39,7 +39,7 @@ def run(c, wait_for, out):
     c.call('Input.dispatchKeyEvent', type='keyDown', key='Home', code='Home', windowsVirtualKeyCode=36)
     assert evaluate('document.activeElement.id==="workspace-tab-transcript"')
     c.call('Input.dispatchKeyEvent', type='keyDown', key='End', code='End', windowsVirtualKeyCode=35)
-    assert evaluate('document.activeElement.id==="workspace-tab-article"')
+    assert evaluate('document.activeElement.id==="workspace-tab-details"')
     assert evaluate("document.querySelectorAll('#workspace-tabs [tabindex=\"0\"]').length===1")
     evaluate("workspaceView.setPanel('transcript',false)")
     assert evaluate('document.querySelector("#speech-feed").checkVisibility()')

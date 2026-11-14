@@ -13,6 +13,7 @@
   const translationPanel=$('translation-settings-panel');
   translationPanel.insertBefore($('recording-translate'),$('translation-settings-form'));
   const transcriptSection=$('speech-feed').closest('section');
+  const coverageNotice=document.createElement('p');coverageNotice.id='source-coverage-notice';coverageNotice.className='feedback';coverageNotice.setAttribute('role','status');coverageNotice.hidden=true;speech.insertBefore(coverageNotice,transcriptSection);
   const transcriptDisclosure=document.createElement('details');transcriptDisclosure.id='transcript-disclosure';transcriptDisclosure.open=true;
   const transcriptSummary=document.createElement('summary');transcriptSummary.textContent='Текст расшифровки';
   transcriptDisclosure.append(transcriptSummary);
@@ -34,7 +35,7 @@
     frame.contentDocument.querySelector('[data-notes-view="read"]')?.focus();
   };
   const originalReports=$('notes-variant-label');originalReports.hidden=true;
-  $('source-details').append($('record-menu'));
+  actions.append($('record-menu'));
   const detail=document.createElement('details');detail.id='recording-processing';
   const summary=document.createElement('summary');summary.textContent='Подробности обработки';detail.append(summary);
   const workspace=$('workspace'); workspace.append(detail);
@@ -42,7 +43,8 @@
   workspace.append(speechHeading);
   const speechSettings=$('speech-settings').closest('section');speechSettings.id='recording-speech-settings';
   const translationSection=translationPanel.closest('section');translationSection.id='recording-translation-panel';layout.append(translationSection);
-  layout.append($('source-details'));
+  const fileDetails=document.createElement('div');fileDetails.id='recording-details';fileDetails.setAttribute('role','region');fileDetails.setAttribute('aria-labelledby','workspace-tab-details');
+  $('source-details').open=true;fileDetails.append($('source-details'));document.querySelector('.stage-content').append(fileDetails);
   workspace.append($('errors-card'));
   workspace.append($('speaker-notice'));
   const jobError=document.createElement('p');jobError.id='recording-job-error';jobError.className='feedback vd-error';jobError.setAttribute('role','alert');jobError.hidden=true;workspace.insertBefore(jobError,$('stage-progress'));

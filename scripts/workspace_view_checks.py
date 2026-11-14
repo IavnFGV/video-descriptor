@@ -43,7 +43,7 @@ def run(c, wait_for, out, root):
     for key, selector in [('video', '#shared-player'), ('transcript', '#stage-speech'),
                           ('speakers', '#recording-diarize'),
                           ('notes', '#stage-notes'), ('article', '#material-tab-article'),
-                          ('technical', '#source-details')]:
+                          ('technical', '#diagnostics')]:
         panel(key, True)
         assert visible(selector), key
         panel(key, False)
@@ -87,7 +87,12 @@ def run(c, wait_for, out, root):
     assert abs(rect('#shared-player')['w'] - rect('.studio-layout')['w']) < 2
     panel('video', False)
     assert visible('#workspace-view-empty') and visible('#recording-speech')
-    assert visible('#source-details'), 'Technical information must not depend on player visibility'
+    c.click('#workspace-tab-details')
+    assert visible('#source-details'), 'File details must not depend on player visibility'
+    evaluate('workspaceView.setPanel("technical",false)')
+    c.click('#workspace-tab-details')
+    assert visible('#source-details'), 'File details must not depend on the technical flag'
+    evaluate('workspaceView.setPanel("technical",true)')
     c.click('#workspace-view-empty button')
     assert visible('#shared-player') and visible('#speech-feed') and not visible('#stage-notes')
     assert evaluate('document.documentElement.dataset.workspaceLayout') == 'side'

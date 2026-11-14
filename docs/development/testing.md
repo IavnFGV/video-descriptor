@@ -68,6 +68,7 @@ The isolated Edge fixture for the unified Task 9 tabs and existing workspace con
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-only
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --file-details-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --speech-settings-retired
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --speech-settings-web
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-empty
@@ -91,6 +92,11 @@ details both enabled and disabled, the separate rerun action, transcript dirty g
 request payload, visible failure, unchanged preferences and 1200/760 px layouts.
 It intercepts the speech request before any processing. `--speech-settings-web`
 checks that shared web retains the engine picker and new-transcript form.
+
+`--file-details-only` uses a partial-transcript fixture to check the fourth tab,
+file information, title draft/save, delete confirmation/cancel, coverage warning,
+keyboard, preserved DOM/history/preferences and widths 375–1440 px. The title save
+writes only temporary fixture metadata; no deletion or recognition is performed.
 The ResizeObserver warning remains a failing UI error; it is not filtered. Production
 transcript sizing defers/coalesces writes outside observer delivery. Readiness waits
 for the recording shell as well as report content, avoiding an early iframe-load race.

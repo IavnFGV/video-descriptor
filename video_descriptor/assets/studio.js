@@ -160,6 +160,10 @@
     const fullDuration = video.getAttribute('src') === snapshot.video_url && video.readyState >= 1 && Number.isFinite(video.duration) ? video.duration : null;
     const start = snapshot.start || 0;
     const partial = fullDuration !== null && (start > 0 || start + snapshot.duration < fullDuration - 2);
+    const coverage = $('source-coverage-notice');
+    coverage.hidden = !(partial && snapshot.has_ready_transcript);
+    const coverageMessage = 'Распознан только фрагмент. Остальная запись ещё не распознана.';
+    if (coverage.textContent !== coverageMessage) coverage.textContent = coverageMessage;
     const info = $('source-info'); info.replaceChildren();
     const rows = [['Файл', snapshot.filename], ['Длительность файла', fullDuration === null ? 'Загружается…' : mediaTime(fullDuration)]];
     if (snapshot.has_ready_transcript) rows.push(['Распознано', mediaTime(start) + ' — ' + mediaTime(start + snapshot.duration)]);

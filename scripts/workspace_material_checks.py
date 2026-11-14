@@ -50,6 +50,8 @@ def run(c, wait_for, root, out, empty_article=False):
     c.call('Input.insertText', text='Unified draft. ')
     assert evaluate('unifiedFixture.frame.contentWindow.notesEditorDirty()')
     # Hiding the same report preserves the document, draft and its undo history.
+    c.click('#workspace-tab-details')
+    assert visible('#source-details') and not visible('#stage-notes')
     c.click('#workspace-tab-transcript')
     c.click('#workspace-tab-notes')
     assert evaluate('unifiedFixture.frame.contentDocument===notesDoc && unifiedFixture.frame.contentWindow.notesEditorDirty()')
@@ -81,7 +83,7 @@ def run(c, wait_for, root, out, empty_article=False):
     ready('notes-b')
     assert evaluate('document.querySelector("#recording-notes").value==="/output/notes-b/report.html"')
     # Keyboard uses the shared vd-tabs semantics, including wraparound.
-    for name, code, target in [('ArrowRight', 39, 'article'), ('End', 35, 'article'), ('Home', 36, 'transcript'), ('ArrowLeft', 37, 'article')]:
+    for name, code, target in [('ArrowRight', 39, 'article'), ('End', 35, 'details'), ('Home', 36, 'transcript'), ('ArrowLeft', 37, 'details')]:
         key(name, code)
         assert evaluate('document.activeElement.id') == 'workspace-tab-' + target
     assert evaluate('localStorage.getItem("video-descriptor:ui:workspace")===unifiedFixture.storage')

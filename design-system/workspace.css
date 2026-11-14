@@ -211,7 +211,6 @@ html[data-view-translation=false] .recording-workspace #subtitle-mode-label,
 html[data-view-translation=false] .recording-workspace #download-ru-srt,
 html[data-view-translation=false] .recording-workspace #download-translation,
 html[data-view-translation=false] .recording-workspace #speech-feed .subtitle-ru,
-html[data-view-technical=false] .recording-workspace #source-details,
 html[data-view-technical=false] .recording-workspace #recording-processing,
 html[data-view-technical=false] .recording-workspace #diagnostics,
 html[data-view-technical=false] .recording-workspace section:has(>#prompt-settings-panel),
@@ -236,10 +235,14 @@ html[data-view-article=false] .recording-workspace #stage-notes:has(#material-ta
 html:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{display:block;grid-column:2;grid-row:1;min-width:0}
 html:not([data-workspace-tab=all]) .recording-workspace.has-recording #workspace-tabs{margin-bottom:var(--vd-group-gap)}
 html:not([data-workspace-tab=all]) .recording-workspace.has-recording #shared-player{grid-row:1}
-html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording #stage-speech{display:none!important}
+html:is([data-workspace-tab=notes],[data-workspace-tab=article],[data-workspace-tab=details]) .recording-workspace.has-recording #stage-speech{display:none!important}
 html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording #stage-notes{display:block!important}
 html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording .material-tabs{display:none}
-html:is([data-workspace-tab=notes],[data-workspace-tab=article]) .recording-workspace.has-recording #workspace-view-empty{display:none}
+html:is([data-workspace-tab=notes],[data-workspace-tab=article],[data-workspace-tab=details]) .recording-workspace.has-recording #workspace-view-empty{display:none}
+.recording-workspace #recording-details{display:none}
+html[data-workspace-tab=details] .recording-workspace.has-recording #recording-details{display:block}
+html[data-workspace-tab=details] .recording-workspace.has-recording #stage-notes{display:none!important}
+html[data-workspace-tab=details][data-view-video=false][data-view-transcript=false] .recording-workspace.has-recording #workspace-view-empty{display:none}
 html:is([data-workspace-layout=stacked],[data-view-video=false]):not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{grid-column:1;grid-row:2}
 html[data-view-video=false]:not([data-workspace-tab=all]) .recording-workspace.has-recording .stage-content{grid-row:1}
 html[data-workspace-layout=stacked][data-workspace-tab=all] .recording-workspace.has-recording #shared-player{grid-row:2}

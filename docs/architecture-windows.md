@@ -23,6 +23,14 @@ Gemini/LM Studio, используемых другими операциями. 
 
 ## Cohesive desktop presentation (12 November 2026)
 
+14.11.2026: workspace-вкладка «Сведения» переиспользует `source-details` и форму
+переименования. `recording.js` переносит их один раз, `workspace-view.js` переключает
+presentation через прежний dataset/controller; дополнительного API, маршрута или
+хранилища нет. Файл больше не зависит от `technical`; меню удаления находится возле
+выбора версии. Частичный охват дублируется возле расшифровки по прежним данным
+snapshot/медиа. Журнал остаётся на прежнем месте. Текущий контракт —
+[workspace override](../design-system/pages/workspace.md).
+
 Шаги 1–4 [объединения оболочки](../design-system/SHELL-UNIFICATION.md): общий
 `desktop-shell.js` предоставляет полным страницам один результат `/health` с timeout
 10 с; ошибка сети отображается отдельно от shared web и допускает повтор.

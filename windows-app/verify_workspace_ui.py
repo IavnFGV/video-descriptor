@@ -225,7 +225,9 @@ def run(args, report):
             assert abs(saved['segments'][0][boundary] - original['segments'][0][boundary]) <= .0005, boundary
         assert saved['edit_revision'] != original['edit_revision'], 'revision did not advance'
         report['checks'].append('reply dirty Escape retained input; real save/revision and timestamps verified')
-    cdp.click('#source-details > summary')
+    cdp.click('#workspace-tab-details')
+    if not cdp.evaluate('document.querySelector("#source-details").open'):
+        cdp.click('#source-details > summary')
     cdp.fill('#source-title', 'Несохранённое название / Незбережена назва')
     assert cdp.evaluate('new URLSearchParams(location.search).get("acceptance")') == 'preserved'
     cdp.click('#desktop-tools-menu > summary')

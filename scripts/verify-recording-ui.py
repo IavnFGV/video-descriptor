@@ -35,12 +35,12 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         if name == 'article-a' and any(flag in sys.argv for flag in ['--material-tabs-empty', '--workspace-tabs-empty']):
             continue
         folder = root / 'output' / name; folder.mkdir(parents=True)
-        rows = [{'id': f's{i}', 'start': i*30, 'end': i*30+30, 'text': f'Реплика {i}. Проверка синхронизации и правок.', 'speaker':'speaker_1'} for i in range(80)]
+        rows = [{'id': f's{i}', 'start': i*30, 'end': i*30+30, 'text': f'Реплика {i}. Проверка синхронизации и правок.', 'speaker':'speaker_1'} for i in range(20 if '--file-details-only' in sys.argv else 80)]
         gaps=[]
         if '--unresolved-only' in sys.argv:
             rows=[]
             gaps=[{'id':'u-0000400000-0000480000','start':25,'end':30,'status':'unresolved','reason':'invalid_timestamps'}]
-        write_json(folder / 'manifest.json', {'video': str(video), 'processed_duration': 2400})
+        write_json(folder / 'manifest.json', {'video': str(video), 'processed_duration': 600 if '--file-details-only' in sys.argv else 2400})
         write_json(folder / 'speech.json', {'folder': name, 'status': 'done', 'engine': 'whisper-local', 'segments': rows, 'speaker_names': {'speaker_1':'Саша'}, 'unresolved':gaps})
         write_json(folder / 'transcript.json', rows)
         write_json(folder / 'translations.json', {} if gaps else {'s0':'Сохранённый перевод'})
@@ -151,6 +151,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--file-details-only' in sys.argv:
+            from file_details_checks import run
+            run(c, wait_for, root, out)
+            raise SystemExit(0)
         if '--speech-settings-retired' in sys.argv or '--speech-settings-web' in sys.argv:
             from speech_settings_checks import run
             run(c, wait_for, out, '--speech-settings-web' in sys.argv)
