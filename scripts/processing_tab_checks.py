@@ -37,9 +37,10 @@ def run(c, wait_for, root, out, identity):
     assert evaluate('''processingFixture.player===document.querySelector('#process-video') &&
       processingFixture.history===history.length && processingFixture.url===location.href &&
       processingFixture.storage===localStorage.getItem('video-descriptor:ui:workspace')''')
-    # Prompts stay in their existing material panel; the link must still reach them.
-    c.click('#open-prompt-settings')
-    assert evaluate('document.querySelector("#model-prompt").checkVisibility() && document.activeElement.id==="model-prompt"')
+    # Stored requests remain readable without a link to the retired legacy editor.
+    assert not evaluate('document.querySelector("#open-prompt-settings").checkVisibility()')
+    assert not evaluate('''document.querySelector('a[href="#prompt-settings-panel"]')''')
+    assert not evaluate('document.querySelector("#model-prompt").checkVisibility()')
     evaluate('workspaceView.reset()')
     c.click('#workspace-tab-transcript')
     c.call('Input.dispatchKeyEvent', type='keyDown', key='End', code='End', windowsVirtualKeyCode=35)

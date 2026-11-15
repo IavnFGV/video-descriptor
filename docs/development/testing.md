@@ -69,6 +69,8 @@ The isolated Edge fixture for the unified Task 9 tabs and existing workspace con
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-geometry-only
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --aux-prompts-retired
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --aux-prompts-web
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --file-details-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --processing-tab-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --speech-settings-retired
@@ -102,6 +104,13 @@ request payload, visible failure, unchanged preferences and 1200/760 px layouts.
 It intercepts the speech request before any processing. `--speech-settings-web`
 checks that shared web retains the engine picker and new-transcript form.
 
+`--aux-prompts-retired` / `--aux-prompts-web` check the inert auxiliary editor and
+removed request link with `technical` on/off and an old hash URL. Page fetch traps
+reject `/api/prompts`; legacy session drafts and a synthetic saved override file
+must remain intact. Both builder prompts are edited and saved through the existing
+form into temporary settings, with independent values and no generation. The preserved
+backend API is read separately by the test driver. Screens cover 375/760/1200 px.
+
 `--file-details-only` uses a partial-transcript fixture to check the fourth tab,
 file information, title draft/save, delete confirmation/cancel, coverage warning,
 keyboard, transcript-only version controls, direct deletion confirmation/cancel,
@@ -121,7 +130,7 @@ single-tab геометрию: создание статьи через спис
 `--processing-tab-only` checks recorded fixture request/response/reasoning/log data,
 error-to-log navigation (including empty-state focus for a job without a snapshot),
 absence of the duplicate processing overview, hidden empty sections,
-stop/progress outside the tab, the existing prompt link, five-tab keyboard navigation,
+stop/progress outside the tab, absence of the retired prompt link, five-tab keyboard navigation,
 preserved queued/running/error messages without idle advice,
 and widths 375–1440 px. Request artifacts are compared by hash; no model is called.
 The ResizeObserver warning remains a failing UI error; it is not filtered. Production

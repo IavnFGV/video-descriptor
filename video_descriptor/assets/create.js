@@ -10,50 +10,53 @@
   function rememberRoute(){acceptedUrl=location.href;acceptedState=history.state;}
   document.addEventListener('workspace-route-written',rememberRoute);
   const rendered = {};
-  let promptData = null, promptTask = null;
-  const promptDrafts = window.studioDraft.prompts();
-  function selectPrompt() {
-    if (!promptData) return;
-    promptTask = $('prompt-task').value;
-    $('model-prompt').value = promptDrafts[promptTask] ?? promptData.prompts[promptTask];
-    window.studioDraft.savePrompts(promptDrafts,promptTask);
+  // Compatibility controls remain inert in current layouts: no draft reads or API initialization.
+  if (!$('prompt-settings-panel').hidden) {
+    let promptData = null, promptTask = null;
+    const promptDrafts = window.studioDraft.prompts();
+    function selectPrompt() {
+      if (!promptData) return;
+      promptTask = $('prompt-task').value;
+      $('model-prompt').value = promptDrafts[promptTask] ?? promptData.prompts[promptTask];
+      window.studioDraft.savePrompts(promptDrafts,promptTask);
+    }
+    $('prompt-task').onchange = selectPrompt;
+    $('model-prompt').addEventListener('input',()=>{if(promptTask){promptDrafts[promptTask]=$('model-prompt').value;window.studioDraft.savePrompts(promptDrafts,promptTask);}});
+    $('open-prompt-settings').onclick = event => {
+      event.preventDefault();
+      const kind=$('material-tab-article').getAttribute('aria-selected')==='true'?'article':'notes';
+      window.workspaceView.setPanel('technical',true);$('workspace-tab-'+kind).click();
+      window.studioUI.openStage('notes');$('prompt-settings-panel').open=true;$('model-prompt').focus();
+    };
+    $('reset-prompt').onclick = () => {
+      $('model-prompt').value = promptData.defaults[promptTask];
+      $('model-prompt').dispatchEvent(new Event('input',{bubbles:true}));
+      $('prompt-status').textContent = 'Стандартный промпт восстановлен в редакторе. Нажмите «Сохранить промпт».';
+    };
+    $('prompt-settings-form').onsubmit = async event => {
+      event.preventDefault(); if (!promptTask) return;
+      $('save-prompt').disabled = true;
+      const task = promptTask, content = $('model-prompt').value;
+      try {
+        promptData = await json('/api/prompts', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({task, text: content})});
+        delete promptDrafts[task];window.studioDraft.savePrompts(promptDrafts,promptTask);
+        window.studioDraft.clear($('prompt-settings-form'));
+        $('prompt-status').textContent = 'Сохранено. Промпт будет использован в следующих блоках обработки.';
+      } catch (error) { $('prompt-status').textContent = error.message; }
+      finally { $('save-prompt').disabled = false; }
+    };
+    json('/api/prompts').then(data => {
+      promptData = data;
+      $('prompt-task').replaceChildren(...Object.entries(data.titles).filter(([task])=>task!=='translate').map(([task, title]) => { const option = text('option', title); option.value = task; return option; }));
+      const rememberedTask=window.studioDraft.promptTask();
+      if([...$('prompt-task').options].some(option=>option.value===rememberedTask))$('prompt-task').value=rememberedTask;
+      selectPrompt(); $('save-prompt').disabled = false; $('reset-prompt').disabled = false;
+      $('prompt-status').textContent = 'Редактируйте инструкцию и сохраните изменения.';
+    }).catch(error => { $('prompt-status').textContent = error.message; });
   }
-  $('prompt-task').onchange = selectPrompt;
-  $('model-prompt').addEventListener('input',()=>{if(promptTask){promptDrafts[promptTask]=$('model-prompt').value;window.studioDraft.savePrompts(promptDrafts,promptTask);}});
-  $('open-prompt-settings').onclick = event => {
-    event.preventDefault();
-    const kind=$('material-tab-article').getAttribute('aria-selected')==='true'?'article':'notes';
-    window.workspaceView.setPanel('technical',true);$('workspace-tab-'+kind).click();
-    window.studioUI.openStage('notes');$('prompt-settings-panel').open=true;$('model-prompt').focus();
-  };
   if (location.hash === '#translation-settings-panel') {
     window.studioUI.openStage('speech'); $('translation-settings-panel').open = true;
   }
-  $('reset-prompt').onclick = () => {
-    $('model-prompt').value = promptData.defaults[promptTask];
-    $('model-prompt').dispatchEvent(new Event('input',{bubbles:true}));
-    $('prompt-status').textContent = 'Стандартный промпт восстановлен в редакторе. Нажмите «Сохранить промпт».';
-  };
-  $('prompt-settings-form').onsubmit = async event => {
-    event.preventDefault(); if (!promptTask) return;
-    $('save-prompt').disabled = true;
-    const task = promptTask, content = $('model-prompt').value;
-    try {
-      promptData = await json('/api/prompts', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({task, text: content})});
-      delete promptDrafts[task];window.studioDraft.savePrompts(promptDrafts,promptTask);
-      window.studioDraft.clear($('prompt-settings-form'));
-      $('prompt-status').textContent = 'Сохранено. Промпт будет использован в следующих блоках обработки.';
-    } catch (error) { $('prompt-status').textContent = error.message; }
-    finally { $('save-prompt').disabled = false; }
-  };
-  json('/api/prompts').then(data => {
-    promptData = data;
-    $('prompt-task').replaceChildren(...Object.entries(data.titles).filter(([task])=>task!=='translate').map(([task, title]) => { const option = text('option', title); option.value = task; return option; }));
-    const rememberedTask=window.studioDraft.promptTask();
-    if([...$('prompt-task').options].some(option=>option.value===rememberedTask))$('prompt-task').value=rememberedTask;
-    selectPrompt(); $('save-prompt').disabled = false; $('reset-prompt').disabled = false;
-    $('prompt-status').textContent = 'Редактируйте инструкцию и сохраните изменения.';
-  }).catch(error => { $('prompt-status').textContent = error.message; });
   $('subtitle-mode').onchange = () => { document.body.dataset.subtitles = $('subtitle-mode').value; };
   document.body.dataset.subtitles = $('subtitle-mode').value;
   async function editSubtitle(source, button) {

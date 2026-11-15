@@ -42,6 +42,11 @@ presentation-событие `recording-job-status` управляет перех
 [workspace override](../design-system/pages/workspace.md).
 Shared workspace CSS резервирует корневой scrollbar gutter открытой записи,
 чтобы короткие вкладки не меняли ширину сетки при исчезновении прокрутки.
+Централизованный редактор legacy prompt overrides скрыт и не инициализируется
+в Windows/shared web; ссылка из сохранённого запроса убрана. Исходные IDs/handlers
+сохраняются неактивными для совместимости. Страница записи больше не обращается
+к `/api/prompts`; backend, старые настройки/черновики и обработка прежних заданий
+не меняются. Конспект/статья используют прежние поля своей формы создания.
 
 Шаги 1–4 [объединения оболочки](../design-system/SHELL-UNIFICATION.md): общий
 `desktop-shell.js` предоставляет полным страницам один результат `/health` с timeout

@@ -1,5 +1,11 @@
 {
   "baseline_commit": "9ffa842",
+  "auxiliary_prompt_ui_retirement_review": {
+    "date": "2026-11-15",
+    "scope": "Retire the auxiliary prompt editor and its request-panel link from native/shared web. No relocation into Details. Notes/article instructions remain in their creation forms.",
+    "preserved": "Original DOM IDs remain hidden/inert; original handler assignments and API literals remain behind the hidden-panel initialization gate. No page GET/POST /api/prompts or legacy draft writes. Backend API, saved overrides, old jobs, draft namespaces and builder prompt/article_prompt remain intact. No baseline refresh.",
+    "validation": "aux-prompts-retired/web and processing/workspace Edge fixtures; prompt settings and builder tests; check-fast.py --workers 4. Installed WebView2 requires separate acceptance."
+  },
   "translation_ui_retirement_review": {
     "date": "2026-11-14",
     "scope": "Retire translation controls and copy from recording/settings/report UI. New native notes requests explicitly disable translate_after. Remove separate frontend translation-model discovery. No baseline refresh.",

@@ -29,6 +29,9 @@ out.mkdir(parents=True, exist_ok=True)
 live.active_video = lambda _: False
 with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
     root = Path(temporary)
+    if '--aux-prompts-retired' in sys.argv or '--aux-prompts-web' in sys.argv:
+        (root / '.devcontainer').mkdir()
+        write_json(root / '.devcontainer/model-prompts.json', {'filter':'Fixture saved legacy filter','quiz_explanation':'Fixture saved legacy explanation'})
     video = root / 'data/meeting.mp4'
     video.parent.mkdir(); video.write_bytes(b'fixture')
     for name, model in [('original', ''), ('notes-a', 'model-a'), ('notes-b', 'model-b'), ('article-a', 'model-a')]:
@@ -81,7 +84,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
                 fixture = native_fixture(path)
                 if fixture is not None:
                     return self.json_response(200, fixture)
-            if path=='/health':return self.json_response(200,{'status':'ok'} if '--speech-settings-web' in sys.argv else {'status':'ok','app':'video-descriptor-windows','instance':'fixture'})
+            if path=='/health':return self.json_response(200,{'status':'ok'} if '--speech-settings-web' in sys.argv or '--aux-prompts-web' in sys.argv else {'status':'ok','app':'video-descriptor-windows','instance':'fixture'})
             if path=='/api/construction-models':
                 provider=parse_qs(urlsplit(self.path).query).get('provider',['ollama'])[0]
                 names=['gemini-test'] if provider=='gemini' else ['qwen3.5:9b','model-a','model-b','gpt-oss:20b']
@@ -103,11 +106,20 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c=CDP(next(tab for tab in tabs if tab.get('type')=='page')['webSocketDebuggerUrl'])
         c.call('Page.enable')
         c.call('Page.addScriptToEvaluateOnNewDocument',source="""window.uiErrors=[];addEventListener('error',e=>uiErrors.push(e.message));Object.defineProperties(HTMLMediaElement.prototype,{readyState:{get:()=>2},duration:{get:()=>2400},currentTime:{get(){return this._time||0},set(v){this._time=v;this.dispatchEvent(new Event('timeupdate'))}}});HTMLMediaElement.prototype.load=function(){};""")
+        if '--aux-prompts-retired' in sys.argv or '--aux-prompts-web' in sys.argv:
+            c.call('Page.addScriptToEvaluateOnNewDocument', source="""window.auxRequests=[];window.auxMutations=[];const auxFetch=window.fetch;
+              window.fetch=(url,options)=>{const path=new URL(String(url),location.href).pathname;
+                if(path==='/api/prompts'){auxRequests.push({path,method:options?.method||'GET'});return Promise.reject(new Error('Retired prompt editor must not call its API'));}
+                if(options?.method&&options.method!=='GET')auxMutations.push(path);return auxFetch(url,options)};
+              if(location.protocol==='http:'){const p=new URLSearchParams(location.search);
+                for(const id of ['new','original','notes-a','notes-b','article-a',p.get('folder')||p.get('job')||'new']){const key='vd-studio-draft:'+id;
+                const value=JSON.parse(sessionStorage.getItem(key)||'{}');if(!value.__prompts){value.__prompts={filter:'Fixture legacy draft',quiz_explanation:'Fixture explanation draft'};
+                value.__promptTask='quiz_explanation';sessionStorage.setItem(key,JSON.stringify(value));}}}""")
         if '--workspace-storage-read' in sys.argv or '--workspace-storage-write' in sys.argv:
             method = 'getItem' if '--workspace-storage-read' in sys.argv else 'setItem'
             c.call('Page.addScriptToEvaluateOnNewDocument', source=f"Storage.prototype.{method}=function(){{throw new DOMException('blocked','SecurityError')}}")
         c.call('Emulation.setDeviceMetricsOverride',width=1920,height=1080,deviceScaleFactor=1,mobile=False)
-        start = ('/create?folder=original&stage=speech' if '--speech-settings-web' in sys.argv else
+        start = ('/create?folder=original&stage=speech' if '--speech-settings-web' in sys.argv or '--aux-prompts-web' in sys.argv else
                  '/create?folder=original&stage=speech&material=article&report=missing#deep'
                  if '--workspace-missing-report' in sys.argv else
                  '/create?folder=original&stage=speech&material=article#deep'
@@ -159,6 +171,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--aux-prompts-retired' in sys.argv or '--aux-prompts-web' in sys.argv:
+            from auxiliary_prompts_checks import run
+            run(c, wait_for, root, out, '--aux-prompts-web' in sys.argv)
+            raise SystemExit(0)
         if '--workspace-geometry-only' in sys.argv:
             from workspace_geometry_checks import run
             run(c, wait_for, out)
@@ -374,7 +390,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         if '--spacing-only' in sys.argv:
             for kind in ['notes','article']:
                 c.click('#workspace-tab-'+kind)
-                wait_for(lambda:evaluate(f'document.querySelector("#material-{kind}-controls").checkVisibility()'))
+                wait_for(lambda kind=kind:evaluate(f'document.querySelector("#material-{kind}-controls").checkVisibility()'))
                 assert evaluate(f'document.querySelector("#delete-notes").getBoundingClientRect().left-document.querySelector("#recording-{kind}").getBoundingClientRect().right')==8
                 assert evaluate('document.querySelector("#stage-notes").getBoundingClientRect().top-document.querySelector("#workspace-tabs").getBoundingClientRect().bottom')==16
                 assert not evaluate(f'document.querySelector("#open-recording-{kind}").checkVisibility()')
