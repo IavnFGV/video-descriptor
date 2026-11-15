@@ -158,6 +158,15 @@ multi-panel acceptance. The release harness selects workspace tabs, not retired
 checkboxes; its settings round trip returns through browser history, while Records
 continues to open the library. Installed WebView2/scaling remain separate checks.
 
+Run `scripts/verify-recording-ui.py --release-harness-only` with the development
+Python to exercise the current release workspace driver in isolated Edge fixtures:
+notes creation controls, reply save/dirty guard, settings/history round trip,
+downloads and editor layouts. This does not run installed inference.
+`tests/test_installed_acceptance.py` also executes the installed workflow with
+simulated browser/process boundaries: notes must follow the speech job through the
+Notes tab, without retired translation controls; unexpected `translate_after=true`
+must remain a failure. Backend translation compatibility is checked separately.
+
 Shared application commands have a separate isolated Edge check:
 `.\.venv\Scripts\python.exe -X utf8 scripts/verify-updates-ui.py`.
 It covers update text safety and focus, canonical Windows/web links, one health read,

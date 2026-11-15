@@ -141,6 +141,86 @@ def test_workspace_wait_follows_new_create_job_and_propagates_failure(monkeypatc
         workspace.wait_workspace_job(Browser(), 'http://127.0.0.1:1234', tmp_path, tmp_path)
 
 
+@pytest.mark.parametrize('with_ollama,translate_after', [(False, False), (True, False), (True, True)])
+def test_installed_ui_workflow_uses_notes_tab_without_retired_translation(
+        monkeypatch, tmp_path, with_ollama, translate_after):
+    spec = importlib.util.spec_from_file_location('workspace_acceptance', ROOT / 'windows-app/verify_workspace_ui.py')
+    workspace = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(workspace)
+    actions, followed, verified = [], [], []
+
+    class Process:
+        def poll(self):
+            return 0
+
+    class Browser:
+        sock = type('Socket', (), {'close': lambda self: None})()
+
+        def evaluate(self, expression):
+            if 'getClientRects' in expression:
+                return 0  # Settings are already closed.
+            if expression.endswith('.disabled') and not expression.startswith('!'):
+                return False
+            if 'getAttribute("aria-selected")' in expression:
+                return actions[-1] == ('click', '#workspace-tab-' + ('notes' if with_ollama else 'transcript'))
+            return True
+
+        def click(self, selector):
+            assert selector in {'#new-record-open', '#start', '#workspace-tab-notes',
+                                '#workspace-tab-transcript', '#construction-run'}
+            actions.append(('click', selector))
+
+        def fill(self, selector, value):
+            assert selector in {'#title', '#language', '#recording-notes',
+                                '#construction-provider', '#construction-model'}
+            actions.append(('fill', selector, value))
+
+        def call(self, method, **kwargs):
+            return {'root': {'nodeId': 1}, 'nodeId': 2}
+
+        def screenshot(self, target):
+            pass
+
+    def completed(cdp, base, root, output, previous=None, **kwargs):
+        followed.append(previous)
+        return {'job': {'id': 'notes' if previous else 'speech', 'folder': 'result',
+                        'status': 'done', 'translate_after': translate_after},
+                'result': speech()}
+
+    def ready(read, predicate=bool, **kwargs):
+        value = read()
+        assert predicate(value), 'Unexpected installed UI wait in simulated workflow'
+        return value
+
+    monkeypatch.setattr(workspace, 'wait_for', ready)
+    monkeypatch.setattr(workspace.subprocess, 'Popen', lambda *args, **kwargs: Process())
+    monkeypatch.setattr(workspace, 'read_http', lambda _: json.dumps([
+        {'type': 'page', 'url': 'http://127.0.0.1:1234/', 'id': 'target',
+         'webSocketDebuggerUrl': 'unused'}]).encode())
+    monkeypatch.setattr(workspace, 'CDP', lambda _: Browser())
+    monkeypatch.setattr(workspace, 'wait_workspace_job', completed)
+    monkeypatch.setattr(workspace, 'run', lambda args, evidence: verified.append(args))
+    output = tmp_path / 'reports'
+    if with_ollama and translate_after:
+        with pytest.raises(AssertionError):
+            workspace.installed_workflow(tmp_path, 1234, output, with_ollama=True, ollama_model='selected:exact')
+        assert not verified
+        assert json.loads((output / 'workspace-ui.json').read_text())['status'] == 'FAIL'
+        return
+    result = workspace.installed_workflow(tmp_path, 1234, output, with_ollama=with_ollama,
+                                          ollama_model='selected:exact')
+    assert result['status'] == 'PASS'
+    assert followed == ([None, 'speech'] if with_ollama else [None])
+    assert len(verified) == 1 and verified[0].edit_reply
+    if with_ollama:
+        assert actions.index(('click', '#workspace-tab-notes')) < actions.index(('fill', '#recording-notes', '__new__'))
+        assert ('fill', '#construction-model', 'selected:exact') in actions
+        assert actions[-1] == ('click', '#construction-run')
+        assert verified[0].notes_folder == 'result'
+    else:
+        assert verified[0].notes_folder is None
+
+
 def test_timeout_keeps_last_state_and_only_disposable_worker_diagnostics(tmp_path, monkeypatch):
     client = api.InstalledAPI.__new__(api.InstalledAPI)
     client.root = tmp_path

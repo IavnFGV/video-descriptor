@@ -1,5 +1,23 @@
 # История изменений
 
+15.11.2026: проверен сбой Windows release run `43329319192` на revision `8029d513`:
+installed UI driver обращался к скрытой панели `#translation-settings-panel > summary`.
+ZIP reproducibility, installer lifecycle, CPU speech и API/fixture стадии прошли до
+этого шага. В текущей main устаревшая UI-операция уже удалена (`4d74884`), навигация
+синхронизирована с вкладками (`abfcd9c`). Добавлена регрессия installed workflow
+с simulated browser/process boundaries: notes после speech через вкладку, точная
+модель, отсутствие старых translation controls и FAIL при `translate_after=true`.
+Профильные тесты: 19 passed; release workspace harness в Edge — PASS, без inference.
+Первичные запуски нового теста достигли timeout из-за неполной имитации disabled;
+имитация исправлена, ожидания в ней проверяются без задержки. Testing guide обновлён.
+Fast `--workers 4` — PASS: 29 config tests, Ruff, CSS/UI audit, JS syntax,
+868 passed / 3 skipped. Дополнительные translation/postprocess/subtitle тесты —
+25 passed с `-X utf8`; без него три subtitle теста упали на чтении UTF-8 как cp1252.
+Повторная installed WebView2/релизная приёмка не выполнялась.
+Отдельный более свежий run `43726302690` на revision `90c2ebdb` упал раньше UI:
+WiX `burn extract` для VC++ Runtime завершился с `The pipe is being closed`
+и кодом `2147942632`. Этот packaging-сбой данной регрессией не исправляется.
+
 15.11.2026: Windows product version в `windows-app/release-inputs.json` повышена
 до 0.9.5; README синхронизирован. `docs/releases/next-build.md` содержит изменения
 неопубликованной 0.9.4-build.0013 и последнюю очистку UI. Последний опубликованный
