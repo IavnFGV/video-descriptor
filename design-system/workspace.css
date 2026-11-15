@@ -1,4 +1,6 @@
 /* Recording workspace: no API or data state is encoded in layout. */
+/* Short tabs must retain the scrollbar gutter used by transcripts and reports. */
+html:has(body.recording-workspace.has-recording){scrollbar-gutter:stable}
 .material-tabs{margin-bottom:var(--vd-space-4)}
 .workspace-tabs{display:none;margin-bottom:var(--vd-space-4)}
 /* Retain legacy controls and saved preferences without exposing translation actions. */

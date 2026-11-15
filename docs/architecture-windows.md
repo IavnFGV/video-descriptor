@@ -40,6 +40,8 @@ snapshot/медиа. Журнал и прежние запросы/ответы 
 presentation-событие `recording-job-status` управляет переходом к журналу без snapshot.
 Остановка/прогресс/ошибки/retry остаются вне вкладки. Текущий контракт —
 [workspace override](../design-system/pages/workspace.md).
+Shared workspace CSS резервирует корневой scrollbar gutter открытой записи,
+чтобы короткие вкладки не меняли ширину сетки при исчезновении прокрутки.
 
 Шаги 1–4 [объединения оболочки](../design-system/SHELL-UNIFICATION.md): общий
 `desktop-shell.js` предоставляет полным страницам один результат `/health` с timeout

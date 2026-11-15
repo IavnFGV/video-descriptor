@@ -68,6 +68,7 @@ The isolated Edge fixture for the unified Task 9 tabs and existing workspace con
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-tabs-only
+.\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --workspace-geometry-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --file-details-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --processing-tab-only
 .\.venv\Scripts\python.exe -X utf8 scripts/verify-recording-ui.py --speech-settings-retired
@@ -87,6 +88,13 @@ Undo/Redo, independent versions, timestamp dispatch to the existing player, no e
 history entries or processing requests, five viewport sizes and forced colors.
 `--workspace-tabs-empty` repeats this with no article result. Media readyState/time
 are shimmed in this fixture: it proves timestamp wiring, not media decoding/playback.
+
+`--workspace-geometry-only` compares page, player, tab strip and panel widths/positions
+while switching all five tabs at 375–1440 px in side/stacked layouts. Short Details
+and Processing panels must retain the same layout width as transcripts/reports when
+the document scrollbar disappears. It also checks no horizontal overflow, unchanged
+DOM/history length and no processing requests. This is an Edge fixture, not installed
+WebView2 or Windows scaling acceptance.
 
 `--speech-settings-retired` checks the removed Windows speech form with technical
 details both enabled and disabled, the creation entry in the version dropdown, transcript dirty guard,

@@ -159,6 +159,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--workspace-geometry-only' in sys.argv:
+            from workspace_geometry_checks import run
+            run(c, wait_for, out)
+            raise SystemExit(0)
         if '--processing-tab-only' in sys.argv:
             from processing_tab_checks import run
             run(c, wait_for, root, out, identity)
