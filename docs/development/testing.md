@@ -110,7 +110,8 @@ single-tab геометрию: создание статьи через спис
 отступы версии/удаления и отдельная кнопка оригинального ответа без меню.
 
 `--processing-tab-only` checks recorded fixture request/response/reasoning/log data,
-error-to-log navigation (including a job without a snapshot), hidden empty sections,
+error-to-log navigation (including empty-state focus for a job without a snapshot),
+absence of the duplicate processing overview, hidden empty sections,
 stop/progress outside the tab, the existing prompt link, five-tab keyboard navigation
 and widths 375–1440 px. Request artifacts are compared by hash; no model is called.
 The ResizeObserver warning remains a failing UI error; it is not filtered. Production

@@ -36,8 +36,8 @@ change. Open/Create controls скрыты с сохранением IDs/handlers
 общие сообщения guards и остановка остаются вне вкладок. Частичный охват дублируется возле расшифровки по прежним данным
 snapshot/медиа. Журнал и прежние запросы/ответы перенесены в отдельную пятую вкладку
 «Обработка», независимо от `technical`. Общий controller переключает её без
-нового URL/preference. Краткая сводка использует текущий snapshot/job; отдельное
-presentation-событие `recording-job-status` передаёт состояние задания без snapshot.
+нового URL/preference. Дублирующая сводка «Ход обработки» удалена; отдельное
+presentation-событие `recording-job-status` управляет переходом к журналу без snapshot.
 Остановка/прогресс/ошибки/retry остаются вне вкладки. Текущий контракт —
 [workspace override](../design-system/pages/workspace.md).
 
