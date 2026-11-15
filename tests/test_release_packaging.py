@@ -1,4 +1,5 @@
 import importlib.util
+import subprocess
 import zipfile
 from pathlib import Path
 from unittest.mock import Mock
@@ -32,6 +33,53 @@ def test_cabinet_failure_includes_real_tool_diagnostic(tmp_path, monkeypatch):
         returncode=1, stdout=b'', stderr=b'Cabinet file could not be opened')))
     with pytest.raises(RuntimeError, match='Cabinet file could not be opened'):
         module.expand_cabinet(tmp_path / 'bad.cab', tmp_path / 'out')
+
+
+@pytest.mark.parametrize('returncode', [0x800700e8, -2147024664])
+def test_wix_pipe_failure_retries_in_fresh_directories(tmp_path, monkeypatch, capsys, returncode):
+    module = builder()
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        assert kwargs['check'] and kwargs['capture_output'] and kwargs['timeout'] == 120
+        assert kwargs['env']['DOTNET_ROLL_FORWARD'] == 'Major'
+        bundle = Path(command[command.index('-o') + 1])
+        assert not bundle.exists()
+        bundle.mkdir()
+        if len(calls) == 1:
+            (bundle / 'partial.cab').write_bytes(b'failed helper output')
+            raise subprocess.CalledProcessError(returncode, command, output=b'WiX diagnostic',
+                                                stderr=b'The pipe is being closed')
+        assert not (bundle / 'partial.cab').exists()
+
+    monkeypatch.setattr(module.subprocess, 'run', run)
+    bundle, bootstrapper = module.extract_vcrt_bundle('dotnet', tmp_path / 'wix', tmp_path / 'runtime.exe', tmp_path)
+    assert len(calls) == 2
+    assert bundle == tmp_path / 'extraction-2/bundle'
+    assert bootstrapper == tmp_path / 'extraction-2/bootstrapper'
+    assert 'WiX diagnostic' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('code,attempts', [(0x800700e8, 3), (1, 1)])
+def test_wix_extraction_fails_closed_after_bounded_or_unrelated_errors(tmp_path, monkeypatch, code, attempts):
+    module = builder()
+    error = subprocess.CalledProcessError(code, ['dotnet'], stderr=b'Actual tool failure')
+    run = Mock(side_effect=error)
+    monkeypatch.setattr(module.subprocess, 'run', run)
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        module.extract_vcrt_bundle('dotnet', tmp_path / 'wix', tmp_path / 'runtime.exe', tmp_path)
+    assert failure.value is error
+    assert run.call_count == attempts
+
+
+def test_wix_timeout_is_not_retried(tmp_path, monkeypatch):
+    module = builder()
+    run = Mock(side_effect=subprocess.TimeoutExpired(['dotnet'], 120))
+    monkeypatch.setattr(module.subprocess, 'run', run)
+    with pytest.raises(subprocess.TimeoutExpired):
+        module.extract_vcrt_bundle('dotnet', tmp_path / 'wix', tmp_path / 'runtime.exe', tmp_path)
+    run.assert_called_once()
 
 
 @pytest.mark.parametrize('complete', [False, True])

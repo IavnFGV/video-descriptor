@@ -150,6 +150,30 @@ def expand_cabinet(cabinet, destination):
         raise RuntimeError(f'Windows CAB extraction failed ({result.returncode}): {detail}')
 
 
+def extract_vcrt_bundle(dotnet, wix, runtime, work):
+    """Retry only WiX's broken internal pipe, never a failed integrity check."""
+    env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
+    for attempt in range(1, 4):
+        # Never reuse partially extracted containers from a failed native helper.
+        current = work / f'extraction-{attempt}'
+        current.mkdir()
+        bundle, bootstrapper = current / 'bundle', current / 'bootstrapper'
+        command = [dotnet, str(wix / 'tools/net6.0/any/wix.dll'), 'burn', 'extract',
+                   str(runtime.resolve()), '-o', str(bundle.resolve()),
+                   '-oba', str(bootstrapper.resolve())]
+        try:
+            subprocess.run(command, check=True, env=env, capture_output=True, timeout=120)
+            return bundle, bootstrapper
+        except subprocess.CalledProcessError as error:
+            detail = ((error.stdout or b'') + (error.stderr or b'')).decode('utf-8', errors='replace')
+            print(f'WiX extraction attempt {attempt}/3 failed ({error.returncode}):\n{detail[-4000:]}',
+                  file=sys.stderr, flush=True)
+            # HRESULT_FROM_WIN32(ERROR_NO_DATA): wixnative closed its stdin pipe.
+            # https://github.com/wixtoolset/issues/issues/9267
+            if (error.returncode & 0xffffffff) != 0x800700e8 or attempt == 3:
+                raise
+
+
 def stage_vcrt(inputs, cache, destination):
     """App-local Microsoft CRT from reviewed bytes; never install a host prerequisite."""
     import tempfile
@@ -167,13 +191,10 @@ def stage_vcrt(inputs, cache, destination):
                 safe_member(member.filename)
             archive.extractall(wix)
         # WiX 6 targets net6.0; allow the installed build-machine .NET 8+ runtime.
-        env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
-        subprocess.run([dotnet, str(wix / 'tools/net6.0/any/wix.dll'), 'burn', 'extract',
-                        str(runtime.resolve()), '-o', str((work / 'bundle').resolve()),
-                        '-oba', str((work / 'bootstrapper').resolve())], check=True, env=env)
+        bundle, bootstrapper = extract_vcrt_bundle(dotnet, wix, runtime, work)
         extracted = work / 'crt'
         extracted.mkdir()
-        expand_cabinet(work / 'bundle' / inputs['vcrt']['cabinet'], extracted)
+        expand_cabinet(bundle / inputs['vcrt']['cabinet'], extracted)
         for item in inputs['vcrt']['files']:
             name = item['name']
             safe_member(name)
@@ -181,7 +202,7 @@ def stage_vcrt(inputs, cache, destination):
             if sha256(source) != item['sha256']:
                 raise ValueError('VC runtime checksum mismatch: ' + name)
             shutil.copyfile(source, destination / name)
-        license_file = work / 'bootstrapper/license.rtf'
+        license_file = bootstrapper / 'license.rtf'
         if sha256(license_file) != inputs['vcrt']['license_sha256']:
             raise ValueError('VC runtime license checksum mismatch')
         shutil.copyfile(license_file, destination / 'Microsoft-Visual-Cpp-LICENSE.rtf')

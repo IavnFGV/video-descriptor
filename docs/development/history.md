@@ -1,5 +1,19 @@
 # История изменений
 
+15.11.2026: builder повторяет WiX `burn extract` только при внутреннем обрыве pipe
+`0x800700e8`, до трёх попыток в раздельных временных каталогах. Диагностика каждой
+ошибки остаётся в build log; timeout 120 с, остальные ошибки и checksum mismatch
+завершают сборку без повтора. Входные pins, DLL/лицензионные SHA256 и BUILD не менялись.
+Сбой run `43726302690` совпадает со стеком upstream WiX issue 9267; локально
+исходный обрыв не воспроизведён. Из существующего кэша успешно проверены все 12 DLL
+и лицензия, включая headless-процесс. Инъекция первого pipe failure с последующей
+реальной WiX/CAB распаковкой и проверкой 13 SHA256 — PASS. Это проверка восстановления,
+не воспроизведение исходной причины runner. Packaging/release tests: 69 passed;
+Ruff и diff check — PASS. Текущий Windows release guide описывает retry policy.
+Fast `--workers 4` — PASS: 29 config tests, Ruff, CSS/UI audit, JS syntax,
+873 passed / 3 skipped.
+Новый GitHub build, публикация и установка компонентов не выполнялись.
+
 15.11.2026: проверен сбой Windows release run `43329319192` на revision `8029d513`:
 installed UI driver обращался к скрытой панели `#translation-settings-panel > summary`.
 ZIP reproducibility, installer lifecycle, CPU speech и API/fixture стадии прошли до
