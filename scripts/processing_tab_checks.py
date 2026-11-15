@@ -52,17 +52,21 @@ def run(c, wait_for, root, out, identity):
     assert evaluate('processingMutations') == []
     # A fixture-only running job keeps stop/progress outside the tab.
     path = root / 'output/jobs' / identity / 'job.json'
-    job = json.loads(path.read_text(encoding='utf-8'));job['status']='running'
+    job = json.loads(path.read_text(encoding='utf-8'));job['status']='running';job.pop('error',None)
     path.write_text(json.dumps(job), encoding='utf-8')
     wait_for(lambda: evaluate('document.querySelector("#recording-stop").checkVisibility() && document.querySelector("#recording-open-log").hidden'), timeout=20)
     assert evaluate('document.querySelector("#stage-progress").checkVisibility()')
+    assert evaluate('document.querySelector("#run-message").textContent!==""')
     c.click('#workspace-tab-details')
     assert evaluate('document.querySelector("#recording-stop").checkVisibility() && document.querySelector("#stage-progress").checkVisibility()')
+    job['status']='queued';path.write_text(json.dumps(job), encoding='utf-8')
+    wait_for(lambda: evaluate('document.querySelector("#run-message").textContent.includes("Задание в очереди")'), timeout=20)
     # Empty processing sections do not expose stale request/response data.
     job['status']='done';path.write_text(json.dumps(job), encoding='utf-8')
     evaluate('window.processingEmptyReady=false;document.addEventListener("recording-snapshot",event=>{if(event.detail.snapshot.folder==="original")window.processingEmptyReady=true})')
     c.fill('#recording-speech', 'original')
     wait_for(lambda: evaluate('window.processingEmptyReady'))
+    assert evaluate('document.querySelector("#run-message").textContent===""')
     c.click('#workspace-tab-processing')
     assert evaluate('["request-panel","thinking-panel","response-panel","processing-log"].every(id=>document.getElementById(id).hidden)')
     assert evaluate('document.querySelector(".processing-empty").checkVisibility()')

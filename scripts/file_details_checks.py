@@ -11,6 +11,8 @@ def run(c, wait_for, root, out):
     wait_for(lambda: evaluate('window.fileSnapshotReady && document.querySelector("#recording-speech").value==="original" && new URLSearchParams(location.search).get("folder")==="original"'))
     evaluate('workspaceView.reset()')
     c.click('#workspace-tab-transcript')
+    assert evaluate('document.querySelector("#stage-label").textContent==="Распознавание завершено"')
+    assert evaluate('document.querySelector("#run-message").textContent===""')
     assert evaluate('document.querySelector("#source-coverage-notice").checkVisibility()')
     assert not evaluate('document.querySelector("#source-details").checkVisibility()')
     evaluate('''window.fileFixture={player:document.querySelector('#process-video'),

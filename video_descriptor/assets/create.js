@@ -451,12 +451,13 @@
     showRequest();
     const done = !snapshot.needs_notes && (job ? job.status === 'done' : snapshot.done);
     const error = job?.status === 'error' && !snapshot.notes_deleted;
+    const active = snapshot.running || ['queued','running'].includes(job?.status);
     const gaps = snapshot.errors.length;
     const label = error ? (job?.cancelled?'Остановлено':'Ошибка') : job?.status === 'queued' ? 'В очереди' : done ? (gaps ? 'Готово с пропусками' : 'Готово') : snapshot.running || job?.status === 'running' ? 'Обрабатывается' : snapshot.has_ready_transcript && snapshot.needs_notes ? 'Речь готова' : 'Запуск не активен';
     $('run-state').textContent = label;
     $('run-state').className = 'vd-status';
     $('run-state').dataset.tone = error || gaps ? 'danger' : done ? 'success' : 'info';
-    $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !snapshot.running && !['queued','running'].includes(job?.status) && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено · можно построить конспект' : (snapshot.phase===4&&snapshot.construction_settings?.result_kind==='article'?'Создание статьи':phases[snapshot.phase - 1]) + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');
+    $('stage-label').textContent = job?.status === 'queued' ? 'Ожидает запуска' : done ? 'Обработка завершена' : !active && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Распознавание завершено' : (snapshot.phase===4&&snapshot.construction_settings?.result_kind==='article'?'Создание статьи':phases[snapshot.phase - 1]) + (status.chunk && status.chunk !== '—' ? ' · блок ' + status.chunk.split(' ')[0] : '');
     $('position-label').textContent = clock(snapshot.position) + ' / ' + clock(snapshot.start + snapshot.duration);
     const fraction = (status.chunk || '').match(/(\d+)\/(\d+)/);
     let progress = fraction ? (Number(fraction[1]) - (done ? 0 : 1)) / Number(fraction[2]) * 100 : 0;
@@ -484,8 +485,8 @@
       });
     }
     $('stage-progress').value = progress;
-    document.body.classList.toggle('recording-busy', Boolean(snapshot.running || ['queued','running'].includes(job?.status)));
-    $('run-message').textContent = (!snapshot.notes_deleted && job?.error) || (job?.status === 'queued' ? 'Задание в очереди. Готовые версии остаются доступны.' : !snapshot.running && !['queued','running'].includes(job?.status) && snapshot.needs_notes && snapshot.has_ready_transcript ? 'Речь готова к просмотру и правке. Постройте конспект, когда закончите проверку.' : status.message || 'Ожидаем следующий результат.');
+    document.body.classList.toggle('recording-busy', Boolean(active));
+    $('run-message').textContent = (!snapshot.notes_deleted && job?.error) || (job?.status === 'queued' ? 'Задание в очереди. Готовые версии остаются доступны.' : active || error ? status.message || '' : '');
     if (snapshot.video_url && video.getAttribute('src') !== snapshot.video_url) video.src = snapshot.video_url;
     if (follow.checked) {
       if (video.readyState >= 1 && Math.abs(video.currentTime - snapshot.position) > 1) {

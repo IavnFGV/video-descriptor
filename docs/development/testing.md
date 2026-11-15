@@ -107,6 +107,7 @@ file information, title draft/save, delete confirmation/cancel, coverage warning
 keyboard, transcript-only version controls, direct deletion confirmation/cancel,
 preserved DOM/history/preferences and widths 375–1440 px. The title save
 writes only temporary fixture metadata; no deletion or recognition is performed.
+It also checks the neutral completed-transcript status and absence of idle advice.
 `--workspace-tabs-only` и `--workspace-tabs-empty` также проверяют одинаковые
 полужирные подписи/размеры полей, соседнюю кнопку удаления, подтверждение и отмену
 для каждого вида результата; у пустой статьи удаление скрыто. Удаление не выполняется.
@@ -120,7 +121,8 @@ single-tab геометрию: создание статьи через спис
 `--processing-tab-only` checks recorded fixture request/response/reasoning/log data,
 error-to-log navigation (including empty-state focus for a job without a snapshot),
 absence of the duplicate processing overview, hidden empty sections,
-stop/progress outside the tab, the existing prompt link, five-tab keyboard navigation
+stop/progress outside the tab, the existing prompt link, five-tab keyboard navigation,
+preserved queued/running/error messages without idle advice,
 and widths 375–1440 px. Request artifacts are compared by hash; no model is called.
 The ResizeObserver warning remains a failing UI error; it is not filtered. Production
 transcript sizing defers/coalesces writes outside observer delivery. Readiness waits
