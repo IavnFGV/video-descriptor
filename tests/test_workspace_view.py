@@ -14,6 +14,9 @@ def test_workspace_preferences_node():
 
 def test_workspace_assets_and_critical_controls():
     html = (ROOT / 'video_descriptor/assets/create.html').read_text(encoding='utf-8')
+    assert 'Прокручивать текст за видео</label>' in html
+    assert 'title="Показывать текущий фрагмент расшифровки во время воспроизведения видео."' in html
+    assert 'Связать с видео' not in html
     assert html.index('/studio-assets/workspace-view.js') < html.index('<body')
     # One preference controller even when no recording is open.
     assert '/studio-assets/workspace-view.js' in (ROOT / 'windows-app/ui/index.html').read_text(encoding='utf-8')
