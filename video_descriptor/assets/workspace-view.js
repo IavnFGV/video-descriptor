@@ -92,7 +92,8 @@
     content=document.createElement('div');content.className='workspace-view-content';menu.append(content);
     content.style.left='8px';content.style.top='8px';content.style.visibility='hidden';
     const panels=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent='Панели записи';panels.append(legend);
-    const labels={video:'Видео',transcript:'Расшифровка',speakers:'Участники',notes:'Конспект',article:'Статья / отчёт',technical:'Технические сведения и параметры'};
+    // technical remains in v1 storage/API for the shared-web speech form, not in the menu.
+    const labels={video:'Видео',transcript:'Расшифровка',speakers:'Участники',notes:'Конспект',article:'Статья / отчёт'};
     for(const [key,title] of Object.entries(labels)){
       const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.dataset.panel=key;
       input.addEventListener('change',()=>{state.panels[key]=input.checked;selectTab('all');save();});

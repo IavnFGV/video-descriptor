@@ -11,6 +11,7 @@ def run(c, wait_for, root, out, web=False):
     original = hashlib.sha256(legacy_file.read_bytes()).hexdigest()
 
     def retired():
+        assert not evaluate('document.querySelector("#workspace-view-menu [data-panel=technical]")')
         assert evaluate('window.auxRequests') == [], evaluate('window.auxRequests')
         assert evaluate('''!document.querySelector('#prompt-settings-panel').checkVisibility() &&
           !document.querySelector('#model-prompt').checkVisibility() && !document.querySelector('#open-prompt-settings').checkVisibility() &&

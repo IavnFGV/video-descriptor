@@ -32,6 +32,16 @@ for(const layout of ['side','stacked'])for(let mask=0;mask<128;mask++){
   assert.equal(combination.attempts.set,0,label+' route writes');
 }
 const compatibility=boot();
+for(const technical of [true,false]){
+  const flags={...defaults,video:false,speakers:false,notes:true,technical};
+  const bytes=' '+JSON.stringify({version:1,layout:'stacked',panels:flags})+' ';
+  const legacy=boot(bytes);
+  assertView(legacy,'stacked',flags,'retired technical menu option');
+  assert.equal(legacy.values.get(key),bytes,'legacy technical read preserves bytes');
+  assert.equal(legacy.attempts.set,0,'legacy technical read performs no migration write');
+  legacy.ui.setPanel('video',true);
+  assert.deepEqual(JSON.parse(legacy.values.get(key)).panels,{...flags,video:true},'unrelated change retains legacy technical and other preferences');
+}
 compatibility.ui.route(new URLSearchParams('?material=notes'));
 assert.equal(compatibility.root.dataset.workspaceTab,'notes');
 compatibility.ui.setPanel('technical',true); // Existing controls request the retired all view internally.

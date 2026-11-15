@@ -60,8 +60,11 @@ node tests/workspace_view.cjs
 
 It covers 256 panel/layout combinations, read-without-write, URL-neutral preference
 loading, invalid/partial values, separate storage read/write failures, reset/reload,
-storage events and embedded mode. It does not execute studio/recording routing,
-workspace tabs, DOM geometry, editor guards or Back/Forward. Task 7 changed the
+storage events and embedded mode.
+The legacy `technical` flag is also checked with both values: reading preserves
+the original bytes, and an unrelated explicit change retains it and other preferences.
+It does not execute studio/recording routing, workspace tabs, DOM geometry,
+editor guards or Back/Forward. Task 7 changed the
 contract and characterization only; Task 8a adds the first production slice.
 
 The isolated Edge fixture for the unified Task 9 tabs and existing workspace controls is:
@@ -103,6 +106,9 @@ details both enabled and disabled, the creation entry in the version dropdown, t
 request payload, visible failure, unchanged preferences and 1200/760 px layouts.
 It intercepts the speech request before any processing. `--speech-settings-web`
 checks that shared web retains the engine picker and new-transcript form.
+Both speech scenarios and the workspace/auxiliary-editor fixtures also require
+the obsolete technical checkbox to be absent, while internal `setPanel('technical', true)`
+continues to reveal the shared-web speech form.
 
 `--aux-prompts-retired` / `--aux-prompts-web` check the inert auxiliary editor and
 removed request link with `technical` on/off and an old hash URL. Page fetch traps

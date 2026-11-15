@@ -5,6 +5,7 @@ import time
 
 def run(c, wait_for, out):
     evaluate = c.evaluate
+    assert not evaluate('document.querySelector("#workspace-view-menu [data-panel=technical]")')
     c.call('Emulation.setFocusEmulationEnabled', enabled=True)
     evaluate("workspaceView.setPanel('notes',true);workspaceView.setPanel('translation',true)")
     c.click('#workspace-tab-notes')

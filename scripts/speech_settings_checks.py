@@ -3,6 +3,7 @@
 
 def run(c, wait_for, out, web=False):
     wait_for(lambda: c.evaluate('!!document.querySelector("#recording-speech")?.options.length'))
+    assert not c.evaluate('document.querySelector("#workspace-view-menu [data-panel=technical]")')
     if web:
         assert c.evaluate('window.recordingUI.native===false')
         assert c.evaluate('document.querySelector("#speech-engine").options.length>1')

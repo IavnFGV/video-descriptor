@@ -1,5 +1,16 @@
 # История изменений
 
+15.11.2026: из меню «Вид» убран пункт «Технические сведения и параметры».
+Legacy `technical` сохраняется в v1 preferences и внутреннем API для shared-web
+формы распознавания; чтение не переписывает хранилище, изменение другой настройки
+сохраняет остальные известные поля. Добавлены regression assertions отсутствия
+checkbox и Node-проверки обоих старых значений. Другие пункты меню и вкладки не менялись.
+Node harness (256 сочетаний и legacy round-trip), пять Edge fixtures native/web
+речи, workspace tabs и retired prompts — PASS. Fast `--workers 4` — PASS:
+29 config tests, Ruff, CSS/UI audit, JS syntax, 865 passed / 3 skipped.
+План технической очистки обновлён; parity остальных checkbox и installed/scaling
+acceptance остаются отдельными задачами.
+
 15.11.2026: централизованный редактор вспомогательных промптов убран из Windows
 и shared-web интерфейса, без переноса в «Сведения». Ссылка из точного запроса
 убрана; legacy IDs скрыты/inert, инициализация старых handlers и `/api/prompts`
