@@ -60,6 +60,30 @@ namespace VideoDescriptor {
         readonly int uiTestPort;
         bool smokeRunning;
 
+        const string SetupSmokeCheck = @"(() => {
+            const missing = ['setup-wizard','download-consent','probe-model','gemini-form','setup-finish']
+                .filter(id => !document.getElementById(id));
+            for (const [id, handler] of [['probe-model','onclick'],['gemini-form','onsubmit'],['setup-finish','onclick']]) {
+                if (typeof document.getElementById(id)?.[handler] !== 'function') missing.push(id + '.' + handler);
+            }
+            const link = document.getElementById('setup-open');
+            const target = link?.getAttribute('href') ? new URL(link.getAttribute('href'), location.href) : null;
+            if (link?.dataset.desktopCommand !== 'settings' || !target || target.origin !== location.origin ||
+                target.pathname !== '/' || target.search || target.hash !== '#settings') missing.push('setup-open route');
+            return missing;
+        })()";
+
+        async Task RequireSetupUI(CoreWebView2 core) {
+            string missing = "";
+            // The shared shell resolves /health asynchronously before mounting Windows routes.
+            for (int attempt = 0; attempt < 100; attempt++) {
+                missing = await core.ExecuteScriptAsync(SetupSmokeCheck);
+                if (missing == "[]") return;
+                await Task.Delay(100);
+            }
+            throw new Exception("AI setup DOM or handlers missing: " + missing);
+        }
+
         public DesktopHost(string py, string dir, bool test, int testPort) {
             python = py; directory = dir; smoke = test; uiTestPort = testPort;
             Text = "Video Descriptor"; Size = new Size(1200, 820); MinimumSize = new Size(760, 560);
@@ -202,8 +226,7 @@ namespace VideoDescriptor {
                                 RequireClientArea();
                                 string content = await core.ExecuteScriptAsync("document.body.innerText");
                                 if (content.Length < 80) throw new Exception("UI document is empty");
-                                string setup = await core.ExecuteScriptAsync("['setup-wizard','download-consent','probe-model','gemini-form','setup-finish'].every(id=>!!document.getElementById(id)) && typeof document.getElementById('setup-open').onclick === 'function'");
-                                if (setup != "true") throw new Exception("AI setup DOM or handlers missing");
+                                await RequireSetupUI(core);
                                 string job = Path.Combine((string)session["workspace"], "output", "jobs", "desktop-smoke", "job.json");
                                 Directory.CreateDirectory(Path.GetDirectoryName(job));
                                 File.WriteAllText(job, "{\"status\":\"running\"}");

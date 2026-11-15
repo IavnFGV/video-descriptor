@@ -204,6 +204,15 @@ this prototype. Existing production material/workspace scenarios remain in
 
 ## CI and evidence
 
+The native desktop smoke (`windows-app/verify_desktop.py`, optionally `--zip`)
+checks WebView2, close-to-tray, instance/queue guards and backend reconnect in an
+isolated installation. Its setup predicate waits up to 100 checks at 100 ms intervals
+for shared-shell routing and checks the same-origin `/#settings` link plus actual
+probe/form/finish handlers, not an inline click handler on the navigation link.
+Failures list the missing IDs, handlers or route. `test_desktop_smoke_contract.py`
+executes that predicate in Node with positive and negative DOM fixtures; this is
+not a substitute for the real WebView2 smoke or packaged-Python acceptance.
+
 [ci.yml](../../.github/workflows/ci.yml) runs on PR/main push and routes changed paths
 through [ci_changes.py](../../scripts/ci_changes.py). Markdown-only changes use
 configuration/policy checks; `opencode.json` selects Fast because it is not Markdown.

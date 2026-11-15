@@ -1,5 +1,19 @@
 # История изменений
 
+15.11.2026: исправлен native WebView2 smoke, блокировавший run `43734304604`
+(`0.9.5-build.0014`, revision `9ca7253`). ZIP/installer, reproducibility и artifact
+hashes прошли; smoke ошибочно требовал inline `setup-open.onclick` после переноса
+навигации в shared shell. Теперь проверяются shell route `/#settings`, прежние DOM
+IDs и реальные probe/Gemini/finish handlers, с ограниченным ожиданием асинхронной
+инициализации и перечислением отсутствующих элементов. Product UI/API не менялись.
+До исправления ошибка воспроизведена локально в реальном WebView2. После пересборки
+desktop host тот же изолированный smoke — PASS, включая tray, queue/instance guards
+и backend retry. Использовался dev Python, не packaged runtime; модели не загружались.
+Node predicate regressions: 10 passed. Testing guide синхронизирован.
+Fast `--workers 4` — PASS: 29 config tests, Ruff, CSS/UI audit, JS syntax,
+883 passed / 3 skipped.
+Новый release dispatch, изменение BUILD и публикация не выполнялись.
+
 15.11.2026: builder повторяет WiX `burn extract` только при внутреннем обрыве pipe
 `0x800700e8`, до трёх попыток в раздельных временных каталогах. Диагностика каждой
 ошибки остаётся в build log; timeout 120 с, остальные ошибки и checksum mismatch
