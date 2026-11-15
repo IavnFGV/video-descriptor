@@ -126,7 +126,7 @@ def run(c, wait_for, root, out, empty_article=False):
         assert evaluate('document.activeElement.id') == 'workspace-tab-' + target
     assert evaluate('localStorage.getItem("video-descriptor:ui:workspace")===unifiedFixture.storage')
     c.click('#workspace-tab-transcript')
-    # Only the selected material is visible; preference changes return to transcript.
+    # Only the selected material is visible; retired flags do not hide it.
     assert not visible('#stage-notes') and visible('#stage-speech')
     evaluate('workspaceView.setPanel("notes",true);workspaceView.setPanel("article",true)')
     assert not visible('.material-tabs') and visible('#stage-speech')
@@ -192,8 +192,7 @@ def run(c, wait_for, root, out, empty_article=False):
         else:
             c.click('#cancel-new-notes')
     assert evaluate('unifiedMutations.every(url=>url==="/api/construction-plan")'), evaluate('unifiedMutations')
-    # A sole enabled material opens its own tab on a fresh document, not an
-    # incompatible hidden kind. Preference loading must not rewrite the bytes.
+    # Retired material flags no longer choose a tab or hide its content.
     for kind in ['notes', 'article']:
         saved = json.dumps({'version': 1, 'layout': 'side', 'panels': {
             'video': True, 'transcript': False, 'notes': kind == 'notes', 'article': kind == 'article'}})
@@ -201,7 +200,9 @@ def run(c, wait_for, root, out, empty_article=False):
         c.call('Page.navigate', url=evaluate('location.origin') + '/create?folder=original')
         wait_for(lambda: evaluate('''!window.beforeMaterialReload && document.body?.classList.contains('has-recording') &&
           document.querySelector('#recording-notes')?.options.length>1'''), timeout=35)
-        assert evaluate('document.documentElement.dataset.workspaceTab') == kind
+        assert evaluate('document.documentElement.dataset.workspaceTab') == 'transcript'
+        assert visible('#stage-speech')
+        c.click('#workspace-tab-' + kind)
         assert evaluate(f'document.querySelector("#material-tab-{kind}").getAttribute("aria-selected")==="true"')
         assert visible('#material-' + kind + '-controls') and visible('#stage-notes')
         assert not visible('#stage-speech')

@@ -189,7 +189,7 @@
   function initialMaterialKind(){
     const kind=new URLSearchParams(location.search).get('material');
     if(['notes','article'].includes(kind))return kind;
-    return document.documentElement.dataset.viewNotes==='false'&&document.documentElement.dataset.viewArticle==='true'?'article':'notes';
+    return 'notes';
   }
   let selectedReports={notes:null,article:null}, activeReportKind=initialMaterialKind(), recordingSource=null;
   function paintMaterialTabs(){
@@ -222,7 +222,7 @@
   for(const kind of ['notes','article']){
     const tab=$('material-tab-'+kind);tab.onclick=()=>selectMaterial(kind);
     tab.onkeydown=event=>{
-      const available=['notes','article'].filter(value=>document.documentElement.getAttribute('data-view-'+value)!=='false'||document.documentElement.dataset.workspaceTarget===value);
+      const available=['notes','article'];
       const next=event.key==='Home'?available[0]:event.key==='End'?available.at(-1):['ArrowLeft','ArrowRight'].includes(event.key)?available[(available.indexOf(kind)+1)%available.length]:null;
       if(!next)return;event.preventDefault();if(selectMaterial(next))$('material-tab-'+next).focus();
     };

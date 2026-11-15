@@ -1,6 +1,9 @@
 # Визуальный проход Bootstrap: 14.11.2026
 
 Статус: **браузерный визуальный проход и focused regressions выполнены**.
+Это срез 14.11.2026. Меню «Вид» и acceptance alias позднее обновлены в Task 10;
+текущий контракт — в [WORKSPACE-TABS](WORKSPACE-TABS.md), evidence — в
+[UI/UX Epic](UI-UX-EPIC.md#evidence-task-10). Ограничения этого прохода сохранены ниже.
 План и границы переноса — в [BOOTSTRAP-MIGRATION](BOOTSTRAP-MIGRATION.md).
 Визуальные evidence собраны на базе `ed37d76` в ветке `codex/workspace-tabs-visual-draft`.
 

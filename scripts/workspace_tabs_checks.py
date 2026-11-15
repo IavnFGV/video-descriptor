@@ -43,13 +43,14 @@ def run(c, wait_for, out):
     assert evaluate('document.activeElement.id==="workspace-tab-processing"')
     assert evaluate("document.querySelectorAll('#workspace-tabs [tabindex=\"0\"]').length===1")
     evaluate("workspaceView.setPanel('transcript',false)")
-    assert evaluate('document.querySelector("#speech-feed").checkVisibility()')
+    assert evaluate('document.querySelector("#recording-processing-tab").checkVisibility()')
     c.click('#workspace-tab-transcript')
     assert evaluate('document.querySelector("#speech-feed").checkVisibility()')
     assert evaluate('document.documentElement.getAttribute("data-view-transcript")==="false"')
     c.click('#workspace-tab-article')
     assert not evaluate('document.querySelector("#speech-feed").checkVisibility()')
     evaluate("workspaceView.setPanel('transcript',true)")
+    assert evaluate('document.documentElement.dataset.workspaceTab==="article"')
     for width in [1440, 1024, 760, 375]:
         c.call('Emulation.setDeviceMetricsOverride', width=width, height=820, deviceScaleFactor=1, mobile=False)
         assert evaluate('document.documentElement.scrollWidth<=innerWidth+1'), width

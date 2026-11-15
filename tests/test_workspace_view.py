@@ -26,8 +26,10 @@ def test_workspace_assets_and_critical_controls():
     assert "speechHeading.after($('speaker-notice'))" in source
     assert "['translation-summary','translation-blocks-panel']" in source
     css = (ROOT / 'design-system/workspace.css').read_text(encoding='utf-8')
-    for key in ['video', 'transcript', 'speakers', 'translation', 'notes', 'article', 'technical']:
+    for key in ['video', 'speakers', 'translation', 'technical']:
         assert f'data-view-{key}=false' in css
+    for key in ['transcript', 'notes', 'article']:
+        assert f'data-view-{key}' not in css
     assert '@media(max-width:1000px)' in css
     assert 'workspace-view-empty' in css
     # Existing controller is adopted by common chrome, without another state owner.

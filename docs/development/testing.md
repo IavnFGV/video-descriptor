@@ -148,9 +148,15 @@ from reading Cyrillic UTF-8 files with the host's legacy code page.
 The route/material/workspace scenarios cover selected guarded-history cases, not all
 legacy stacks. These checks do not establish installed WebView2 or hardware acceptance.
 
-`--workspace-view-only` retains historical simultaneous-panel assertions and is not
-a current single-tab acceptance command. The View-menu checkbox parity is unresolved;
-use the current tab scenarios above without treating them as multi-panel parity.
+`--view-menu-only` checks the compact View menu through real controls: video,
+participants, layout and reset. Legacy flags cannot hide materials or select the
+initial tab; reads preserve bytes. Preferences/reset/storage retain the active tab,
+URL/history, selected versions, dirty iframe, Undo and player position. It covers
+all five tabs and menu placement at 375–1440 px with no processing request.
+`--workspace-view-only` is a compatibility alias for this scenario, not simultaneous
+multi-panel acceptance. The release harness selects workspace tabs, not retired
+checkboxes; its settings round trip returns through browser history, while Records
+continues to open the library. Installed WebView2/scaling remain separate checks.
 
 Shared application commands have a separate isolated Edge check:
 `.\.venv\Scripts\python.exe -X utf8 scripts/verify-updates-ui.py`.

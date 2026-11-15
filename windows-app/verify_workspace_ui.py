@@ -19,20 +19,14 @@ from acceptance_api import InstalledAPI
 from acceptance_ui import CDP, read_http, wait_for
 
 
-def enable_workspace_panels(cdp, panels):
-    """Enable requested panels through the same View menu used by a person."""
-    wait_for(lambda: cdp.evaluate('!!document.querySelector("#workspace-view-menu > summary")'))
-    cdp.click('#workspace-view-menu > summary')
-    for panel in panels:
-        selector = f'#workspace-view-menu input[data-panel="{panel}"]'
-        checked = cdp.evaluate(f'document.querySelector({json.dumps(selector)})?.checked')
-        if checked is None:
-            raise RuntimeError(f'Workspace panel unavailable: {panel}')
-        if not checked:
-            cdp.click(selector)
-        wait_for(lambda panel=panel: cdp.evaluate(
-            f'document.documentElement.getAttribute({json.dumps("data-view-" + panel)}) === "true"'))
-    cdp.click('#workspace-view-menu > summary')
+def select_workspace_tab(cdp, kind):
+    """Open a material through its tab, not the retired panel checkboxes."""
+    if kind not in {'transcript', 'notes', 'article', 'details', 'processing'}:
+        raise ValueError(f'Unknown workspace tab: {kind}')
+    selector = '#workspace-tab-' + kind
+    wait_for(lambda: cdp.evaluate(f'!!document.querySelector({json.dumps(selector)})'))
+    cdp.click(selector)
+    wait_for(lambda: cdp.evaluate(f'document.querySelector({json.dumps(selector)}).getAttribute("aria-selected")==="true"'))
 
 
 def wait_workspace_job(cdp, base, root, output, previous=None, timeout=600):
@@ -97,7 +91,7 @@ def installed_workflow(root, port, output, *, with_ollama=False, ollama_model=No
         folder = speech['job']['folder']
         evidence['ui_speech'] = speech
         evidence['checks'].append('installed WebView2 file input, actual MP4 upload, CPU Whisper and saved result')
-        enable_workspace_panels(cdp, ['notes', 'technical'] if with_ollama else ['technical'])
+        select_workspace_tab(cdp, 'notes' if with_ollama else 'transcript')
         notes_folder = None
         if with_ollama:
             cdp.fill('#recording-notes', '__new__')
@@ -233,12 +227,13 @@ def run(args, report):
     cdp.click('#desktop-tools-menu > summary')
     cdp.click('#desktop-tools-menu a[href*="#settings"]')
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#records-open")'))
-    wait_for(lambda: cdp.evaluate('document.querySelector("#records-open").getAttribute("href").startsWith("/create?")'))
-    cdp.click('#desktop-file-menu > summary')
-    cdp.click('#records-open')
+    # Records now always opens the library. Return to this recording through history.
+    wait_for(lambda: cdp.evaluate('document.querySelector("#records-open").getAttribute("href")') == '/#records')
+    cdp.evaluate('history.back()')
     wait_for(lambda: cdp.evaluate('!!document.querySelector("#source-title")'))
     wait_for(lambda: cdp.evaluate('document.querySelector("#source-title").value') == 'Несохранённое название / Незбережена назва')
     report['checks'].append('query parameters, AI round trip and unsaved title recovery')
+    select_workspace_tab(cdp, 'transcript')
     for selector, extension in [('#download-srt', '.srt'), ('#download-subtitles', '.vtt'), ('#download-transcript', '.txt')]:
         # Returning from AI settings reloads the workspace asynchronously.
         wait_for(lambda selector=selector: cdp.evaluate(

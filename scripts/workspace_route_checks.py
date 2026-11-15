@@ -7,7 +7,7 @@ def run(c, wait_for):
     assert evaluate('!new URLSearchParams(location.search).has("material")')
     evaluate('''history.replaceState({sentinel:'preserve'},'',location.pathname+location.search+'#example');
       workspaceView.setPanel('notes',true);workspaceView.setPanel('article',true)''')
-    c.click('#material-tab-article')
+    c.click('#workspace-tab-article')
     assert evaluate('new URLSearchParams(location.search).get("material")==="article"')
     assert evaluate('location.hash==="#example" && history.state.sentinel==="preserve"')
     wait_for(lambda: evaluate('''document.querySelector('#report-editor').contentDocument?.location.pathname.includes('article-a/report.html') &&

@@ -26,8 +26,7 @@ for(const layout of ['side','stacked'])for(let mask=0;mask<128;mask++){
   assert.equal(combination.attempts.get,1,label+' reads');
   assert.equal(combination.attempts.set,0,label+' writes');
   combination.ui.route(new URLSearchParams());
-  const expected=flags.transcript?'transcript':flags.notes?'notes':flags.article?'article':'transcript';
-  assert.equal(combination.root.dataset.workspaceTab,expected,label+' initial tab');
+  assert.equal(combination.root.dataset.workspaceTab,'transcript',label+' retired flags do not choose initial tab');
   assert.equal(combination.values.get(key),bytes,label+' route does not rewrite preferences');
   assert.equal(combination.attempts.set,0,label+' route writes');
 }
@@ -44,9 +43,13 @@ for(const technical of [true,false]){
 }
 compatibility.ui.route(new URLSearchParams('?material=notes'));
 assert.equal(compatibility.root.dataset.workspaceTab,'notes');
-compatibility.ui.setPanel('technical',true); // Existing controls request the retired all view internally.
-assert.equal(compatibility.root.dataset.workspaceTab,'transcript','legacy all selects transcript');
+compatibility.ui.setPanel('technical',true);
+assert.equal(compatibility.root.dataset.workspaceTab,'notes','preference changes do not navigate');
 assert.equal(compatibility.attempts.set,1,'one explicit preference change performs one write');
+compatibility.ui.setPanel('video',false);compatibility.ui.setLayout('stacked');compatibility.ui.reset();
+assert.equal(compatibility.root.dataset.workspaceTab,'notes','reset preserves current tab');
+assert.equal(compatibility.attrs.get('data-view-technical'),'true','reset preserves legacy internal flags');
+assert.equal(compatibility.root.dataset.workspaceTarget,'notes','reset preserves route target');
 for(const [search,tab,target] of [
   ['?material=article&stage=speech','article','article'],
   ['?material=notes&stage=speech','notes','notes'],
@@ -100,7 +103,7 @@ const writesBeforeInvalid=reload.attempts.set;
 reload.ui.setLayout('floating');assert.equal(reload.root.dataset.workspaceLayout,'stacked');
 reload.ui.setPanel('video','false');reload.ui.setPanel('unknown',true);assert.equal(reload.attrs.get('data-view-video'),'true');
 assert.equal(reload.attempts.set,writesBeforeInvalid,'invalid controls do not write');
-reload.ui.reset();assert.equal(reload.root.dataset.workspaceLayout,'side');assert.equal(reload.attrs.get('data-view-notes'),'false');
+reload.ui.reset();assert.equal(reload.root.dataset.workspaceLayout,'side');assert.equal(reload.attrs.get('data-view-notes'),'true');
 reload.values.set(key,JSON.stringify({version:1,panels:{video:false}}));reload.events.storage({key});assert.equal(reload.attrs.get('data-view-video'),'false');
 reload.values.clear();reload.events.storage({key:null});assert.equal(reload.attrs.get('data-view-video'),'true');
 const blocked=boot(undefined,{read:true,write:true});blocked.ui.setPanel('video',false);assert.equal(blocked.attrs.get('data-view-video'),'false');blocked.ui.reset();
@@ -113,7 +116,7 @@ readBlocked.ui.reset();assertView(readBlocked,'side',defaults,'read failure rese
 const writeBlocked=boot(urlBytes,{write:true});
 writeBlocked.ui.setPanel('notes',true);assert.equal(writeBlocked.attrs.get('data-view-notes'),'true');
 writeBlocked.ui.setLayout('side');assert.equal(writeBlocked.root.dataset.workspaceLayout,'side');
-writeBlocked.ui.reset();assertView(writeBlocked,'side',defaults,'write failure reset');
+writeBlocked.ui.reset();assertView(writeBlocked,'side',{...urlFlags,video:true,speakers:true,notes:true},'write failure reset retains legacy flags');
 assert.equal(writeBlocked.attempts.set,3,'failed writes attempted');assert.equal(writeBlocked.values.get(key),urlBytes,'failed writes preserve bytes');
 assertView(boot(writeBlocked.values.get(key)),'stacked',urlFlags,'reload after failed writes');
 const storage=boot(urlBytes);

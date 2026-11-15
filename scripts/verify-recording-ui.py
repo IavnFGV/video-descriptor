@@ -106,6 +106,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
         c=CDP(next(tab for tab in tabs if tab.get('type')=='page')['webSocketDebuggerUrl'])
         c.call('Page.enable')
         c.call('Page.addScriptToEvaluateOnNewDocument',source="""window.uiErrors=[];addEventListener('error',e=>uiErrors.push(e.message));Object.defineProperties(HTMLMediaElement.prototype,{readyState:{get:()=>2},duration:{get:()=>2400},currentTime:{get(){return this._time||0},set(v){this._time=v;this.dispatchEvent(new Event('timeupdate'))}}});HTMLMediaElement.prototype.load=function(){};""")
+        if '--view-menu-only' in sys.argv or '--workspace-view-only' in sys.argv:
+            c.call('Page.addScriptToEvaluateOnNewDocument', source="""window.viewInitialBytes=' '+JSON.stringify({version:1,layout:'side',panels:{video:true,transcript:false,speakers:true,translation:true,notes:false,article:true,technical:true}})+' ';
+              if(location.protocol==='http:'&&!sessionStorage.getItem('view-menu-seeded')){
+                localStorage.setItem('video-descriptor:ui:workspace',viewInitialBytes);sessionStorage.setItem('view-menu-seeded','yes');}""")
         if '--aux-prompts-retired' in sys.argv or '--aux-prompts-web' in sys.argv:
             c.call('Page.addScriptToEvaluateOnNewDocument', source="""window.auxRequests=[];window.auxMutations=[];const auxFetch=window.fetch;
               window.fetch=(url,options)=>{const path=new URL(String(url),location.href).pathname;
@@ -171,6 +175,10 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             print('Workspace diagnostics:',c.evaluate('({url:location.href,errors:window.uiErrors,ready:document.readyState,resources:performance.getEntriesByType("resource").map(x=>({name:x.name,size:x.transferSize,status:x.responseStatus})),tail:document.body.innerHTML.slice(-1800)})'),flush=True)
             raise
         def evaluate(script): return c.evaluate(script)
+        if '--view-menu-only' in sys.argv or '--workspace-view-only' in sys.argv:
+            from view_menu_checks import run
+            run(c, wait_for, out)
+            raise SystemExit(0)
         if '--aux-prompts-retired' in sys.argv or '--aux-prompts-web' in sys.argv:
             from auxiliary_prompts_checks import run
             run(c, wait_for, root, out, '--aux-prompts-web' in sys.argv)
@@ -238,10 +246,6 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             from desktop_design_checks import run
             run(c, wait_for, ROOT, f'http://127.0.0.1:{server.server_port}', '--before' in sys.argv)
             raise SystemExit(0)
-        if '--workspace-view-only' in sys.argv:
-            from workspace_view_checks import run
-            run(c, wait_for, out, root)
-            raise SystemExit(0)
         if '--release-harness-only' in sys.argv:
             import argparse
             import importlib.util
@@ -252,7 +256,7 @@ with tempfile.TemporaryDirectory(prefix='vd-unified-') as temporary:
             assert evaluate('document.documentElement.getAttribute("data-view-translation") === "false"')
             assert evaluate('document.documentElement.getAttribute("data-view-notes") === "false"')
             assert evaluate('document.documentElement.getAttribute("data-view-technical") === "false"')
-            harness.enable_workspace_panels(c, ['notes', 'technical'])
+            harness.select_workspace_tab(c, 'notes')
             assert not evaluate('document.querySelector("#recording-translate").checkVisibility()')
             c.fill('#recording-notes', '__new__')
             wait_for(lambda: evaluate('!document.querySelector("#recording-notes-settings").hidden'))

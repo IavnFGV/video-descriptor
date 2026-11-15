@@ -1,5 +1,21 @@
 # История изменений
 
+15.11.2026: меню «Вид» сокращено до видео, участников, расположения видео и сброса.
+Галочки расшифровки, конспекта и статьи удалены; материалы всегда доступны через
+пять вкладок. Retired v1 flags сохраняются без миграции при чтении, но не выбирают
+начальную вкладку и не скрывают материалы. Без явного route открывается расшифровка.
+Сброс меняет только layout/video/speakers. Смена вида и storage events сохраняют
+активную вкладку, URL, версии, документ редактора, черновик, Undo и позицию плеера.
+Edge driver `--view-menu-only` проверяет реальные controls/reset и 375–1440 px;
+`--workspace-view-only` стал его compatibility alias. Release harness выбирает
+вкладки вместо галочек и возвращается из настроек через историю: «Записи» теперь
+ведут в библиотеку. Контракты, backlog, архитектура и testing guide синхронизированы.
+Node 256 сочетаний и профильные Edge fixtures меню, вкладок/empty article, URL,
+geometry, native/web речи, storage/deep links и release harness — PASS. Fast
+`--workers 4`: 29 config tests, Ruff, CSS/UI audit, JS syntax, 865 passed / 3 skipped.
+Первый tabs fixture упал на inventory/iframe assertion; два повтора прошли без
+ослабления проверки. Installed WebView2, Windows scaling и релиз не проверялись.
+
 15.11.2026: из меню «Вид» убран пункт «Технические сведения и параметры».
 Legacy `technical` сохраняется в v1 preferences и внутреннем API для shared-web
 формы распознавания; чтение не переписывает хранилище, изменение другой настройки
