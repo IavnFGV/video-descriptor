@@ -1166,7 +1166,7 @@ textarea.form-control-lg {
   text-shadow: 0 0 0 #202e29;
 }
 
-.form-select-sm {
+.form-select-sm, .vd-select--compact {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
   padding-left: 0.5rem;
@@ -1930,6 +1930,10 @@ textarea.form-control-lg {
 
 .vd-select {
   min-height: var(--vd-control-height);
+}
+
+.vd-select--compact {
+  min-height: var(--vd-compact-height);
 }
 
 :is(.vd-input, .vd-textarea, .vd-select)[aria-invalid=true] {

@@ -139,6 +139,7 @@
   .vd-input, .vd-textarea { @extend .form-control; min-height: var(--vd-control-height); }
   .vd-textarea { min-height: 112px; resize: vertical; }
   .vd-select { @extend .form-select; min-height: var(--vd-control-height); }
+  .vd-select--compact { @extend .form-select-sm; min-height: var(--vd-compact-height); }
   .vd-check { @extend .form-check-input; }
   .vd-range { @extend .form-range; }
   :is(.vd-input, .vd-textarea, .vd-select)[aria-invalid=true] { border-color: var(--vd-danger); }

@@ -183,17 +183,24 @@
     diarizationProgress.querySelector('.diarization-progress-time').textContent=[measured?value.completed+' из '+value.total:null,elapsed!==null?'На этапе: '+Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0'):null,age>=60?'Новых данных от модели нет '+age+' с':null].filter(Boolean).join(' · ');
   }
   setInterval(renderDiarizationProgress,1000);
-  const requestRow=document.createElement('div');requestRow.className='vd-actions';workspace.insertBefore(requestRow,$('stage-progress'));
+  const requestRow=document.createElement('div');requestRow.className='recording-request-bar';workspace.insertBefore(requestRow,$('stage-progress'));
+  const requestState=document.createElement('div');requestState.className='recording-request-state';requestState.hidden=true;
   const requestStatus=document.createElement('span');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');
+  const requestActions=document.createElement('div');requestActions.className='recording-request-actions vd-actions';
   const retryClock=document.createElement('span');retryClock.className='diarization-ring';retryClock.hidden=true;retryClock.setAttribute('role','timer');
   retryClock.innerHTML='<svg viewBox="0 0 32 32" aria-hidden="true"><circle class="diarization-ring-track" cx="16" cy="16" r="13"/><circle class="diarization-ring-value" cx="16" cy="16" r="13" pathLength="100" stroke-dasharray="100"/><text x="16" y="16" text-anchor="middle" dominant-baseline="central" fill="currentColor" transform="rotate(90 16 16)"></text></svg>';
   const retryNumber=retryClock.querySelector('text'),retryArc=retryClock.querySelector('.diarization-ring-value');
-  const geminiTools=document.createElement('div');geminiTools.className='vd-actions';geminiTools.hidden=true;
-  geminiTools.innerHTML='<label class="check"><input id="gemini-run-repeat" type="checkbox" class="vd-check"> Повторять 503 до остановки</label><label>Модель для следующего запроса <select id="gemini-run-model" class="vd-select"></select></label><span id="gemini-run-feedback" class="hint" role="status"></span>';
-  requestRow.append(requestStatus,retryClock,geminiTools,$('recording-stop'));
+  const geminiTools=document.createElement('div');geminiTools.className='recording-gemini-controls vd-actions';geminiTools.hidden=true;
+  geminiTools.setAttribute('role','group');geminiTools.setAttribute('aria-label','Настройки текущего запроса Gemini');
+  geminiTools.innerHTML='<label class="recording-gemini-repeat"><input id="gemini-run-repeat" name="gemini-run-repeat" type="checkbox" class="vd-check"> Повторять 503 до остановки</label><div class="recording-gemini-model"><label for="gemini-run-model">Следующая модель</label><select id="gemini-run-model" name="gemini-run-model" class="vd-select vd-select--compact" aria-describedby="gemini-run-feedback"></select></div>';
+  const geminiFeedback=document.createElement('div');geminiFeedback.id='gemini-run-feedback';geminiFeedback.className='recording-request-feedback hint';geminiFeedback.setAttribute('role','status');geminiFeedback.hidden=true;
+  requestState.append(retryClock,requestStatus);
+  requestActions.append(geminiTools,$('recording-stop'));
+  requestRow.append(requestState,requestActions,geminiFeedback);
   for(const id of ['translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false,epoch=0;
-  const geminiRepeat=$('gemini-run-repeat'),geminiModel=$('gemini-run-model'),geminiFeedback=$('gemini-run-feedback');
+  const geminiRepeat=$('gemini-run-repeat'),geminiModel=$('gemini-run-model');
+  function showGeminiFeedback(message){geminiFeedback.textContent=message;geminiFeedback.hidden=!message;}
   let geminiRunKey='',geminiModels=[],geminiLoading=false,geminiSaving=false,geminiInventoryError='';
   function currentGemini(){return window.recordingUI.native?snapshot?.gemini_run:null;}
   function renderGeminiRetry(){
@@ -201,6 +208,7 @@
     const left=Number.isFinite(wait?.until)&&Number.isFinite(wait?.seconds)&&wait.seconds>0
       ?Math.min(wait.seconds,Math.ceil(wait.until-Date.now()/1000)):0;
     retryClock.hidden=left<=0;
+    requestState.classList.toggle('is-retry-wait',left>0);
     if(retryClock.hidden)return;
     const arc=String(100*(1-left/wait.seconds));
     if(retryNumber.textContent===String(left)&&retryArc.getAttribute('stroke-dashoffset')===arc)return;
@@ -213,7 +221,7 @@
   async function loadGeminiModels(key){
     if(geminiLoading)return;
     geminiLoading=true;
-    if(geminiFeedback.textContent===geminiInventoryError)geminiFeedback.textContent='';
+    if(geminiFeedback.textContent===geminiInventoryError)showGeminiFeedback('');
     geminiInventoryError='';paintGemini();
     try{
       const response=await fetch('/api/gemini-models',{cache:'no-store'}),rows=await response.json();
@@ -227,7 +235,7 @@
     geminiTools.hidden=!run;
     renderGeminiRetry();
     if(key!==geminiRunKey){
-      geminiRunKey=key;geminiModels=[];geminiLoading=false;geminiSaving=false;geminiInventoryError='';geminiFeedback.textContent='';
+      geminiRunKey=key;geminiModels=[];geminiLoading=false;geminiSaving=false;geminiInventoryError='';showGeminiFeedback('');
       if(run)void loadGeminiModels(key);
     }
     if(!run)return;
@@ -239,18 +247,18 @@
     geminiRepeat.disabled=geminiSaving;
     geminiModel.disabled=geminiSaving||geminiLoading;
     geminiModel.title=geminiInventoryError||'Выбор не прерывает уже отправленный запрос';
-    if(geminiInventoryError&&!geminiFeedback.textContent)geminiFeedback.textContent=geminiInventoryError;
+    if(geminiInventoryError&&!geminiFeedback.textContent)showGeminiFeedback(geminiInventoryError);
   }
   async function saveGeminiRun(){
     const run=currentGemini(),key=geminiRunKey;
     if(!run||geminiSaving)return;
-    geminiSaving=true;geminiFeedback.textContent='';paintGemini();
+    geminiSaving=true;showGeminiFeedback('');paintGemini();
     try{
       const response=await fetch('/api/native/gemini-run',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},
         body:JSON.stringify({folder:snapshot.folder,id:run.id,started:run.started,model:geminiModel.value,repeat:geminiRepeat.checked})});
       const value=await response.json();if(!response.ok)throw Error(value.error);
       if(geminiRunKey===key&&currentGemini())snapshot.gemini_run=value;
-    }catch(error){if(geminiRunKey===key)geminiFeedback.textContent=error.message;}
+    }catch(error){if(geminiRunKey===key)showGeminiFeedback(error.message);}
     finally{if(geminiRunKey===key){geminiSaving=false;paintGemini();}}
   }
   geminiModel.addEventListener('focus',()=>{if(geminiInventoryError)void loadGeminiModels(geminiRunKey);});
@@ -450,12 +458,13 @@
     updateLogAction(job);
     processingEmpty.hidden=Boolean(snapshot.running||snapshot.processing?.request_available||snapshot.thinking||snapshot.response||snapshot.log?.length);
     const stateInfo=snapshot.status||{},active=snapshot.running||['queued','running'].includes(job?.status);
-    requestStatus.hidden=!active;
-    requestStatus.textContent=active?[snapshot.gemini_run?stateInfo.model:null,stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
+    const statusText=active?[snapshot.gemini_run?stateInfo.model:null,stateInfo.request_state,stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.received?'Получено '+stateInfo.received+' символов':null,!stateInfo.gemini_retry_wait&&stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
+    requestState.hidden=!statusText;
+    if(requestStatus.textContent!==statusText)requestStatus.textContent=statusText;
     paintGemini();
     renderDiarizationProgress();paint();sync();
   });
-  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;paintGemini();currentTimeKey='';jobError.hidden=true;openLog.hidden=true;processingEmpty.hidden=false;retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
+  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;requestState.hidden=true;paintGemini();currentTimeKey='';jobError.hidden=true;openLog.hidden=true;processingEmpty.hidden=false;retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
   async function postprocess(task,extra={}){
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;
