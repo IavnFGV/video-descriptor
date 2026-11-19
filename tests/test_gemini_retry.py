@@ -44,7 +44,6 @@ def test_construction_retries_only_generation_and_reports_attempts(tmp_path, mon
         assert f'попытка {len(waits) + 1}/3 через {delay} сек' in progress['request_state']
 
     monkeypatch.setattr(gemini.requests, 'request', request)
-    monkeypatch.setattr(gemini.random, 'randint', lambda *_: 2)
     monkeypatch.setattr(gemini.time, 'sleep', wait)
     config = construction.validate({'provider': 'gemini', 'model': 'gemini-test'})
     if codes[-1] == 200:
@@ -55,7 +54,7 @@ def test_construction_retries_only_generation_and_reports_attempts(tmp_path, mon
 
     assert calls == ['gemini-test', 'gemini-test:countTokens'] + ['gemini-test:generateContent'] * len(codes)
     assert payloads == [payloads[0]] * len(codes)
-    assert waits == [17, 32][:len(codes) - 1]
+    assert waits == [20] * (len(codes) - 1)
     assert speech.read_text() == 'saved transcript'
     journal, = (folder / 'requests').iterdir()
     result = json.loads((journal / 'result.json').read_text(encoding='utf-8'))
@@ -119,8 +118,9 @@ def test_live_retry_and_model_selection(tmp_path, live_run, monkeypatch, ending)
     values = {**marker, 'folder': folder.name, 'repeat': True, 'model': ''}
     gemini_run.save(tmp_path, values)
     monkeypatch.setattr(construction, 'credentials', lambda _: {'api_key': 'test-key', 'gemini_consent': True})
-    monkeypatch.setattr(gemini, 'retry_delay', lambda _: 1)
     checks, sent = [], []
+    clock = [100.0]
+    monkeypatch.setattr(construction.time, 'monotonic', lambda: clock[0])
 
     def request(method, url, **kwargs):
         model = url.rsplit('/', 1)[-1].split(':')[0]
@@ -131,6 +131,8 @@ def test_live_retry_and_model_selection(tmp_path, live_run, monkeypatch, ending)
         if url.endswith(':countTokens'):
             checks.append(model)
             return reply(200, {'totalTokens': 1000})
+        progress = json.loads(log.progress_file.read_text(encoding='utf-8'))
+        assert not progress.get('gemini_retry_wait')
         sent.append(model)
         if ending == 'quota':
             return reply(429)
@@ -138,8 +140,14 @@ def test_live_retry_and_model_selection(tmp_path, live_run, monkeypatch, ending)
             return reply(503)
         return reply(200, {'candidates': [{'content': {'parts': [{'text': 'Done'}]}}]})
 
-    def wait(_):
-        if len(sent) != 3:
+    def wait(seconds):
+        progress = json.loads(log.progress_file.read_text(encoding='utf-8'))
+        countdown = progress['gemini_retry_wait']
+        assert countdown['seconds'] == 20
+        assert countdown['until'] - progress['updated'] == pytest.approx(20, abs=.5)
+        assert seconds == 1
+        clock[0] += seconds
+        if len(sent) != 3 or clock[0] != 141:
             return
         if ending == 'stop':
             (job_folder / 'stop-request.json').touch()
@@ -161,3 +169,4 @@ def test_live_retry_and_model_selection(tmp_path, live_run, monkeypatch, ending)
             construction.generate(tmp_path, config, 'Transcript', log)
         assert sent == ['gemini-first'] * (1 if ending == 'quota' else 3)
     assert config['model'] == 'gemini-first'
+    assert not json.loads(log.progress_file.read_text(encoding='utf-8')).get('gemini_retry_wait')

@@ -450,7 +450,7 @@ def generate(root, config, text, log, stage='Конспект'):
 
 
 def generate_gemini(root, config, text, prompt, log, stage):
-    from .gemini import BASE, RETRY_DELAYS, GeminiServiceError, call, retry_delay
+    from .gemini import BASE, RETRY_LIMIT, RETRY_SECONDS, GeminiServiceError, call
     from .gemini_run import controls
 
     runtime = getattr(log, 'gemini_run', None)
@@ -463,7 +463,7 @@ def generate_gemini(root, config, text, prompt, log, stage):
 
     def check_retry(attempt):
         check_stop()
-        if attempt > len(RETRY_DELAYS) and not controls(job_folder, started)['repeat']:
+        if attempt > RETRY_LIMIT and not controls(job_folder, started)['repeat']:
             raise GeminiServiceError(f'Gemini HTTP 503: сервис временно недоступен после {attempt - 1} повторов; попробуйте позже',
                                      http_status=503) from None
 
@@ -507,14 +507,21 @@ def generate_gemini(root, config, text, prompt, log, stage):
                 if not runtime or exc.http_status != 503:
                     raise
                 check_retry(attempt)
-                delay = retry_delay(attempt)
+                delay = RETRY_SECONDS
+                deadline = time.monotonic() + delay
                 journal.retry(attempt + 1, code=503)
-                log.update(request_state=f'Gemini HTTP 503: попытка {attempt + 1} через {delay} сек')
+                log.update(request_state=f'Gemini HTTP 503: ожидаем попытку {attempt + 1}',
+                           gemini_retry_wait={'until': time.time() + max(0, deadline - time.monotonic()), 'seconds': delay})
                 log(f'Gemini временно недоступна (HTTP 503); попытка {attempt + 1} через {delay} сек')
-                for _ in range(delay):
-                    time.sleep(1)
-                    check_retry(attempt)
+                try:
+                    while (remaining := deadline - time.monotonic()) > 0:
+                        time.sleep(min(1, remaining))
+                        check_retry(attempt)
+                finally:
+                    log.update(gemini_retry_wait=None)
                 attempt += 1
+                log.update(request_state=f'подготовка запроса (попытка {attempt})')
+                log(f'Gemini: готовим попытку {attempt}')
         candidate = (data.get('candidates') or [{}])[0]
         answer = ''.join(part.get('text', '') for part in candidate.get('content', {}).get('parts', [])
                          if not part.get('thought'))
@@ -533,6 +540,8 @@ def generate_gemini(root, config, text, prompt, log, stage):
         if journal is not None:
             journal.finish('error', str(exc), code=getattr(exc, 'http_status', None))
         update_status(log, request_started=None, request_state='ошибка Gemini')
+        if runtime:
+            log('Запрос Gemini завершён с ошибкой')
         raise
 
 

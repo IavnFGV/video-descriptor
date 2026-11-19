@@ -1,7 +1,6 @@
 """Gemini text translation with secret-free request journals and live progress."""
 
 import json
-import random
 import time
 
 import requests
@@ -13,7 +12,8 @@ from .translation_settings import require_gemini_consent
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 RATES = {"gemini-3.5-flash-lite": (.30, 2.50), "gemini-3.1-flash-lite": (.25, 1.50),
          "gemini-3.8-flash": (.75, 3.75)}
-RETRY_DELAYS = (15, 30)
+RETRY_LIMIT = 2
+RETRY_SECONDS = 20
 
 
 class GeminiServiceError(requests.RequestException):
@@ -24,13 +24,9 @@ class GeminiServiceError(requests.RequestException):
         self.http_status = http_status
 
 
-def retry_delay(attempt):
-    return (*RETRY_DELAYS, 60)[min(attempt - 1, 2)] + random.randint(0, 3)
-
-
 def call(method, url, key, *, log=None, journal=None, retry_503=True, **kwargs):
-    delays = RETRY_DELAYS if retry_503 and method == "POST" and url.endswith(":generateContent") else ()
-    for attempt in range(1, len(delays) + 2):
+    repeats = RETRY_LIMIT if retry_503 and method == "POST" and url.endswith(":generateContent") else 0
+    for attempt in range(1, repeats + 2):
         try:
             response = requests.request(method, url, headers={"x-goog-api-key": key},
                                         timeout=(10, 180), **kwargs)
@@ -39,9 +35,9 @@ def call(method, url, key, *, log=None, journal=None, retry_503=True, **kwargs):
         if response.ok:
             return response.json()
         code = response.status_code
-        if code == 503 and attempt <= len(delays):
-            delay = retry_delay(attempt)
-            label = f"попытка {attempt + 1}/{len(delays) + 1}"
+        if code == 503 and attempt <= repeats:
+            delay = RETRY_SECONDS
+            label = f"попытка {attempt + 1}/{repeats + 1}"
             if journal:
                 journal.retry(attempt + 1, code=code)
             if log:
