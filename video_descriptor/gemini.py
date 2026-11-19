@@ -24,8 +24,12 @@ class GeminiServiceError(requests.RequestException):
         self.http_status = http_status
 
 
-def call(method, url, key, *, log=None, journal=None, **kwargs):
-    delays = RETRY_DELAYS if method == "POST" and url.endswith(":generateContent") else ()
+def retry_delay(attempt):
+    return (*RETRY_DELAYS, 60)[min(attempt - 1, 2)] + random.randint(0, 3)
+
+
+def call(method, url, key, *, log=None, journal=None, retry_503=True, **kwargs):
+    delays = RETRY_DELAYS if retry_503 and method == "POST" and url.endswith(":generateContent") else ()
     for attempt in range(1, len(delays) + 2):
         try:
             response = requests.request(method, url, headers={"x-goog-api-key": key},
@@ -36,7 +40,7 @@ def call(method, url, key, *, log=None, journal=None, **kwargs):
             return response.json()
         code = response.status_code
         if code == 503 and attempt <= len(delays):
-            delay = delays[attempt - 1] + random.randint(0, 3)
+            delay = retry_delay(attempt)
             label = f"попытка {attempt + 1}/{len(delays) + 1}"
             if journal:
                 journal.retry(attempt + 1, code=code)

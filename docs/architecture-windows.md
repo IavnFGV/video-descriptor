@@ -671,6 +671,12 @@ public API сообщает о ключе только через `has_key` и �
 но не требуется для списка моделей. Модели не входят в installer. Подробности и
 границы проверок: [мастер](ai-setup-windows.md).
 
+Активный worker конспекта или статьи Gemini публикует в `progress.json` идентификатор
+и время начала запуска. `/api/native/gemini-run` проверяет их и сохраняет управление
+в папке задания, не меняя исходный снимок LLM. Worker читает его между запросами и
+во время ожидания повтора 503; новая модель получает собственную проверку лимитов
+и журнал запроса. Готовые блоки и выбор провайдера не меняются.
+
 
 UI acceptance uses the installed EXE with an explicit --ui-test-port=1024..65535.
 The native host requires .acceptance-installation.json in that installation root

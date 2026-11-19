@@ -183,9 +183,60 @@
     diarizationProgress.querySelector('.diarization-progress-time').textContent=[measured?value.completed+' из '+value.total:null,elapsed!==null?'На этапе: '+Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0'):null,age>=60?'Новых данных от модели нет '+age+' с':null].filter(Boolean).join(' · ');
   }
   setInterval(renderDiarizationProgress,1000);
-  const requestStatus=document.createElement('p');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');workspace.insertBefore(requestStatus,$('stage-progress'));
+  const requestRow=document.createElement('div');requestRow.className='vd-actions';workspace.insertBefore(requestRow,$('stage-progress'));
+  const requestStatus=document.createElement('span');requestStatus.id='recording-request-status';requestStatus.className='hint';requestStatus.setAttribute('role','status');
+  const geminiTools=document.createElement('div');geminiTools.className='vd-actions';geminiTools.hidden=true;
+  geminiTools.innerHTML='<label class="check"><input id="gemini-run-repeat" type="checkbox" class="vd-check"> Повторять 503 до остановки</label><label>Модель для следующего запроса <select id="gemini-run-model" class="vd-select"></select></label><span id="gemini-run-feedback" class="hint" role="status"></span>';
+  requestRow.append(requestStatus,geminiTools,$('recording-stop'));
   for(const id of ['translation-summary','translation-blocks-panel'])detail.append($(id));
   let snapshot=null, job=null, data=null, loading=false, requested=false,epoch=0;
+  const geminiRepeat=$('gemini-run-repeat'),geminiModel=$('gemini-run-model'),geminiFeedback=$('gemini-run-feedback');
+  let geminiRunKey='',geminiModels=[],geminiLoading=false,geminiSaving=false,geminiInventoryError='';
+  function currentGemini(){return window.recordingUI.native?snapshot?.gemini_run:null;}
+  async function loadGeminiModels(key){
+    if(geminiLoading)return;
+    geminiLoading=true;
+    if(geminiFeedback.textContent===geminiInventoryError)geminiFeedback.textContent='';
+    geminiInventoryError='';paintGemini();
+    try{
+      const response=await fetch('/api/gemini-models',{cache:'no-store'}),rows=await response.json();
+      if(!response.ok)throw Error(rows.error);
+      if(geminiRunKey===key)geminiModels=rows.map(row=>row.id);
+    }catch(error){if(geminiRunKey===key)geminiInventoryError='Список моделей недоступен. Повторите, открыв поле снова.';}
+    finally{if(geminiRunKey===key){geminiLoading=false;paintGemini();}}
+  }
+  function paintGemini(){
+    const run=currentGemini(),key=run?`${run.id}:${run.started}`:'';
+    geminiTools.hidden=!run;
+    if(key!==geminiRunKey){
+      geminiRunKey=key;geminiModels=[];geminiLoading=false;geminiSaving=false;geminiInventoryError='';geminiFeedback.textContent='';
+      if(run)void loadGeminiModels(key);
+    }
+    if(!run)return;
+    const ids=['',...new Set([...geminiModels,...(run.model?[run.model]:[])])];
+    if(JSON.stringify(Array.from(geminiModel.options,o=>o.value))!==JSON.stringify(ids)){
+      geminiModel.replaceChildren(...ids.map(id=>new Option(id||'Исходная модель задания',id)));
+    }
+    if(!geminiSaving){geminiRepeat.checked=run.repeat;geminiModel.value=run.model;}
+    geminiRepeat.disabled=geminiSaving;
+    geminiModel.disabled=geminiSaving||geminiLoading;
+    geminiModel.title=geminiInventoryError||'Выбор не прерывает уже отправленный запрос';
+    if(geminiInventoryError&&!geminiFeedback.textContent)geminiFeedback.textContent=geminiInventoryError;
+  }
+  async function saveGeminiRun(){
+    const run=currentGemini(),key=geminiRunKey;
+    if(!run||geminiSaving)return;
+    geminiSaving=true;geminiFeedback.textContent='';paintGemini();
+    try{
+      const response=await fetch('/api/native/gemini-run',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},
+        body:JSON.stringify({folder:snapshot.folder,id:run.id,started:run.started,model:geminiModel.value,repeat:geminiRepeat.checked})});
+      const value=await response.json();if(!response.ok)throw Error(value.error);
+      if(geminiRunKey===key&&currentGemini())snapshot.gemini_run=value;
+    }catch(error){if(geminiRunKey===key)geminiFeedback.textContent=error.message;}
+    finally{if(geminiRunKey===key){geminiSaving=false;paintGemini();}}
+  }
+  geminiModel.addEventListener('focus',()=>{if(geminiInventoryError)void loadGeminiModels(geminiRunKey);});
+  geminiModel.addEventListener('change',saveGeminiRun);geminiRepeat.addEventListener('change',saveGeminiRun);
   function initialMaterialKind(){
     const kind=new URLSearchParams(location.search).get('material');
     if(['notes','article'].includes(kind))return kind;
@@ -382,10 +433,11 @@
     processingEmpty.hidden=Boolean(snapshot.running||snapshot.processing?.request_available||snapshot.thinking||snapshot.response||snapshot.log?.length);
     const stateInfo=snapshot.status||{},active=snapshot.running||['queued','running'].includes(job?.status);
     requestStatus.hidden=!active;
-    requestStatus.textContent=active?[stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
+    requestStatus.textContent=active?[snapshot.gemini_run?stateInfo.model:null,stateInfo.total>0?'Готово '+(stateInfo.completed||0)+' из '+stateInfo.total:null,stateInfo.request_state,stateInfo.received?'Получено '+stateInfo.received+' символов':null,stateInfo.request_seconds?'Текущий запрос: '+Math.round(stateInfo.request_seconds)+' с':null].filter(Boolean).join(' · '):'';
+    paintGemini();
     renderDiarizationProgress();paint();sync();
   });
-  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;currentTimeKey='';jobError.hidden=true;openLog.hidden=true;processingEmpty.hidden=false;retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
+  document.addEventListener('recording-selection',()=>{epoch++;snapshot=null;paintGemini();currentTimeKey='';jobError.hidden=true;openLog.hidden=true;processingEmpty.hidden=false;retryJob.hidden=true;repairNotes.hidden=true;renderDiarizationProgress();library();});
   async function postprocess(task,extra={}){
     const response=await fetch('/api/native/postprocess',{method:'POST',headers:{'Content-Type':'application/json','X-App-Instance':window.recordingUI.instance},body:JSON.stringify({folder:snapshot?.folder,task,...extra})});
     const value=await response.json();if(!response.ok)throw Error(value.error);return value;

@@ -3,7 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from video_descriptor import action_history, construction, gemini
+from video_descriptor import action_history, construction, gemini, gemini_run, jobs
+from video_descriptor.editor import EditConflict
 from video_descriptor.progress import ProgressLog
 
 
@@ -81,3 +82,82 @@ def test_other_failures_do_not_retry(monkeypatch, method, endpoint, code):
         gemini.call(method, gemini.BASE + '/models/gemini-test' + endpoint, 'test-api-key')
     assert exc.value.http_status == code and len(calls) == 1
     assert 'test-api-key' not in str(exc.value)
+
+
+@pytest.fixture
+def live_run(tmp_path):
+    identifier = 'a' * 32
+    folder, job_folder = tmp_path / 'output/notes', tmp_path / 'output/jobs' / identifier
+    folder.mkdir(parents=True)
+    job_folder.mkdir(parents=True)
+    marker = {'id': identifier, 'started': 123.0}
+    jobs.write_json(job_folder / 'job.json', {**marker, 'folder': folder.name, 'status': 'running',
+                                               'construction': {'provider': 'gemini'}})
+    log = ProgressLog(lambda _: None, folder.name, folder / 'requests')
+    log.progress_file = folder / 'progress.json'
+    log.gemini_run = (job_folder, marker['started'])
+    log.update(gemini_run=marker)
+    log('ready')
+    return folder, job_folder, marker, log
+
+
+def test_live_controls_are_scoped_to_the_current_run(tmp_path, live_run):
+    folder, job_folder, marker, _ = live_run
+    values = {**marker, 'folder': folder.name, 'repeat': True, 'model': 'gemini-next'}
+    with pytest.raises(ValueError):
+        gemini_run.save(tmp_path, {**values, 'model': 'gemini-foo/bar'})
+    assert gemini_run.save(tmp_path, values) == {**marker, 'repeat': True, 'model': 'gemini-next'}
+    assert gemini_run.controls(job_folder, 124.0) == {'model': '', 'repeat': False}
+    (job_folder / 'stop-request.json').touch()
+    with pytest.raises(EditConflict):
+        gemini_run.save(tmp_path, values)
+
+
+@pytest.mark.parametrize('ending', ['success', 'disable', 'stop', 'quota', 'does-not-fit'])
+def test_live_retry_and_model_selection(tmp_path, live_run, monkeypatch, ending):
+    folder, job_folder, marker, log = live_run
+    values = {**marker, 'folder': folder.name, 'repeat': True, 'model': ''}
+    gemini_run.save(tmp_path, values)
+    monkeypatch.setattr(construction, 'credentials', lambda _: {'api_key': 'test-key', 'gemini_consent': True})
+    monkeypatch.setattr(gemini, 'retry_delay', lambda _: 1)
+    checks, sent = [], []
+
+    def request(method, url, **kwargs):
+        model = url.rsplit('/', 1)[-1].split(':')[0]
+        if method == 'GET':
+            return reply(200, {'inputTokenLimit': 65536,
+                               'outputTokenLimit': 1 if ending == 'does-not-fit' and model == 'gemini-next' else 4096,
+                               'supportedGenerationMethods': ['generateContent']})
+        if url.endswith(':countTokens'):
+            checks.append(model)
+            return reply(200, {'totalTokens': 1000})
+        sent.append(model)
+        if ending == 'quota':
+            return reply(429)
+        if len(sent) <= 3:
+            return reply(503)
+        return reply(200, {'candidates': [{'content': {'parts': [{'text': 'Done'}]}}]})
+
+    def wait(_):
+        if len(sent) != 3:
+            return
+        if ending == 'stop':
+            (job_folder / 'stop-request.json').touch()
+        else:
+            gemini_run.save(tmp_path, {**values, 'model': 'gemini-next', 'repeat': ending != 'disable'})
+
+    monkeypatch.setattr(gemini.requests, 'request', request)
+    monkeypatch.setattr(construction.time, 'sleep', wait)
+    config = construction.validate({'provider': 'gemini', 'model': 'gemini-first'})
+    if ending == 'success':
+        assert construction.generate(tmp_path, config, 'Transcript', log) == 'Done'
+        assert construction.generate(tmp_path, config, 'Next block', log) == 'Done'
+        assert sent == ['gemini-first'] * 3 + ['gemini-next'] * 2
+        assert checks == ['gemini-first', 'gemini-next', 'gemini-next']
+        assert len(list((folder / 'requests').iterdir())) == 3
+    else:
+        expected = {'disable': 'HTTP 503', 'stop': 'остановлено', 'quota': 'HTTP 429', 'does-not-fit': 'лимит ответа'}
+        with pytest.raises((ValueError, RuntimeError, gemini.GeminiServiceError), match=expected[ending]):
+            construction.generate(tmp_path, config, 'Transcript', log)
+        assert sent == ['gemini-first'] * (1 if ending == 'quota' else 3)
+    assert config['model'] == 'gemini-first'

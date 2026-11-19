@@ -446,28 +446,75 @@ def generate(root, config, text, log, stage='Конспект'):
         log.prompt_settings = {}
         return request(settings, prompt, text, log, context=config['context_tokens'],
                        output_tokens=config['output_tokens'], task='construction')
-    from .gemini import BASE, call
-    settings = credentials(root)
-    require_gemini_consent(settings)
-    model = config['model']
-    metadata = call('GET', BASE + f'/models/{model}', settings['api_key'])
-    if config['output_tokens'] > metadata.get('outputTokenLimit', 0):
-        raise ValueError('Лимит ответа превышает возможности выбранной Gemini-модели')
-    payload = gemini_payload(config, text, prompt)
-    counted = {'totalTokens': gemini_token_count(root, config, payload, getattr(log, 'token_counts', None))}
-    if counted['totalTokens'] > min(config['context_tokens'] - config['output_tokens'] - 1024,
-                                     metadata.get('inputTokenLimit', 0)):
-        raise ValueError('Точный размер запроса превышает контекст Gemini. Выберите обработку по частям')
-    log.begin_request('construction', model, len(prompt) + len(text), len(json.dumps(payload).encode()),
-                      0, config['output_tokens'])
-    log.update(provider='gemini', input_tokens=counted['totalTokens'])
-    journal = RequestJournal(log.journal_dir, BASE + f'/models/{model}:generateContent',
-                             {'model': model, **payload}, log.snapshot(), 'construction')
-    update_status(log, request_log=str(journal.folder), task=stage)
-    log('Google: отправляем текст и ожидаем ответ модели')
+    return generate_gemini(root, config, text, prompt, log, stage)
+
+
+def generate_gemini(root, config, text, prompt, log, stage):
+    from .gemini import BASE, RETRY_DELAYS, GeminiServiceError, call, retry_delay
+    from .gemini_run import controls
+
+    runtime = getattr(log, 'gemini_run', None)
+    job_folder, started = runtime or (None, None)
+    model, journal, attempt = None, None, 1
+
+    def check_stop():
+        if job_folder and (job_folder / 'stop-request.json').exists():
+            raise RuntimeError('Задание Gemini остановлено')
+
+    def check_retry(attempt):
+        check_stop()
+        if attempt > len(RETRY_DELAYS) and not controls(job_folder, started)['repeat']:
+            raise GeminiServiceError(f'Gemini HTTP 503: сервис временно недоступен после {attempt - 1} повторов; попробуйте позже',
+                                     http_status=503) from None
+
     try:
-        data = call('POST', BASE + f'/models/{model}:generateContent', settings['api_key'],
-                    json=payload, log=log, journal=journal)
+        while True:
+            check_stop()
+            selected = controls(job_folder, started)['model'] or config['model']
+            settings = credentials(root)
+            require_gemini_consent(settings)
+            if model != selected:
+                if journal is not None:
+                    journal.finish('error', 'Gemini HTTP 503: следующая попытка на другой модели', code=503)
+                    journal = None
+                model = selected
+                effective = {**config, 'model': model}
+                metadata = call('GET', BASE + f'/models/{model}', settings['api_key'])
+                if model != config['model'] and 'generateContent' not in metadata.get('supportedGenerationMethods', []):
+                    raise ValueError(f'{model}: Gemini не поддерживает генерацию текста этой моделью')
+                if effective['output_tokens'] > metadata.get('outputTokenLimit', 0):
+                    raise ValueError(f'{model}: лимит ответа превышает возможности модели')
+                payload = gemini_payload(effective, text, prompt)
+                counted = gemini_token_count(root, effective, payload, getattr(log, 'token_counts', None))
+                if counted > min(effective['context_tokens'] - effective['output_tokens'] - 1024,
+                                 metadata.get('inputTokenLimit', 0)):
+                    raise ValueError(f'{model}: точный размер запроса превышает контекст Gemini')
+                log.begin_request('construction', model, len(prompt) + len(text), len(json.dumps(payload).encode()),
+                                  0, effective['output_tokens'])
+                log.update(provider='gemini', input_tokens=counted)
+                journal = RequestJournal(log.journal_dir, BASE + f'/models/{model}:generateContent',
+                                         {'model': model, **payload}, log.snapshot(), 'construction')
+                log.update(request_log=str(journal.folder), task=stage)
+            label = 'попытка ' + str(attempt)
+            update_status(log, request_state='ожидание ответа' if attempt == 1 else f'ожидание ответа ({label})')
+            log(f'Google: отправляем текст и ожидаем ответ модели ({label})')
+            try:
+                check_stop()
+                data = call('POST', BASE + f'/models/{model}:generateContent', settings['api_key'],
+                            json=payload, log=log, journal=journal, retry_503=not runtime)
+                break
+            except GeminiServiceError as exc:
+                if not runtime or exc.http_status != 503:
+                    raise
+                check_retry(attempt)
+                delay = retry_delay(attempt)
+                journal.retry(attempt + 1, code=503)
+                log.update(request_state=f'Gemini HTTP 503: попытка {attempt + 1} через {delay} сек')
+                log(f'Gemini временно недоступна (HTTP 503); попытка {attempt + 1} через {delay} сек')
+                for _ in range(delay):
+                    time.sleep(1)
+                    check_retry(attempt)
+                attempt += 1
         candidate = (data.get('candidates') or [{}])[0]
         answer = ''.join(part.get('text', '') for part in candidate.get('content', {}).get('parts', [])
                          if not part.get('thought'))
@@ -483,7 +530,8 @@ def generate(root, config, text, log, stage='Конспект'):
         journal.finish('complete')
         return answer
     except BaseException as exc:
-        journal.finish('error', str(exc), code=getattr(exc, 'http_status', None))
+        if journal is not None:
+            journal.finish('error', str(exc), code=getattr(exc, 'http_status', None))
         update_status(log, request_started=None, request_state='ошибка Gemini')
         raise
 
@@ -585,7 +633,7 @@ def save_notes_result(folder, answer, sources, result, notes, chapters, article=
     record('result_saved', folder=folder, result_kind='article' if article else 'notes', status='done')
 
 
-def run(root, folder, value, ask=generate):
+def run(root, folder, value, ask=generate, *, job_folder=None):
     manual = read_json(folder / 'construction-manual.json', {})
     config = configured(root, value) if ask is generate and not manual else validate(value)
     article = config['result_kind'] == 'article'
@@ -655,6 +703,11 @@ def run(root, folder, value, ask=generate):
     log('Расшифровка помещается целиком: один запрос генерации' if summary['strategy'] == 'whole' else f'Расшифровка превышает контекст: частей {len(blocks)}')
     write_json(folder / 'construction-plan.json', summary)
     log.update(stage='[4/5] ' + ('Статья по лекции' if article else 'Русский конспект'), model=config['model'], provider=config['provider'])
+    if job_folder and config['provider'] == 'gemini' and ask is generate:
+        active_job = read_json(job_folder / 'job.json', {})
+        if active_job.get('started') and active_job.get('folder') == folder.name:
+            log.gemini_run = (job_folder, active_job['started'])
+            log.update(gemini_run={'id': active_job['id'], 'started': active_job['started']})
     outputs = []
     memory = ''
     memory_limit = min(2048, max(128, budget(config, count) // 4)) if summary['consolidation'] else 0
@@ -684,6 +737,7 @@ def run(root, folder, value, ask=generate):
         update_status(log, completed=index, request_started=None, request_state='часть сохранена')
         log(f'{label}: сохранено частей {index} из {len(blocks)}')
     answer = outputs[0] if summary['strategy'] == 'whole' else consolidate(root, config, outputs, log, ask)
+    log.update(gemini_run=None)
     (folder / 'construction-result.md').write_text(answer, encoding='utf-8')
     sources = [Source(id=row.get('id', f's{index}'), start=row['start'], end=row['end'], text=row['text'])
                for index, row in enumerate(result['segments'], 1)] + [Source.model_validate(frame) for frame in frames]
@@ -703,7 +757,7 @@ if __name__ == '__main__':
     parser.add_argument('settings', type=Path)
     args = parser.parse_args()
     try:
-        run(args.root.resolve(), args.folder.resolve(), read_json(args.settings))
+        run(args.root.resolve(), args.folder.resolve(), read_json(args.settings), job_folder=args.settings.resolve().parent)
     except (ValueError, OSError, requests.RequestException, RuntimeError) as exc:
         record('generation_failed', folder=args.folder, stage='notes', status='error', reason=type(exc).__name__)
         write_json(args.folder / 'construction-error.json', {'error': str(exc)})

@@ -547,12 +547,28 @@ def make_handler(value, instance, updates=None):
                     return self.json_response(202, job)
                 except (OSError, RuntimeError, ValueError, TypeError) as exc:
                     return self.json_response(400, {'error': str(exc)})
-            if path in {'/api/native/start-npu', '/api/native/stop', '/api/native/cancel'}:
+            if path in {'/api/native/start-npu', '/api/native/stop', '/api/native/cancel', '/api/native/gemini-run'}:
                 if self.headers.get('Origin') and urlsplit(self.headers['Origin']).netloc != self.headers.get('Host'):
+                    self.close_connection = True
                     return self.json_response(403, {'error': 'Запрос должен исходить из приложения'})
                 if self.headers.get('X-App-Instance') != instance:
+                    self.close_connection = True
                     return self.json_response(403, {'error': 'Откройте приложение заново'})
                 try:
+                    if path == '/api/native/gemini-run':
+                        from video_descriptor.editor import EditConflict
+                        from video_descriptor.gemini_run import save
+                        length = int(self.headers.get('Content-Length', '0'))
+                        if self.headers.get_content_type() != 'application/json' or not 0 < length <= 4096:
+                            self.close_connection = True
+                            raise ValueError('Ожидаются параметры запуска Gemini')
+                        body = json.loads(self.rfile.read(length))
+                        if not isinstance(body, dict):
+                            raise ValueError('Ожидаются параметры запуска Gemini')
+                        try:
+                            return self.json_response(200, save(Path(value['workspace']), body))
+                        except EditConflict as exc:
+                            return self.json_response(409, {'error': str(exc)})
                     if path == '/api/native/cancel':
                         from video_descriptor.jobs import request_stop
                         job_id = parse_qs(urlsplit(self.path).query).get('id', [''])[0]

@@ -308,7 +308,9 @@ def snapshot(root, folder):
         previous_folder = root / 'output' / previous
         if (previous_folder / 'report.html').is_file() and (previous_folder / 'notes.json').is_file():
             previous_report_url = '/output/' + quote(previous) + '/report.html'
+    from .gemini_run import active as active_gemini
     return {"folder": folder.name, "filename": Path(manifest["video"]).name,
+             "gemini_run": active_gemini(root, folder, state) if state.get('gemini_run') else None,
             "display_title": lecture_info(folder)["display"],
             "title": lecture_info(folder)["title"], "source_video": source_video,
             "previous_report_url": previous_report_url, "report_variants": report_variants,

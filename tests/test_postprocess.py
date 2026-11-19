@@ -186,6 +186,23 @@ def test_native_cloud_choice_requires_confirmation_without_contacting_ollama(rec
             assert 'test-private' not in response.text
             assert not response.json()['translate_after']
             start.assert_called_once()
+            queued = response.json()
+            identifier = queued['id']
+            marker = {'id': identifier, 'started': 123.0}
+            folder = root / 'output' / queued['folder']
+            target = root / 'output/jobs' / identifier
+            job = jobs.read_json(target / 'job.json', {})
+            jobs.write_json(target / 'job.json', {**job, **marker, 'status': 'running'})
+            jobs.write_json(folder / 'progress.json', {'gemini_run': marker, 'stage': '[4/5] Русский конспект'})
+            base = url.rsplit('/', 1)[0]
+            payload = {**marker, 'folder': folder.name, 'repeat': True, 'model': 'gemini-next'}
+            assert requests.post(base + '/gemini-run', json=payload, timeout=5).status_code == 403
+            assert requests.post(base + '/gemini-run', json={**payload, 'started': 1}, headers=headers, timeout=5).status_code == 409
+            updated = requests.post(base + '/gemini-run', json=payload, headers=headers, timeout=5)
+            assert updated.status_code == 200, updated.text
+            from video_descriptor.live import snapshot
+            assert snapshot(root, folder)['gemini_run'] == updated.json()
+            assert jobs.read_json(target / 'job.json')['construction']['model'] == 'gemini-selected'
         finally:
             server.shutdown()
             thread.join()
