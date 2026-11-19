@@ -95,6 +95,8 @@ def main():
     original = baseline['inventory']
     previous_ids = set(original['windows-app/ui/index.html']['ids'])
     retired = set(json.loads((ROOT / 'design-system/migrations/external-ollama.json').read_text(encoding='utf-8'))['removed_ids'])
+    gemini_retired = set(json.loads((ROOT / 'design-system/migrations/gemini-consent.json').read_text(encoding='utf-8'))['removed_ids'])
+    retired.update(gemini_retired)
     failures.extend('Original desktop id removed: ' + name for name in sorted(previous_ids - set(ids) - retired - dynamic_ids))
     previous_apis = set(original['windows-app/ui/app.js']['api_literals'])
     current_apis = set(re.findall(r"['\"](/api/[^'\"\s]*)['\"]", js)) | relocated_apis
@@ -115,8 +117,9 @@ def main():
         previous = original.get(name, {})
         if name.endswith('.html'):
             current_ids = re.findall(r'\bid="([^"]+)"', current)
+            removed_ids = gemini_retired if name == 'video_descriptor/assets/create.html' else set()
             failures.extend(name + ': original id removed: ' + item
-                            for item in set(previous.get('ids', [])) - set(current_ids))
+                            for item in set(previous.get('ids', [])) - set(current_ids) - removed_ids)
             if len(current_ids) != len(set(current_ids)):
                 failures.append(name + ': duplicate ids')
         else:

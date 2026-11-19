@@ -41,10 +41,14 @@ def load(root=None):
     root = Path(root or Path.cwd())
     path = root / ".devcontainer" / "translation-settings.json"
     value = {"provider": "ollama", "ollama_model": "", "model": "gemini-3.5-flash-lite",
-             "billing_mode": "paid", "free_ack": False, "api_key": "",
+             "gemini_consent": False, "api_key": "",
              "lmstudio_url": "http://127.0.0.1:1234/v1", "lmstudio_model": "", "lmstudio_api_key": ""}
     if path.exists():
-        value.update(json.loads(path.read_text(encoding='utf-8')))
+        stored = json.loads(path.read_text(encoding='utf-8'))
+        legacy_free = stored.pop('billing_mode', None) == 'free'
+        legacy_ack = stored.pop('free_ack', None) is True
+        stored.setdefault('gemini_consent', legacy_free and legacy_ack)
+        value.update(stored)
         if value.get('lmstudio_api_key_dpapi'):
             if os.name != 'nt':
                 raise ValueError('Токен LM Studio защищён учётной записью Windows')
@@ -68,11 +72,19 @@ def load(root=None):
 
 
 def public(value):
-    return {**{key: value[key] for key in ("provider", "model", "ollama_model", "billing_mode", "free_ack")},
+    return {**{key: value[key] for key in ("provider", "model", "ollama_model")},
+            "gemini_consent": value.get("gemini_consent") is True,
             "has_key": bool(value["api_key"]),
             "lmstudio_url": value.get("lmstudio_url", "http://127.0.0.1:1234/v1"),
             "lmstudio_model": value.get("lmstudio_model", ""),
             "lmstudio_has_key": bool(value.get("lmstudio_api_key"))}
+
+
+def require_gemini_consent(settings):
+    if not settings.get('api_key', '').strip():
+        raise ValueError('Сохраните API-ключ Gemini в настройках')
+    if settings.get('gemini_consent') is not True:
+        raise ValueError('В настройках Gemini подтвердите отправку данных в Google и сохраните настройки')
 
 
 def save(root, changes):
@@ -82,7 +94,7 @@ def save(root, changes):
 
 def _save(root, changes):
     value = load(root)
-    for name in ("provider", "model", "ollama_model", "billing_mode", "free_ack", "api_key", "lmstudio_url", "lmstudio_model", "lmstudio_api_key"):
+    for name in ("provider", "model", "ollama_model", "gemini_consent", "api_key", "lmstudio_url", "lmstudio_model", "lmstudio_api_key"):
         if name in changes and not (name in {"api_key", "lmstudio_api_key"} and changes[name] == ""):
             value[name] = changes[name]
     if value["provider"] not in {"ollama", "gemini", "lmstudio"}:
@@ -92,8 +104,8 @@ def _save(root, changes):
         raise ValueError("Выберите Gemini-модель из списка")
     if not isinstance(value['ollama_model'], str) or (value['ollama_model'] and not re.fullmatch(r'[A-Za-z0-9._:/-]{1,150}', value['ollama_model'])):
         raise ValueError('Укажите название локальной модели перевода')
-    if value["billing_mode"] not in {"paid", "free"} or type(value["free_ack"]) is not bool:
-        raise ValueError("Некорректный режим оплаты")
+    if type(value["gemini_consent"]) is not bool:
+        raise ValueError("Некорректное согласие на отправку данных в Gemini")
     if not isinstance(value["api_key"], str) or len(value["api_key"]) > 512:
         raise ValueError("Некорректный API-ключ")
     from .lmstudio import base_url
@@ -102,11 +114,8 @@ def _save(root, changes):
         raise ValueError('Укажите идентификатор модели LM Studio')
     if not isinstance(value['lmstudio_api_key'], str) or len(value['lmstudio_api_key']) > 512 or any(c in value['lmstudio_api_key'] for c in '\r\n'):
         raise ValueError('Некорректный API-токен LM Studio')
-    if value["provider"] == "gemini":
-        if not value["api_key"].strip():
-            raise ValueError("Добавьте API-ключ Gemini")
-        if value["billing_mode"] == "free" and not value["free_ack"]:
-            raise ValueError("Подтвердите условия использования бесплатного проекта")
+    if value["provider"] == "gemini" and not value["api_key"].strip():
+        raise ValueError("Добавьте API-ключ Gemini")
     path = Path(root) / ".devcontainer" / "translation-settings.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")

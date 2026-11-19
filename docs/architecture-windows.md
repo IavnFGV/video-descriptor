@@ -666,7 +666,9 @@ allowlist сборки, поэтому доступны и после устан
 в `config.local.json` и workspace `.devcontainer`; notes selection в `notes-settings.json`.
 Завершение мастера — `runtime/setup-state.json`. Installer сохраняет runtime и настройки.
 Сохранение Gemini через существующий translation_settings на Windows шифрует ключ DPAPI;
-public API возвращает только `has_key`. Модели не входят в installer. Подробности и
+public API сообщает о ключе только через `has_key` и возвращает `gemini_consent`,
+независимое от тарифа. Согласие проверяется перед отправкой данных записи,
+но не требуется для списка моделей. Модели не входят в installer. Подробности и
 границы проверок: [мастер](ai-setup-windows.md).
 
 

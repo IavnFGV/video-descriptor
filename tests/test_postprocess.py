@@ -131,7 +131,7 @@ def test_notes_and_translation_use_separately_selected_models(recording):
 def test_selected_cloud_model_is_pinned_and_optional_translation_uses_google(recording, monkeypatch):
     from video_descriptor import construction
     root, _ = recording
-    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'billing_mode': 'paid'})
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'gemini_consent': True})
     config = {'provider': 'gemini', 'model': 'gemini-chosen', 'context_tokens': 16384, 'output_tokens': 2048}
     job = postprocess.enqueue(root, 'source', 'notes', 'gemini-chosen', 'http://127.0.0.1:11434', construction=config)
     assert job['construction']['provider'] == 'gemini'
@@ -166,7 +166,7 @@ def test_native_cloud_choice_requires_confirmation_without_contacting_ollama(rec
     monkeypatch.setattr(setup_service.SetupService, 'bootstrap', lambda self: None)
     monkeypatch.setattr(setup_service, 'ollama_status', Mock(side_effect=AssertionError('Ollama must not be contacted')))
     monkeypatch.setattr(setup_service, 'validate_ollama_model', Mock(side_effect=AssertionError('No local model validation')))
-    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'test-private', 'billing_mode': 'paid'})
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'test-private', 'gemini_consent': True})
     start = Mock()
     monkeypatch.setattr(jobs, 'start_worker', start)
     value = {'workspace': str(root), 'npu_worker_directory': str(root / 'benchmark'), 'ollama_url': 'http://127.0.0.1:11434'}

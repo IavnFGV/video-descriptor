@@ -236,7 +236,7 @@
 </details>
 <details class="card ai-section" id="setup-cloud"><summary>Облачный AI (Gemini)</summary>
 <h2>Gemini · необязательно</h2>
-<p class="footnote">При обработке данные отправляются в облако Google. Возможны расходы и ограничения квоты. Проверка ниже запрашивает только список моделей, без видео и транскрипции. Ключ защищается учётной записью Windows (DPAPI).</p>
+<p class="footnote">Проверка доступа запрашивает только список моделей, без данных записи. Ключ защищается учётной записью Windows (DPAPI).</p>
 <form id="gemini-form">
 <label class="vd-field">API-ключ (пустое поле сохраняет прежний)<input id="gemini-key" type="password" autocomplete="off" maxlength="512" class="vd-input" name="gemini-key">
 </label>
@@ -244,13 +244,9 @@
 </label>
 <datalist id="gemini-models">
 </datalist>
-<label class="vd-field">Оплата<select id="gemini-billing" class="vd-select" name="gemini-billing">
-<option value="paid">Платный проект · расходы по тарифу Google</option>
-<option value="free">Бесплатный проект · ограничения и условия Google</option>
-</select>
-</label>
+<p class="footnote" id="gemini-terms">Тариф и квоты определяет проект API-ключа в Google AI Studio. При бесплатном использовании Google может использовать запросы и ответы для улучшения продуктов; не отправляйте личные или конфиденциальные данные. При платном использовании Google не использует запросы и ответы для улучшения продуктов, но возможны списания.</p>
 <label class="check-label">
-<input id="gemini-ack" type="checkbox" name="gemini-ack" class="vd-check"> При бесплатном проекте принимаю условия обработки данных Google</label>
+<input id="gemini-ack" type="checkbox" name="gemini-ack" class="vd-check" aria-describedby="gemini-terms"> Разрешаю отправлять данные в Google при обработке через Gemini</label>
 <div class="setup-actions">
 <button type="submit" class="vd-button">Сохранить Gemini</button>
 <button id="gemini-check" type="button" class="vd-button">Проверить доступ / получить модели</button>

@@ -39,7 +39,7 @@ def test_large_google_context_uses_exact_count_and_one_generation(tmp_path, monk
     jobs.write_json(folder / 'speech.json', {'status': 'done', 'segments': rows, 'translations': {}})
     jobs.write_json(folder / 'manifest.json', {'video': str(tmp_path / 'video.mp4')})
     monkeypatch.setattr(construction, 'render', lambda *a, **kw: None)
-    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'billing_mode': 'paid'})
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'gemini_consent': True})
     calls = []
     answer = '## Оглавление\n### [00:00:00] Topic\n\n## Конспект\n### [00:00:00] Topic\nSummary.\n'
 
@@ -73,7 +73,7 @@ def test_manual_context_is_preserved_and_oversize_google_text_splits(tmp_path, m
     folder.mkdir(parents=True)
     jobs.write_json(folder / 'speech.json', {'status': 'done', 'segments': [
         {'id': 's1', 'start': 0, 'end': 600, 'text': 'Some text. ' * 4000, 'speaker': 'unknown'}]})
-    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'billing_mode': 'paid'})
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'gemini_consent': True})
     monkeypatch.setattr(gemini, 'call', lambda method, *a, **kw: {'inputTokenLimit': 1000000, 'outputTokenLimit': 4096} if method == 'GET' else {'totalTokens': 30000})
     config = construction.actual_limits(tmp_path, construction.validate({'provider': 'gemini', 'model': 'gemini-test',
                                                                         'context_tokens': 16384, 'output_tokens': 2048}))

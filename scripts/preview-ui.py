@@ -85,7 +85,7 @@ class Preview(BaseHTTPRequestHandler):
                                'inventory': {'openvino': 'preview', 'genai': 'preview', 'devices': ['NPU', 'GPU', 'CPU']},
                                'translation': {'state': 'unconfigured'}, 'notes': {'state': 'unconfigured', 'selected': ''},
                                'ocr': {'message': 'Не настроен'}, 'diarization': {'message': 'Не подготовлена'},
-                               'gemini': {'model': 'preview-model', 'billing_mode': 'paid', 'free_ack': False, 'has_key': False}})
+                               'gemini': {'model': 'preview-model', 'gemini_consent': False, 'has_key': False}})
         if path == '/api/native/events':
             return self.reply([])
         if path == '/api/jobs':

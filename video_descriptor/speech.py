@@ -18,7 +18,7 @@ from .atomic_file import RESULT_ATTEMPTS
 from .jobs import jobs_dir, read_json, video_url, write_json
 from .media import extract_audio, probe
 from .speech_recovery import pending_unresolved
-from .translation_settings import load
+from .translation_settings import load, require_gemini_consent
 
 ENGINES = {'gemini', 'gemini-diarization-xpu', 'whisper', 'whisper-diarization',
            'whisper-diarization-xpu', 'whisper-npu', 'whisper-npu-diarization-xpu', 'whisper-local'}
@@ -217,11 +217,7 @@ def validate_engine(root, engine):
         from .speech_npu import health
         health()
     if engine.startswith('gemini'):
-        settings = load(root)
-        if not settings['api_key']:
-            raise ValueError('Добавьте ключ Gemini в настройки')
-        if settings['billing_mode'] == 'free' and not settings['free_ack']:
-            raise ValueError('Подтвердите условия Free Tier в настройках')
+        require_gemini_consent(load(root))
 
 
 def enqueue_existing(root, value, engine, title='', mode='audio', thinking=False, construction=None):
@@ -497,7 +493,6 @@ def run(root, job_folder, job):
             pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='diarization-gpu')
             diar_future = pool.submit(gpu_work)
         if job['engine'].startswith('gemini'):
-            key = load(root)['api_key']
             words = []
             for i, start in enumerate(range(0, int(duration) + 1, 900)):
                 if start >= duration:
@@ -507,6 +502,9 @@ def run(root, job_folder, job):
                 response = read_json(part / 'response.json')
                 update(f'Gemini: фрагмент {i + 1}, {start:.0f}–{min(start + 900, duration):.0f} сек', start)
                 if not response:
+                    settings = load(root)
+                    require_gemini_consent(settings)
+                    key = settings['api_key']
                     chunk = part / 'audio.wav'
                     if not chunk.exists():
                         extract_audio(audio, chunk, start, min(900, duration - start))

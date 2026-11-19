@@ -1,0 +1,4 @@
+{
+  "reason": "Remove the project tier selector from both Gemini settings surfaces. The existing checkbox is always visible and saves cloud data consent independent of billing.",
+  "removed_ids": ["gemini-billing"]
+}

@@ -72,7 +72,7 @@ def test_gemini_generation_continues_despite_locked_progress(tmp_path, monkeypat
     original = Path.replace
     monkeypatch.setattr(Path, 'replace', lambda path, target: (_ for _ in ()).throw(PermissionError(13, 'locked')) if Path(target) == log.progress_file else original(path, target))
     monkeypatch.setattr(progress.time, 'sleep', lambda _: None)
-    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'billing_mode': 'paid'})
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'private', 'gemini_consent': True})
     generated = []
 
     def call(method, url, key, **kw):

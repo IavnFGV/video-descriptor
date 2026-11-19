@@ -133,8 +133,9 @@ def test_audio_pipeline_cached_google_response_skips_api(tmp_path, monkeypatch):
         wav.setsampwidth(2)
         wav.setframerate(16000)
         wav.writeframes(b'\0\0' * 16000)
-    monkeypatch.setattr(speech, 'load', lambda root: {'api_key': 'secret', 'billing_mode': 'paid'})
+    monkeypatch.setattr(speech, 'load', lambda root: {'api_key': 'secret', 'gemini_consent': True})
     j = speech.enqueue_existing(tmp_path, str(video), 'gemini')
+    monkeypatch.setattr(speech, 'load', lambda root: {'api_key': 'secret', 'gemini_consent': False})
     folder = tmp_path / 'output' / ('speech-' + j['id'])
     chunk = folder / 'chunk-0001'
     chunk.mkdir(parents=True)
@@ -162,7 +163,7 @@ def test_hybrid_keeps_google_text_and_assigns_global_gpu_speakers(tmp_path, monk
     with wave.open(str(video), 'wb') as wav:
         wav.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
         wav.writeframes(b'\0\0' * 16000)
-    monkeypatch.setattr(speech, 'load', lambda root: {'api_key': 'secret', 'billing_mode': 'paid'})
+    monkeypatch.setattr(speech, 'load', lambda root: {'api_key': 'secret', 'gemini_consent': True})
     j = speech.enqueue_existing(tmp_path, str(video), 'gemini-diarization-xpu')
     calls = []
 

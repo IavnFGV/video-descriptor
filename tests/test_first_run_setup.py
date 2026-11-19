@@ -229,7 +229,7 @@ def test_ollama_selection_uses_existing_translation_settings_and_preserves_secre
 
     _, _, manager, _ = configured
     root = manager.value['workspace']
-    translation_settings.save(root, {'api_key': 'keep-private', 'billing_mode': 'free'})
+    translation_settings.save(root, {'api_key': 'keep-private', 'gemini_consent': True})
 
     def request(value, endpoint, body=None):
         return {'version': 'test'} if endpoint == '/api/version' else {'models': [{'name': 'language:9b'}]} if endpoint == '/api/tags' else {'capabilities': ['completion']}
@@ -238,7 +238,7 @@ def test_ollama_selection_uses_existing_translation_settings_and_preserves_secre
     result = setup_api.select_ollama(manager.value, 'language:9b')
     saved = translation_settings.load(root)
     assert saved['provider'] == 'ollama' and saved['ollama_model'] == 'language:9b'
-    assert saved['api_key'] == 'keep-private' and saved['billing_mode'] == 'free'
+    assert saved['api_key'] == 'keep-private' and saved['gemini_consent'] is True
     assert 'api_key' not in result
     assert setup_api.ollama_status(manager.value)['ready']
 

@@ -24,6 +24,7 @@ from .request_log import RequestJournal
 from .speech import editable_result, subtitle_result
 from .subtitles import plain_transcript
 from .translation_settings import load as credentials
+from .translation_settings import require_gemini_consent
 
 COMMON = """Составь на русском конспект и хронологическое оглавление записи.
 Материал дан обычным текстом: [ЧЧ:ММ:СС] Имя: реплика. Текст слайдов, если он есть,
@@ -281,11 +282,7 @@ def plan(folder, value, *, root=None, token_counts=None, count=input_bound):
 def validate_provider(root, config):
     if config['provider'] != 'gemini':
         return
-    settings = credentials(root)
-    if not settings['api_key']:
-        raise ValueError('Сохраните API-ключ Gemini в настройках')
-    if settings['billing_mode'] == 'free' and not settings['free_ack']:
-        raise ValueError('Подтвердите условия бесплатного проекта Gemini в настройках')
+    require_gemini_consent(credentials(root))
 
 
 def configured(root, value):
@@ -422,7 +419,9 @@ def gemini_token_count(root, config, payload, cache=None):
     key = hashlib.sha256(json.dumps([model, payload], sort_keys=True).encode()).hexdigest()
     if cache is not None and key in cache:
         return cache[key]
-    counted = call('POST', BASE + f'/models/{model}:countTokens', credentials(root)['api_key'],
+    settings = credentials(root)
+    require_gemini_consent(settings)
+    counted = call('POST', BASE + f'/models/{model}:countTokens', settings['api_key'],
                    json={'generateContentRequest': {'model': 'models/' + model, **payload}})
     total = counted['totalTokens']
     if type(total) is not int or total < 0:
@@ -449,6 +448,7 @@ def generate(root, config, text, log, stage='Конспект'):
                        output_tokens=config['output_tokens'], task='construction')
     from .gemini import BASE, call
     settings = credentials(root)
+    require_gemini_consent(settings)
     model = config['model']
     metadata = call('GET', BASE + f'/models/{model}', settings['api_key'])
     if config['output_tokens'] > metadata.get('outputTokenLimit', 0):

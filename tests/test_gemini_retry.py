@@ -23,7 +23,7 @@ def test_construction_retries_only_generation_and_reports_attempts(tmp_path, mon
     log = ProgressLog(lambda _: None, 'recording', folder / 'requests')
     log.progress_file = folder / 'progress.json'
     log.update(stage='[4/5] Русский конспект')
-    monkeypatch.setattr(construction, 'credentials', lambda _: {'api_key': 'test-api-key'})
+    monkeypatch.setattr(construction, 'credentials', lambda _: {'api_key': 'test-api-key', 'gemini_consent': True})
     replies = iter(codes)
     calls, payloads, waits = [], [], []
 

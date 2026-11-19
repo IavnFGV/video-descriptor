@@ -91,7 +91,7 @@ def test_google_article_uses_one_generation_and_accepts_headings_without_timecod
     folder.mkdir()
     for name in ('manifest.json', 'speech.json', 'transcript-edits.json'):
         (folder / name).write_bytes((source / name).read_bytes())
-    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'fixture', 'billing_mode': 'paid'})
+    monkeypatch.setattr(construction, 'credentials', lambda root: {'api_key': 'fixture', 'gemini_consent': True})
     calls = []
 
     def call(method, url, key, **kwargs):

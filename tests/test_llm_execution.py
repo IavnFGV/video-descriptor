@@ -299,7 +299,7 @@ def test_existing_gemini_transport_preserves_shared_task_schema_and_parameters(r
     monkeypatch.setattr(gemini, 'call', lambda *args, **kwargs: captured.append(kwargs['json']) or {
         'candidates': [{'content': {'parts': [{'text': '{"keep":[]}'}]}, 'finishReason': 'STOP'}]})
     value = llm_provider.snapshot(root, settings={'provider': 'gemini', 'model': 'gemini-test'})
-    settings = llm_provider.runtime(value, {'api_key': 'private-secret'})
+    settings = llm_provider.runtime(value, {'api_key': 'private-secret', 'gemini_consent': True})
     schema = {'type': 'object', 'properties': {'keep': {'type': 'array', 'items': {'type': 'integer'}}}}
     assert llm_provider.generate(settings, 'EXACT FILTER PROMPT', 'material', output_tokens=1234,
                                  task='filter', schema=schema, images=['base64-image']) == '{"keep":[]}'

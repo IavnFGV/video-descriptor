@@ -8,6 +8,7 @@ import requests
 
 from .progress import ProgressLog, update_status
 from .request_log import RequestJournal
+from .translation_settings import require_gemini_consent
 
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 RATES = {"gemini-3.5-flash-lite": (.30, 2.50), "gemini-3.1-flash-lite": (.25, 1.50),
@@ -82,6 +83,7 @@ def models(key):
 
 
 def translate(prompt, text, settings, log=None, *, output_tokens=4096, task='translate', schema=None, images=None, effective_prompt=False):
+    require_gemini_consent(settings)
     from .prompt_settings import effective
     if not effective_prompt:
         prompt = effective(task, prompt, log)

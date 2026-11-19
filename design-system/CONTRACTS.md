@@ -275,7 +275,7 @@ Baseline `9ffa842`. `baseline.json` содержит SHA256 исходников
 | download-model | :163 → POST `/api/setup/download` `{confirmed:checkbox}` | источник/revision/bytes + явное согласие; без silent download |
 | probe-model / probe-custom | :164–:175 → POST `/api/setup/probe` | builtin JSON или raw WAV `audio/wav`; custom до 500000 bytes; формат/длительность проверяет backend |
 | ollama-refresh / ollama-form | :40–:45, :147–:148 → GET/POST `/api/setup/ollama` `{model,task}` | только установленная модель; translation и notes назначения; не обещать проверенную генерацию |
-| gemini-form / gemini-check | :176–:177 → POST `/api/setup/gemini` | save `{api_key,model,billing_mode,free_ack}` или `{check:true}`; пустой ключ сохраняет прежний, введённый очищается |
+| gemini-form / gemini-check | POST `/api/setup/gemini` | save `{api_key,model,gemini_consent}` или `{check:true}`; пустой ключ сохраняет прежний, введённый очищается; check запрашивает список моделей без данных записи |
 | srt/vtt/txt/ru-srt/editor/open-report | :100–:106 | оригинал/ru + format; encoded folder; downloads после job+result done; report redirect сохраняется |
 | динамический time / edit | :109–:110 → `editSpeechReply(result,index,video,onSave)` | index и segment.id не смешивать; onSave перерисовывает сохранённый ответ |
 
@@ -310,7 +310,7 @@ Checkbox меню «Вид» возвращает совместимый реж�
 | Результат | GET `/api/job?id=`, `/api/progress?job|folder`, `/api/request`; construction-ready/started | selected snapshot, previous_report_url во время нового notes, video sync/follow, translation blocks |
 | Правка speech-edit.js | POST `/api/speech-edit` `{folder,revision,index,action,text,speaker,translation}` + `start,end` при edit; `at,right_text,right_speaker,right_translation` при split | optimistic concurrency; граница внутри интервала; переводы переносятся вручную; ошибки оставляют dialog открытым |
 | Имена / повтор речи | POST `/api/speech-names` `{folder,speaker_names}`; `/api/speech-run` `{video,title,engine,mode:audio,speech_only:true}` | старые результаты сохраняются, speaker ids стабильны |
-| Перевод / подключения | GET/POST `/api/translation-settings`; GET `/api/gemini-models` | ключ не возвращается клиенту; free_ack/billing; изменения следующих блоков не переписывают готовые |
+| Перевод / подключения | GET/POST `/api/translation-settings`; GET `/api/gemini-models` | ключ не возвращается клиенту; `gemini_consent` — одна галочка для обоих тарифов; изменения следующих блоков не переписывают готовые |
 | Construction | GET/POST `/api/construction-settings`; GET `/api/construction-models?provider=`; POST `/api/construction-plan`, `/api/notes-run` `{folder,settings}` | input/material/provider/model/strategy/grouping/context_tokens/output_tokens/chunk_seconds/max_chunk_seconds/max_chunk_chars/prompt; numeric типы; plan version stale guard; construction-settings-snapshot |
 | Вспомогательные параметры | GET/POST `/api/prompts` `{task,text}`; POST `/api/thinking?folder=` | промпты и thinking применяются к следующим запросам, не текущему |
 | Удаление | POST `/api/delete-version`, `/api/delete-notes` | подтверждение, busy запрет, исходный файл и другие версии сохраняются |

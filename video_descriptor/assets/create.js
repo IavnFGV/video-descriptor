@@ -190,9 +190,7 @@
       $('lmstudio-url').value=value.lmstudio_url; $('lmstudio-model').value=value.lmstudio_model;
       $('lmstudio-key').placeholder=value.lmstudio_has_key?'Токен сохранён':'Необязательный токен';
       updateTranslationProvider();
-      $('gemini-billing').value = value.billing_mode;
-      $('gemini-free-ack').checked = value.free_ack;
-      $('gemini-free-label').hidden = value.billing_mode !== 'free';
+      $('gemini-free-ack').checked = value.gemini_consent === true;
       $('gemini-key-state').textContent = value.has_key ? 'Ключ сохранён. Чтобы заменить, вставьте новый.' : 'Ключ ещё не сохранён.';
       if (!Array.from($('gemini-model').options).some(option => option.value === value.model)) {
         const option = document.createElement('option'); option.value = value.model; option.textContent = value.model; $('gemini-model').append(option);
@@ -201,7 +199,6 @@
       window.studioDraft.restore($('translation-settings-form'));updateTranslationProvider();
     } catch (error) { $('translation-settings-status').textContent = error.message; }
   }
-  $('gemini-billing').addEventListener('change', () => { $('gemini-free-label').hidden = $('gemini-billing').value !== 'free'; });
   function updateTranslationProvider() {
     const local = $('translation-provider').value !== 'gemini';
     $('translation-local-label').hidden = $('translation-provider').value !== 'ollama';
@@ -214,7 +211,7 @@
     if(!connection&&$('translation-provider').value==='ollama'&&!$('translation-local-model').value){$('translation-settings-status').textContent='Выберите установленную модель.';return;}
     const changes = connection ? {
       lmstudio_url:$('lmstudio-url').value,lmstudio_model:$('lmstudio-model').value,lmstudio_api_key:$('lmstudio-key').value,
-      api_key: $('gemini-key').value, billing_mode: $('gemini-billing').value, free_ack: $('gemini-free-ack').checked
+       api_key: $('gemini-key').value, gemini_consent: $('gemini-free-ack').checked
     } : {provider: $('translation-provider').value, model: $('gemini-model').value, ollama_model: $('translation-local-model').value};
     const status = $(connection ? 'connections-status' : 'translation-settings-status');
     try {

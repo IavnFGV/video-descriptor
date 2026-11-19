@@ -103,6 +103,9 @@ def check_model(settings):
         from .lmstudio import models
         if value['model'] not in {row['id'] for row in models(settings)}:
             raise ValueError('LM Studio: выбранная модель отсутствует на сервере; обновите список моделей')
+    elif value['provider'] == 'gemini':
+        from .translation_settings import require_gemini_consent
+        require_gemini_consent(settings)
 
 
 def generate(settings, prompt, text, log=None, *, context=16384, output_tokens=4096,

@@ -14,7 +14,7 @@ Windows launcher, текущие release workflows и инструкции ми�
 | Диаризация | Torch + pyannote, HF token/условия моделей; необязательное отдельное venv |
 | Intel GPU диаризация | отдельный Torch XPU/runtime и проверенное оборудование; отсутствуют в стандартном образе |
 | Локальные конспекты/перевод | Ollama и установленная completion-модель на хосте, HTTP 11434 |
-| Gemini речь/перевод/конструктор | HTTPS API, ключ, настройки оплаты/Free Tier; Ollama для выбранных Gemini стадий не нужна |
+| Gemini речь/перевод/конструктор | HTTPS API, ключ и [согласие на отправку данных](translation-providers.md#сохранённые-провайдеры); Ollama для выбранных Gemini стадий не нужна |
 
 Основной CLI использует Whisper через whisper_http.py для исторического lecture-пути.
 CPU speech в web UI — отдельная ветка faster-whisper. Нельзя считать все режимы CLI
