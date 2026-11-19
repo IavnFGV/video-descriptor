@@ -78,7 +78,8 @@ def append_event(target, event):
 def describe(event):
     labels = {'llm_request': 'Обращение к языковой модели', 'llm_verification': 'Проверка генерации', 'operation_started': 'Операция начата', 'operation_finished': 'Операция выполнена',
               'operation_failed': 'Ошибка операции', 'model_request_started': 'Запрос к модели отправлен',
-              'model_request_finished': 'Запрос к модели завершён', 'progress': 'Ход обработки',
+              'model_request_finished': 'Запрос к модели завершён', 'model_request_retry': 'Повтор запроса к модели',
+              'progress': 'Ход обработки',
               'generation_started': 'Генерация начата', 'answer_validation': 'Проверка ответа модели',
               'result_saving': 'Сохранение результата', 'result_saved': 'Результат сохранён',
               'notes_saved': 'Правки конспекта сохранены', 'recovery_saved': 'Исправленный ответ сохранён',
@@ -106,4 +107,6 @@ def describe(event):
         values.append('получено ' + str(event['received']) + ' симв.')
     if event.get('code') is not None:
         values.append('HTTP ' + str(event['code']))
+    if event['action'] == 'model_request_retry' and event.get('attempt') is not None:
+        values.append('попытка ' + str(event['attempt']))
     return ' · '.join(values)

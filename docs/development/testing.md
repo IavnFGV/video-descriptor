@@ -38,7 +38,7 @@ are unaffected. Platform-dependent skips remain in effect.
 | Device/setup | `test_device_policy.py`, `test_diarization_setup.py`, `test_component_manager.py` |
 | Editors and variants | `test_speech.py`, `test_speech_undo.py`, `test_editor.py`, `test_recording.py`, `test_versions.py` |
 | Queue and locks | `test_jobs_live.py`, `test_job_stop.py`, `test_progress_locking.py` |
-| Recovery/model responses | `test_construction_recovery.py`, `test_translation_settings.py`, `test_lmstudio.py`, `test_model_behavior.py` |
+| Recovery/model responses | `test_construction_recovery.py`, `test_gemini_retry.py`, `test_translation_settings.py`, `test_lmstudio.py`, `test_model_behavior.py` |
 | Audit | `test_action_journal.py`, `test_request_journal.py` |
 | Windows and source preview | `test_windows_runtime.py`, `test_run_dev.py`, `test_desktop.py` |
 | Packaging/public gates | `test_windows_release.py`, `test_release_packaging.py`, `test_public_release_policy.py`, `test_local_build.py` |

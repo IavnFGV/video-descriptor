@@ -1,6 +1,7 @@
 """Gemini text translation with secret-free request journals and live progress."""
 
 import json
+import random
 import time
 
 import requests
@@ -11,22 +12,53 @@ from .request_log import RequestJournal
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 RATES = {"gemini-3.5-flash-lite": (.30, 2.50), "gemini-3.1-flash-lite": (.25, 1.50),
          "gemini-3.8-flash": (.75, 3.75)}
+RETRY_DELAYS = (15, 30)
 
 
 class GeminiServiceError(requests.RequestException):
     """Service errors should stop a run rather than recursively split every block."""
 
+    def __init__(self, message, *, http_status=None):
+        super().__init__(message)
+        self.http_status = http_status
 
-def call(method, url, key, **kwargs):
-    try:
-        response = requests.request(method, url, headers={"x-goog-api-key": key},
-                                    timeout=(10, 180), **kwargs)
-    except requests.RequestException:
-        raise GeminiServiceError("Gemini: ошибка соединения; готовые блоки сохранены") from None
-    if not response.ok:
-        raise GeminiServiceError(f"Gemini HTTP {response.status_code}: "
-                                 "проверьте доступ, квоту и журнал сервера")
-    return response.json()
+
+def call(method, url, key, *, log=None, journal=None, **kwargs):
+    delays = RETRY_DELAYS if method == "POST" and url.endswith(":generateContent") else ()
+    for attempt in range(1, len(delays) + 2):
+        try:
+            response = requests.request(method, url, headers={"x-goog-api-key": key},
+                                        timeout=(10, 180), **kwargs)
+        except requests.RequestException:
+            raise GeminiServiceError("Gemini: ошибка соединения; готовые блоки сохранены") from None
+        if response.ok:
+            return response.json()
+        code = response.status_code
+        if code == 503 and attempt <= len(delays):
+            delay = delays[attempt - 1] + random.randint(0, 3)
+            label = f"попытка {attempt + 1}/{len(delays) + 1}"
+            if journal:
+                journal.retry(attempt + 1, code=code)
+            if log:
+                update_status(log, request_state=f"Gemini HTTP 503: {label} через {delay} сек")
+                log(f"Gemini временно недоступна (HTTP 503); {label} через {delay} сек")
+            time.sleep(delay)
+            if log:
+                update_status(log, request_state=f"ожидание ответа ({label})")
+                log(f"Gemini: повторно отправляем тот же запрос ({label})")
+            continue
+        if code == 503:
+            message = "сервис временно недоступен"
+            if attempt > 1:
+                message += f" после {attempt - 1} повторов"
+            message += "; попробуйте позже"
+        elif code == 429:
+            message = "достигнут лимит запросов или квота проекта; проверьте лимиты в Google AI Studio"
+        elif code in (401, 403):
+            message = "нет доступа; проверьте API-ключ и права проекта"
+        else:
+            message = "сервис отклонил запрос; проверьте модель и параметры запроса" if code < 500 else "ошибка сервиса"
+        raise GeminiServiceError(f"Gemini HTTP {code}: {message}", http_status=code)
 
 
 def models(key):
@@ -80,7 +112,7 @@ def translate(prompt, text, settings, log=None, *, output_tokens=4096, task='tra
         log(f"Gemini: {task} через {model}; отправляем " + ("текст и выбранные изображения" if images else "только текст"))
     try:
         data = call("POST", BASE + f"/models/{model}:generateContent", settings["api_key"],
-                    json=payload)
+                    json=payload, log=log, journal=journal)
         candidate = (data.get("candidates") or [{}])[0]
         answer = "".join(part.get("text", "") for part in
                          candidate.get("content", {}).get("parts", []) if not part.get("thought"))
@@ -109,6 +141,6 @@ def translate(prompt, text, settings, log=None, *, output_tokens=4096, task='tra
         return answer
     except BaseException as exc:
         if journal:
-            journal.finish("error", str(exc))
+            journal.finish("error", str(exc), code=getattr(exc, "http_status", None))
         update_status(log, request_started=None, request_state="ошибка Gemini")
         raise

@@ -466,7 +466,8 @@ def generate(root, config, text, log, stage='Конспект'):
     update_status(log, request_log=str(journal.folder), task=stage)
     log('Google: отправляем текст и ожидаем ответ модели')
     try:
-        data = call('POST', BASE + f'/models/{model}:generateContent', settings['api_key'], json=payload)
+        data = call('POST', BASE + f'/models/{model}:generateContent', settings['api_key'],
+                    json=payload, log=log, journal=journal)
         candidate = (data.get('candidates') or [{}])[0]
         answer = ''.join(part.get('text', '') for part in candidate.get('content', {}).get('parts', [])
                          if not part.get('thought'))
@@ -482,7 +483,8 @@ def generate(root, config, text, log, stage='Конспект'):
         journal.finish('complete')
         return answer
     except BaseException as exc:
-        journal.finish('error', str(exc))
+        journal.finish('error', str(exc), code=getattr(exc, 'http_status', None))
+        update_status(log, request_started=None, request_state='ошибка Gemini')
         raise
 
 
