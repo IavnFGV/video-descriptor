@@ -9,6 +9,15 @@ import urllib.request
 from pathlib import Path
 
 
+def read_container_json(compose, path):
+    """Read private worker output as the container user, not the host runner UID."""
+    return json.loads(compose(
+        'exec', '-T', 'app', 'python', '-c',
+        "import sys; from pathlib import Path; print(Path(sys.argv[1]).read_text(encoding='utf-8'))",
+        str(path),
+    ))
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix='vd-smoke-') as temporary:
         workspace = Path(temporary)
@@ -47,7 +56,7 @@ def main():
             assert json.loads(get('/health')) == {'status': 'ok'}
             assert b'<html' in get('/create')
             assert json.loads(get('/api/diagnostics'))['ollama']['status'] == 'unavailable'
-            assert json.loads(job.read_text())['status'] == 'error'
+            assert read_container_json(compose, '/workspace/output/jobs/interrupted/job.json')['status'] == 'error'
             # Verify worker stays alive after its former 30-second idle timeout.
             time.sleep(33)
             compose('exec', '-T', 'app', 'python', '-c',
@@ -63,17 +72,17 @@ def main():
                                         'video': '/workspace/data/uploads/input.txt'}))
             task.chmod(0o666)
             deadline = time.monotonic() + 30
-            while json.loads(task.read_text())['status'] != 'error':
+            while read_container_json(compose, '/workspace/output/jobs/invalid/job.json')['status'] != 'error':
                 assert time.monotonic() < deadline, 'Worker did not process queued media'
                 time.sleep(.5)
-            assert 'Распознавание' in json.loads(task.read_text())['error']
+            assert 'Распознавание' in read_container_json(compose, '/workspace/output/jobs/invalid/job.json')['error']
             compose('stop')
             compose('up', '-d', '--no-build', '--force-recreate', '--wait', '--wait-timeout', '90')
             assert get('/output/result.txt') == b'retained result'
             assert (workspace / 'data/uploads/input.txt').read_text() == 'retained input'
             assert json.loads(get('/api/prompts'))['prompts']['translate'] == 'retained prompt'
             assert (workspace / 'cache/marker').read_text() == 'retained cache'
-            assert json.loads(job.read_text())['status'] == 'error'
+            assert read_container_json(compose, '/workspace/output/jobs/interrupted/job.json')['status'] == 'error'
             # Terminate worker: supervisor must fail, and restart policy must restore health.
             compose('exec', '-T', 'app', 'python', '-c',
                     "import os,signal; from pathlib import Path; "

@@ -8,6 +8,9 @@ from video_descriptor.models import Note, Notes
 
 
 def test_audio_builds_notes_and_report_from_recognized_speech(tmp_path, monkeypatch):
+    # Keep the offline fixture independent of saved provider preferences and keys.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
     video = tmp_path / 'meeting.wav'
     video.write_bytes(b'audio')
     folder = tmp_path / 'output' / 'speech-example'
