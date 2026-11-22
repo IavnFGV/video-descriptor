@@ -16,8 +16,8 @@
     "sha256": "ea1480b7a8d5405cb5f382b344731bf125fd2c1c6fae3964f6c48595628387ff"
   },
   {
-    "file": "certifi-2026.7.22-py3-none-any.whl",
-    "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+    "file": "certifi-2026.11.20-py3-none-any.whl",
+    "sha256": "7422df25243767b9877031a2248cb14d09ddac9beee846f4cef3d5c9191d488f"
   },
   {
     "file": "charset_normalizer-3.5.2-cp312-cp312-win_amd64.whl",
@@ -40,8 +40,8 @@
     "sha256": "79a66ad50688c0b794dd501dc340a736992a6342f7f95e5811be60b5224a26a7"
   },
   {
-    "file": "filelock-4.2.0-py3-none-any.whl",
-    "sha256": "2ff5690882e8cdb00ef31fb3d01a3094c29f30985426c59495afb1733f3b7238"
+    "file": "filelock-4.2.12-py3-none-any.whl",
+    "sha256": "21decfec02f116ed4c954433cdb31f28c3b346b784543177b6d7059da2702ee9"
   },
   {
     "file": "flatbuffers-25.12.19-py2.py3-none-any.whl",
